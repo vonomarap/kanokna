@@ -1,10 +1,10 @@
-package com.kanokna.users.userservice;
+package com.kanokna.users.userservice;	
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class UserManagementServiceApplicationTests {
+public class UserServiceApplicationTests {
 
 	@Test
 	void contextLoads() {
