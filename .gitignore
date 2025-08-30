@@ -12,6 +12,9 @@
 
 .cursor
 .vscode
+node_modules
+frontend/windows-store-client/.vscode
+
 
 # Package Files #
 *.jar
