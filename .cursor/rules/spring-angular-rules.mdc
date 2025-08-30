@@ -1,0 +1,64 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Architecture: 
+Microservices for Backend with Clean Architecture
+Microfrontends for Frontend
+
+# Backend: 
+API Gateway: Spring Cloud Gateway
+Service Discovery: Spring Cloud Netflix Eureka
+Configuration Management: Spring Cloud Config
+Authentication/Authorization: Spring Security + JWT + OAuth2
+Data Management: Spring Data JPA for SQL, Spring Data MongoDB for NoSQL
+Messaging: Spring Cloud Stream with Kafka
+Monitoring: Spring Boot Actuator + Micrometer + Prometheus + Grafana
+Tracing: Spring Cloud Sleuth with Zipkin or Jaeger
+Resilience: Spring Cloud Circuit Breaker with Resilience4j
+Logging: ELK Stack (Elasticsearch, Logstash, Kibana)
+API: REST API (Spring Web) и Spring gRPC, Spring Cache, Spring GraphQL, Spring WebSockets
+Cache: Spring Cache Redis
+
+# Frontend: 
+Core Framework: Angular
+Microfrontend Integration: Webpack 5 Module Federation, Single SPA, SystemJS
+State Management: NgRx, Akita
+Routing: Angular Router
+Inter-service Communication: Event Bus, REST APIs, GraphQL
+Authentication: OAuth 2.0, OpenID Connect, JWT
+Styling: Angular Material, NG-ZORRO, Tailwind CSS
+DevOps: Docker, Kubernetes, Jenkins/GitLab CI
+Testing: Jasmine/Karma, Cypress, Jest
+Monitoring: Sentry, LogRocket, Prometheus/Grafana
+
+
+# Detailed skeleton:
+Angular Frontend (calls the Gateway)
+Gateway (Spring Cloud Gateway) with possible OAuth2 token checks, Circuit Breaker
+Eureka (Service Discovery)
+Config Server (centralized config from Git)
+Microservices: each with REST/GraphQL/gRPC/WebSockets as needed
+Kafka (asynchronous events)
+Keycloak (OAuth2) for security
+MySQL for data
+Sleuth + Zipkin for distributed tracing
+Resilience4J for circuit breaker/fault tolerance
+Spring Cloud LoadBalancer for client-side load balancing
+Logging via JSON logs → Logstash/Elasticsearch/Kibana (ELK)
+Monitoring with Spring Boot Admin
+
+
+
+
+
+
+
+
+
+
+
+
+
+

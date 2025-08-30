@@ -5,56 +5,168 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
                         http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-	<modelVersion>4.0.0</modelVersion>
 
-	<parent>
+    <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.2</version>
-        <relativePath/>
+        <version>3.4.2</version> 
+        <relativePath/> 
     </parent>
 
+	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.kanokna</groupId>
 	<artifactId>windows-store-server</artifactId>
 	<version>1.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<name>windows-store-server</name>
-	<description>The project of windows store for company the Kanokna</description>
+	<description>The parent pow for project of window store by company the Kanokna</description>
 	<url>http://www.kanokna.com</url>
+    <inceptionYear>2025</inceptionYear>
+
 
 	<modules>
 		<module>services/product-service</module>
 	</modules>
+
 
 	<licenses>
 		<license>
 			<name>MIT License</name>
 			<url>https://opensource.org/licenses/MIT</url>
 			<distribution>repo</distribution>
+            <comments>The MIT License (MIT)</comments>
 		</license>
 	</licenses>
 
 	<developers>
 		<developer>
-			<id>Fed-Bauer</id>
-			<name>Paramonov Vlad</name>
+			<id>vonomarap</id>
+			<name>Vlad Paramonov</name>
 			<email>CornerDev@protonmail.com</email>
 			<organization>Kanokna</organization>
-			<organizationUrl>https://github.com/Fed-Bauer</organizationUrl>
+			<organizationUrl>https://github.com/vonomarap</organizationUrl>
+            <roles>
+                <role>Developer</role>
+                <role>Architect</role>
+            </roles>
+            <timezone>UTC+3</timezone>
 		</developer>
 	</developers>
 
 	<scm>
-		<connection>https://github.com/Fed-Bauer/windows-store.git</connection>
-		<developerConnection>https://github.com/Fed-Bauer/windows-store.git</developerConnection>
+		<connection>https://github.com/vonomarap/windows-store.git</connection>
+		<developerConnection>https://github.com/vonomarap/windows-store.git</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/Fed-Bauer/windows-store.git</url>
+		<url>https://github.com/vonomarap/windows-store.git</url>
 	</scm> 
 
 	<properties>
-		<maven.compiler.target>21</maven.compiler.target>
-		<maven.compiler.source>21</maven.compiler.source>
+		<java.version>21</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<spring-boot.version>3.4.2</spring-boot.version>
+		<spring-cloud.version>2024.0.0</spring-cloud.version>
+        <mapstruct.version>1.5.5.Final</mapstruct.version>
 	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>${spring-cloud.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+            <!-- API Documentation -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-common</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            
+            <!-- MapStruct -->
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct-processor</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+            
+            <!-- Observability: JSON Logs -->
+            <dependency>
+                <groupId>net.logstash.logback</groupId>
+                <artifactId>logstash-logback-encoder</artifactId>
+                <version>7.4</version>
+            </dependency>
+		</dependencies> 
+	</dependencyManagement>
 	
+	<build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.12.1</version>
+                <configuration>
+                    <parameters>true</parameters>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.2.5</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+            <plugin>
+                <groupId>org.asciidoctor</groupId>
+                <artifactId>asciidoctor-maven-plugin</artifactId>
+                <version>2.2.1</version>
+                <executions>
+                    <execution>
+                        <id>generate-docs</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <configuration>
+                            <enableVerbose>true</enableVerbose>
+                            <backend>html</backend>
+                            <doctype>book</doctype>
+                            <preserveDirectories>true</preserveDirectories>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
