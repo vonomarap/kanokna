@@ -14,6 +14,8 @@
 .vscode
 node_modules
 frontend/windows-store-client/.vscode
+frontend\desktop.ini
+backend/desktop.ini
 
 
 # Package Files #
