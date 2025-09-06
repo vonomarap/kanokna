@@ -25,6 +25,8 @@
 
 
 	<modules>
+        <module>config-server</module>
+        <module>shared/shared-kernel</module>
 		<module>services/product-service</module>
 	</modules>
 
@@ -46,18 +48,19 @@
 			<organization>Kanokna</organization>
 			<organizationUrl>https://github.com/vonomarap</organizationUrl>
             <roles>
-                <role>Developer</role>
                 <role>Architect</role>
+                <role>Backend Developer</role>
+                <role>Frontend Developer</role>
             </roles>
-            <timezone>UTC+3</timezone>
+            <timezone>UTC+1</timezone>
 		</developer>
 	</developers>
 
 	<scm>
-		<connection>https://github.com/vonomarap/windows-store.git</connection>
-		<developerConnection>https://github.com/vonomarap/windows-store.git</developerConnection>
+		<connection>https://github.com/vonomarap/kanokna.git</connection>
+		<developerConnection>https://github.com/vonomarap/kanokna.git</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/vonomarap/windows-store.git</url>
+		<url>https://github.com/vonomarap/kanokna.git</url>
 	</scm> 
 
 	<properties>
