@@ -1,0 +1,82 @@
+<RequirementsAnalysis version="1.0">
+  <Domain id="notification">
+    <Description>
+      Sends transactional notifications (order status, payment, installation, cart reminders) via email/SMS/push,
+      with templating, localization, and delivery tracking.
+    </Description>
+  </Domain>
+
+  <Actors>
+    <Actor id="SYSTEM">
+      <Name>InternalServiceEmitter</Name>
+      <Goals>
+        <Goal id="G-NOTIFY-TRIGGER">Trigger notifications based on events</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="CUSTOMER">
+      <Name>Customer</Name>
+      <Goals>
+        <Goal id="G-NOTIFY-RECEIVE">Receive timely updates on orders/payments/installations</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="ADMIN">
+      <Name>Admin</Name>
+      <Goals>
+        <Goal id="G-NOTIFY-TEMPLATE">Manage templates and localization</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="CHANNEL">
+      <Name>ChannelProvider</Name>
+      <Goals>
+        <Goal id="G-NOTIFY-DELIVER">Deliver messages via email/SMS/push</Goal>
+      </Goals>
+    </Actor>
+  </Actors>
+
+  <UseCases>
+    <UseCase id="UC-NOTIFY-EVENT">
+      <ActorRef ref="SYSTEM"/>
+      <Action>Emits notification based on domain event</Action>
+      <Goal>Send localized message to user</Goal>
+      <Preconditions>Event payload includes recipient/contact/channel prefs</Preconditions>
+      <Postconditions>Notification enqueued; delivery attempted</Postconditions>
+      <MainFlow>Event received -> template resolved -> message rendered -> sent via channel -> status recorded.</MainFlow>
+      <AlternateFlows>Channel failure -> retry/backoff; missing template -> error logged.</AlternateFlows>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#Flow-Event-Driven"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-NOTIFY-TEMPLATE-MANAGE">
+      <ActorRef ref="ADMIN"/>
+      <Action>Creates/updates templates</Action>
+      <Goal>Keep localized templates up to date</Goal>
+      <Preconditions>Admin authorized.</Preconditions>
+      <Postconditions>Template stored with locale/version.</Postconditions>
+      <MainFlow>Admin edits template -> validates placeholders -> saves.</MainFlow>
+      <AlternateFlows>Invalid placeholders -> validation error.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-NOTIFY-PREFS">
+      <ActorRef ref="CUSTOMER"/>
+      <Action>Manages notification preferences</Action>
+      <Goal>Respect channel and locale preferences</Goal>
+      <Preconditions>User authenticated.</Preconditions>
+      <Postconditions>Preferences stored; used in routing.</Postconditions>
+      <MainFlow>User sets preferences -> service saves -> applied to future sends.</MainFlow>
+      <AlternateFlows>Invalid channel -> reject.</AlternateFlows>
+    </UseCase>
+  </UseCases>
+
+  <NonFunctionalRequirements>
+    <Requirement id="NFR-PERF">P95 event-to-enqueue <=100ms; delivery tracked asynchronously.</Requirement>
+    <Requirement id="NFR-AVAILABILITY">99.9% availability for ingestion endpoints.</Requirement>
+    <Requirement id="NFR-RELIABILITY">Retry with backoff for transient channel failures; idempotent send by messageId.</Requirement>
+    <Requirement id="NFR-SECURITY">OAuth2/OIDC JWT for admin/template endpoints; service creds for event ingestion.</Requirement>
+  </NonFunctionalRequirements>
+
+  <Links>
+    <Link ref="Technology.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</RequirementsAnalysis>

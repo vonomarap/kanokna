@@ -1,0 +1,74 @@
+<Technology version="1.0">
+  <Runtime>
+    <Language>Java 25</Language>
+    <Framework>Spring Boot 4.0.x (Web, Validation)</Framework>
+    <Architecture>DDD + Hexagonal; domain/application free of Spring/JPA/transport dependencies.</Architecture>
+  </Runtime>
+
+  <Frameworks>
+    <SpringDataJpa>3.3.x with Hibernate 6.x; ddl-auto=validate</SpringDataJpa>
+    <SpringSecurity>OAuth2 Resource Server (JWT)</SpringSecurity>
+    <Resilience4j>Timeouts, retries (expo+jitter), circuit breakers, bulkheads</Resilience4j>
+    <MapStruct>1.5+ for mappers</MapStruct>
+    <OpenAPI>springdoc-openapi 2.x for REST contracts</OpenAPI>
+  </Frameworks>
+
+  <Infrastructure>
+    <Database>
+      <Engine>PostgreSQL 16</Engine>
+      <Migrations>Flyway</Migrations>
+      <Rules>Disable Open-Session-in-View; equals/hashCode by business key; optimistic locking with @Version.</Rules>
+    </Database>
+    <Cache>
+      <Engine>Redis 7.x</Engine>
+      <Usage>Cache slot availability lookups</Usage>
+    </Cache>
+    <Messaging>
+      <Broker>Kafka 3.x</Broker>
+      <InboundTopics>
+        <Topic name="order.confirmed"/>
+      </InboundTopics>
+      <OutboundTopics>
+        <Topic name="installation.scheduled" key="orderId"/>
+        <Topic name="installation.updated" key="orderId"/>
+      </OutboundTopics>
+      <Pattern>Inbox/outbox with idempotent consumers.</Pattern>
+    </Messaging>
+  </Infrastructure>
+
+  <Interfaces id="Interfaces">
+    <REST base="/api/v1/installation">
+      <Endpoint>GET /slots</Endpoint>
+      <Endpoint>POST /slots/book</Endpoint>
+      <Endpoint>POST /jobs/{jobId}/status</Endpoint>
+    </REST>
+  </Interfaces>
+
+  <CrossCutting>
+    <Security>
+      <Auth>OAuth2/OIDC JWT; BUYER for own orders; INSTALLER for assigned jobs; ADMIN/OPS for overrides; SERVICE for system calls.</Auth>
+      <Validation>Bean Validation on DTOs; domain invariants for slot conflicts/idempotency.</Validation>
+    </Security>
+    <Observability>
+      <Metrics>Micrometer + Prometheus; metrics: slot search latency, booking success/failure, conflict rate.</Metrics>
+      <Tracing>OpenTelemetry; include orderId and slotId in spans.</Tracing>
+      <Logging>Structured JSON with block anchors (INSTALL-SLOT-SEARCH/BOOK/UPDATE) for belief-state tracing.</Logging>
+    </Observability>
+    <Resilience>
+      <Timeouts>DB/cache calls bounded</Timeouts>
+      <Retries>Idempotent booking with retries if needed; circuit breakers for external calls</Retries>
+    </Resilience>
+    <Testing>
+      <Unit>Slot conflict detection and idempotent booking</Unit>
+      <Slice>@DataJpaTest for repositories; @WebMvcTest for controllers</Slice>
+      <Integration>Testcontainers for PostgreSQL/Redis/Kafka</Integration>
+      <Contract>OpenAPI for REST; AsyncAPI/Avro for installation events</Contract>
+      <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+    </Testing>
+  </CrossCutting>
+
+  <Links>
+    <Link ref="RequirementsAnalysis.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</Technology>

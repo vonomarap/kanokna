@@ -1,26 +1,51 @@
 package com.kanokna.shared.measure;
 
-import com.kanokna.shared.core.ValidationUtils;
+import java.util.StringJoiner;
 
-public record DimensionsCm(Integer width, Integer height) {
-    public static final Integer PRODUCTION_MAX_LIMITS = 4_00; // 4m or 400cm
-    public static final Integer PRODUCTION_MIN_LIMITS = 50;
+public record DimensionsCm(
+  int width,
+  int height
+) {
 
-    public DimensionsCm {
-        if(ValidationUtils.hasNonPositiveValues(width, height))
-            throw new IllegalArgumentException("All dimensions must be > 0 cm"); 
-        if (width > PRODUCTION_MAX_LIMITS || height > PRODUCTION_MAX_LIMITS) 
-            throw new IllegalArgumentException("Unreasonably large dimensions (max Width 400 cm and Height 300 cm)");
-        if (width < PRODUCTION_MIN_LIMITS || height > PRODUCTION_MIN_LIMITS) 
-            throw new IllegalArgumentException("Unreasonably small dimensions (min 50 cm)");
-    }
+  public static final int MAX_DIMENSION_CM = 400;
+  public static final int MIN_DIMENSION_CM = 50;
 
-    public int calculateAreaCm2() {
-        return width * height;
-    }
+  public DimensionsCm {
+    if (width <= 0 || height <= 0)
+      throw new IllegalArgumentException("Dimensions must be positive. Got: width=%d, height=%d".formatted(width, height));
 
-    public boolean fitsWithin(DimensionsCm min, DimensionsCm max) {
-        return width  >= min.width  && width  <= max.width
-            && height >= min.height && height <= max.height;
-    }
+    StringJoiner errorMessages = new StringJoiner(", ");
+
+    if (width < MIN_DIMENSION_CM)
+      errorMessages.add("width %dcm is below minimum of %dcm".formatted(width, MIN_DIMENSION_CM));
+    if (height < MIN_DIMENSION_CM)
+      errorMessages.add("height %dcm is below minimum of %dcm".formatted(height, MIN_DIMENSION_CM));
+    if (width > MAX_DIMENSION_CM)
+      errorMessages.add("width %dcm exceeds maximum of %dcm".formatted(width, MAX_DIMENSION_CM));
+    if (height > MAX_DIMENSION_CM)
+      errorMessages.add("height %dcm exceeds maximum of %dcm".formatted(height, MAX_DIMENSION_CM));
+
+    if (errorMessages.length() > 0)
+      throw new IllegalArgumentException("Invalid dimensions: " + errorMessages);
+  }
+
+  /**
+   * Calculates the surface area of the width and height.
+   *
+   * @return The area in square centimeters (cm²).
+   */
+  public long area() {
+    // Use Math.multiplyExact to prevent silent integer overflow.
+    return (long) width * height;
+  }
+
+  /**
+   * Checks if these dimensions can fit entirely within a given bounding box.
+   *
+   * @param container the bounding box or container to check against.
+   * @return {@code true} if this object's width and height are both less than or equal to the container's.
+   */
+  public boolean fitsWithin(DimensionsCm container) {
+    return this.width <= container.width && this.height <= container.height;
+  }
 }

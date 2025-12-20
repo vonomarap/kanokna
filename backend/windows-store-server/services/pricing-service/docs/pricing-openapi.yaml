@@ -1,0 +1,118 @@
+openapi: 3.1.0
+info:
+  title: Pricing Service API
+  version: 0.1.0
+  description: |
+    REST interface for pricing-service quote flows.
+servers:
+  - url: https://api.example.com
+    description: Production
+paths:
+  /api/v1/pricing/quote:
+    post:
+      summary: Calculate quote for a configuration
+      operationId: quoteConfiguration
+      tags: [pricing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequest'
+      responses:
+        '200':
+          description: Quote calculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteResponse'
+        '400':
+          description: Validation or domain error
+  /api/v1/pricing/quote/cart:
+    post:
+      summary: Calculate quote for a cart (delegates to quoteConfiguration)
+      operationId: quoteCart
+      tags: [pricing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequest'
+      responses:
+        '200':
+          description: Quote calculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteResponse'
+components:
+  schemas:
+    QuoteRequest:
+      type: object
+      required: [region, currency, itemCode, optionSelections, catalogVersion]
+      properties:
+        priceBookId:
+          type: string
+          format: uuid
+        region:
+          type: string
+        currency:
+          type: string
+          description: ISO-4217 code
+        itemCode:
+          type: string
+        optionSelections:
+          type: object
+          additionalProperties:
+            type: string
+        customerSegment:
+          type: string
+        catalogVersion:
+          type: integer
+          format: int64
+        includeTax:
+          type: boolean
+          default: true
+        idempotencyKey:
+          type: string
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+    QuoteResponse:
+      type: object
+      required: [quoteId, priceBookId, region, base, optionsTotal, discountTotal, taxTotal, total]
+      properties:
+        quoteId:
+          type: string
+          format: uuid
+        priceBookId:
+          type: string
+          format: uuid
+        priceBookVersion:
+          type: integer
+        catalogVersion:
+          type: integer
+        region:
+          type: string
+        base:
+          $ref: '#/components/schemas/Money'
+        optionsTotal:
+          $ref: '#/components/schemas/Money'
+        discountTotal:
+          $ref: '#/components/schemas/Money'
+        taxTotal:
+          $ref: '#/components/schemas/Money'
+        total:
+          $ref: '#/components/schemas/Money'
+        appliedCampaigns:
+          type: array
+          items:
+            type: string
+            format: uuid

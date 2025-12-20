@@ -1,0 +1,212 @@
+<DevelopmentPlan version="1.0">
+  <Service id="Service-order-service">
+    <Description>Orchestrates checkout, payment coordination, and order lifecycle (production, delivery, installation).</Description>
+    <BoundedContext>order</BoundedContext>
+    <Responsibilities>
+      <Item>Create orders from carts with validated totals</Item>
+      <Item>Initiate and process payments with idempotent callbacks</Item>
+      <Item>Manage order state transitions and installation scheduling</Item>
+      <Item>Emit lifecycle events for notifications and reporting</Item>
+    </Responsibilities>
+    <Dependencies>
+      <ServiceRef ref="shared-kernel"/>
+      <ServiceRef ref="cart-service" type="sync-api">Checkout input</ServiceRef>
+      <ServiceRef ref="pricing-service" type="sync-api">Finalize totals</ServiceRef>
+      <ServiceRef ref="notification-service" type="async">Lifecycle notifications</ServiceRef>
+      <ServiceRef ref="account-service" type="sync" optional="true">Customer data</ServiceRef>
+    </Dependencies>
+    <Links>
+      <Link ref="RequirementsAnalysis.xml#UC-CHECKOUT-ORDER"/>
+      <Link ref="RequirementsAnalysis.xml#UC-PAYMENT"/>
+      <Link ref="RequirementsAnalysis.xml#UC-ORDER-LIFECYCLE"/>
+      <Link ref="Technology.xml#Interfaces"/>
+    </Links>
+  </Service>
+
+  <Architecture>
+    <Layers>
+      <Domain>com.kanokna.order_service.domain.* (pure Java)</Domain>
+      <Application>com.kanokna.order_service.application.* (use cases, ports, DTOs)</Application>
+      <AdaptersIn>com.kanokna.order_service.adapters.in.* (web/grpc/webhook)</AdaptersIn>
+      <AdaptersOut>com.kanokna.order_service.adapters.out.* (persistence, messaging, payment gateway)</AdaptersOut>
+    </Layers>
+    <Enforcement>ArchUnit: domain free of Spring/JPA; application depends on domain and ports only.</Enforcement>
+  </Architecture>
+
+  <Ports>
+    <Inbound>
+      <Port name="CheckoutPort" layer="application.port.in">
+        <Operation>placeOrder</Operation>
+      </Port>
+      <Port name="PaymentPort" layer="application.port.in">
+        <Operation>initiatePayment</Operation>
+        <Operation>processPaymentCallback</Operation>
+      </Port>
+      <Port name="OrderQueryPort" layer="application.port.in">
+        <Operation>getOrder</Operation>
+      </Port>
+      <Port name="InstallationPort" layer="application.port.in" optional="true">
+        <Operation>scheduleInstallation</Operation>
+      </Port>
+    </Inbound>
+    <Outbound>
+      <Port name="OrderRepository" layer="application.port.out"/>
+      <Port name="PaymentRepository" layer="application.port.out"/>
+      <Port name="PaymentGatewayPort" layer="application.port.out"/>
+      <Port name="NotificationPublisher" layer="application.port.out"/>
+      <Port name="OutboxPublisher" layer="application.port.out"/>
+      <Port name="CartPort" layer="application.port.out"/>
+      <Port name="PricingPort" layer="application.port.out"/>
+    </Outbound>
+  </Ports>
+
+  <DomainModel>
+    <Aggregate name="Order">
+      <Identifier>OrderId</Identifier>
+      <State>customerId, cartId, status, items, totals, deposits, shipping, installation, payments, version</State>
+      <Invariants>
+        <Invariant>Status transitions follow state machine (e.g., PENDING_PAYMENT -> CONFIRMED -> IN_PRODUCTION -> READY_TO_SHIP -> DELIVERED -> INSTALLED)</Invariant>
+        <Invariant>Totals align with pricing snapshot</Invariant>
+        <Invariant>Payments sum to due amount; deposit rules enforced</Invariant>
+      </Invariants>
+      <Events>
+        <Event>OrderCreated</Event>
+        <Event>OrderConfirmed</Event>
+        <Event>OrderCancelled</Event>
+        <Event>OrderInstallationScheduled</Event>
+      </Events>
+    </Aggregate>
+    <Aggregate name="Payment">
+      <Identifier>PaymentId</Identifier>
+      <State>amount, currency, method, status, externalRef, idempotencyKey</State>
+      <Invariants>
+        <Invariant>Payment status transitions idempotent and monotonic</Invariant>
+      </Invariants>
+    </Aggregate>
+    <ValueObject name="Totals">subtotal, discounts, shipping, installation, tax, deposit, grandTotal, currency</ValueObject>
+  </DomainModel>
+
+  <Contracts id="Contracts">
+    <ModuleContract id="mod.order.application" layer="application">
+      <Purpose>Checkout, payment initiation, and callback handling with idempotency.</Purpose>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CHECKOUT-ORDER"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PAYMENT"/>
+      </Links>
+      <FunctionContracts>
+        <FunctionContract id="placeOrder" layer="application.service" intent="Create order from cart with totals validation">
+          <Input>PlaceOrderCommand</Input>
+          <Output>OrderCreatedResult</Output>
+          <Preconditions>Cart totals validated; customer/shipping/install data provided</Preconditions>
+          <Postconditions>Order persisted; OrderCreated event written to outbox</Postconditions>
+          <BlockAnchors>
+            <Block id="ORDER-VALIDATE" purpose="Validate cart snapshot and totals"/>
+            <Block id="ORDER-PERSIST" purpose="Persist aggregate with versioning"/>
+            <Block id="ORDER-EVENT" purpose="Emit order.created event/outbox"/>
+          </BlockAnchors>
+          <LoggingPattern>[ORDER][placeOrder][block={id}][state={state}]</LoggingPattern>
+        </FunctionContract>
+        <FunctionContract id="processPaymentCallback" layer="application.service" intent="Idempotently apply payment status from gateway callback">
+          <Input>PaymentCallbackPayload</Input>
+          <Output>PaymentUpdateResult</Output>
+          <Preconditions>Callback authenticated/validated</Preconditions>
+          <Postconditions>Payment/order state updated once; duplicate callbacks ignored</Postconditions>
+          <BlockAnchors>
+            <Block id="PAY-CALLBACK-IDEMP" purpose="Check idempotency/message id"/>
+            <Block id="PAY-STATE" purpose="Transition payment and order state"/>
+            <Block id="PAY-NOTIFY" purpose="Publish notification events/outbox"/>
+          </BlockAnchors>
+          <LoggingPattern>[ORDER][processPaymentCallback][block={id}][state={state}]</LoggingPattern>
+        </FunctionContract>
+      </FunctionContracts>
+    </ModuleContract>
+  </Contracts>
+
+  <Flows>
+    <Flow id="Flow-Checkout">
+      <Description>Checkout cart to create order.</Description>
+      <Sequence>
+        <Step order="1" from="Adapter (REST/gRPC)" to="Application Service">Receive checkout request</Step>
+        <Step order="2" from="Application Service" to="CartPort">Fetch cart snapshot</Step>
+        <Step order="3" from="Application Service" to="PricingPort">Revalidate totals</Step>
+        <Step order="4" from="Application Service" to="Domain Service">placeOrder</Step>
+        <Step order="5" from="Application Service" to="OutboxPublisher">Write order.created event</Step>
+      </Sequence>
+    </Flow>
+
+    <Flow id="Flow-Payment">
+      <Description>Handle payment initiation and callback.</Description>
+      <Sequence>
+        <Step order="1" from="Adapter (REST)" to="Application Service">initiatePayment</Step>
+        <Step order="2" from="Application Service" to="PaymentGatewayPort">Create session/redirect</Step>
+        <Step order="3" from="PAYMENT_GATEWAY" to="Adapter (webhook)">callback</Step>
+        <Step order="4" from="Adapter (webhook)" to="Application Service">processPaymentCallback</Step>
+        <Step order="5" from="Application Service" to="OutboxPublisher">Emit payment/order events</Step>
+      </Sequence>
+    </Flow>
+
+    <Flow id="Flow-Lifecycle">
+      <Description>Advance order statuses and schedule installation.</Description>
+      <Sequence>
+        <Step order="1" from="Application Service" to="Domain Service">Transition state (e.g., CONFIRMED -> IN_PRODUCTION)</Step>
+        <Step order="2" from="Application Service" to="OutboxPublisher">Emit lifecycle events</Step>
+        <Step order="3" from="Installer App" to="Adapter (REST)" optional="true">Schedule/update installation</Step>
+      </Sequence>
+    </Flow>
+  </Flows>
+
+  <PersistencePlan>
+    <Table name="orders">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="customer_id" type="UUID" nullable="true"/>
+      <Column name="cart_id" type="UUID"/>
+      <Column name="status" type="VARCHAR(30)"/>
+      <Column name="currency" type="CHAR(3)"/>
+      <Column name="totals_json" type="JSONB"/>
+      <Column name="shipping_json" type="JSONB"/>
+      <Column name="installation_json" type="JSONB"/>
+      <Column name="version" type="BIGINT" role="OPTIMISTIC_LOCK"/>
+      <Index name="idx_order_customer" unique="false">
+        <ColumnRef>customer_id</ColumnRef>
+      </Index>
+    </Table>
+    <Table name="order_item">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="order_id" type="UUID" role="FK"/>
+      <Column name="configuration_id" type="UUID"/>
+      <Column name="quantity" type="INT"/>
+      <Column name="price_snapshot_json" type="JSONB"/>
+    </Table>
+    <Table name="payment">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="order_id" type="UUID" role="FK"/>
+      <Column name="amount" type="DECIMAL(19,2)"/>
+      <Column name="currency" type="CHAR(3)"/>
+      <Column name="method" type="VARCHAR(50)"/>
+      <Column name="status" type="VARCHAR(30)"/>
+      <Column name="external_ref" type="VARCHAR(255)" nullable="true"/>
+      <Column name="idempotency_key" type="VARCHAR(255)" nullable="true"/>
+    </Table>
+  </PersistencePlan>
+
+  <TestingStrategy>
+    <Unit>Order state machine, payment callback idempotency, totals validation</Unit>
+    <Slice>@DataJpaTest for repositories; @WebMvcTest for controllers</Slice>
+    <Integration>Testcontainers for PostgreSQL/Redis/Kafka</Integration>
+    <ContractTests>OpenAPI for REST; AsyncAPI/Avro for order/payment events</ContractTests>
+    <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+  </TestingStrategy>
+
+  <Observability>
+    <Metrics>Checkout latency, payment success rate, state transition counts, callback idempotency skips</Metrics>
+    <Tracing>Include orderId, paymentId, cartId in spans</Tracing>
+    <Logging>Structured JSON with block anchors (ORDER-*, PAY-*) describing decisions</Logging>
+  </Observability>
+
+  <Deployment>
+    <Packaging>Jib/Buildpacks OCI image</Packaging>
+    <Config>Config-server profiles dev/stage/prod</Config>
+    <Rollout>Rolling/blue-green; Flyway migrations expand-migrate-contract</Rollout>
+    <Secrets>Vault/K8s Secrets; no secrets in code</Secrets>
+  </Deployment>
+</DevelopmentPlan>

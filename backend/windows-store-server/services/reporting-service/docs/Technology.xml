@@ -1,0 +1,74 @@
+<Technology version="1.0">
+  <Runtime>
+    <Language>Java 25</Language>
+    <Framework>Spring Boot 4.0.x (Web)</Framework>
+    <Architecture>DDD + Hexagonal; domain/application free of Spring/JPA/transport dependencies.</Architecture>
+  </Runtime>
+
+  <Frameworks>
+    <SpringDataJpa>3.3.x with Hibernate 6.x; ddl-auto=validate</SpringDataJpa>
+    <SpringSecurity>OAuth2 Resource Server (JWT)</SpringSecurity>
+    <Resilience4j>Timeouts, retries (expo+jitter), circuit breakers, bulkheads</Resilience4j>
+    <MapStruct>1.5+ for mappers</MapStruct>
+    <OpenAPI>springdoc-openapi 2.x for REST contracts</OpenAPI>
+  </Frameworks>
+
+  <Infrastructure>
+    <Database>
+      <Engine>PostgreSQL 16 (or ClickHouse/OLAP optional)</Engine>
+      <Migrations>Flyway</Migrations>
+      <Usage>Read-optimized schema/materialized views for aggregates</Usage>
+    </Database>
+    <Messaging>
+      <Broker>Kafka 3.x</Broker>
+      <InboundTopics>
+        <Topic name="order.created"/>
+        <Topic name="order.confirmed"/>
+        <Topic name="order.installation-scheduled"/>
+        <Topic name="pricing.updated" optional="true"/>
+      </InboundTopics>
+      <Pattern>Ingestion via consumers; idempotent processing with offsets/outbox.</Pattern>
+    </Messaging>
+    <Cache>
+      <Engine>Redis 7.x</Engine>
+      <Usage>Cache dashboard aggregates</Usage>
+    </Cache>
+  </Infrastructure>
+
+  <Interfaces id="Interfaces">
+    <REST base="/api/v1/reports">
+      <Endpoint>GET /dashboards/sales</Endpoint>
+      <Endpoint>GET /dashboards/conversion</Endpoint>
+      <Endpoint>GET /dashboards/product-performance</Endpoint>
+      <Endpoint>POST /exports</Endpoint>
+    </REST>
+  </Interfaces>
+
+  <CrossCutting>
+    <Security>
+      <Auth>OAuth2/OIDC JWT; ADMIN/ANALYST for dashboards/exports; SERVICE for metrics API</Auth>
+      <Validation>Input validation on filters; PII minimization/redaction</Validation>
+    </Security>
+    <Observability>
+      <Metrics>Micrometer + Prometheus; metrics: ingestion lag, query latency, export jobs.</Metrics>
+      <Tracing>OpenTelemetry; include reportId/exportId in spans.</Tracing>
+      <Logging>Structured JSON with block anchors (REPORT-INGEST-*, REPORT-QUERY-*, REPORT-EXPORT-*)</Logging>
+    </Observability>
+    <Resilience>
+      <Timeouts>DB and cache calls bounded</Timeouts>
+      <Retries>Idempotent ingestion with retries; circuit breakers for downstream stores</Retries>
+    </Resilience>
+    <Testing>
+      <Unit>Aggregation calculations and transformations</Unit>
+      <Slice>@DataJpaTest for read models; @WebMvcTest for controllers</Slice>
+      <Integration>Testcontainers for PostgreSQL/Redis/Kafka</Integration>
+      <Contract>OpenAPI for REST</Contract>
+      <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+    </Testing>
+  </CrossCutting>
+
+  <Links>
+    <Link ref="RequirementsAnalysis.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</Technology>

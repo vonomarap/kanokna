@@ -1,0 +1,186 @@
+<DevelopmentPlan version="1.0">
+  <Service id="Service-pricing-service">
+    <Description>Calculates prices for configurable products with taxes, discounts, campaigns, and currency rules.</Description>
+    <BoundedContext>pricing</BoundedContext>
+    <Responsibilities>
+      <Item>Maintain price books and option premiums per region/currency</Item>
+      <Item>Apply campaigns/discounts and tax/rounding policies</Item>
+      <Item>Provide quotes for cart/order/checkout flows</Item>
+      <Item>Emit pricing updates to downstream services</Item>
+    </Responsibilities>
+    <Dependencies>
+      <ServiceRef ref="shared-kernel"/>
+      <ServiceRef ref="catalog-configuration-service" type="async-events">Consume catalog/version published</ServiceRef>
+      <ServiceRef ref="account-service" type="sync" optional="true">Segment-based pricing</ServiceRef>
+    </Dependencies>
+    <Links>
+      <Link ref="RequirementsAnalysis.xml#UC-PRICE-PREVIEW"/>
+      <Link ref="RequirementsAnalysis.xml#UC-PRICEBOOK-MANAGE"/>
+      <Link ref="Technology.xml#Interfaces"/>
+    </Links>
+  </Service>
+
+  <Architecture>
+    <Layers>
+      <Domain>com.kanokna.pricing_service.domain.* (pure Java)</Domain>
+      <Application>com.kanokna.pricing_service.application.* (use cases, ports, DTOs)</Application>
+      <AdaptersIn>com.kanokna.pricing_service.adapters.in.* (web/grpc)</AdaptersIn>
+      <AdaptersOut>com.kanokna.pricing_service.adapters.out.* (persistence, messaging, external FX)</AdaptersOut>
+    </Layers>
+    <Enforcement>ArchUnit: domain free of Spring/JPA; application depends on domain and ports only.</Enforcement>
+  </Architecture>
+
+  <Ports>
+    <Inbound>
+      <Port name="QuotePort" layer="application.port.in">
+        <Operation>quoteConfiguration</Operation>
+        <Operation>quoteCart</Operation>
+      </Port>
+      <Port name="PriceAdminPort" layer="application.port.in">
+        <Operation>createOrUpdatePriceBook</Operation>
+        <Operation>publishPriceBook</Operation>
+        <Operation>defineCampaign</Operation>
+        <Operation>updateTaxRules</Operation>
+      </Port>
+    </Inbound>
+    <Outbound>
+      <Port name="PriceBookRepository" layer="application.port.out"/>
+      <Port name="CampaignRepository" layer="application.port.out"/>
+      <Port name="TaxRuleRepository" layer="application.port.out"/>
+      <Port name="QuoteCache" layer="application.port.out"/>
+      <Port name="FxRatePort" layer="application.port.out"/>
+      <Port name="OutboxPublisher" layer="application.port.out"/>
+    </Outbound>
+  </Ports>
+
+  <DomainModel>
+    <Aggregate name="PriceBook">
+      <Identifier>PriceBookId</Identifier>
+      <State>region, currency, basePrices, optionPremiums, status (DRAFT/ACTIVE/DEPRECATED), version</State>
+      <Invariants>
+        <Invariant>Base prices non-negative</Invariant>
+        <Invariant>Option premiums non-negative</Invariant>
+        <Invariant>Status transitions DRAFT -> ACTIVE -> DEPRECATED</Invariant>
+      </Invariants>
+      <Events>
+        <Event>PriceBookCreated</Event>
+        <Event>PriceBookUpdated</Event>
+        <Event>PriceBookPublished</Event>
+      </Events>
+    </Aggregate>
+    <Aggregate name="Campaign">
+      <Identifier>CampaignId</Identifier>
+      <State>targeting rules, discount rules, schedule, status</State>
+      <Invariants>
+        <Invariant>Discounts within configured bounds</Invariant>
+        <Invariant>Schedules non-overlapping per target if required</Invariant>
+      </Invariants>
+    </Aggregate>
+    <ValueObject name="QuoteRequest">
+      <Fields>configuration, options, priceBookId or region/currency, customerSegment, catalogVersion</Fields>
+    </ValueObject>
+    <ValueObject name="Quote">
+      <Fields>base, optionsTotal, discounts, tax, total, currency, ttl</Fields>
+    </ValueObject>
+  </DomainModel>
+
+  <Contracts id="Contracts-calc">
+    <ModuleContract id="mod.pricing.domain" layer="domain.service">
+      <Purpose>Price calculation engine combining base, options, discounts, tax, and rounding.</Purpose>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICE-PREVIEW"/>
+      </Links>
+      <FunctionContracts>
+        <FunctionContract id="calculatePrice" layer="domain.service" intent="Compute quote for a configuration/context">
+          <Input>QuoteRequest</Input>
+          <Output>Quote</Output>
+          <Preconditions>Validated configuration; price book available; currency known</Preconditions>
+          <Postconditions>Quote returned with breakdown; errors on missing data</Postconditions>
+          <BlockAnchors>
+            <Block id="PRICE-BASE" purpose="Resolve base price"/>
+            <Block id="PRICE-OPTIONS" purpose="Sum option premiums"/>
+            <Block id="PRICE-DISCOUNT" purpose="Apply campaigns/discounts"/>
+            <Block id="PRICE-TAX" purpose="Apply tax and rounding policy"/>
+          </BlockAnchors>
+          <LoggingPattern>[PRICING][calculatePrice][block={id}][state={state}]</LoggingPattern>
+        </FunctionContract>
+      </FunctionContracts>
+    </ModuleContract>
+  </Contracts>
+
+  <Flows>
+    <Flow id="Flow-Quote">
+      <Description>Compute quote for a configuration or cart.</Description>
+      <Sequence>
+        <Step order="1" from="Adapter (REST/gRPC)" to="Application Service">Map request -> QuoteRequest</Step>
+        <Step order="2" from="Application Service" to="QuoteCache">Check cached quote by idempotency key</Step>
+        <Step order="3" from="Application Service" to="Domain Service">calculatePrice</Step>
+        <Step order="4" from="Application Service" to="QuoteCache">Store with TTL</Step>
+        <Step order="5" from="Application Service" to="Adapter">Return quote response</Step>
+      </Sequence>
+    </Flow>
+
+    <Flow id="Flow-PriceBook-Publish">
+      <Description>Publish price book and notify consumers.</Description>
+      <Sequence>
+        <Step order="1" from="Adapter (REST)" to="Application Service">publishPriceBook command</Step>
+        <Step order="2" from="Application Service" to="Domain">Validate price book and status</Step>
+        <Step order="3" from="Application Service" to="Persistence">Persist ACTIVE status/version</Step>
+        <Step order="4" from="Application Service" to="OutboxPublisher">Write pricing.updated event</Step>
+        <Step order="5" from="OutboxPublisher" to="Kafka">Publish to interested services</Step>
+      </Sequence>
+    </Flow>
+  </Flows>
+
+  <PersistencePlan>
+    <Table name="price_book">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="region" type="VARCHAR(50)"/>
+      <Column name="currency" type="CHAR(3)"/>
+      <Column name="status" type="VARCHAR(20)"/>
+      <Column name="version" type="BIGINT" role="OPTIMISTIC_LOCK"/>
+      <Column name="base_prices_json" type="JSONB"/>
+      <Column name="option_premiums_json" type="JSONB"/>
+      <Index name="ux_price_book_region_currency" unique="true">
+        <ColumnRef>region</ColumnRef>
+        <ColumnRef>currency</ColumnRef>
+      </Index>
+    </Table>
+    <Table name="campaign">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="name" type="VARCHAR(255)"/>
+      <Column name="status" type="VARCHAR(20)"/>
+      <Column name="conditions_json" type="JSONB"/>
+      <Column name="discount_rules_json" type="JSONB"/>
+      <Column name="schedule_json" type="JSONB"/>
+    </Table>
+    <Table name="tax_rule">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="region" type="VARCHAR(50)"/>
+      <Column name="product_type" type="VARCHAR(50)"/>
+      <Column name="rate" type="DECIMAL(5,3)"/>
+      <Column name="rounding_policy" type="VARCHAR(20)"/>
+    </Table>
+  </PersistencePlan>
+
+  <TestingStrategy>
+    <Unit>Price calculation (base/options/discount/tax/rounding) and campaign targeting</Unit>
+    <Slice>@DataJpaTest for repositories; @WebMvcTest for controllers</Slice>
+    <Integration>Testcontainers for PostgreSQL/Redis/Kafka</Integration>
+    <ContractTests>OpenAPI for REST; AsyncAPI/Avro for pricing.updated events</ContractTests>
+    <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+  </TestingStrategy>
+
+  <Observability>
+    <Metrics>Quote latency, cache hit rate, discount application rate, tax error count</Metrics>
+    <Tracing>Include priceBookId, campaignIds, catalogVersionId in spans</Tracing>
+    <Logging>Structured JSON with block anchors (PRICE-*) describing decisions and values</Logging>
+  </Observability>
+
+  <Deployment>
+    <Packaging>Jib/Buildpacks OCI image</Packaging>
+    <Config>Config-server profiles dev/stage/prod</Config>
+    <Rollout>Rolling/blue-green; Flyway migrations expand-migrate-contract</Rollout>
+    <Secrets>Vault/K8s Secrets; no secrets in code</Secrets>
+  </Deployment>
+</DevelopmentPlan>

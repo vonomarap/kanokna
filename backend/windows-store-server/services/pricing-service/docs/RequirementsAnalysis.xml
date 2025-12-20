@@ -1,0 +1,104 @@
+<RequirementsAnalysis version="1.0">
+  <Domain id="pricing">
+    <Description>
+      Calculates prices for configurable windows/doors using price books, option premiums, discounts,
+      campaigns, taxes, and currency exchange, serving cart/order/checkout flows.
+    </Description>
+  </Domain>
+
+  <Actors>
+    <Actor id="CUSTOMER">
+      <Name>Customer</Name>
+      <Goals>
+        <Goal id="G-PRICE-PREVIEW">See a price preview for a configuration</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="ADMIN">
+      <Name>PricingAdmin</Name>
+      <Goals>
+        <Goal id="G-PRICEBOOK">Maintain base price lists and option premiums</Goal>
+        <Goal id="G-DISCOUNT">Define discounts and campaigns</Goal>
+        <Goal id="G-TAX">Manage tax rules and rounding policies</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="SYSTEM">
+      <Name>InternalServiceConsumer</Name>
+      <Goals>
+        <Goal id="G-SERVICE-QUOTE">Request quotes for cart/order operations</Goal>
+        <Goal id="G-SERVICE-VALIDATE">Validate pricing inputs and currency</Goal>
+      </Goals>
+    </Actor>
+  </Actors>
+
+  <UseCases>
+    <UseCase id="UC-PRICE-PREVIEW">
+      <ActorRef ref="CUSTOMER"/>
+      <Action>Requests a price for a configuration</Action>
+      <Goal>Get a price breakdown (base, options, discounts, taxes)</Goal>
+      <Preconditions>Configuration validated by catalog; currency/region provided.</Preconditions>
+      <Postconditions>Quote returned with breakdown and TTL; errors if rules violated.</Postconditions>
+      <MainFlow>Client sends configuration + context -> pricing-service computes -> returns quote.</MainFlow>
+      <AlternateFlows>Missing data or unsupported currency -> validation error.</AlternateFlows>
+      <Links>
+        <Link ref="Technology.xml#Interfaces"/>
+        <Link ref="DevelopmentPlan.xml#Contracts-calc"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-PRICEBOOK-MANAGE">
+      <ActorRef ref="ADMIN"/>
+      <Action>Creates or updates price books and option premiums</Action>
+      <Goal>Control base prices and option adjustments per region/currency</Goal>
+      <Preconditions>Admin authenticated with PRICING_ADMIN role.</Preconditions>
+      <Postconditions>Price book stored as draft or active; version incremented.</Postconditions>
+      <MainFlow>Admin edits price book -> validates -> saves -> optional publish.</MainFlow>
+      <AlternateFlows>Conflicting versions -> reject; missing currency -> validation error.</AlternateFlows>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#Service-pricing-service"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-CAMPAIGN-MANAGE">
+      <ActorRef ref="ADMIN"/>
+      <Action>Defines discounts and campaigns</Action>
+      <Goal>Apply promotions by segment, period, or product</Goal>
+      <Preconditions>Price book exists; targeting rules defined.</Preconditions>
+      <Postconditions>Campaign persisted with schedule; conflicts resolved or rejected.</Postconditions>
+      <MainFlow>Admin sets conditions and discount rules -> validates -> saves/publishes.</MainFlow>
+      <AlternateFlows>Overlapping campaigns -> warning/error; invalid segment -> reject.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-TAX-RULES">
+      <ActorRef ref="ADMIN"/>
+      <Action>Maintains tax rules and rounding policies</Action>
+      <Goal>Ensure compliant tax calculation per region</Goal>
+      <Preconditions>Jurisdiction and product type known.</Preconditions>
+      <Postconditions>Rules stored and applied in quotes.</Postconditions>
+      <MainFlow>Admin updates tax rates/rounding -> validates -> saves.</MainFlow>
+      <AlternateFlows>Invalid rate -> reject.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-QUOTE-FOR-CART">
+      <ActorRef ref="SYSTEM"/>
+      <Action>Requests quote for cart/order</Action>
+      <Goal>Provide authoritative totals for checkout</Goal>
+      <Preconditions>Configuration valid; cart context provided.</Preconditions>
+      <Postconditions>Quote returned; idempotency key recorded; totals stored if needed.</Postconditions>
+      <MainFlow>Cart/order service calls pricing -> pricing computes -> returns quote.</MainFlow>
+      <AlternateFlows>Price book not found -> error; campaign expired -> excluded.</AlternateFlows>
+    </UseCase>
+  </UseCases>
+
+  <NonFunctionalRequirements>
+    <Requirement id="NFR-PERF">P95 quote latency <=200ms under normal load.</Requirement>
+    <Requirement id="NFR-AVAILABILITY">99.9% availability for quote API.</Requirement>
+    <Requirement id="NFR-CONSISTENCY">Price books and campaigns versioned; published versions immutable.</Requirement>
+    <Requirement id="NFR-SECURITY">OAuth2/OIDC JWT; PRICING_ADMIN role for write endpoints; input validation.</Requirement>
+    <Requirement id="NFR-AUDIT">All admin changes audited with who/when/what.</Requirement>
+  </NonFunctionalRequirements>
+
+  <Links>
+    <Link ref="Technology.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</RequirementsAnalysis>

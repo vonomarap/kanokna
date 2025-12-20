@@ -9,8 +9,8 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.2</version> 
-        <relativePath/> 
+        <version>4.0.0</version>
+        <relativePath/>
     </parent>
 
 	<modelVersion>4.0.0</modelVersion>
@@ -19,14 +19,25 @@
 	<version>1.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<name>windows-store-server</name>
-	<description>The parent pow for project of window store by company the Kanokna</description>
-	<url>http://www.kanokna.com</url>
+	<description>The parent pom.xml for project of window store by company the Kanokna</description>
+	<url>https://www.kanokna.com</url>
     <inceptionYear>2025</inceptionYear>
 
 
 	<modules>
         <module>config-server</module>
         <module>shared/shared-kernel</module>
+        <module>gateway</module>
+        <module>services/catalog-configuration-service</module>
+        <module>services/pricing-service</module>
+        <module>services/cart-service</module>
+        <module>services/order-service</module>
+        <module>services/media-service</module>
+        <module>services/account-service</module>
+        <module>services/notification-service</module>
+        <module>services/reporting-service</module>
+        <module>services/search-service</module>
+        <module>services/installation-service</module>
 		<module>services/product-service</module>
 	</modules>
 
@@ -43,7 +54,7 @@
 	<developers>
 		<developer>
 			<id>vonomarap</id>
-			<name>Vlad Paramonov</name>
+			<name>Vlad V. Paramonov</name>
 			<email>CornerDev@protonmail.com</email>
 			<organization>Kanokna</organization>
 			<organizationUrl>https://github.com/vonomarap</organizationUrl>
@@ -64,9 +75,10 @@
 	</scm> 
 
 	<properties>
-		<java.version>21</java.version>
+		<java.version>25</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<spring-boot.version>3.4.2</spring-boot.version>
+		<spring-boot.version>4.0.0</spring-boot.version>
+		<lombok.version>1.18.40</lombok.version>
 		<spring-cloud.version>2024.0.0</spring-cloud.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
 	</properties>
@@ -80,6 +92,11 @@
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
+      <dependency>
+        <groupId>com.kanokna</groupId>
+        <artifactId>shared-kernel</artifactId>
+        <version>${project.version}</version>
+      </dependency>
 
             <!-- API Documentation -->
             <dependency>
@@ -112,6 +129,13 @@
                 <artifactId>logstash-logback-encoder</artifactId>
                 <version>7.4</version>
             </dependency>
+            
+            <!-- Lombok -->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+            </dependency>
 		</dependencies> 
 	</dependencyManagement>
 	
@@ -131,6 +155,11 @@
                 <configuration>
                     <parameters>true</parameters>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>7.8.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

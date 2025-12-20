@@ -1,0 +1,69 @@
+<Technology version="1.0">
+  <Runtime>
+    <Language>Java 25</Language>
+    <Framework>Spring Boot 4.0.x (Web)</Framework>
+    <Architecture>DDD + Hexagonal; domain/application free of Spring/JPA/transport dependencies.</Architecture>
+  </Runtime>
+
+  <Frameworks>
+    <SpringSecurity>OAuth2 Resource Server (JWT) for admin/index endpoints</SpringSecurity>
+    <Resilience4j>Timeouts, retries (expo+jitter), circuit breakers, bulkheads</Resilience4j>
+    <MapStruct>1.5+ for mappers</MapStruct>
+    <OpenAPI>springdoc-openapi 2.x for REST contracts</OpenAPI>
+  </Frameworks>
+
+  <Infrastructure>
+    <SearchEngine>
+      <Engine>Elasticsearch/OpenSearch 8.x</Engine>
+      <Usage>Full-text, faceted, autocomplete indexes</Usage>
+    </SearchEngine>
+    <Messaging>
+      <Broker>Kafka 3.x</Broker>
+      <InboundTopics>
+        <Topic name="catalog.product-template-changed"/>
+        <Topic name="catalog.version-published"/>
+      </InboundTopics>
+      <Pattern>Idempotent consumers with DLQ; bulk indexing</Pattern>
+    </Messaging>
+    <Cache>
+      <Engine>Redis 7.x</Engine>
+      <Usage>Cache autocomplete suggestions and hot queries</Usage>
+    </Cache>
+  </Infrastructure>
+
+  <Interfaces id="Interfaces">
+    <REST base="/api/v1/search">
+      <Endpoint>GET /products</Endpoint>
+      <Endpoint>GET /autocomplete</Endpoint>
+      <Endpoint>POST /admin/reindex (secured)</Endpoint>
+    </REST>
+  </Interfaces>
+
+  <CrossCutting>
+    <Security>
+      <Auth>OAuth2/OIDC JWT; public endpoints rate-limited; admin endpoints require ADMIN/SERVICE</Auth>
+      <Validation>Input validation on query params; safe query builders</Validation>
+    </Security>
+    <Observability>
+      <Metrics>Micrometer + Prometheus; metrics: search latency, cache hit ratio, ingestion lag</Metrics>
+      <Tracing>OpenTelemetry; include index name and doc ids in spans</Tracing>
+      <Logging>Structured JSON with block anchors (SEARCH-QUERY-*, SEARCH-INDEX-*)</Logging>
+    </Observability>
+    <Resilience>
+      <Timeouts>Elasticsearch calls bounded</Timeouts>
+      <Retries>Retries with backoff for ES transient failures; idempotent ingest</Retries>
+    </Resilience>
+    <Testing>
+      <Unit>Query builder and aggregation logic</Unit>
+      <Slice>@WebMvcTest for controllers</Slice>
+      <Integration>Testcontainers for OpenSearch/Elasticsearch + Kafka + Redis</Integration>
+      <Contract>OpenAPI for REST</Contract>
+      <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+    </Testing>
+  </CrossCutting>
+
+  <Links>
+    <Link ref="RequirementsAnalysis.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</Technology>

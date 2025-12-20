@@ -1,0 +1,108 @@
+<RequirementsAnalysis version="1.0">
+  <Domain id="account">
+    <Description>
+      Manages customer, installer, and admin accounts, profiles, addresses, roles/permissions, and saved
+      configurations for the windows/doors platform; integrates with external IdP for authentication.
+    </Description>
+  </Domain>
+
+  <Actors>
+    <Actor id="CUSTOMER">
+      <Name>Customer</Name>
+      <Goals>
+        <Goal id="G-ACC-PROFILE">Maintain personal/profile data</Goal>
+        <Goal id="G-ACC-ADDRESS">Manage shipping and billing addresses</Goal>
+        <Goal id="G-ACC-SAVED">Save and retrieve configurations/favorites</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="INSTALLER">
+      <Name>Installer</Name>
+      <Goals>
+        <Goal id="G-ACC-INSTALLER">Maintain installer profile and availability (basic)</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="ADMIN">
+      <Name>Admin</Name>
+      <Goals>
+        <Goal id="G-ACC-ROLES">Assign roles/permissions</Goal>
+        <Goal id="G-ACC-AUDIT">Audit changes to accounts</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="IDP">
+      <Name>ExternalIdentityProvider</Name>
+      <Goals>
+        <Goal id="G-IDP-AUTH">Authenticate users and provide tokens</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="SYSTEM">
+      <Name>InternalServiceConsumer</Name>
+      <Goals>
+        <Goal id="G-ACC-LOOKUP">Lookup user profile/addresses/roles</Goal>
+      </Goals>
+    </Actor>
+  </Actors>
+
+  <UseCases>
+    <UseCase id="UC-ACC-PROFILE">
+      <ActorRef ref="CUSTOMER"/>
+      <Action>Updates profile data</Action>
+      <Goal>Keep profile accurate for checkout and reporting</Goal>
+      <Preconditions>User authenticated via IdP.</Preconditions>
+      <Postconditions>Profile persisted; audit entry created.</Postconditions>
+      <MainFlow>User submits profile fields -> service validates -> saves -> returns profile.</MainFlow>
+      <AlternateFlows>Validation error -> reject.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-ACC-ADDRESS">
+      <ActorRef ref="CUSTOMER"/>
+      <Action>Manages shipping/billing addresses</Action>
+      <Goal>Provide valid addresses for checkout</Goal>
+      <Preconditions>User authenticated.</Preconditions>
+      <Postconditions>Address stored with validation; default address flagged.</Postconditions>
+      <MainFlow>User adds/updates address -> validation -> saves -> returns list/default.</MainFlow>
+      <AlternateFlows>Invalid address -> error; duplicate label -> allowed with unique id.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-ACC-SAVED-CONFIG">
+      <ActorRef ref="CUSTOMER"/>
+      <Action>Saves or retrieves a configuration/favorite</Action>
+      <Goal>Let users revisit configurations later</Goal>
+      <Preconditions>User authenticated; configuration reference valid.</Preconditions>
+      <Postconditions>Saved config stored; retrievable list.</Postconditions>
+      <MainFlow>User saves config id/payload -> service persists -> returns id; retrieval returns list.</MainFlow>
+      <AlternateFlows>Config invalid -> reject.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-ACC-ROLE-ASSIGN">
+      <ActorRef ref="ADMIN"/>
+      <Action>Assigns roles/permissions</Action>
+      <Goal>Control access for admins/installers/customers</Goal>
+      <Preconditions>Admin authorized; target user exists.</Preconditions>
+      <Postconditions>Roles updated; audit recorded.</Postconditions>
+      <MainFlow>Admin sets roles -> service updates record -> emits audit event.</MainFlow>
+      <AlternateFlows>Unauthorized -> 403; role not allowed -> reject.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-ACC-LOOKUP">
+      <ActorRef ref="SYSTEM"/>
+      <Action>Looks up user profile/addresses/roles</Action>
+      <Goal>Support downstream services (pricing segment, order shipping)</Goal>
+      <Preconditions>Service credentials authorized.</Preconditions>
+      <Postconditions>Requested data returned.</Postconditions>
+      <MainFlow>Service queries profile/addresses -> data returned.</MainFlow>
+      <AlternateFlows>User not found -> 404.</AlternateFlows>
+    </UseCase>
+  </UseCases>
+
+  <NonFunctionalRequirements>
+    <Requirement id="NFR-PERF">P95 profile/address operations <=150ms; lookup <=100ms.</Requirement>
+    <Requirement id="NFR-AVAILABILITY">99.9% availability for read endpoints.</Requirement>
+    <Requirement id="NFR-SECURITY">OAuth2/OIDC JWT; role-based access; PII handling and audit.</Requirement>
+    <Requirement id="NFR-CONSISTENCY">Profile/address changes versioned; optimistic locking to avoid lost updates.</Requirement>
+  </NonFunctionalRequirements>
+
+  <Links>
+    <Link ref="Technology.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</RequirementsAnalysis>

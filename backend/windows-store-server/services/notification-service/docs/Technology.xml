@@ -1,0 +1,83 @@
+<Technology version="1.0">
+  <Runtime>
+    <Language>Java 25</Language>
+    <Framework>Spring Boot 4.0.x (Web, Validation)</Framework>
+    <Architecture>DDD + Hexagonal; domain/application free of Spring/JPA/transport dependencies.</Architecture>
+  </Runtime>
+
+  <Frameworks>
+    <SpringDataJpa>3.3.x with Hibernate 6.x; ddl-auto=validate</SpringDataJpa>
+    <SpringSecurity>OAuth2 Resource Server (JWT)</SpringSecurity>
+    <Resilience4j>Timeouts, retries (expo+jitter), circuit breakers, bulkheads</Resilience4j>
+    <MapStruct>1.5+ for mappers</MapStruct>
+    <OpenAPI>springdoc-openapi 2.x for REST contracts</OpenAPI>
+  </Frameworks>
+
+  <Infrastructure>
+    <Database>
+      <Engine>PostgreSQL 16</Engine>
+      <Migrations>Flyway</Migrations>
+      <Rules>Disable Open-Session-in-View; equals/hashCode by business key; optimistic locking with @Version.</Rules>
+    </Database>
+    <Cache>
+      <Engine>Redis 7.x</Engine>
+      <Usage>Template cache and preferences cache</Usage>
+    </Cache>
+    <Messaging>
+      <Broker>Kafka 3.x</Broker>
+      <InboundTopics>
+        <Topic name="order.created"/>
+        <Topic name="order.confirmed"/>
+        <Topic name="order.installation-scheduled"/>
+        <Topic name="cart.abandoned"/>
+      </InboundTopics>
+      <OutboundTopics>
+        <Topic name="notification.sent" key="messageId"/>
+      </OutboundTopics>
+      <Pattern>Inbox/outbox with idempotent consumers.</Pattern>
+    </Messaging>
+    <Channels>
+      <Email>SMTP provider</Email>
+      <SMS>SMS provider</SMS>
+      <Push optional="true">Push provider</Push>
+    </Channels>
+  </Infrastructure>
+
+  <Interfaces id="Interfaces">
+    <REST base="/api/v1/notifications">
+      <Endpoint>POST /templates</Endpoint>
+      <Endpoint>PUT /templates/{id}</Endpoint>
+      <Endpoint>POST /preferences</Endpoint>
+      <Endpoint>GET /preferences</Endpoint>
+      <Endpoint>POST /send (admin/system-triggered)</Endpoint>
+    </REST>
+  </Interfaces>
+
+  <CrossCutting>
+    <Security>
+      <Auth>OAuth2/OIDC JWT; ADMIN for template endpoints; SERVICE for ingestion/send</Auth>
+      <Validation>Bean Validation on DTOs; domain invariants for templates and preferences</Validation>
+    </Security>
+    <Observability>
+      <Metrics>Micrometer + Prometheus; metrics: send latency, failure rate per channel, retry counts</Metrics>
+      <Tracing>OpenTelemetry; include messageId, channel in spans</Tracing>
+      <Logging>Structured JSON with block anchors (NOTIFY-RENDER-*, NOTIFY-SEND-*)</Logging>
+    </Observability>
+    <Resilience>
+      <Timeouts>Channel calls bounded</Timeouts>
+      <Retries>Retries with backoff for transient channel failures; idempotent send by messageId</Retries>
+    </Resilience>
+    <Testing>
+      <Unit>Template rendering and preference application</Unit>
+      <Slice>@DataJpaTest for repositories; @WebMvcTest for controllers</Slice>
+      <Integration>Testcontainers for PostgreSQL/Redis/Kafka</Integration>
+      <Contract>OpenAPI for REST; AsyncAPI/Avro for notification.sent</Contract>
+      <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+    </Testing>
+  </CrossCutting>
+
+  <Links>
+    <Link ref="RequirementsAnalysis.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</Technology>

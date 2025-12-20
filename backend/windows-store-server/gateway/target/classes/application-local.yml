@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - RemoveRequestHeader=Cookie
+  redis:
+    host: localhost
+    port: 6379
+
+gateway:
+  security:
+    enabled: false

@@ -1,0 +1,184 @@
+<DevelopmentPlan version="1.0">
+  <Service id="Service-cart-service">
+    <Description>Manages carts, items, shipping/install options, totals, and emits cart lifecycle events.</Description>
+    <BoundedContext>cart</BoundedContext>
+    <Responsibilities>
+      <Item>Persist carts for authenticated and guest users</Item>
+      <Item>Validate items against catalog/pricing and keep totals consistent</Item>
+      <Item>Handle shipping/installation selections and deposits</Item>
+      <Item>Emit cart updated/abandoned events</Item>
+    </Responsibilities>
+    <Dependencies>
+      <ServiceRef ref="shared-kernel"/>
+      <ServiceRef ref="catalog-configuration-service" type="sync-api">Validate configuration</ServiceRef>
+      <ServiceRef ref="pricing-service" type="sync-api">Quote items/totals</ServiceRef>
+      <ServiceRef ref="notification-service" type="async">Abandoned cart events</ServiceRef>
+    </Dependencies>
+    <Links>
+      <Link ref="RequirementsAnalysis.xml#UC-CART-ADD-ITEM"/>
+      <Link ref="RequirementsAnalysis.xml#UC-CART-SUMMARY"/>
+      <Link ref="Technology.xml#Interfaces"/>
+    </Links>
+  </Service>
+
+  <Architecture>
+    <Layers>
+      <Domain>com.kanokna.cart_service.domain.* (pure Java)</Domain>
+      <Application>com.kanokna.cart_service.application.* (use cases, ports, DTOs)</Application>
+      <AdaptersIn>com.kanokna.cart_service.adapters.in.* (web/grpc)</AdaptersIn>
+      <AdaptersOut>com.kanokna.cart_service.adapters.out.* (persistence, messaging, external services)</AdaptersOut>
+    </Layers>
+    <Enforcement>ArchUnit: domain free of Spring/JPA; application depends on domain and ports only.</Enforcement>
+  </Architecture>
+
+  <Ports>
+    <Inbound>
+      <Port name="CartCommandPort" layer="application.port.in">
+        <Operation>createCart</Operation>
+        <Operation>addItem</Operation>
+        <Operation>updateItem</Operation>
+        <Operation>setShippingAndInstallation</Operation>
+      </Port>
+      <Port name="CartQueryPort" layer="application.port.in">
+        <Operation>getCart</Operation>
+      </Port>
+    </Inbound>
+    <Outbound>
+      <Port name="CartRepository" layer="application.port.out"/>
+      <Port name="CartCache" layer="application.port.out"/>
+      <Port name="PricingPort" layer="application.port.out"/>
+      <Port name="CatalogValidationPort" layer="application.port.out"/>
+      <Port name="OutboxPublisher" layer="application.port.out"/>
+    </Outbound>
+  </Ports>
+
+  <DomainModel>
+    <Aggregate name="Cart">
+      <Identifier>CartId</Identifier>
+      <State>cartToken, customerId, status, items, shippingOption, installOption, totals, version</State>
+      <Invariants>
+        <Invariant>Totals reflect sum of items plus shipping/install minus discounts</Invariant>
+        <Invariant>Item quantities positive</Invariant>
+        <Invariant>Price quotes not expired; idempotency respected</Invariant>
+      </Invariants>
+      <Events>
+        <Event>CartCreated</Event>
+        <Event>CartUpdated</Event>
+        <Event>CartAbandoned</Event>
+      </Events>
+    </Aggregate>
+    <Entity name="CartItem">
+      <Fields>configurationId, quoteId, quantity, priceSnapshot, metadata</Fields>
+    </Entity>
+    <ValueObject name="Totals">
+      <Fields>subtotal, discounts, shipping, installation, tax, deposit, grandTotal, currency</Fields>
+    </ValueObject>
+  </DomainModel>
+
+  <Contracts id="Contracts">
+    <ModuleContract id="mod.cart.domain" layer="domain.service">
+      <Purpose>Enforce cart item invariants and totals calculation with idempotency.</Purpose>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-ADD-ITEM"/>
+      </Links>
+      <FunctionContracts>
+        <FunctionContract id="addItem" layer="domain.service" intent="Add or update an item idempotently and recalc totals">
+          <Input>AddItemCommand</Input>
+          <Output>Cart</Output>
+          <Preconditions>Valid quoteId/configuration provided; quantity > 0</Preconditions>
+          <Postconditions>Item added/merged; totals updated</Postconditions>
+          <BlockAnchors>
+            <Block id="CART-ADD-IDEMP" purpose="Check idempotency/quote freshness"/>
+            <Block id="CART-ADD-VALIDATE" purpose="Validate quantity and configuration ref"/>
+            <Block id="CART-TOTAL-RECALC" purpose="Recalculate totals"/>
+          </BlockAnchors>
+          <LoggingPattern>[CART][addItem][block={id}][state={state}]</LoggingPattern>
+        </FunctionContract>
+        <FunctionContract id="setShippingAndInstallation" layer="domain.service" intent="Apply shipping/install options and recalc totals">
+          <Input>SetShippingInstallCommand</Input>
+          <Output>Cart</Output>
+          <Preconditions>Cart exists; options recognized</Preconditions>
+          <Postconditions>Options stored; totals updated</Postconditions>
+          <BlockAnchors>
+            <Block id="CART-SHIP-VALIDATE" purpose="Validate shipping/install options"/>
+            <Block id="CART-TOTAL-RECALC" purpose="Recalculate totals"/>
+          </BlockAnchors>
+          <LoggingPattern>[CART][setShippingAndInstallation][block={id}][state={state}]</LoggingPattern>
+        </FunctionContract>
+      </FunctionContracts>
+    </ModuleContract>
+  </Contracts>
+
+  <Flows id="Flow-Cart">
+    <Flow id="Flow-Cart-Add-Update">
+      <Description>Add or update cart item with quote validation.</Description>
+      <Sequence>
+        <Step order="1" from="Adapter (REST/gRPC)" to="Application Service">Map request -> command</Step>
+        <Step order="2" from="Application Service" to="PricingPort">Validate/retrieve quote</Step>
+        <Step order="3" from="Application Service" to="CatalogValidationPort">Validate configuration reference</Step>
+        <Step order="4" from="Application Service" to="Domain Service">addItem</Step>
+        <Step order="5" from="Application Service" to="CartRepository/Cache">Persist cart and cache summary</Step>
+      </Sequence>
+    </Flow>
+    <Flow id="Flow-Cart-Abandon">
+      <Description>Emit abandoned cart after inactivity.</Description>
+      <Sequence>
+        <Step order="1" from="Scheduler" to="CartRepository/Cache">Detect inactive cart</Step>
+        <Step order="2" from="Application Service" to="Domain">Mark abandoned</Step>
+        <Step order="3" from="Application Service" to="OutboxPublisher">Emit cart.abandoned event</Step>
+      </Sequence>
+    </Flow>
+  </Flows>
+
+  <PersistencePlan>
+    <Table name="cart">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="cart_token" type="UUID"/>
+      <Column name="customer_id" type="UUID" nullable="true"/>
+      <Column name="status" type="VARCHAR(20)"/>
+      <Column name="currency" type="CHAR(3)"/>
+      <Column name="shipping_option" type="VARCHAR(50)" nullable="true"/>
+      <Column name="install_option" type="VARCHAR(50)" nullable="true"/>
+      <Column name="subtotal" type="DECIMAL(19,2)"/>
+      <Column name="discount" type="DECIMAL(19,2)"/>
+      <Column name="shipping" type="DECIMAL(19,2)"/>
+      <Column name="installation" type="DECIMAL(19,2)"/>
+      <Column name="tax" type="DECIMAL(19,2)"/>
+      <Column name="deposit" type="DECIMAL(19,2)"/>
+      <Column name="grand_total" type="DECIMAL(19,2)"/>
+      <Column name="version" type="BIGINT" role="OPTIMISTIC_LOCK"/>
+      <Index name="ux_cart_token" unique="true">
+        <ColumnRef>cart_token</ColumnRef>
+      </Index>
+    </Table>
+    <Table name="cart_item">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="cart_id" type="UUID" role="FK"/>
+      <Column name="quote_id" type="UUID"/>
+      <Column name="configuration_id" type="UUID"/>
+      <Column name="quantity" type="INT"/>
+      <Column name="price_snapshot_json" type="JSONB"/>
+    </Table>
+  </PersistencePlan>
+
+  <TestingStrategy>
+    <Unit>Cart domain add/update/totals, idempotency, shipping/install application</Unit>
+    <Slice>@DataJpaTest for repositories; @WebMvcTest for controllers</Slice>
+    <Integration>Testcontainers for PostgreSQL/Redis/Kafka</Integration>
+    <ContractTests>OpenAPI for REST; AsyncAPI for cart.abandoned</ContractTests>
+    <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+  </TestingStrategy>
+
+  <Observability>
+    <Metrics>Cart add/update latency; abandoned cart count; cache hit; quote validation failures</Metrics>
+    <Tracing>Include cartId, cartToken, customerId in spans</Tracing>
+    <Logging>Structured JSON with block anchors (CART-ADD-*, CART-TOTAL-*, CART-SHIP-*) describing decisions</Logging>
+  </Observability>
+
+  <Deployment>
+    <Packaging>Jib/Buildpacks OCI image</Packaging>
+    <Config>Config-server profiles dev/stage/prod</Config>
+    <Rollout>Rolling/blue-green; Flyway migrations expand-migrate-contract</Rollout>
+    <Secrets>Vault/K8s Secrets; no secrets in code</Secrets>
+  </Deployment>
+</DevelopmentPlan>

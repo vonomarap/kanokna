@@ -1,0 +1,80 @@
+<Technology version="1.0">
+  <Runtime>
+    <Language>Java 25</Language>
+    <Framework>Spring Boot 4.0.x (Web, Validation)</Framework>
+    <Architecture>DDD + Hexagonal; domain/application free of Spring/JPA/transport dependencies.</Architecture>
+  </Runtime>
+
+  <Frameworks>
+    <SpringDataJpa>3.3.x with Hibernate 6.x; ddl-auto=validate</SpringDataJpa>
+    <SpringSecurity>OAuth2 Resource Server (JWT)</SpringSecurity>
+    <Resilience4j>Timeouts, retries (expo+jitter), circuit breakers, bulkheads</Resilience4j>
+    <MapStruct>1.5+ for mappers</MapStruct>
+    <OpenAPI>springdoc-openapi 2.x for REST contracts</OpenAPI>
+  </Frameworks>
+
+  <Infrastructure>
+    <Database>
+      <Engine>PostgreSQL 16</Engine>
+      <Migrations>Flyway</Migrations>
+      <Rules>Disable Open-Session-in-View; equals/hashCode by business key; optimistic locking with @Version.</Rules>
+    </Database>
+    <Cache>
+      <Engine>Redis 7.x</Engine>
+      <Usage>Session carts (guest), cart summaries, idempotency tokens with TTL.</Usage>
+    </Cache>
+    <Messaging>
+      <Broker>Kafka 3.x</Broker>
+      <OutboundTopics>
+        <Topic name="cart.abandoned" key="cartId"/>
+        <Topic name="cart.updated" key="cartId" optional="true"/>
+      </OutboundTopics>
+      <Pattern>Transactional outbox for cart events; idempotent consumers.</Pattern>
+    </Messaging>
+    <External>
+      <Service>pricing-service for quotes; catalog-configuration-service for validation</Service>
+    </External>
+  </Infrastructure>
+
+  <Interfaces id="Interfaces">
+    <REST base="/api/v1/cart">
+      <Endpoint>POST / (create cart)</Endpoint>
+      <Endpoint>POST /items (add item)</Endpoint>
+      <Endpoint>PUT /items/{itemId} (update item)</Endpoint>
+      <Endpoint>PUT /shipping-installation (set shipping/install options)</Endpoint>
+      <Endpoint>GET /{cartId} (get cart summary)</Endpoint>
+    </REST>
+    <gRPC enabled="optional" endpoint="/grpc/cart">
+      <Method>GetCartSummary(cartId/token)</Method>
+      <Method>AddItem(quoteId, config)</Method>
+    </gRPC>
+  </Interfaces>
+
+  <CrossCutting>
+    <Security>
+      <Auth>OAuth2/OIDC JWT; BUYER for customer carts; SERVICE for internal calls; ADMIN/SUPPORT for assisted carts.</Auth>
+      <Validation>Bean Validation on DTOs; domain invariants for totals/idempotency.</Validation>
+    </Security>
+    <Observability>
+      <Metrics>Micrometer + Prometheus; metrics: cart add/update latency, cache hit, abandoned count.</Metrics>
+      <Tracing>OpenTelemetry; include cartId, customerId in spans.</Tracing>
+      <Logging>Structured JSON with block anchors (CART-ADD-*, CART-TOTAL-*) for belief-state tracing.</Logging>
+    </Observability>
+    <Resilience>
+      <Timeouts>pricing/catalog calls bounded</Timeouts>
+      <Retries>Circuit breakers/retries for transient failures; idempotent handlers.</Retries>
+    </Resilience>
+    <Testing>
+      <Unit>Domain totals/idempotency logic</Unit>
+      <Slice>@DataJpaTest for repositories; @WebMvcTest for controllers</Slice>
+      <Integration>Testcontainers for PostgreSQL/Redis/Kafka</Integration>
+      <Contract>OpenAPI/AsyncAPI for REST/events</Contract>
+      <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+    </Testing>
+  </CrossCutting>
+
+  <Links>
+    <Link ref="RequirementsAnalysis.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</Technology>

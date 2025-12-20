@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - RemoveRequestHeader=Cookie
+        - name: RequestRateLimiter
+          args:
+            key-resolver: "#{@principalKeyResolver}"
+            redis-rate-limiter.replenishRate: 10
+            redis-rate-limiter.burstCapacity: 20
+      httpclient:
+        connect-timeout: 2000
+        response-timeout: 5s
+  redis:
+    host: localhost
+    port: 6379
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: redis
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: true
+server:
+  port: 8080
+
+gateway:
+  security:
+    enabled: true
+  auth:
+    issuer-uri: ${GATEWAY_JWT_ISSUER:https://auth.kanokna.com/realms/kanokna}
+    jwk-set-uri: ${GATEWAY_JWK_SET_URI:https://auth.kanokna.com/realms/kanokna/protocol/openid-connect/certs}
+
+services:
+  catalog:
+    uri: ${CATALOG_URI:lb://catalog-configuration-service}
+  pricing:
+    uri: ${PRICING_URI:lb://pricing-service}
+  cart:
+    uri: ${CART_URI:lb://cart-service}
+  order:
+    uri: ${ORDER_URI:lb://order-service}
+  account:
+    uri: ${ACCOUNT_URI:lb://account-service}
+  media:
+    uri: ${MEDIA_URI:lb://media-service}
+  search:
+    uri: ${SEARCH_URI:lb://search-service}

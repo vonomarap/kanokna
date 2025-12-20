@@ -1,0 +1,110 @@
+<RequirementsAnalysis version="1.0">
+  <Domain id="cart">
+    <Description>
+      Manages shopping carts for configurable windows/doors, storing priced items, shipping/install options,
+      taxes, and deposits, enabling checkout and abandoned-cart flows.
+    </Description>
+  </Domain>
+
+  <Actors>
+    <Actor id="CUSTOMER">
+      <Name>Customer</Name>
+      <Goals>
+        <Goal id="G-CART-ADD">Add priced configurations to cart</Goal>
+        <Goal id="G-CART-UPDATE">Update quantities/options</Goal>
+        <Goal id="G-CART-CHECKOUT">Proceed to checkout with totals</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="SYSTEM">
+      <Name>InternalServiceConsumer</Name>
+      <Goals>
+        <Goal id="G-CART-QUOTE">Request cart totals for checkout</Goal>
+        <Goal id="G-CART-VALIDATE">Validate items against catalog/pricing</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="ADMIN">
+      <Name>SupportAgent</Name>
+      <Goals>
+        <Goal id="G-CART-ASSIST">Assist customers by editing carts (B2B/phone orders)</Goal>
+      </Goals>
+    </Actor>
+  </Actors>
+
+  <UseCases>
+    <UseCase id="UC-CART-CREATE">
+      <ActorRef ref="CUSTOMER"/>
+      <Action>Creates a cart (guest or authenticated)</Action>
+      <Goal>Start a cart session with a token or customer id</Goal>
+      <Preconditions>None; optional existing cart token reused.</Preconditions>
+      <Postconditions>Cart id/token returned; expiration set for guest carts.</Postconditions>
+      <MainFlow>Client requests new cart -> service creates cart -> returns token/id.</MainFlow>
+      <AlternateFlows>Authenticated user already has open cart -> return existing.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-CART-ADD-ITEM">
+      <ActorRef ref="CUSTOMER"/>
+      <Action>Adds a priced configuration to cart</Action>
+      <Goal>Persist item with price and availability checks</Goal>
+      <Preconditions>Configuration validated; price quote available; cart exists.</Preconditions>
+      <Postconditions>Item stored; totals updated; idempotency respected.</Postconditions>
+      <MainFlow>Client posts item with quoteId/config -> service validates with pricing/catalog -> stores item -> returns cart summary.</MainFlow>
+      <AlternateFlows>Quote expired -> reprice; validation fails -> error.</AlternateFlows>
+      <Links>
+        <Link ref="Technology.xml#Interfaces"/>
+        <Link ref="DevelopmentPlan.xml#Flow-Cart"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-CART-UPDATE-ITEM">
+      <ActorRef ref="CUSTOMER"/>
+      <Action>Updates quantity/options/shipping on an item</Action>
+      <Goal>Keep totals accurate</Goal>
+      <Preconditions>Item exists; new quote if needed.</Preconditions>
+      <Postconditions>Item updated; totals recalculated; invalid changes rejected.</Postconditions>
+      <MainFlow>Client updates item -> service checks quote/availability -> saves -> returns cart.</MainFlow>
+      <AlternateFlows>Item not found -> error; quote invalid -> reprice required.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-CART-APPLY-SHIPPING-INSTALL">
+      <ActorRef ref="CUSTOMER"/>
+      <Action>Selects shipping and installation options</Action>
+      <Goal>Include logistics costs and preferences in totals</Goal>
+      <Preconditions>Cart exists with items.</Preconditions>
+      <Postconditions>Options saved; totals include shipping/install fees.</Postconditions>
+      <MainFlow>Client sets shipping/install -> service persists -> updates totals.</MainFlow>
+      <AlternateFlows>Unsupported option -> validation error.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-CART-SUMMARY">
+      <ActorRef ref="SYSTEM"/>
+      <Action>Retrieves cart with totals</Action>
+      <Goal>Provide checkout-ready summary</Goal>
+      <Preconditions>Cart id/token provided.</Preconditions>
+      <Postconditions>Cart returned with totals, taxes, deposits if any.</Postconditions>
+      <MainFlow>Client requests cart -> service returns with latest totals.</MainFlow>
+      <AlternateFlows>Cart expired -> not found/expired error.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-CART-ABANDONED">
+      <ActorRef ref="SYSTEM"/>
+      <Action>Emits abandoned cart event</Action>
+      <Goal>Enable reminders and analytics</Goal>
+      <Preconditions>Cart inactive beyond threshold.</Preconditions>
+      <Postconditions>abandoned event emitted; cart may be expired.</Postconditions>
+      <MainFlow>Scheduler detects inactivity -> emits event -> notifications consume.</MainFlow>
+    </UseCase>
+  </UseCases>
+
+  <NonFunctionalRequirements>
+    <Requirement id="NFR-PERF">P95 add/update item <=180ms; fetch summary <=120ms.</Requirement>
+    <Requirement id="NFR-AVAILABILITY">99.9% availability for cart APIs.</Requirement>
+    <Requirement id="NFR-IDEMPOTENCY">Add/update operations must be idempotent via keys.</Requirement>
+    <Requirement id="NFR-CONSISTENCY">Totals must reflect latest pricing; stale quotes rejected.</Requirement>
+    <Requirement id="NFR-SECURITY">OAuth2/OIDC JWT; role-based access; input validation.</Requirement>
+  </NonFunctionalRequirements>
+
+  <Links>
+    <Link ref="Technology.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</RequirementsAnalysis>

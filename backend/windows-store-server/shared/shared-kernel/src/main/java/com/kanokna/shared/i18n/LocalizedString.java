@@ -17,9 +17,7 @@ import java.util.stream.Collectors;
 public final class LocalizedString {
     
     private static final List<Language> FALLBACK_ORDER = List.of(Language.EN);
-    
     private final EnumMap<Language, String> translations;
-    
     private LocalizedString(Map<Language, String> values) {
         this.translations = validateAndCopy(values);
     }
@@ -38,6 +36,58 @@ public final class LocalizedString {
     }
     
     // Core methods
+    /*<FUNCTION_CONTRACT
+        id="localizedString.resolve"
+        module="mod.shared.kernel"
+        SPECIFICATION="RequirementsAnalysis.xml#i18n"
+        LINKS="MODULE_CONTRACT#mod.shared.kernel,Technology.xml#FRONTEND">
+      <ROLE_IN_MODULE>
+        Resolve the best translation for a requested language using defined fallback order.
+      </ROLE_IN_MODULE>
+      <SIGNATURE>
+        <INPUT>
+          - language:Language (nullable) representing requested locale.
+        </INPUT>
+        <OUTPUT>
+          - String translation; never null if translations exist.
+        </OUTPUT>
+        <SIDE_EFFECTS>
+          - None; pure lookup.
+        </SIDE_EFFECTS>
+      </SIGNATURE>
+      <PRECONDITIONS>
+        - translations map is non-empty (enforced at construction).
+      </PRECONDITIONS>
+      <POSTCONDITIONS>
+        - Returns translation for requested language if present; otherwise first available fallback (EN prioritized) or first entry.
+        - Throws IllegalStateException only if translations are somehow empty (should be impossible).
+      </POSTCONDITIONS>
+      <INVARIANTS>
+        - Does not mutate stored translations.
+        - Fallback order includes Language.EN first, then first available translation.
+      </INVARIANTS>
+      <ERROR_HANDLING>
+        - None for null language; null triggers fallback path.
+        - IllegalStateException if translations map unexpectedly empty.
+      </ERROR_HANDLING>
+      <LOGGING>
+        - None; caller may log resolved language externally.
+      </LOGGING>
+      <TEST_CASES>
+        <HAPPY_PATH>
+          - Request existing language returns matching translation.
+          - Request missing language returns EN translation when available.
+        </HAPPY_PATH>
+        <EDGE_CASES>
+          - language=null -> fallback resolution.
+          - Only one translation stored -> always returns that translation.
+        </EDGE_CASES>
+        <SECURITY_CASES>
+          - Not applicable.
+        </SECURITY_CASES>
+      </TEST_CASES>
+    </FUNCTION_CONTRACT>
+    */
     public String resolve(Language language) {
         return Optional.ofNullable(language)
                 .map(translations::get)

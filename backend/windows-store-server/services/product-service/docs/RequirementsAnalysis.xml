@@ -1,0 +1,124 @@
+<RequirementsAnalysis version="1.0">
+  <Domain id="product-catalog">
+    <Description>
+      Manages product master data for windows and doors (marketing content, specifications, variants)
+      exposed to browsing, search, configuration, and ordering flows.
+    </Description>
+  </Domain>
+
+  <Actors>
+    <Actor id="CATALOG_ADMIN">
+      <Name>CatalogAdmin</Name>
+      <Goals>
+        <Goal id="G-PROD-CREATE">Create and maintain product cards and variants</Goal>
+        <Goal id="G-PROD-CONTENT">Update localized descriptions, media links, SEO metadata</Goal>
+        <Goal id="G-PROD-PUBLISH">Publish changes for downstream services</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="CONTENT_EDITOR">
+      <Name>ContentEditor</Name>
+      <Goals>
+        <Goal id="G-PROD-CONTENT-EDIT">Edit marketing content and attachments</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="SYSTEM_CLIENT">
+      <Name>InternalServiceConsumer</Name>
+      <Goals>
+        <Goal id="G-PROD-READ">Query product details and variants for UI/search/configuration</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="SEARCH_SERVICE">
+      <Name>SearchService</Name>
+      <Goals>
+        <Goal id="G-INDEX">Index products for search/autocomplete</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="MEDIA_SERVICE">
+      <Name>MediaService</Name>
+      <Goals>
+        <Goal id="G-MEDIA-LINK">Link media assets to product cards</Goal>
+      </Goals>
+    </Actor>
+  </Actors>
+
+  <UseCases>
+    <UseCase id="UC-PROD-CREATE-CARD">
+      <ActorRef ref="CATALOG_ADMIN"/>
+      <Action>Creates or updates a product card (window/door)</Action>
+      <Goal>Expose product with base specs and marketing content as a draft</Goal>
+      <Preconditions>Admin authenticated with CATALOG_ADMIN role.</Preconditions>
+      <Postconditions>Draft product card stored with unique SKU/code per tenant.</Postconditions>
+      <MainFlow>Admin submits metadata/specs -> product persisted as DRAFT -> response with id/version.</MainFlow>
+      <AlternateFlows>Duplicate SKU/code -> validation error; missing required fields -> validation error.</AlternateFlows>
+      <Links>
+        <Link ref="Technology.xml#Interfaces"/>
+        <Link ref="DevelopmentPlan.xml#Service-product-service"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-PROD-MANAGE-CONTENT">
+      <ActorRef ref="CONTENT_EDITOR"/>
+      <Action>Updates localized descriptions, media refs, SEO metadata</Action>
+      <Goal>Ensure product cards have up-to-date marketing content</Goal>
+      <Preconditions>Product exists in DRAFT or ACTIVE; editor authorized.</Preconditions>
+      <Postconditions>Content updated; references validated against media-service.</Postconditions>
+      <MainFlow>Editor edits content -> system validates media IDs -> saves draft.</MainFlow>
+      <AlternateFlows>Invalid media id -> error; locale missing -> validation error.</AlternateFlows>
+      <Links>
+        <Link ref="Technology.xml#Interfaces"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-PROD-PUBLISH">
+      <ActorRef ref="CATALOG_ADMIN"/>
+      <Action>Publishes a product version</Action>
+      <Goal>Make product available for browse/search/configuration</Goal>
+      <Preconditions>Draft passes validation (price invariants, required fields, media links).</Preconditions>
+      <Postconditions>Product version marked ACTIVE; events/outbox for search indexing.</Postconditions>
+      <MainFlow>Admin triggers publish -> validations run -> status set ACTIVE -> event written.</MainFlow>
+      <AlternateFlows>Validation fails -> remains DRAFT with error list.</AlternateFlows>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#Flow-Publish"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-PROD-LIST">
+      <ActorRef ref="SYSTEM_CLIENT"/>
+      <Action>Lists products with filters</Action>
+      <Goal>Provide browse-ready product summaries</Goal>
+      <Preconditions>Active products exist.</Preconditions>
+      <Postconditions>Paged list returned with basic details and availability flags.</Postconditions>
+      <MainFlow>Client requests list with filters -> service returns paged response.</MainFlow>
+      <AlternateFlows>No matches -> empty result.</AlternateFlows>
+      <Links>
+        <Link ref="Technology.xml#Interfaces"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-PROD-GET">
+      <ActorRef ref="SYSTEM_CLIENT"/>
+      <Action>Retrieves product details by id</Action>
+      <Goal>Display product detail page and feed configurator</Goal>
+      <Preconditions>Product is ACTIVE.</Preconditions>
+      <Postconditions>Full product details returned (specs, media refs, price hints if present).</Postconditions>
+      <MainFlow>Client requests product by id -> service returns full card.</MainFlow>
+      <AlternateFlows>Product not found or inactive -> 404 or 410 depending on policy.</AlternateFlows>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#Flow-Read"/>
+      </Links>
+    </UseCase>
+  </UseCases>
+
+  <NonFunctionalRequirements>
+    <Requirement id="NFR-PERF">P95 list <=200ms, detail <=180ms under normal load.</Requirement>
+    <Requirement id="NFR-AVAILABILITY">99.9% availability for read endpoints.</Requirement>
+    <Requirement id="NFR-VERSIONING">Published versions immutable; edits require new version.</Requirement>
+    <Requirement id="NFR-AUDIT">All admin/content edits audited (who/when/what).</Requirement>
+    <Requirement id="NFR-SECURITY">OAuth2/OIDC JWT; role-based authorization; input validation.</Requirement>
+  </NonFunctionalRequirements>
+
+  <Links>
+    <Link ref="Technology.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</RequirementsAnalysis>

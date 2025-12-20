@@ -1,0 +1,71 @@
+<RequirementsAnalysis version="1.0">
+  <Domain id="media">
+    <Description>
+      Stores and serves images/renders/manuals for windows/doors with variants (thumbnails, web-optimized),
+      metadata, and signed URL delivery for secure access by other services and frontend.
+    </Description>
+  </Domain>
+
+  <Actors>
+    <Actor id="ADMIN">
+      <Name>CatalogAdmin</Name>
+      <Goals>
+        <Goal id="G-MEDIA-UPLOAD">Upload and manage product media assets</Goal>
+        <Goal id="G-MEDIA-LINK">Associate assets with catalog items</Goal>
+      </Goals>
+    </Actor>
+    <Actor id="SYSTEM">
+      <Name>InternalServiceConsumer</Name>
+      <Goals>
+        <Goal id="G-MEDIA-RESOLVE">Resolve media URLs for product/catalog payloads</Goal>
+      </Goals>
+    </Actor>
+  </Actors>
+
+  <UseCases>
+    <UseCase id="UC-MEDIA-UPLOAD">
+      <ActorRef ref="ADMIN"/>
+      <Action>Uploads media asset</Action>
+      <Goal>Store asset with variants and metadata</Goal>
+      <Preconditions>Admin authenticated; file size/type within limits.</Preconditions>
+      <Postconditions>Asset stored; metadata persisted; IDs returned.</Postconditions>
+      <MainFlow>Admin uploads file -> service stores in object storage -> persists metadata -> returns mediaId and URLs.</MainFlow>
+      <AlternateFlows>Invalid file type/size -> reject; storage error -> retry/backoff.</AlternateFlows>
+    </UseCase>
+
+    <UseCase id="UC-MEDIA-LINK">
+      <ActorRef ref="ADMIN"/>
+      <Action>Associates media with catalog item</Action>
+      <Goal>Ensure media references are valid and accessible</Goal>
+      <Preconditions>Media asset exists; catalog item id provided.</Preconditions>
+      <Postconditions>Link stored; validated references.</Postconditions>
+      <MainFlow>Admin links mediaId to product/template -> service validates -> persists link.</MainFlow>
+      <AlternateFlows>Media not found -> error.</AlternateFlows>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#Service-media-service"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-MEDIA-RESOLVE">
+      <ActorRef ref="SYSTEM"/>
+      <Action>Resolves media URLs for consumption</Action>
+      <Goal>Return signed URLs or public links depending on policy</Goal>
+      <Preconditions>Media exists; requester authorized.</Preconditions>
+      <Postconditions>URLs returned; access TTL applied.</Postconditions>
+      <MainFlow>Service receives mediaIds -> returns signed URLs with TTL.</MainFlow>
+      <AlternateFlows>Unauthorized -> 403; media missing -> 404.</AlternateFlows>
+    </UseCase>
+  </UseCases>
+
+  <NonFunctionalRequirements>
+    <Requirement id="NFR-PERF">P95 media metadata fetch <=120ms; signed URL generation <=100ms.</Requirement>
+    <Requirement id="NFR-AVAILABILITY">99.9% availability for metadata and URL resolution APIs.</Requirement>
+    <Requirement id="NFR-SECURITY">Private by default; signed URLs with TTL; OAuth2/OIDC JWT for admin operations.</Requirement>
+    <Requirement id="NFR-CONSISTENCY">Metadata operations transactional; references validated before linking.</Requirement>
+  </NonFunctionalRequirements>
+
+  <Links>
+    <Link ref="Technology.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</RequirementsAnalysis>

@@ -1,0 +1,83 @@
+<Technology version="1.0">
+  <Runtime>
+    <Language>Java 25</Language>
+    <Framework>Spring Boot 4.0.x (Web, Validation, Security)</Framework>
+    <Architecture>DDD + Hexagonal; domain/application free of Spring/JPA/transport dependencies.</Architecture>
+  </Runtime>
+
+  <Frameworks>
+    <SpringDataJpa>3.3.x with Hibernate 6.x; ddl-auto=validate</SpringDataJpa>
+    <SpringSecurity>OAuth2 Resource Server (JWT)</SpringSecurity>
+    <Resilience4j>Timeouts, retries (expo+jitter), circuit breakers, bulkheads</Resilience4j>
+    <MapStruct>1.5+ for mappers</MapStruct>
+    <OpenAPI>springdoc-openapi 2.x for REST contracts</OpenAPI>
+  </Frameworks>
+
+  <Infrastructure>
+    <Database>
+      <Engine>PostgreSQL 16</Engine>
+      <Migrations>Flyway</Migrations>
+      <Rules>Disable Open-Session-in-View; equals/hashCode by business key; optimistic locking with @Version.</Rules>
+    </Database>
+    <Cache>
+      <Engine>Redis 7.x</Engine>
+      <Usage>Session/profile cache optional; idempotency tokens</Usage>
+    </Cache>
+    <Messaging>
+      <Broker>Kafka 3.x</Broker>
+      <OutboundTopics>
+        <Topic name="account.updated" key="accountId"/>
+      </OutboundTopics>
+      <Pattern>Transactional outbox for outbound events; idempotent consumers.</Pattern>
+    </Messaging>
+    <External>
+      <Service>External IdP (Keycloak/Auth0) for authentication; account-service consumes tokens and stores profile metadata</Service>
+    </External>
+  </Infrastructure>
+
+  <Interfaces id="Interfaces">
+    <REST base="/api/v1/accounts">
+      <Endpoint>GET /me</Endpoint>
+      <Endpoint>PUT /me</Endpoint>
+      <Endpoint>GET /me/addresses</Endpoint>
+      <Endpoint>POST /me/addresses</Endpoint>
+      <Endpoint>PUT /me/addresses/{id}</Endpoint>
+      <Endpoint>GET /me/saved-configs</Endpoint>
+      <Endpoint>POST /me/saved-configs</Endpoint>
+      <Endpoint>POST /{accountId}/roles (admin only)</Endpoint>
+    </REST>
+    <gRPC enabled="optional" endpoint="/grpc/accounts">
+      <Method>GetProfile(accountId)</Method>
+      <Method>GetAddresses(accountId)</Method>
+    </gRPC>
+  </Interfaces>
+
+  <CrossCutting>
+    <Security>
+      <Auth>OAuth2/OIDC JWT; BUYER/INSTALLER/ADMIN roles; SERVICE for internal lookups.</Auth>
+      <Validation>Bean Validation on DTOs; domain invariants for email/addresses/roles.</Validation>
+      <PII>PII minimization; encryption at rest configured at DB level; audit for reads/writes if required.</PII>
+    </Security>
+    <Observability>
+      <Metrics>Micrometer + Prometheus; metrics: profile update latency, lookup latency, audit events.</Metrics>
+      <Tracing>OpenTelemetry; include accountId in spans.</Tracing>
+      <Logging>Structured JSON with block anchors (ACC-PROFILE-*, ACC-ADDR-*, ACC-ROLE-*) for belief-state tracing.</Logging>
+    </Observability>
+    <Resilience>
+      <Timeouts>External IdP calls bounded</Timeouts>
+      <Retries>Idempotent writes only; circuit breakers for IdP and DB where relevant.</Retries>
+    </Resilience>
+    <Testing>
+      <Unit>Domain invariants for email/address/roles/saved config</Unit>
+      <Slice>@DataJpaTest for repositories; @WebMvcTest for controllers</Slice>
+      <Integration>Testcontainers for PostgreSQL/Redis/Kafka</Integration>
+      <Contract>OpenAPI for REST; AsyncAPI/Avro for account.updated</Contract>
+      <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+    </Testing>
+  </CrossCutting>
+
+  <Links>
+    <Link ref="RequirementsAnalysis.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</Technology>

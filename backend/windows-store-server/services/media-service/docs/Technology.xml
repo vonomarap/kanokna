@@ -1,0 +1,72 @@
+<Technology version="1.0">
+  <Runtime>
+    <Language>Java 25</Language>
+    <Framework>Spring Boot 4.0.x (Web, Validation)</Framework>
+    <Architecture>DDD + Hexagonal; domain/application free of Spring/JPA/transport dependencies.</Architecture>
+  </Runtime>
+
+  <Frameworks>
+    <SpringDataJpa>3.3.x with Hibernate 6.x; ddl-auto=validate</SpringDataJpa>
+    <SpringSecurity>OAuth2 Resource Server (JWT)</SpringSecurity>
+    <Resilience4j>Timeouts, retries (expo+jitter), circuit breakers, bulkheads</Resilience4j>
+    <MapStruct>1.5+ for mappers</MapStruct>
+    <OpenAPI>springdoc-openapi 2.x for REST contracts</OpenAPI>
+  </Frameworks>
+
+  <Infrastructure>
+    <Database>
+      <Engine>PostgreSQL 16</Engine>
+      <Migrations>Flyway</Migrations>
+      <Rules>Disable Open-Session-in-View; equals/hashCode by business key; optimistic locking with @Version.</Rules>
+    </Database>
+    <ObjectStorage>
+      <Engine>S3-compatible (minio/S3/GCS)</Engine>
+      <Usage>Stores originals and generated variants (thumbnail, web-optimized)</Usage>
+      <Access>Signed URLs with TTL for protected assets</Access>
+    </ObjectStorage>
+    <Messaging>
+      <Broker>Kafka 3.x</Broker>
+      <OutboundTopics>
+        <Topic name="media.updated" key="mediaId"/>
+      </OutboundTopics>
+      <Pattern>Transactional outbox for outbound events; idempotent consumers.</Pattern>
+    </Messaging>
+  </Infrastructure>
+
+  <Interfaces id="Interfaces">
+    <REST base="/api/v1/media">
+      <Endpoint>POST /upload</Endpoint>
+      <Endpoint>POST /link</Endpoint>
+      <Endpoint>GET /{mediaId}</Endpoint>
+      <Endpoint>POST /resolve</Endpoint>
+    </REST>
+  </Interfaces>
+
+  <CrossCutting>
+    <Security>
+      <Auth>OAuth2/OIDC JWT; ADMIN for upload/link; SERVICE for resolve; signed URL TTL for clients.</Auth>
+      <Validation>File type/size limits; metadata validation.</Validation>
+    </Security>
+    <Observability>
+      <Metrics>Micrometer + Prometheus; metrics: upload latency, resolve latency, storage failures.</Metrics>
+      <Tracing>OpenTelemetry; include mediaId in spans.</Tracing>
+      <Logging>Structured JSON with block anchors (MEDIA-UPLOAD-*, MEDIA-RESOLVE-*) for belief-state tracing.</Logging>
+    </Observability>
+    <Resilience>
+      <Timeouts>Object storage calls bounded</Timeouts>
+      <Retries>Retries with backoff for storage/Kafka where idempotent</Retries>
+    </Resilience>
+    <Testing>
+      <Unit>Domain validation for metadata/linking</Unit>
+      <Slice>@DataJpaTest for repositories; @WebMvcTest for controllers</Slice>
+      <Integration>Testcontainers for PostgreSQL + MinIO + Kafka</Integration>
+      <Contract>OpenAPI for REST; AsyncAPI/Avro for media.updated</Contract>
+      <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+    </Testing>
+  </CrossCutting>
+
+  <Links>
+    <Link ref="RequirementsAnalysis.xml"/>
+    <Link ref="DevelopmentPlan.xml"/>
+  </Links>
+</Technology>

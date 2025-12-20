@@ -1,0 +1,190 @@
+<DevelopmentPlan version="1.0">
+  <Service id="Service-account-service">
+    <Description>Manages accounts, roles, addresses, and saved configurations; integrates with external IdP for authentication.</Description>
+    <BoundedContext>account</BoundedContext>
+    <Responsibilities>
+      <Item>Store profiles and addresses</Item>
+      <Item>Manage roles/permissions for BUYER/INSTALLER/ADMIN/SERVICE</Item>
+      <Item>Persist saved configurations/favorites</Item>
+      <Item>Expose lookup APIs for internal services</Item>
+    </Responsibilities>
+    <Dependencies>
+      <ServiceRef ref="shared-kernel"/>
+      <ServiceRef ref="external-idp" type="auth">Authentication and tokens</ServiceRef>
+    </Dependencies>
+    <Links>
+      <Link ref="RequirementsAnalysis.xml#UC-ACC-PROFILE"/>
+      <Link ref="RequirementsAnalysis.xml#UC-ACC-ADDRESS"/>
+      <Link ref="Technology.xml#Interfaces"/>
+    </Links>
+  </Service>
+
+  <Architecture>
+    <Layers>
+      <Domain>com.kanokna.account_service.domain.* (pure Java)</Domain>
+      <Application>com.kanokna.account_service.application.* (use cases, ports, DTOs)</Application>
+      <AdaptersIn>com.kanokna.account_service.adapters.in.* (web/grpc)</AdaptersIn>
+      <AdaptersOut>com.kanokna.account_service.adapters.out.* (persistence, messaging, idp)</AdaptersOut>
+    </Layers>
+    <Enforcement>ArchUnit: domain free of Spring/JPA; application depends on domain and ports only.</Enforcement>
+  </Architecture>
+
+  <Ports>
+    <Inbound>
+      <Port name="ProfilePort" layer="application.port.in">
+        <Operation>updateProfile</Operation>
+        <Operation>getProfile</Operation>
+      </Port>
+      <Port name="AddressPort" layer="application.port.in">
+        <Operation>listAddresses</Operation>
+        <Operation>addAddress</Operation>
+        <Operation>updateAddress</Operation>
+      </Port>
+      <Port name="SavedConfigPort" layer="application.port.in">
+        <Operation>saveConfiguration</Operation>
+        <Operation>listConfigurations</Operation>
+      </Port>
+      <Port name="RolePort" layer="application.port.in">
+        <Operation>assignRoles</Operation>
+      </Port>
+      <Port name="LookupPort" layer="application.port.in">
+        <Operation>getProfileById</Operation>
+        <Operation>getAddressesById</Operation>
+      </Port>
+    </Inbound>
+    <Outbound>
+      <Port name="AccountRepository" layer="application.port.out"/>
+      <Port name="AddressRepository" layer="application.port.out"/>
+      <Port name="SavedConfigRepository" layer="application.port.out"/>
+      <Port name="AuditPublisher" layer="application.port.out"/>
+      <Port name="OutboxPublisher" layer="application.port.out"/>
+    </Outbound>
+  </Ports>
+
+  <DomainModel>
+    <Aggregate name="Account">
+      <Identifier>AccountId</Identifier>
+      <State>email, roles, profile data, version</State>
+      <Invariants>
+        <Invariant>Email format valid</Invariant>
+        <Invariant>Roles in allowed set</Invariant>
+      </Invariants>
+      <Events>
+        <Event>AccountUpdated</Event>
+        <Event>RolesUpdated</Event>
+      </Events>
+    </Aggregate>
+    <Entity name="Address">
+      <Fields>id, accountId, line1, line2, city, state, zip, country, isDefault</Fields>
+    </Entity>
+    <Entity name="SavedConfiguration">
+      <Fields>id, accountId, templateId, name, payload, createdAt</Fields>
+    </Entity>
+  </DomainModel>
+
+  <Contracts id="Contracts">
+    <ModuleContract id="mod.account.domain" layer="domain.service">
+      <Purpose>Validate and persist profile, address, roles, and saved configurations.</Purpose>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-ACC-PROFILE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-ACC-ADDRESS"/>
+      </Links>
+      <FunctionContracts>
+        <FunctionContract id="updateProfile" layer="domain.service" intent="Update profile ensuring email/roles validity">
+          <Input>UpdateProfileCommand</Input>
+          <Output>Account</Output>
+          <Preconditions>Authenticated user; email valid</Preconditions>
+          <Postconditions>Profile updated; AccountUpdated event emitted</Postconditions>
+          <BlockAnchors>
+            <Block id="ACC-PROFILE-VALIDATE" purpose="Validate email/fields"/>
+            <Block id="ACC-PROFILE-APPLY" purpose="Apply changes and version increment"/>
+          </BlockAnchors>
+          <LoggingPattern>[ACCOUNT][updateProfile][block={id}][state={state}]</LoggingPattern>
+        </FunctionContract>
+        <FunctionContract id="addOrUpdateAddress" layer="domain.service" intent="Maintain addresses and defaults">
+          <Input>AddressCommand</Input>
+          <Output>AddressResult</Output>
+          <Preconditions>Account exists; address fields present</Preconditions>
+          <Postconditions>Address saved; default rules applied</Postconditions>
+          <BlockAnchors>
+            <Block id="ACC-ADDR-VALIDATE" purpose="Validate address fields"/>
+            <Block id="ACC-ADDR-DEFAULT" purpose="Apply default address rule"/>
+          </BlockAnchors>
+          <LoggingPattern>[ACCOUNT][address][block={id}][state={state}]</LoggingPattern>
+        </FunctionContract>
+      </FunctionContracts>
+    </ModuleContract>
+  </Contracts>
+
+  <Flows>
+    <Flow id="Flow-Profile">
+      <Description>Update profile flow.</Description>
+      <Sequence>
+        <Step order="1" from="Adapter (REST/gRPC)" to="Application Service">Map request -> UpdateProfileCommand</Step>
+        <Step order="2" from="Application Service" to="Domain Service">updateProfile</Step>
+        <Step order="3" from="Application Service" to="OutboxPublisher">Emit account.updated</Step>
+      </Sequence>
+    </Flow>
+    <Flow id="Flow-Address">
+      <Description>Add/update address flow.</Description>
+      <Sequence>
+        <Step order="1" from="Adapter" to="Application Service">Map request -> AddressCommand</Step>
+        <Step order="2" from="Application Service" to="Domain Service">addOrUpdateAddress</Step>
+        <Step order="3" from="Application Service" to="OutboxPublisher">Emit account.updated</Step>
+      </Sequence>
+    </Flow>
+  </Flows>
+
+  <PersistencePlan>
+    <Table name="account">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="email" type="VARCHAR(255)"/>
+      <Column name="roles" type="VARCHAR(255)"/>
+      <Column name="profile_json" type="JSONB"/>
+      <Column name="version" type="BIGINT" role="OPTIMISTIC_LOCK"/>
+      <Index name="ux_account_email" unique="true">
+        <ColumnRef>email</ColumnRef>
+      </Index>
+    </Table>
+    <Table name="address">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="account_id" type="UUID" role="FK"/>
+      <Column name="line1" type="VARCHAR(255)"/>
+      <Column name="line2" type="VARCHAR(255)" nullable="true"/>
+      <Column name="city" type="VARCHAR(100)"/>
+      <Column name="state" type="VARCHAR(100)" nullable="true"/>
+      <Column name="zip" type="VARCHAR(20)"/>
+      <Column name="country" type="VARCHAR(2)"/>
+      <Column name="is_default" type="BOOLEAN"/>
+    </Table>
+    <Table name="saved_configuration">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="account_id" type="UUID" role="FK"/>
+      <Column name="template_id" type="UUID"/>
+      <Column name="name" type="VARCHAR(255)"/>
+      <Column name="payload" type="JSONB"/>
+      <Column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+    </Table>
+  </PersistencePlan>
+
+  <TestingStrategy>
+    <Unit>Profile/role/address/saved config invariants</Unit>
+    <Slice>@DataJpaTest for repositories; @WebMvcTest for controllers</Slice>
+    <Integration>Testcontainers for PostgreSQL/Redis/Kafka</Integration>
+    <ContractTests>OpenAPI for REST; AsyncAPI/Avro for account.updated</ContractTests>
+    <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+  </TestingStrategy>
+
+  <Observability>
+    <Metrics>Profile update latency, address update success rate, account.updated events emitted</Metrics>
+    <Tracing>Include accountId in spans</Tracing>
+    <Logging>Structured JSON with block anchors (ACC-PROFILE-*, ACC-ADDR-*) describing decisions</Logging>
+  </Observability>
+
+  <Deployment>
+    <Packaging>Jib/Buildpacks OCI image</Packaging>
+    <Config>Config-server profiles dev/stage/prod</Config>
+    <Rollout>Rolling/blue-green; Flyway migrations expand-migrate-contract</Rollout>
+    <Secrets>Vault/K8s Secrets; no secrets in code</Secrets>
+  </Deployment>
+</DevelopmentPlan>

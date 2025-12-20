@@ -1,0 +1,232 @@
+<DevelopmentPlan version="1.0">
+  <Service id="Service-catalog-configuration-service">
+    <Description>Catalog and configuration management for windows/doors with validation and BOM resolution.</Description>
+    <BoundedContext>catalog-configuration</BoundedContext>
+    <Responsibilities>
+      <Item>Manage templates, attributes, options, and compatibility rules</Item>
+      <Item>Validate configurations and return normalized results</Item>
+      <Item>Resolve BOM for validated configurations</Item>
+      <Item>Publish catalog versions and change events for downstream services</Item>
+    </Responsibilities>
+    <Dependencies>
+      <ServiceRef ref="shared-kernel"/>
+      <ServiceRef ref="pricing-service" type="async-events">Consumes published catalog/rule changes</ServiceRef>
+      <ServiceRef ref="search-service" type="async-indexing">Index templates/options</ServiceRef>
+      <ServiceRef ref="media-service" type="sync">Validate media references</ServiceRef>
+    </Dependencies>
+    <Links>
+      <Link ref="RequirementsAnalysis.xml#UC-DEFINE-TEMPLATE"/>
+      <Link ref="RequirementsAnalysis.xml#UC-VALIDATE-CONFIGURATION"/>
+      <Link ref="Technology.xml#Runtime"/>
+    </Links>
+  </Service>
+
+  <Architecture>
+    <Layers>
+      <Domain>com.kanokna.catalog_configuration_service.domain.* (pure Java; no Spring/JPA)</Domain>
+      <Application>com.kanokna.catalog_configuration_service.application.* (use cases, ports, DTOs)</Application>
+      <AdaptersIn>com.kanokna.catalog_configuration_service.adapters.in.* (web/grpc/listeners)</AdaptersIn>
+      <AdaptersOut>com.kanokna.catalog_configuration_service.adapters.out.* (persistence, external, messaging)</AdaptersOut>
+    </Layers>
+    <Enforcement>ArchUnit rules: domain depends only on shared-kernel+JDK; application depends on domain and port interfaces; adapters depend on application ports only.</Enforcement>
+  </Architecture>
+
+  <Ports id="Ports-Inbound">
+    <Inbound>
+      <Port name="TemplateCommandPort" layer="application.port.in">
+        <Operation>defineTemplate</Operation>
+        <Operation>updateTemplateOptions</Operation>
+        <Operation>defineRules</Operation>
+        <Operation>publishCatalogVersion</Operation>
+      </Port>
+      <Port name="QueryPort" layer="application.port.in">
+        <Operation>listTemplates</Operation>
+        <Operation>getTemplate</Operation>
+        <Operation>queryOptions</Operation>
+        <Operation>validateConfiguration</Operation>
+        <Operation>resolveBom</Operation>
+      </Port>
+    </Inbound>
+    <Outbound>
+      <Port name="ProductRepository" layer="application.port.out"/>
+      <Port name="ProductVariantRepository" layer="application.port.out"/>
+      <Port name="RuleRepository" layer="application.port.out"/>
+      <Port name="BomTemplateRepository" layer="application.port.out"/>
+      <Port name="CertificationRepository" layer="application.port.out"/>
+      <Port name="I18nPort" layer="application.port.out"/>
+      <Port name="OutboxPublisher" layer="application.port.out"/>
+      <Port name="SearchIndexPort" layer="application.port.out"/>
+      <Port name="MediaMetadataPort" layer="application.port.out"/>
+    </Outbound>
+  </Ports>
+
+  <DomainModel>
+    <Aggregate name="ProductTemplate">
+      <Identifier>ProductTemplateId</Identifier>
+      <State>name, type, status (DRAFT/ACTIVE/DEPRECATED), attributeGroups, ruleSet, mediaRefs, version</State>
+      <Invariants>
+        <Invariant>name unique per tenant</Invariant>
+        <Invariant>attribute groups unique by code</Invariant>
+        <Invariant>rules reference existing groups/options</Invariant>
+      </Invariants>
+      <Events>
+        <Event>ProductTemplateCreated</Event>
+        <Event>ProductTemplateUpdated</Event>
+        <Event>ProductTemplatePublished</Event>
+      </Events>
+    </Aggregate>
+    <Aggregate name="CatalogVersion">
+      <Identifier>CatalogVersionId</Identifier>
+      <State>versionNumber, status, effectiveFrom, effectiveTo</State>
+      <Invariant>Only one ACTIVE version per tenant</Invariant>
+      <Events>
+        <Event>CatalogVersionPublished</Event>
+      </Events>
+    </Aggregate>
+    <ValueObject name="ConfigurationSelection">
+      <Fields>templateId, options, dimensions, locale, version</Fields>
+    </ValueObject>
+    <ValueObject name="ConfigurationRuleSet">
+      <Fields>rules</Fields>
+    </ValueObject>
+  </DomainModel>
+
+  <Contracts id="Contracts-domain-validation">
+    <ModuleContract id="mod.catalog.domain.validation" layer="domain.service">
+      <Purpose>Validation of configuration selections against dimensional and compatibility rules.</Purpose>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-VALIDATE-CONFIGURATION"/>
+      </Links>
+      <FunctionContracts>
+        <FunctionContract id="validateConfiguration" layer="domain.service" intent="Validate configuration before pricing/cart">
+          <Input>ValidateConfigurationCommand</Input>
+          <Output>ValidationResult</Output>
+          <Preconditions>Command includes templateId/version and mandatory attributes.</Preconditions>
+          <Postconditions>Valid configurations emit ConfigurationValidatedEvent.</Postconditions>
+          <BlockAnchors>
+            <Block id="CFG-VAL-RANGE" purpose="Check dimensional ranges"/>
+            <Block id="CFG-VAL-COMPAT" purpose="Evaluate compatibility rules"/>
+            <Block id="CFG-VAL-RESULT" purpose="Aggregate errors/warnings and emit event"/>
+          </BlockAnchors>
+          <LoggingPattern>[CFG][validateConfiguration][block={id}][state={state}]</LoggingPattern>
+        </FunctionContract>
+      </FunctionContracts>
+    </ModuleContract>
+  </Contracts>
+
+  <Contracts id="Contracts-domain-bom">
+    <ModuleContract id="mod.catalog.domain.bom" layer="domain.service">
+      <Purpose>Resolve BOM entries from a validated configuration.</Purpose>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-RESOLVE-BOM"/>
+      </Links>
+      <FunctionContracts>
+        <FunctionContract id="resolveBom" layer="domain.service" intent="Map configuration to BOM template and emit event">
+          <Input>ResolveBomCommand</Input>
+          <Output>ResolveBomResult</Output>
+          <Preconditions>Configuration already validated</Preconditions>
+          <Postconditions>BomResolvedEvent emitted with resolved components</Postconditions>
+          <BlockAnchors>
+            <Block id="BOM-RES-SELECT" purpose="Select BOM template by variant/options"/>
+            <Block id="BOM-RES-MAP" purpose="Map configuration to BOM items"/>
+            <Block id="BOM-RES-EVENT" purpose="Persist/emit event via outbox"/>
+          </BlockAnchors>
+          <LoggingPattern>[CFG][resolveBom][block={id}][state={state}]</LoggingPattern>
+        </FunctionContract>
+      </FunctionContracts>
+    </ModuleContract>
+  </Contracts>
+
+  <Flows>
+    <Flow id="Flow-Validation">
+      <Description>Validate configuration and return errors/warnings.</Description>
+      <Sequence>
+        <Step order="1" from="Adapter (REST/GraphQL)" to="Application Service">Handle request, map DTO to command</Step>
+        <Step order="2" from="Application Service" to="Domain Service">Invoke validateConfiguration</Step>
+        <Step order="3" from="Domain Service" to="OutboxPublisher">Emit ConfigurationValidated event on success</Step>
+      </Sequence>
+    </Flow>
+    <Flow id="Flow-Publish">
+      <Description>Publish catalog version and notify downstream systems.</Description>
+      <Sequence>
+        <Step order="1" from="Adapter (REST)" to="Application Service">publishCatalogVersion command</Step>
+        <Step order="2" from="Application Service" to="Persistence">Persist ACTIVE version and snapshot</Step>
+        <Step order="3" from="Application Service" to="OutboxPublisher">Write version-published event</Step>
+        <Step order="4" from="OutboxPublisher" to="Kafka">Publish to pricing/search topics</Step>
+      </Sequence>
+    </Flow>
+    <Flow id="Flow-Bom">
+      <Description>Resolve BOM after successful validation.</Description>
+      <Sequence>
+        <Step order="1" from="Adapter (REST)" to="Application Service">resolveBom command</Step>
+        <Step order="2" from="Application Service" to="Domain Service">resolveBom</Step>
+        <Step order="3" from="Domain Service" to="OutboxPublisher">Emit BomResolved event</Step>
+      </Sequence>
+    </Flow>
+  </Flows>
+
+  <PersistencePlan>
+    <Table name="product_template">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="tenant_id" type="UUID"/>
+      <Column name="name" type="VARCHAR(255)"/>
+      <Column name="product_type" type="VARCHAR(50)"/>
+      <Column name="status" type="VARCHAR(20)"/>
+      <Column name="version" type="BIGINT" role="OPTIMISTIC_LOCK"/>
+      <Index name="ux_template_tenant_name" unique="true">
+        <ColumnRef>tenant_id</ColumnRef>
+        <ColumnRef>name</ColumnRef>
+      </Index>
+    </Table>
+    <Table name="template_attribute_group">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="template_id" type="UUID" role="FK"/>
+      <Column name="code" type="VARCHAR(100)"/>
+      <Column name="label_json" type="JSONB"/>
+    </Table>
+    <Table name="template_attribute_option">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="group_id" type="UUID" role="FK"/>
+      <Column name="code" type="VARCHAR(100)"/>
+      <Column name="label_json" type="JSONB"/>
+      <Column name="metadata_json" type="JSONB"/>
+    </Table>
+    <Table name="template_rule">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="template_id" type="UUID" role="FK"/>
+      <Column name="expression" type="TEXT"/>
+      <Column name="effect" type="VARCHAR(10)"/>
+    </Table>
+    <Table name="catalog_version">
+      <Column name="id" type="UUID" role="PK"/>
+      <Column name="tenant_id" type="UUID"/>
+      <Column name="version_number" type="INT"/>
+      <Column name="status" type="VARCHAR(20)"/>
+      <Index name="ux_catalog_version_active" unique="true">
+        <ColumnRef>tenant_id</ColumnRef>
+        <ColumnRef>status</ColumnRef>
+      </Index>
+    </Table>
+  </PersistencePlan>
+
+  <TestingStrategy>
+    <Unit>Domain rule evaluation, dimension checks, BOM mapping</Unit>
+    <Slice>@DataJpaTest for repositories; @WebMvcTest for REST controllers</Slice>
+    <Integration>Testcontainers for PostgreSQL/Redis/Kafka; outbox publishing integration</Integration>
+    <ContractTests>OpenAPI for REST; AsyncAPI/Avro schema checks for events</ContractTests>
+    <Architecture>ArchUnit enforcing hexagonal boundaries and shared-kernel purity</Architecture>
+  </TestingStrategy>
+
+  <Observability>
+    <Metrics>Validation success/failure counts; validation/BOM latency; publish duration; event outbox lag</Metrics>
+    <Tracing>Trace all inbound requests; include templateId/version in spans</Tracing>
+    <Logging>Structured logs with block anchors (CFG-VAL-*, BOM-RES-*) expressing decisions and state</Logging>
+  </Observability>
+
+  <Deployment>
+    <Packaging>Jib/Buildpacks OCI image</Packaging>
+    <Config>Externalized via config-server; profiles dev/stage/prod</Config>
+    <Rollout>Rolling or blue-green; Flyway migrations expand-migrate-contract</Rollout>
+    <Secrets>Injected via Vault/K8s Secrets; no secrets in code</Secrets>
+  </Deployment>
+</DevelopmentPlan>

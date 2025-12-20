@@ -1,0 +1,263 @@
+<Technology version="2.0">
+  <Languages>
+    <Language id="java">
+      <Version>25</Version>
+      <Usage>All backend services</Usage>
+    </Language>
+    <Language id="typescript">
+      <Version>5.x</Version>
+      <Usage>Frontend (Angular)</Usage>
+    </Language>
+  </Languages>
+
+  <Frameworks>
+    <Framework id="spring-boot">
+      <Version>4.0.x</Version>
+      <Usage>Core runtime for all services</Usage>
+    </Framework>
+    <Framework id="spring-cloud">
+      <Version>2024.x</Version>
+      <Usage>Gateway, config client, resilience, discovery where needed</Usage>
+    </Framework>
+    <Framework id="spring-security">
+      <Version>7.x</Version>
+      <Usage>OAuth2/OIDC resource servers with JWT</Usage>
+    </Framework>
+    <Framework id="spring-data-jpa">
+      <Version>3.3.x</Version>
+      <Usage>Persistence adapters; Hibernate 6.x</Usage>
+    </Framework>
+    <Framework id="spring-graphql" enabled="optional">
+      <Version>2.x</Version>
+      <Usage>Configurator read endpoints (catalog/pricing preview)</Usage>
+    </Framework>
+    <Framework id="springdoc-openapi">
+      <Version>2.x</Version>
+      <Usage>REST contract documentation and contract tests</Usage>
+    </Framework>
+    <Framework id="mapstruct">
+      <Version>1.5+</Version>
+      <Usage>DTO/port mapper implementations</Usage>
+    </Framework>
+    <Framework id="resilience4j">
+      <Version>2.x</Version>
+      <Usage>Timeouts, retries, circuit breakers, bulkheads</Usage>
+    </Framework>
+  </Frameworks>
+
+  <Infrastructure>
+    <Database id="primary-relational">
+      <Engine>PostgreSQL 16 (per service schema)</Engine>
+      <MigrationTool>Flyway</MigrationTool>
+      <Usage>OLTP for each bounded context; ddl-auto=validate</Usage>
+    </Database>
+    <Cache id="redis">
+      <Version>7.x</Version>
+      <Usage>Session/cart tokens, price previews, catalog option cache</Usage>
+    </Cache>
+    <SearchEngine id="elasticsearch">
+      <Version>8.x</Version>
+      <Usage>search-service indexing, optional log analytics</Usage>
+    </SearchEngine>
+    <MessageBroker id="kafka">
+      <Version>3.x</Version>
+      <Usage>Domain events, outbox/inbox for async integration</Usage>
+    </MessageBroker>
+    <ObjectStorage id="s3-compatible">
+      <Usage>media-service asset storage; signed URLs</Usage>
+    </ObjectStorage>
+    <FeatureFlags id="feature-flags">
+      <Usage>Unleash/LaunchDarkly for risky features and rollouts</Usage>
+    </FeatureFlags>
+  </Infrastructure>
+
+  <CrossCutting>
+    <Security>
+      <Auth>OAuth2/OIDC JWT; resource server per service</Auth>
+      <Roles>BUYER, ADMIN, INSTALLER</Roles>
+      <Validation>Bean Validation on DTOs; domain invariants enforced in domain layer</Validation>
+      <Secrets>Vault/K8s Secrets; no secrets in code</Secrets>
+    </Security>
+    <Observability>
+      <Metrics>Micrometer + Prometheus; business metrics for pricing errors, conversion, fulfillment SLAs</Metrics>
+      <Tracing>OpenTelemetry tracing/logging; propagate traceId/spanId and correlationId</Tracing>
+      <Logging>Structured JSON via Logback; include block anchors and belief-state fields</Logging>
+    </Observability>
+    <Resilience>
+      <Policy>Timeouts, retries with jitter, circuit breakers, bulkheads; idempotent consumers</Policy>
+      <Transactions>@Transactional on application services; optimistic locking with @Version</Transactions>
+    </Resilience>
+    <Serialization>
+      <REST>JSON via Jackson; versioned REST at /api/v1</REST>
+      <Events>Avro/Protobuf with schema registry; schema evolution respected</Events>
+      <Cache>Jackson for Redis values with explicit TTL</Cache>
+    </Serialization>
+    <Testing>
+      <Unit>JUnit 5, AssertJ, Mockito</Unit>
+      <Slice>@DataJpaTest, @WebMvcTest, @JsonTest, GraphQL test where used</Slice>
+      <Integration>Testcontainers for PostgreSQL/Redis/Kafka/Elasticsearch</Integration>
+      <Architecture>ArchUnit for hexagonal boundaries; mutation testing (Pitest) on critical pricing/config logic</Architecture>
+    </Testing>
+    <Build>
+      <Maven>Parent POM manages BOMs (Spring Boot, Spring Cloud); modules versionless</Maven>
+      <Containers>Jib/Buildpacks for OCI images; no ad-hoc Dockerfiles unless needed</Containers>
+      <CI_CD>Build -> unit/slice -> integration -> security scan -> containerize -> deploy -> smoke</CI_CD>
+    </Build>
+  </CrossCutting>
+
+  <Services>
+    <Service id="SVC-shared-kernel">
+      <Description>Framework-free value objects, enums, and domain events reused by services</Description>
+      <Dependencies/>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#Service-shared-kernel"/>
+      </Links>
+    </Service>
+
+    <Service id="SVC-catalog-configuration-service">
+      <Runtime>Spring Boot Web + GraphQL (optional)</Runtime>
+      <Interfaces>
+        <REST base="/api/v1/catalog"/>
+        <GraphQL endpoint="/graphql/catalog" purpose="configurator read options"/>
+      </Interfaces>
+      <Persistence>PostgreSQL with Flyway; disable Open-Session-in-View</Persistence>
+      <Messaging>Kafka topics catalog.product-template-changed, catalog.version-published (outbound)</Messaging>
+      <Search>Elasticsearch indexing on publish</Search>
+      <Cache>Redis cache of ACTIVE catalog versions/options</Cache>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CONFIGURE-ITEM"/>
+        <Link ref="RequirementsAnalysis.xml#UC-MANAGE-CATALOG"/>
+        <Link ref="DevelopmentPlan.xml#Service-catalog-configuration-service"/>
+      </Links>
+    </Service>
+
+    <Service id="SVC-pricing-service">
+      <Runtime>Spring Boot Web</Runtime>
+      <Interfaces>
+        <REST base="/api/v1/pricing"/>
+        <gRPC enabled="optional" purpose="low-latency quotes from cart-service"/>
+      </Interfaces>
+      <Persistence>PostgreSQL for price books, campaigns, rounding policies</Persistence>
+      <Cache>Redis for recent quotes and exchange rates with TTL</Cache>
+      <Messaging>Consumes catalog/version events; emits pricing.updated events</Messaging>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICE-PREVIEW"/>
+        <Link ref="RequirementsAnalysis.xml#UC-MANAGE-PRICING-CAMPAIGN"/>
+        <Link ref="DevelopmentPlan.xml#Service-pricing-service"/>
+      </Links>
+    </Service>
+
+    <Service id="SVC-cart-service">
+      <Runtime>Spring Boot Web</Runtime>
+      <Interfaces>
+        <REST base="/api/v1/cart"/>
+      </Interfaces>
+      <Persistence>PostgreSQL for carts and items; Redis for session carts</Persistence>
+      <Messaging>Publishes cart.abandoned events; consumes price updates if needed</Messaging>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-ADD-TO-CART"/>
+        <Link ref="DevelopmentPlan.xml#Service-cart-service"/>
+      </Links>
+    </Service>
+
+    <Service id="SVC-order-service">
+      <Runtime>Spring Boot Web</Runtime>
+      <Interfaces>
+        <REST base="/api/v1/orders"/>
+        <Webhook endpoint="/api/v1/payments/callback" purpose="payment status updates"/>
+      </Interfaces>
+      <Persistence>PostgreSQL for orders, payments, shipment/install appointments</Persistence>
+      <Messaging>Outbox for order.created, order.confirmed, order.cancelled; consumes payment callbacks and inventory events</Messaging>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CHECKOUT-ORDER"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PAYMENT"/>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-LIFECYCLE"/>
+        <Link ref="DevelopmentPlan.xml#Service-order-service"/>
+      </Links>
+    </Service>
+
+    <Service id="SVC-installation-service">
+      <Runtime>Spring Boot Web</Runtime>
+      <Interfaces>
+        <REST base="/api/v1/installation"/>
+      </Interfaces>
+      <Persistence>PostgreSQL for bookings and slots; Redis for availability cache</Persistence>
+      <Messaging>Consumes order.confirmed; emits installation.scheduled and installation.updated via outbox/Kafka</Messaging>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-SLOT-SEARCH"/>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-BOOK"/>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-UPDATE"/>
+        <Link ref="DevelopmentPlan.xml#Service-installation-service"/>
+      </Links>
+    </Service>
+
+    <Service id="SVC-account-service">
+      <Runtime>Spring Boot Web + Security</Runtime>
+      <Interfaces>
+        <REST base="/api/v1/accounts"/>
+      </Interfaces>
+      <Persistence>PostgreSQL for user profiles, roles, addresses, saved configurations</Persistence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-MANAGE-ACCOUNT"/>
+        <Link ref="DevelopmentPlan.xml#Service-account-service"/>
+      </Links>
+    </Service>
+
+    <Service id="SVC-media-service">
+      <Runtime>Spring Boot Web</Runtime>
+      <Interfaces>
+        <REST base="/api/v1/media"/>
+      </Interfaces>
+      <Storage>S3-compatible with image variants (thumb, web-optimized)</Storage>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-MEDIA-MANAGEMENT"/>
+        <Link ref="DevelopmentPlan.xml#Service-media-service"/>
+      </Links>
+    </Service>
+
+    <Service id="SVC-notification-service">
+      <Runtime>Spring Boot Web + Kafka consumers</Runtime>
+      <Interfaces>
+        <REST base="/api/v1/notifications" admin="templates/locales"/>
+      </Interfaces>
+      <Messaging>Consumes order/cart/catalog events; sends via SMTP/SMS/push providers</Messaging>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-NOTIFICATIONS"/>
+        <Link ref="DevelopmentPlan.xml#Service-notification-service"/>
+      </Links>
+    </Service>
+
+    <Service id="SVC-reporting-service">
+      <Runtime>Spring Boot Web</Runtime>
+      <Interfaces>
+        <REST base="/api/v1/reports"/>
+      </Interfaces>
+      <Persistence>Read-optimized store (materialized views/OLAP) populated from events</Persistence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-REPORTING-ANALYTICS"/>
+        <Link ref="DevelopmentPlan.xml#Service-reporting-service"/>
+      </Links>
+    </Service>
+
+    <Service id="SVC-search-service">
+      <Runtime>Spring Boot Web</Runtime>
+      <Interfaces>
+        <REST base="/api/v1/search"/>
+      </Interfaces>
+      <Search>Elasticsearch/OpenSearch for full-text and faceted search; autocomplete endpoints</Search>
+      <Messaging>Consumes catalog/publishing events for indexing</Messaging>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-BROWSE-SEARCH"/>
+        <Link ref="DevelopmentPlan.xml#Service-search-service"/>
+      </Links>
+    </Service>
+  </Services>
+
+  <Links>
+    <Link ref="RequirementsAnalysis.xml#NFR-SECURITY"/>
+    <Link ref="RequirementsAnalysis.xml#NFR-OBSERVABILITY"/>
+    <Link ref="RequirementsAnalysis.xml#NFR-PERF"/>
+    <Link ref="DevelopmentPlan.xml#TestingStrategy"/>
+    <Link ref="DevelopmentPlan.xml#Observability"/>
+  </Links>
+</Technology>

@@ -1,0 +1,453 @@
+<DevelopmentPlan version="2.0">
+  <Services>
+    <Service id="Service-shared-kernel">
+      <Description>Framework-free value objects, enums, and domain events shared across bounded contexts.</Description>
+      <BoundedContext>shared-kernel</BoundedContext>
+      <Responsibilities>
+        <Item>Provide stable primitives (Money, Currency, Dimensions, DomainEvent, LocalizedString, Id)</Item>
+        <Item>Define cross-service domain event interfaces and metadata</Item>
+      </Responsibilities>
+      <Dependencies/>
+      <Links>
+        <Link ref="Technology.xml#SVC-shared-kernel"/>
+      </Links>
+    </Service>
+
+    <Service id="Service-catalog-configuration-service">
+      <Description>Manage product templates, attributes, configuration rules, and catalog versions.</Description>
+      <BoundedContext>catalog-configuration</BoundedContext>
+      <Responsibilities>
+        <Item>Define templates for windows/doors, option groups, and compatibility rules</Item>
+        <Item>Validate configurations for frontend, pricing, and cart</Item>
+        <Item>Publish catalog versions and change events</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="Service-shared-kernel"/>
+        <ServiceRef ref="Service-pricing-service" type="async-events"/>
+        <ServiceRef ref="Service-search-service" type="async-indexing"/>
+        <ServiceRef ref="Service-media-service" type="sync-lookup"/>
+      </Dependencies>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CONFIGURE-ITEM"/>
+        <Link ref="RequirementsAnalysis.xml#UC-MANAGE-CATALOG"/>
+        <Link ref="Technology.xml#SVC-catalog-configuration-service"/>
+      </Links>
+    </Service>
+
+    <Service id="Service-pricing-service">
+      <Description>Compute prices from configurations, price books, discounts, and campaigns.</Description>
+      <BoundedContext>pricing</BoundedContext>
+      <Responsibilities>
+        <Item>Maintain price books, tax rules, rounding, and discounts</Item>
+        <Item>Calculate price preview for configurations</Item>
+        <Item>Expose price calculation ports to cart/order services</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="Service-shared-kernel"/>
+        <ServiceRef ref="Service-catalog-configuration-service" type="async-events"/>
+        <ServiceRef ref="Service-account-service" type="sync-lookup" optional="true">Customer tier/segment pricing</ServiceRef>
+      </Dependencies>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICE-PREVIEW"/>
+        <Link ref="RequirementsAnalysis.xml#UC-MANAGE-PRICING-CAMPAIGN"/>
+        <Link ref="Technology.xml#SVC-pricing-service"/>
+      </Links>
+    </Service>
+
+    <Service id="Service-cart-service">
+      <Description>Manage carts, items, shipping/installation selections, and cart totals.</Description>
+      <BoundedContext>cart</BoundedContext>
+      <Responsibilities>
+        <Item>Persist carts for authenticated and guest users</Item>
+        <Item>Validate items with catalog rules and pricing quotes</Item>
+        <Item>Emit cart lifecycle events (created, updated, abandoned)</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="Service-shared-kernel"/>
+        <ServiceRef ref="Service-pricing-service" type="sync-api">quote items</ServiceRef>
+        <ServiceRef ref="Service-catalog-configuration-service" type="sync-api">config validation</ServiceRef>
+      </Dependencies>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-ADD-TO-CART"/>
+        <Link ref="Technology.xml#SVC-cart-service"/>
+      </Links>
+    </Service>
+
+    <Service id="Service-order-service">
+      <Description>Handle checkout, payments, order lifecycle, and installation scheduling.</Description>
+      <BoundedContext>order</BoundedContext>
+      <Responsibilities>
+        <Item>Convert carts to orders and persist order state</Item>
+        <Item>Coordinate payments (deposit/full) with external gateways</Item>
+        <Item>Manage status transitions, delivery, and installation scheduling</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="Service-shared-kernel"/>
+        <ServiceRef ref="Service-cart-service" type="sync-api">checkout input</ServiceRef>
+        <ServiceRef ref="Service-pricing-service" type="sync-api">finalize totals</ServiceRef>
+        <ServiceRef ref="Service-notification-service" type="async-events"/>
+        <ServiceRef ref="Service-account-service" type="sync-lookup"/>
+      </Dependencies>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CHECKOUT-ORDER"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PAYMENT"/>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-LIFECYCLE"/>
+        <Link ref="Technology.xml#SVC-order-service"/>
+      </Links>
+    </Service>
+
+    <Service id="Service-installation-service">
+      <Description>Schedule installation slots and track job status for orders.</Description>
+      <BoundedContext>installation</BoundedContext>
+      <Responsibilities>
+        <Item>Expose slot search for eligible orders</Item>
+        <Item>Book slots with idempotency and conflict detection</Item>
+        <Item>Update installation status and emit events for notifications/reporting</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="Service-shared-kernel"/>
+        <ServiceRef ref="Service-order-service" type="async-events">Consume order.confirmed; emit installation events</ServiceRef>
+        <ServiceRef ref="Service-notification-service" type="async-events" optional="true">Notify customers/installers</ServiceRef>
+      </Dependencies>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-SLOT-SEARCH"/>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-BOOK"/>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-UPDATE"/>
+        <Link ref="Technology.xml#SVC-installation-service"/>
+      </Links>
+    </Service>
+
+    <Service id="Service-account-service">
+      <Description>Manage users, roles, addresses, and saved configurations.</Description>
+      <BoundedContext>account</BoundedContext>
+      <Responsibilities>
+        <Item>Store profiles and addresses</Item>
+        <Item>Assign roles and permissions (BUYER, ADMIN, INSTALLER)</Item>
+        <Item>Persist saved configurations/favorites</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="Service-shared-kernel"/>
+      </Dependencies>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-MANAGE-ACCOUNT"/>
+        <Link ref="Technology.xml#SVC-account-service"/>
+      </Links>
+    </Service>
+
+    <Service id="Service-media-service">
+      <Description>Store and serve images/renders/manuals with variants and signed URLs.</Description>
+      <BoundedContext>media</BoundedContext>
+      <Responsibilities>
+        <Item>Manage asset metadata and variants</Item>
+        <Item>Provide signed URLs for secure delivery</Item>
+        <Item>Validate associations to catalog templates</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="Service-shared-kernel"/>
+      </Dependencies>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-MEDIA-MANAGEMENT"/>
+        <Link ref="Technology.xml#SVC-media-service"/>
+      </Links>
+    </Service>
+
+    <Service id="Service-notification-service">
+      <Description>Send transactional and marketing notifications.</Description>
+      <BoundedContext>notification</BoundedContext>
+      <Responsibilities>
+        <Item>Template and localize notifications</Item>
+        <Item>Dispatch via email/SMS/push providers</Item>
+        <Item>Track delivery status for observability</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="Service-shared-kernel"/>
+        <ServiceRef ref="Service-order-service" type="async-events"/>
+        <ServiceRef ref="Service-cart-service" type="async-events">abandoned carts</ServiceRef>
+      </Dependencies>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-NOTIFICATIONS"/>
+        <Link ref="Technology.xml#SVC-notification-service"/>
+      </Links>
+    </Service>
+
+    <Service id="Service-reporting-service">
+      <Description>Provide dashboards and exports for sales and operations.</Description>
+      <BoundedContext>reporting</BoundedContext>
+      <Responsibilities>
+        <Item>Ingest events into read-optimized storage</Item>
+        <Item>Expose aggregated views (sales, conversion, product performance)</Item>
+        <Item>Support scheduled exports to BI</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="Service-order-service" type="async-events"/>
+        <ServiceRef ref="Service-pricing-service" type="async-events"/>
+        <ServiceRef ref="Service-search-service" type="async-events" optional="true"/>
+      </Dependencies>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-REPORTING-ANALYTICS"/>
+        <Link ref="Technology.xml#SVC-reporting-service"/>
+      </Links>
+    </Service>
+
+    <Service id="Service-search-service">
+      <Description>Full-text and faceted search over products and configurations.</Description>
+      <BoundedContext>search</BoundedContext>
+      <Responsibilities>
+        <Item>Index catalog templates and marketing attributes</Item>
+        <Item>Provide autocomplete, suggestions, and filters</Item>
+        <Item>Support locale-aware search</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="Service-catalog-configuration-service" type="async-indexing"/>
+      </Dependencies>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-BROWSE-SEARCH"/>
+        <Link ref="Technology.xml#SVC-search-service"/>
+      </Links>
+    </Service>
+
+    <Service id="Service-gateway">
+      <Description>API gateway for routing, auth offload, and cross-cutting filters.</Description>
+      <BoundedContext>gateway</BoundedContext>
+      <Responsibilities>
+        <Item>Route /api/v1 traffic to services</Item>
+        <Item>Enforce JWT validation, rate limiting, and CORS</Item>
+        <Item>Propagate tracing headers</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="Service-shared-kernel"/>
+      </Dependencies>
+    </Service>
+  </Services>
+
+  <Flows>
+    <Flow id="Flow-Config-Pricing">
+      <Description>Configuration validation and price preview for a cart item.</Description>
+      <Sequence>
+        <Step order="1" from="frontend" to="Service-catalog-configuration-service">Validate configuration and normalize option codes</Step>
+        <Step order="2" from="Service-catalog-configuration-service" to="Service-pricing-service">Calculate price with taxes/discounts</Step>
+        <Step order="3" from="frontend" to="Service-cart-service">Persist priced item and totals</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CONFIGURE-ITEM"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICE-PREVIEW"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Cart-Checkout">
+      <Description>Cart submission to order creation.</Description>
+      <Sequence>
+        <Step order="1" from="frontend" to="Service-cart-service">Submit cart with shipping/install preferences</Step>
+        <Step order="2" from="Service-cart-service" to="Service-pricing-service">Re-validate totals and promotions</Step>
+        <Step order="3" from="Service-cart-service" to="Service-order-service">Create order pending payment</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CHECKOUT-ORDER"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Payment">
+      <Description>Order payment authorization and capture.</Description>
+      <Sequence>
+        <Step order="1" from="Service-order-service" to="PAYMENT_GATEWAY">Initiate payment session</Step>
+        <Step order="2" from="PAYMENT_GATEWAY" to="Service-order-service">Callback/webhook with status</Step>
+        <Step order="3" from="Service-order-service" to="Service-notification-service">Emit payment result event</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-PAYMENT"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Order-Lifecycle">
+      <Description>Production, delivery, and installation status updates.</Description>
+      <Sequence>
+        <Step order="1" from="Service-order-service" to="Service-notification-service">Publish order state changes</Step>
+        <Step order="2" from="installer-app" to="Service-order-service">Schedule/update installation slots</Step>
+        <Step order="3" from="Service-order-service" to="Service-reporting-service">Stream lifecycle events for analytics</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-LIFECYCLE"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Installation">
+      <Description>Installation slot search, booking, and status propagation.</Description>
+      <Sequence>
+        <Step order="1" from="Service-order-service" to="Service-installation-service">Emit order.confirmed event enabling scheduling</Step>
+        <Step order="2" from="frontend/installer-app" to="Service-installation-service">Search and book slots with idempotent locks</Step>
+        <Step order="3" from="Service-installation-service" to="Service-order-service">Emit installation.scheduled/updated for state sync</Step>
+        <Step order="4" from="Service-installation-service" to="Service-notification-service">Fan-out notifications for scheduled/updated jobs</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-SLOT-SEARCH"/>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-BOOK"/>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-UPDATE"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Search-Experience">
+      <Description>Search and autocomplete experience.</Description>
+      <Sequence>
+        <Step order="1" from="Service-catalog-configuration-service" to="Service-search-service">Publish indexable catalog changes</Step>
+        <Step order="2" from="frontend" to="Service-search-service">Search/autocomplete with filters</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-BROWSE-SEARCH"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Notifications">
+      <Description>Triggered notifications from domain events.</Description>
+      <Sequence>
+        <Step order="1" from="Service-order-service" to="Service-notification-service">Send order created/shipped/installed events</Step>
+        <Step order="2" from="Service-cart-service" to="Service-notification-service">Send abandoned cart events</Step>
+        <Step order="3" from="Service-notification-service" to="NOTIFICATION_CHANNEL">Dispatch via email/SMS/push</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-NOTIFICATIONS"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Reporting">
+      <Description>Event-driven reporting and analytics.</Description>
+      <Sequence>
+        <Step order="1" from="Service-order-service" to="Service-reporting-service">Ingest order/payment/install events</Step>
+        <Step order="2" from="Service-pricing-service" to="Service-reporting-service">Ingest pricing error/success metrics</Step>
+        <Step order="3" from="Service-reporting-service" to="frontend-admin">Serve dashboards/exports</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-REPORTING-ANALYTICS"/>
+      </Links>
+    </Flow>
+  </Flows>
+
+  <Contracts>
+    <ModuleContract id="mod.shared.kernel" layer="domain">
+      <Purpose>Shared primitives and domain events with no Spring/JPA dependencies.</Purpose>
+      <Links>
+        <Link ref="Technology.xml#SVC-shared-kernel"/>
+      </Links>
+      <Notes>Enforce via ArchUnit: shared-kernel has no Spring/Hibernate imports.</Notes>
+    </ModuleContract>
+
+    <ModuleContract id="mod.catalog.domain" layer="domain">
+      <Purpose>Aggregates for ProductTemplate, CatalogVersion, and ConfigurationRuleSet with validation services.</Purpose>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CONFIGURE-ITEM"/>
+        <Link ref="RequirementsAnalysis.xml#UC-MANAGE-CATALOG"/>
+      </Links>
+      <FunctionContracts>
+        <FunctionContract id="validateConfiguration" layer="domain.service" intent="Validate configuration against rules and dimensions">
+          <Input>ConfigurationRequest</Input>
+          <Output>ValidationResult</Output>
+          <BlockAnchors>
+            <Block id="CFG-VAL-RANGE" purpose="Check dimensional ranges"/>
+            <Block id="CFG-VAL-COMPAT" purpose="Evaluate compatibility rules"/>
+            <Block id="CFG-VAL-RESULT" purpose="Aggregate errors and emit event"/>
+          </BlockAnchors>
+        </FunctionContract>
+      </FunctionContracts>
+    </ModuleContract>
+
+    <ModuleContract id="mod.pricing.domain" layer="domain">
+      <Purpose>Price calculation engine using price books, taxes, discounts, and currency rules.</Purpose>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICE-PREVIEW"/>
+        <Link ref="RequirementsAnalysis.xml#UC-MANAGE-PRICING-CAMPAIGN"/>
+      </Links>
+      <FunctionContracts>
+        <FunctionContract id="calculatePrice" layer="domain.service" intent="Compute final price from configuration and campaigns">
+          <Input>PriceCalculationRequest</Input>
+          <Output>PriceQuote</Output>
+          <BlockAnchors>
+            <Block id="PRICE-BASE" purpose="Resolve base price from price book"/>
+            <Block id="PRICE-OPTIONS" purpose="Sum option premiums"/>
+            <Block id="PRICE-DISCOUNT" purpose="Apply promotions/discounts"/>
+            <Block id="PRICE-TAX" purpose="Apply taxes and rounding policy"/>
+          </BlockAnchors>
+        </FunctionContract>
+      </FunctionContracts>
+    </ModuleContract>
+
+    <ModuleContract id="mod.order.application" layer="application">
+      <Purpose>Use cases for checkout, payment initiation, and state transitions with idempotency and transactions.</Purpose>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CHECKOUT-ORDER"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PAYMENT"/>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-LIFECYCLE"/>
+      </Links>
+      <FunctionContracts>
+        <FunctionContract id="placeOrder" layer="application.service" intent="Create order from cart with totals validation">
+          <Input>PlaceOrderCommand</Input>
+          <Output>OrderCreatedResult</Output>
+          <BlockAnchors>
+            <Block id="ORDER-VALIDATE" purpose="Validate cart snapshot and totals"/>
+            <Block id="ORDER-PERSIST" purpose="Persist aggregate with versioning"/>
+            <Block id="ORDER-EVENT" purpose="Emit order.created event/outbox"/>
+          </BlockAnchors>
+        </FunctionContract>
+        <FunctionContract id="processPaymentCallback" layer="application.service" intent="Update payment status idempotently from gateway callback">
+          <Input>PaymentCallbackPayload</Input>
+          <Output>PaymentUpdateResult</Output>
+          <BlockAnchors>
+            <Block id="PAY-CALLBACK-IDEMP" purpose="Check idempotency key/message id"/>
+            <Block id="PAY-STATE" purpose="Transition payment and order state machine"/>
+            <Block id="PAY-NOTIFY" purpose="Publish notification events"/>
+          </BlockAnchors>
+        </FunctionContract>
+      </FunctionContracts>
+    </ModuleContract>
+
+    <ModuleContract id="mod.installation.domain" layer="domain">
+      <Purpose>Installation slot booking and status updates with conflict detection and idempotency.</Purpose>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-SLOT-SEARCH"/>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-BOOK"/>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-UPDATE"/>
+      </Links>
+      <FunctionContracts>
+        <FunctionContract id="bookSlot" layer="domain.service" intent="Reserve a slot idempotently for an order">
+          <Input>BookSlotCommand</Input>
+          <Output>BookingResult</Output>
+          <BlockAnchors>
+            <Block id="INSTALL-BOOK-IDEMP" purpose="Detect duplicate booking for order+slot"/>
+            <Block id="INSTALL-BOOK-CONFLICT" purpose="Check slot conflicts and hold window"/>
+            <Block id="INSTALL-BOOK-PERSIST" purpose="Persist booking and emit installation.scheduled"/>
+          </BlockAnchors>
+        </FunctionContract>
+        <FunctionContract id="updateStatus" layer="domain.service" intent="Transition installation status safely">
+          <Input>UpdateStatusCommand</Input>
+          <Output>StatusUpdateResult</Output>
+          <BlockAnchors>
+            <Block id="INSTALL-STATUS-VALIDATE" purpose="Validate allowed status transitions"/>
+            <Block id="INSTALL-STATUS-PERSIST" purpose="Persist state and emit installation.updated"/>
+          </BlockAnchors>
+        </FunctionContract>
+      </FunctionContracts>
+    </ModuleContract>
+  </Contracts>
+
+  <TestingStrategy id="TestingStrategy">
+    <Unit>Domain services (validation, pricing, state machines) with pure Java tests</Unit>
+    <Slice>@DataJpaTest for persistence adapters; @WebMvcTest for REST controllers; GraphQL slice where applicable</Slice>
+    <Integration>Testcontainers for PostgreSQL/Redis/Kafka/Elasticsearch with docker-compose profiles</Integration>
+    <ContractTests>OpenAPI/AsyncAPI contract tests between services; consumer-driven contracts for payment callbacks</ContractTests>
+    <Mutation>Enable Pitest on pricing and configuration validation modules</Mutation>
+    <Architecture>ArchUnit to enforce hexagonal boundaries and shared-kernel purity</Architecture>
+  </TestingStrategy>
+
+  <Observability id="Observability">
+    <Metrics>Business metrics: config validation failures, price calc latency, cart conversion, payment success rate, installation lead time</Metrics>
+    <Tracing>Propagate traceId/spanId across gateway->services; sample adjustable per env</Tracing>
+    <Logging>Structured JSON with block anchors (e.g., [CFG][block=CFG-VAL-COMPAT][state=FAILED]) and correlationId</Logging>
+    <Dashboards>Per-service dashboards for latency, error rate, and domain metrics; alerting on SLO breaches</Dashboards>
+  </Observability>
+
+  <Deployment id="Deployment-Overview">
+    <Environments>dev (local/Testcontainers), stage (prod-like), prod (hardened)</Environments>
+    <CI_CD>Pipeline: build -> unit/slice -> integration -> mutation (targeted) -> security scan -> package -> deploy -> smoke</CI_CD>
+    <Packaging>Jib/Buildpacks to OCI; Helm charts per service; Kubernetes rolling/blue-green with health probes</Packaging>
+    <Migrations>Flyway expand->migrate->contract; DDL validated at startup</Migrations>
+    <Resilience>Resilience4j configs managed centrally via config-server; feature flags for risky paths</Resilience>
+  </Deployment>
+</DevelopmentPlan>
