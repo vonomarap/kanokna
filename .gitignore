@@ -13,6 +13,7 @@
 .cursor
 .vscode
 .kilocode
+.gemini
 node_modules
 frontend/windows-store-client/.vscode
 frontend/desktop.ini
