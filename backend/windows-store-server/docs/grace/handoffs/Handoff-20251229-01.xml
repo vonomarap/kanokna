@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff Envelope
+  ID: Handoff-20251229-01
+  Purpose: Bootstrap canonical artifacts for Windows & Doors E-Commerce Platform
+  Status: PROPOSED - Awaiting human approval
+-->
+<GRACE_HANDOFF id="Handoff-20251229-01" status="PROPOSED" created="2025-12-29">
+
+  <Summary>
+    Initial bootstrap of GRACE canonical artifacts for the Windows and Doors E-Commerce
+    backend platform. This handoff establishes the foundational architecture, defining
+    all bounded contexts, services, integration flows, and semantic contracts for
+    code generation.
+  </Summary>
+
+  <Scope>
+    <Description>
+      Full system architecture definition including 12 Maven modules:
+      - 2 library modules (shared-kernel, api-contracts)
+      - 2 infrastructure services (config-server, gateway)
+      - 8 domain services (catalog-configuration, pricing, cart, order, account,
+        installation, media, notification, search, reporting)
+    </Description>
+
+    <Services>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-shared-kernel"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-api-contracts"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-config-server"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-gateway"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-cart-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-account-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-installation-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-media-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-notification-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-search-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-reporting-service"/>
+    </Services>
+
+    <UseCases>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-PRICING-ADMIN-MANAGE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ORDER-TRACK"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ORDER-CANCEL"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-INSTALL-SCHEDULE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-INSTALL-COMPLETE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ACCOUNT-REGISTER"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ACCOUNT-LOGIN"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-NOTIFY-TRANSACTIONAL"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-MEDIA-SERVE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-REPORT-SALES"/>
+    </UseCases>
+
+    <Actors>
+      <ActorRef ref="RequirementsAnalysis.xml#ACT-CUSTOMER"/>
+      <ActorRef ref="RequirementsAnalysis.xml#ACT-INSTALLER"/>
+      <ActorRef ref="RequirementsAnalysis.xml#ACT-ADMIN"/>
+      <ActorRef ref="RequirementsAnalysis.xml#ACT-PAYMENT-GATEWAY"/>
+      <ActorRef ref="RequirementsAnalysis.xml#ACT-NOTIFICATION-PROVIDER"/>
+      <ActorRef ref="RequirementsAnalysis.xml#ACT-IDENTITY-PROVIDER"/>
+    </Actors>
+  </Scope>
+
+  <Artifacts>
+    <Artifact ref="docs/grace/RequirementsAnalysis.xml" version="1.0.0" status="NEW">
+      <Description>
+        Business requirements formalization with 4 actors, 19 use cases, and
+        15 non-functional requirements covering performance, security, scalability,
+        observability, and internationalization.
+      </Description>
+    </Artifact>
+
+    <Artifact ref="docs/grace/Technology.xml" version="1.0.0" status="NEW">
+      <Description>
+        Technology stack definition: Java 25, Spring Boot 4.0.0 (TBD), Spring Cloud 2024.0.0,
+        PostgreSQL 16, Elasticsearch 8.x, Kafka 3.7.x, Redis 7.x, Keycloak 24.x.
+        Includes 6 architectural decisions with rationale.
+      </Description>
+    </Artifact>
+
+    <Artifact ref="docs/grace/DevelopmentPlan.xml" version="1.0.0" status="NEW">
+      <Description>
+        Implementation blueprint with 14 services, 6 integration flows, contract evolution
+        policy, testing strategy, and deployment strategy. Includes contract registry
+        with MODULE_CONTRACT and FUNCTION_CONTRACT index.
+      </Description>
+    </Artifact>
+  </Artifacts>
+
+  <Contracts>
+    <ModuleContractRef id="MC-catalog-configuration-service-domain-ConfigurationValidation">
+      <File>docs/grace/contracts/MC-catalog-configuration-service-domain-ConfigurationValidation.xml</File>
+      <Criticality>HIGH</Criticality>
+      <Description>Configuration validation domain service for product configuration rules</Description>
+    </ModuleContractRef>
+
+    <FunctionContractRef id="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-validateConfiguration">
+      <File>docs/grace/contracts/FC-catalog-configuration-service-validateConfiguration.xml</File>
+      <Criticality>HIGH</Criticality>
+      <Description>Core validation method with full block anchors and test cases</Description>
+    </FunctionContractRef>
+
+    <ModuleContractRef id="MC-pricing-service-domain-PriceCalculation">
+      <File>docs/grace/contracts/MC-pricing-service-domain-PriceCalculation.xml</File>
+      <Criticality>HIGH</Criticality>
+      <Description>Price calculation domain service for quote generation</Description>
+    </ModuleContractRef>
+
+    <ModuleContractRef id="MC-order-service-application-OrderPlacement">
+      <File>docs/grace/contracts/MC-order-service-application-OrderPlacement.xml</File>
+      <Criticality>HIGH</Criticality>
+      <Description>Order placement use case service with payment integration</Description>
+    </ModuleContractRef>
+
+    <BlockAnchors>
+      <BlockAnchorRef id="BA-CFG-VAL-01">Check dimension constraints</BlockAnchorRef>
+      <BlockAnchorRef id="BA-CFG-VAL-02">Check material/glazing compatibility</BlockAnchorRef>
+      <BlockAnchorRef id="BA-CFG-VAL-03">Check option dependencies</BlockAnchorRef>
+      <BlockAnchorRef id="BA-CFG-VAL-99">Final validation result</BlockAnchorRef>
+      <BlockAnchorRef id="BA-PRC-CALC-01">Load price book</BlockAnchorRef>
+      <BlockAnchorRef id="BA-PRC-CALC-02">Calculate base price</BlockAnchorRef>
+      <BlockAnchorRef id="BA-PRC-CALC-03">Apply option premiums</BlockAnchorRef>
+      <BlockAnchorRef id="BA-PRC-CALC-04">Apply campaign discounts</BlockAnchorRef>
+      <BlockAnchorRef id="BA-PRC-CALC-05">Calculate taxes</BlockAnchorRef>
+      <BlockAnchorRef id="BA-PRC-CALC-99">Final quote result</BlockAnchorRef>
+      <BlockAnchorRef id="BA-ORD-PLACE-01">Validate cart snapshot</BlockAnchorRef>
+      <BlockAnchorRef id="BA-ORD-PLACE-02">Check idempotency key</BlockAnchorRef>
+      <BlockAnchorRef id="BA-ORD-PLACE-03">Create order aggregate</BlockAnchorRef>
+      <BlockAnchorRef id="BA-ORD-PLACE-04">Persist order to database</BlockAnchorRef>
+      <BlockAnchorRef id="BA-ORD-PLACE-05">Initiate payment with gateway</BlockAnchorRef>
+      <BlockAnchorRef id="BA-ORD-PLACE-99">Order placement result</BlockAnchorRef>
+      <BlockAnchorRef id="BA-PAY-CB-01">Verify webhook signature</BlockAnchorRef>
+      <BlockAnchorRef id="BA-PAY-CB-02">Load order by payment reference</BlockAnchorRef>
+      <BlockAnchorRef id="BA-PAY-CB-03">Apply payment status transition</BlockAnchorRef>
+      <BlockAnchorRef id="BA-PAY-CB-04">Publish OrderConfirmedEvent</BlockAnchorRef>
+    </BlockAnchors>
+  </Contracts>
+
+  <Decisions>
+    <DecisionRef id="DEC-DB-ENGINE" status="APPROVED">PostgreSQL selected as primary OLTP database</DecisionRef>
+    <DecisionRef id="DEC-SEARCH-ENGINE" status="APPROVED">Elasticsearch selected for product search</DecisionRef>
+    <DecisionRef id="DEC-EVENT-SERIALIZATION" status="APPROVED">Protobuf selected for event serialization</DecisionRef>
+    <DecisionRef id="DEC-IDENTITY-PROVIDER" status="ASSUMED">Keycloak assumed as identity provider (pending confirmation)</DecisionRef>
+    <DecisionRef id="DEC-PAYMENT-GATEWAY" status="ASSUMED">Stripe assumed as payment gateway (pending confirmation)</DecisionRef>
+    <DecisionRef id="DEC-FEATURE-FLAGS" status="ASSUMED">Unleash assumed for feature flags (pending confirmation)</DecisionRef>
+  </Decisions>
+
+  <Assumptions>
+    <Assumption id="ASSUM-SPRING-BOOT-4">
+      Spring Boot 4.0.0 version is placeholder; APIs may differ when released.
+      Implementation must verify compatibility.
+    </Assumption>
+    <Assumption id="ASSUM-SINGLE-MARKET">
+      Initial launch targets single market; multi-currency is day-2 feature.
+    </Assumption>
+    <Assumption id="ASSUM-PAYMENT-SINGLE">
+      Single payment provider (Stripe) initially; additional providers are future scope.
+    </Assumption>
+    <Assumption id="ASSUM-PRODUCT-SERVICE-LEGACY">
+      product-service module in POM is legacy; functionality merged into catalog-configuration-service.
+    </Assumption>
+  </Assumptions>
+
+  <OpenQuestions>
+    <Question id="Q-001" priority="HIGH">
+      Confirm payment gateway provider (Stripe assumed). Are there regional requirements?
+    </Question>
+    <Question id="Q-002" priority="MEDIUM">
+      Confirm identity provider for production (Keycloak assumed for dev/stage).
+      Will production use managed alternative (Auth0, Okta)?
+    </Question>
+    <Question id="Q-003" priority="LOW">
+      Confirm CI/CD platform preference (GitHub Actions, GitLab CI, or other).
+    </Question>
+    <Question id="Q-004" priority="MEDIUM">
+      Is gRPC inter-service communication required, or is REST sufficient for MVP?
+    </Question>
+  </OpenQuestions>
+
+  <ConsistencyChecklist>
+    <Check status="PASS">All IDs follow naming conventions (UC-/ACT-/NFR-/DP-SVC-/MC-/FC-/BA-)</Check>
+    <Check status="PASS">All Link refs target existing IDs or are marked TBD</Check>
+    <Check status="PASS">No "or" ambiguity in canonical artifacts; decisions recorded</Check>
+    <Check status="PASS">Uncertainties captured in Assumptions section</Check>
+    <Check status="PASS">MODULE_CONTRACTs include PURPOSE, RESPONSIBILITIES, INVARIANTS, TESTS</Check>
+    <Check status="PASS">FUNCTION_CONTRACTs include SIGNATURE, PRECONDITIONS, POSTCONDITIONS, ERROR_HANDLING</Check>
+    <Check status="PASS">BLOCK_ANCHORs defined for critical code paths</Check>
+    <Check status="PASS">Logging patterns consistent across contracts</Check>
+  </ConsistencyChecklist>
+
+  <NextSteps>
+    <Step order="1">Human architect reviews and approves this handoff</Step>
+    <Step order="2">Resolve open questions (payment gateway, identity provider)</Step>
+    <Step order="3">Coder agent generates service skeletons from approved blueprint</Step>
+    <Step order="4">Implement critical services first: catalog-configuration, pricing, order</Step>
+    <Step order="5">Set up CI/CD pipeline with contract testing</Step>
+  </NextSteps>
+
+  <ApprovalInstructions>
+    <Instruction>
+      The human architect must approve this blueprint before coding begins.
+      To approve, reply with:
+    </Instruction>
+    <ApprovalMarker>
+      <![CDATA[
+      <GRACE_APPROVAL ref="Handoff-20251229-01" status="APPROVED"/>
+      ]]>
+    </ApprovalMarker>
+    <Instruction>
+      To request changes, specify which sections need revision.
+      The architect will update artifacts and produce a new handoff.
+    </Instruction>
+  </ApprovalInstructions>
+
+</GRACE_HANDOFF>

@@ -1,0 +1,1076 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Canonical Artifact: DevelopmentPlan.xml
+  Purpose: Blueprint for implementation - services, flows, contracts, testing, deployment
+  Version: 1.1.1
+  Last Updated: 2025-12-30
+  Changes: Fixed DP-ASSUM-002 to align with DEC-INTER-SERVICE-COMM (gRPC required)
+-->
+<DevelopmentPlan version="1.1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SERVICES & MODULES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Services>
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         SHARED LIBRARIES
+         ───────────────────────────────────────────────────────────────────────── -->
+    <Service id="DP-SVC-shared-kernel" type="library">
+      <Name>shared-kernel</Name>
+      <ArtifactId>shared-kernel</ArtifactId>
+      <Description>
+        Cross-service domain primitives: value objects, enums, domain event interface.
+        Framework-free, pure Java.
+      </Description>
+      <BoundedContext>shared-kernel</BoundedContext>
+      <Responsibilities>
+        <Item>Money value object with currency-aware arithmetic</Item>
+        <Item>DimensionsCm for product dimensions (50-400cm range)</Item>
+        <Item>DomainEvent interface for event contracts</Item>
+        <Item>LocalizedString for i18n content</Item>
+        <Item>Address, Email, Id value objects</Item>
+        <Item>Common enums (Language, etc.)</Item>
+      </Responsibilities>
+      <Dependencies>
+        <Dependency type="compile">None (pure Java)</Dependency>
+      </Dependencies>
+      <Constraints>
+        <Item>No Spring, JPA, Jackson, or framework dependencies (enforced by maven-enforcer-plugin)</Item>
+        <Item>Immutable value objects only</Item>
+        <Item>No DTOs or API models</Item>
+      </Constraints>
+      <PackageLayout>
+        <Package>com.kanokna.shared.core</Package>
+        <Package>com.kanokna.shared.money</Package>
+        <Package>com.kanokna.shared.measure</Package>
+        <Package>com.kanokna.shared.event</Package>
+        <Package>com.kanokna.shared.i18n</Package>
+      </PackageLayout>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"/>
+        <Link ref="Technology.xml#TECH-java"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-api-contracts" type="library">
+      <Name>api-contracts</Name>
+      <ArtifactId>api-contracts</ArtifactId>
+      <Description>
+        Contract-first specifications: OpenAPI for external REST APIs, Protobuf for
+        gRPC inter-service communication and Kafka events. Generated stubs used by adapters.
+      </Description>
+      <BoundedContext>contracts</BoundedContext>
+      <Responsibilities>
+        <Item>OpenAPI 3.1 specs for external/public REST endpoints</Item>
+        <Item>Protobuf service definitions for gRPC inter-service calls</Item>
+        <Item>Protobuf message schemas for Kafka domain events</Item>
+        <Item>AsyncAPI specs for Kafka topics (optional)</Item>
+        <Item>Generated gRPC stubs and message classes</Item>
+        <Item>Generated code confined to adapters (enforced via ArchUnit)</Item>
+      </Responsibilities>
+      <Dependencies>
+        <Dependency type="compile">io.grpc:grpc-protobuf</Dependency>
+        <Dependency type="compile">io.grpc:grpc-stub</Dependency>
+        <Dependency type="compile">com.google.protobuf:protobuf-java</Dependency>
+        <Dependency type="build">protobuf-maven-plugin</Dependency>
+        <Dependency type="build">openapi-generator-maven-plugin</Dependency>
+      </Dependencies>
+      <Constraints>
+        <Item>No Spring Boot runtime dependencies</Item>
+        <Item>No JPA/Hibernate</Item>
+        <Item>Domain layer MUST NOT depend on generated types</Item>
+        <Item>gRPC stubs used only in adapters.out.grpc and adapters.in.grpc packages</Item>
+      </Constraints>
+      <ContractLocation>
+        <OpenAPI>docs/api-contracts/openapi/</OpenAPI>
+        <Protobuf>api-contracts/src/main/proto/</Protobuf>
+      </ContractLocation>
+      <GrpcServices>
+        <Service name="CatalogConfigurationService">Configuration validation and product queries</Service>
+        <Service name="PricingService">Quote calculation</Service>
+        <Service name="CartService">Cart operations</Service>
+        <Service name="AccountService">User profile queries</Service>
+        <Service name="MediaService">Media metadata queries</Service>
+      </GrpcServices>
+      <Links>
+        <Link ref="Technology.xml#TECH-protobuf"/>
+        <Link ref="Technology.xml#TECH-grpc"/>
+        <Link ref="DevelopmentPlan.xml#ContractEvolutionPolicy"/>
+      </Links>
+    </Service>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         INFRASTRUCTURE SERVICES
+         ───────────────────────────────────────────────────────────────────────── -->
+    <Service id="DP-SVC-config-server" type="infrastructure">
+      <Name>config-server</Name>
+      <ArtifactId>config-server</ArtifactId>
+      <Description>
+        Centralized configuration management using Spring Cloud Config Server.
+        Serves configuration to all services based on profile (dev/stage/prod).
+      </Description>
+      <BoundedContext>infrastructure</BoundedContext>
+      <Responsibilities>
+        <Item>Serve externalized configuration from Git or file system</Item>
+        <Item>Support encryption of sensitive values</Item>
+        <Item>Enable runtime config refresh</Item>
+      </Responsibilities>
+      <Dependencies>
+        <Dependency type="compile">spring-cloud-config-server</Dependency>
+      </Dependencies>
+      <Port>8888</Port>
+      <Links>
+        <Link ref="Technology.xml#TECH-spring-cloud"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-gateway" type="infrastructure">
+      <Name>gateway</Name>
+      <ArtifactId>gateway</ArtifactId>
+      <Description>
+        API Gateway using Spring Cloud Gateway. Routes requests to backend services,
+        handles authentication, rate limiting, and correlation ID injection.
+      </Description>
+      <BoundedContext>infrastructure</BoundedContext>
+      <Responsibilities>
+        <Item>Route requests to backend services based on path prefixes</Item>
+        <Item>Validate JWT tokens (first line of defense)</Item>
+        <Item>Inject correlation ID header for distributed tracing</Item>
+        <Item>Apply rate limiting per client</Item>
+        <Item>CORS handling</Item>
+      </Responsibilities>
+      <Dependencies>
+        <Dependency type="compile">spring-cloud-starter-gateway</Dependency>
+        <Dependency type="compile">spring-boot-starter-oauth2-resource-server</Dependency>
+        <Dependency type="compile">spring-cloud-starter-circuitbreaker-reactor-resilience4j</Dependency>
+      </Dependencies>
+      <Port>8080</Port>
+      <Routes>
+        <Route path="/api/catalog/**" target="catalog-configuration-service"/>
+        <Route path="/api/pricing/**" target="pricing-service"/>
+        <Route path="/api/cart/**" target="cart-service"/>
+        <Route path="/api/orders/**" target="order-service"/>
+        <Route path="/api/accounts/**" target="account-service"/>
+        <Route path="/api/media/**" target="media-service"/>
+        <Route path="/api/search/**" target="search-service"/>
+        <Route path="/api/installations/**" target="installation-service"/>
+        <Route path="/api/reports/**" target="reporting-service"/>
+      </Routes>
+      <Links>
+        <Link ref="Technology.xml#TECH-spring-cloud"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION"/>
+      </Links>
+    </Service>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         DOMAIN SERVICES
+         ───────────────────────────────────────────────────────────────────────── -->
+    <Service id="DP-SVC-catalog-configuration-service" type="service">
+      <Name>catalog-configuration-service</Name>
+      <ArtifactId>catalog-configuration-service</ArtifactId>
+      <Description>
+        Manages product catalog (windows, doors), configuration options, and validation rules.
+        Validates customer configurations against business rules.
+      </Description>
+      <BoundedContext>catalog-configuration</BoundedContext>
+      <Responsibilities>
+        <Item>CRUD for product templates (window types, door types)</Item>
+        <Item>Define option groups (materials, glazing, colors, accessories)</Item>
+        <Item>Define configuration rules (compatibility, constraints, dependencies)</Item>
+        <Item>Validate configurations against rules</Item>
+        <Item>Resolve BOM (bill of materials) for configurations</Item>
+        <Item>Publish ProductTemplatePublishedEvent for search indexing</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
+        <ServiceRef ref="DP-SVC-pricing-service" type="grpc">For price quotes during configuration</ServiceRef>
+        <ServiceRef ref="DP-SVC-search-service" type="async">Publish events for indexing</ServiceRef>
+        <ServiceRef ref="DP-SVC-media-service" type="grpc">Resolve media metadata</ServiceRef>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>catalog_configuration</Schema>
+      </Database>
+      <Ports>
+        <Port type="http">8081</Port>
+        <Port type="grpc">9081</Port>
+      </Ports>
+      <PackageLayout>
+        <Package>com.kanokna.catalog_configuration_service.domain.model</Package>
+        <Package>com.kanokna.catalog_configuration_service.domain.service</Package>
+        <Package>com.kanokna.catalog_configuration_service.domain.event</Package>
+        <Package>com.kanokna.catalog_configuration_service.domain.exception</Package>
+        <Package>com.kanokna.catalog_configuration_service.application.port.in</Package>
+        <Package>com.kanokna.catalog_configuration_service.application.port.out</Package>
+        <Package>com.kanokna.catalog_configuration_service.application.service</Package>
+        <Package>com.kanokna.catalog_configuration_service.application.dto</Package>
+        <Package>com.kanokna.catalog_configuration_service.adapters.in.web</Package>
+        <Package>com.kanokna.catalog_configuration_service.adapters.in.grpc</Package>
+        <Package>com.kanokna.catalog_configuration_service.adapters.out.persistence</Package>
+        <Package>com.kanokna.catalog_configuration_service.adapters.out.grpc</Package>
+        <Package>com.kanokna.catalog_configuration_service.adapters.out.kafka</Package>
+        <Package>com.kanokna.catalog_configuration_service.adapters.config</Package>
+      </PackageLayout>
+      <Aggregates>
+        <Aggregate name="ProductTemplate">Root for product definitions</Aggregate>
+        <Aggregate name="ConfigurationRuleSet">Root for configuration rules</Aggregate>
+        <Aggregate name="BomTemplate">Bill of materials template</Aggregate>
+        <Aggregate name="CatalogVersion">Versioned catalog snapshot</Aggregate>
+      </Aggregates>
+      <DomainEvents>
+        <Event name="ProductTemplatePublishedEvent">Triggers search indexing</Event>
+        <Event name="CatalogVersionPublishedEvent">Triggers cache invalidation</Event>
+        <Event name="ConfigurationValidatedEvent">Audit trail for validations</Event>
+      </DomainEvents>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
+        <Link ref="Flow-Config-Pricing"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-pricing-service" type="service">
+      <Name>pricing-service</Name>
+      <ArtifactId>pricing-service</ArtifactId>
+      <Description>
+        Calculates prices for product configurations including base price, option premiums,
+        campaigns, discounts, and taxes. Supports multiple currencies.
+      </Description>
+      <BoundedContext>pricing</BoundedContext>
+      <Responsibilities>
+        <Item>Manage price books (base prices per product, per-m2 rates)</Item>
+        <Item>Define option premiums (absolute or percentage)</Item>
+        <Item>Manage campaigns and promotional discounts</Item>
+        <Item>Configure tax rules per region</Item>
+        <Item>Calculate quotes with decision trace for auditability</Item>
+        <Item>Cache quotes in Redis for session reuse</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>pricing</Schema>
+      </Database>
+      <Cache ref="Technology.xml#TECH-redis">
+        <Usage>Quote caching with 5-minute TTL</Usage>
+      </Cache>
+      <Ports>
+        <Port type="http">8082</Port>
+        <Port type="grpc">9082</Port>
+      </Ports>
+      <PackageLayout>
+        <Package>com.kanokna.pricing_service.domain.model</Package>
+        <Package>com.kanokna.pricing_service.domain.service</Package>
+        <Package>com.kanokna.pricing_service.domain.event</Package>
+        <Package>com.kanokna.pricing_service.domain.exception</Package>
+        <Package>com.kanokna.pricing_service.application.port.in</Package>
+        <Package>com.kanokna.pricing_service.application.port.out</Package>
+        <Package>com.kanokna.pricing_service.application.service</Package>
+        <Package>com.kanokna.pricing_service.application.dto</Package>
+        <Package>com.kanokna.pricing_service.adapters.in.web</Package>
+        <Package>com.kanokna.pricing_service.adapters.in.grpc</Package>
+        <Package>com.kanokna.pricing_service.adapters.out.persistence</Package>
+        <Package>com.kanokna.pricing_service.adapters.out.redis</Package>
+        <Package>com.kanokna.pricing_service.adapters.config</Package>
+      </PackageLayout>
+      <Aggregates>
+        <Aggregate name="PriceBook">Versioned price definitions</Aggregate>
+        <Aggregate name="Campaign">Promotional campaigns</Aggregate>
+        <Aggregate name="TaxRule">Regional tax configurations</Aggregate>
+        <Aggregate name="Quote">Calculated price quote (transient)</Aggregate>
+      </Aggregates>
+      <DomainEvents>
+        <Event name="QuoteCalculatedEvent">Audit trail for pricing decisions</Event>
+      </DomainEvents>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-ADMIN-MANAGE"/>
+        <Link ref="Flow-Config-Pricing"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-cart-service" type="service">
+      <Name>cart-service</Name>
+      <ArtifactId>cart-service</ArtifactId>
+      <Description>
+        Manages shopping carts for customers. Stores configured items with price snapshots,
+        handles promo codes, and prepares cart for checkout.
+      </Description>
+      <BoundedContext>cart</BoundedContext>
+      <Responsibilities>
+        <Item>Create and manage carts (anonymous and authenticated)</Item>
+        <Item>Add/update/remove configured items</Item>
+        <Item>Validate configurations remain valid on cart operations</Item>
+        <Item>Apply promo codes and recalculate totals</Item>
+        <Item>Prepare cart snapshot for order creation</Item>
+        <Item>Merge anonymous cart into authenticated cart on login</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
+        <ServiceRef ref="DP-SVC-catalog-configuration-service" type="grpc">Validate configurations</ServiceRef>
+        <ServiceRef ref="DP-SVC-pricing-service" type="grpc">Get current prices</ServiceRef>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>cart</Schema>
+      </Database>
+      <Ports>
+        <Port type="http">8083</Port>
+        <Port type="grpc">9083</Port>
+      </Ports>
+      <Aggregates>
+        <Aggregate name="Cart">Shopping cart aggregate</Aggregate>
+        <Aggregate name="CartItem">Configured item in cart</Aggregate>
+      </Aggregates>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
+        <Link ref="Flow-Cart-Checkout"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-order-service" type="service">
+      <Name>order-service</Name>
+      <ArtifactId>order-service</ArtifactId>
+      <Description>
+        Creates orders from carts, manages order lifecycle (state machine),
+        handles payment integration, and coordinates installation scheduling.
+      </Description>
+      <BoundedContext>order</BoundedContext>
+      <Responsibilities>
+        <Item>Create orders from cart snapshots</Item>
+        <Item>Manage order state machine (CREATED -> CONFIRMED -> PROCESSING -> SHIPPED -> DELIVERED -> COMPLETED)</Item>
+        <Item>Integrate with payment gateway for authorization and capture</Item>
+        <Item>Handle payment callbacks/webhooks</Item>
+        <Item>Coordinate with installation-service for scheduling</Item>
+        <Item>Publish order lifecycle events</Item>
+        <Item>Ensure idempotency for order placement</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
+        <ServiceRef ref="DP-SVC-cart-service" type="grpc">Get cart snapshot</ServiceRef>
+        <ServiceRef ref="DP-SVC-installation-service" type="async">Schedule installations</ServiceRef>
+        <ServiceRef ref="DP-SVC-notification-service" type="async">Trigger notifications</ServiceRef>
+        <ExternalRef ref="Technology.xml#TECH-yookassa">YooKassa payment processing</ExternalRef>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>orders</Schema>
+      </Database>
+      <Ports>
+        <Port type="http">8084</Port>
+        <Port type="grpc">9084</Port>
+      </Ports>
+      <PackageLayout>
+        <Package>com.kanokna.order_service.domain.model</Package>
+        <Package>com.kanokna.order_service.domain.service</Package>
+        <Package>com.kanokna.order_service.domain.event</Package>
+        <Package>com.kanokna.order_service.domain.exception</Package>
+        <Package>com.kanokna.order_service.application.port.in</Package>
+        <Package>com.kanokna.order_service.application.port.out</Package>
+        <Package>com.kanokna.order_service.application.service</Package>
+        <Package>com.kanokna.order_service.application.dto</Package>
+        <Package>com.kanokna.order_service.adapters.in.web</Package>
+        <Package>com.kanokna.order_service.adapters.in.listener</Package>
+        <Package>com.kanokna.order_service.adapters.out.persistence</Package>
+        <Package>com.kanokna.order_service.adapters.out.gateway</Package>
+        <Package>com.kanokna.order_service.adapters.out.kafka</Package>
+        <Package>com.kanokna.order_service.adapters.config</Package>
+      </PackageLayout>
+      <Aggregates>
+        <Aggregate name="Order">Order aggregate with items and status</Aggregate>
+        <Aggregate name="Payment">Payment authorization and capture</Aggregate>
+      </Aggregates>
+      <DomainEvents>
+        <Event name="OrderCreatedEvent">Triggers notification, installation scheduling</Event>
+        <Event name="OrderConfirmedEvent">Payment captured successfully</Event>
+        <Event name="OrderShippedEvent">Products shipped</Event>
+        <Event name="OrderDeliveredEvent">Products delivered</Event>
+        <Event name="OrderCompletedEvent">Installation complete or self-install confirmed</Event>
+        <Event name="OrderCancelledEvent">Order cancelled, refund initiated</Event>
+        <Event name="PaymentAppliedEvent">Payment status changed</Event>
+      </DomainEvents>
+      <StateMachine>
+        <State name="CREATED" initial="true"/>
+        <State name="PENDING_PAYMENT"/>
+        <State name="CONFIRMED"/>
+        <State name="PROCESSING"/>
+        <State name="SHIPPED"/>
+        <State name="DELIVERED"/>
+        <State name="COMPLETED" terminal="true"/>
+        <State name="CANCELLED" terminal="true"/>
+        <Transition from="CREATED" to="PENDING_PAYMENT" event="PAYMENT_INITIATED"/>
+        <Transition from="PENDING_PAYMENT" to="CONFIRMED" event="PAYMENT_CAPTURED"/>
+        <Transition from="PENDING_PAYMENT" to="CANCELLED" event="PAYMENT_FAILED"/>
+        <Transition from="CONFIRMED" to="PROCESSING" event="PRODUCTION_STARTED"/>
+        <Transition from="PROCESSING" to="SHIPPED" event="SHIPPED"/>
+        <Transition from="SHIPPED" to="DELIVERED" event="DELIVERED"/>
+        <Transition from="DELIVERED" to="COMPLETED" event="INSTALLATION_COMPLETE"/>
+        <Transition from="CREATED,PENDING_PAYMENT,CONFIRMED" to="CANCELLED" event="CANCELLED"/>
+      </StateMachine>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-TRACK"/>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-CANCEL"/>
+        <Link ref="Flow-Checkout-Payment"/>
+        <Link ref="Flow-Order-Lifecycle"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-account-service" type="service">
+      <Name>account-service</Name>
+      <ArtifactId>account-service</ArtifactId>
+      <Description>
+        Manages user profiles, addresses, and preferences. Integrates with Keycloak
+        for identity management. Stores application-specific user data.
+      </Description>
+      <BoundedContext>account</BoundedContext>
+      <Responsibilities>
+        <Item>Store user profiles (synced from Keycloak on first login)</Item>
+        <Item>Manage delivery addresses</Item>
+        <Item>Store user preferences (language, currency, notifications)</Item>
+        <Item>Manage saved configurations for later</Item>
+        <Item>Role and permission queries (delegated to Keycloak tokens)</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ExternalRef ref="RequirementsAnalysis.xml#ACT-IDENTITY-PROVIDER">Keycloak</ExternalRef>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>accounts</Schema>
+      </Database>
+      <Port>8085</Port>
+      <Aggregates>
+        <Aggregate name="UserProfile">User profile aggregate</Aggregate>
+        <Aggregate name="SavedConfiguration">Saved product configurations</Aggregate>
+      </Aggregates>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-ACCOUNT-REGISTER"/>
+        <Link ref="RequirementsAnalysis.xml#UC-ACCOUNT-LOGIN"/>
+        <Link ref="RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-installation-service" type="service">
+      <Name>installation-service</Name>
+      <ArtifactId>installation-service</ArtifactId>
+      <Description>
+        Manages professional installation scheduling, installer assignments,
+        and job completion tracking.
+      </Description>
+      <BoundedContext>installation</BoundedContext>
+      <Responsibilities>
+        <Item>Manage installer profiles and availability</Item>
+        <Item>Show available installation time slots</Item>
+        <Item>Schedule installation appointments</Item>
+        <Item>Assign installers to jobs based on region and availability</Item>
+        <Item>Track installation completion</Item>
+        <Item>Publish InstallationCompletedEvent to advance order status</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-order-service" type="async">Receive OrderCreatedEvent</ServiceRef>
+        <ServiceRef ref="DP-SVC-notification-service" type="async">Notify installers and customers</ServiceRef>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>installations</Schema>
+      </Database>
+      <Port>8086</Port>
+      <Aggregates>
+        <Aggregate name="Installer">Installer profile and availability</Aggregate>
+        <Aggregate name="InstallationAppointment">Scheduled installation job</Aggregate>
+      </Aggregates>
+      <DomainEvents>
+        <Event name="InstallationScheduledEvent">Appointment confirmed</Event>
+        <Event name="InstallationCompletedEvent">Job marked complete</Event>
+      </DomainEvents>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-SCHEDULE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-COMPLETE"/>
+        <Link ref="RequirementsAnalysis.xml#ACT-INSTALLER"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-media-service" type="service">
+      <Name>media-service</Name>
+      <ArtifactId>media-service</ArtifactId>
+      <Description>
+        Manages media assets (product images, renders, manuals). Stores metadata
+        in database, actual files in S3-compatible object storage.
+      </Description>
+      <BoundedContext>media</BoundedContext>
+      <Responsibilities>
+        <Item>Upload and store media assets</Item>
+        <Item>Generate image variants (thumbnail, web, original)</Item>
+        <Item>Serve media via presigned URLs or direct proxy</Item>
+        <Item>Manage asset metadata (tags, descriptions, associations)</Item>
+        <Item>Garbage collect orphaned assets</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ExternalRef ref="Technology.xml#TECH-s3-compatible">Object storage</ExternalRef>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>media</Schema>
+      </Database>
+      <Port>8087</Port>
+      <Aggregates>
+        <Aggregate name="MediaAsset">Asset metadata and variants</Aggregate>
+      </Aggregates>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-MEDIA-SERVE"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-notification-service" type="service">
+      <Name>notification-service</Name>
+      <ArtifactId>notification-service</ArtifactId>
+      <Description>
+        Sends transactional notifications (email, SMS, push) based on domain events.
+        Manages templates, localization, and delivery tracking.
+      </Description>
+      <BoundedContext>notification</BoundedContext>
+      <Responsibilities>
+        <Item>Subscribe to domain events from Kafka</Item>
+        <Item>Manage notification templates with localization</Item>
+        <Item>Render templates with event data</Item>
+        <Item>Send via external providers (SendGrid, Twilio)</Item>
+        <Item>Track delivery status</Item>
+        <Item>Handle abandoned cart reminders (scheduled)</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ExternalRef ref="RequirementsAnalysis.xml#ACT-NOTIFICATION-PROVIDER">Email/SMS providers</ExternalRef>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>notifications</Schema>
+      </Database>
+      <Port>8088</Port>
+      <Aggregates>
+        <Aggregate name="NotificationTemplate">Template with localizations</Aggregate>
+        <Aggregate name="NotificationRecord">Sent notification with status</Aggregate>
+      </Aggregates>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-NOTIFY-TRANSACTIONAL"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-search-service" type="service">
+      <Name>search-service</Name>
+      <ArtifactId>search-service</ArtifactId>
+      <Description>
+        Provides full-text and faceted search over product catalog using Elasticsearch.
+        Indexes products asynchronously via domain events.
+      </Description>
+      <BoundedContext>search</BoundedContext>
+      <Responsibilities>
+        <Item>Maintain Elasticsearch indices for products</Item>
+        <Item>Index/update products on ProductTemplatePublishedEvent</Item>
+        <Item>Execute search queries with facets and filters</Item>
+        <Item>Provide autocomplete suggestions</Item>
+        <Item>Support synonym and language-aware search</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-catalog-configuration-service" type="async">Receive product events</ServiceRef>
+        <ExternalRef ref="Technology.xml#TECH-elasticsearch">Search engine</ExternalRef>
+      </Dependencies>
+      <Port>8089</Port>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-reporting-service" type="service">
+      <Name>reporting-service</Name>
+      <ArtifactId>reporting-service</ArtifactId>
+      <Description>
+        Aggregates data for dashboards and reports. Uses read-optimized storage
+        with materialized views or dedicated OLAP tables.
+      </Description>
+      <BoundedContext>reporting</BoundedContext>
+      <Responsibilities>
+        <Item>Consume domain events and build read models</Item>
+        <Item>Provide sales, conversion, and product performance reports</Item>
+        <Item>Support date range and dimension filters</Item>
+        <Item>Export reports in CSV/Excel formats</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-order-service" type="async">Order events for sales data</ServiceRef>
+        <ServiceRef ref="DP-SVC-catalog-configuration-service" type="async">Product data</ServiceRef>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>reporting</Schema>
+        <Notes>Uses materialized views for aggregations</Notes>
+      </Database>
+      <Port>8090</Port>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-REPORT-SALES"/>
+      </Links>
+    </Service>
+  </Services>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FLOWS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Flows>
+    <Flow id="Flow-Browse-Search">
+      <Name>Product Browse and Search Flow</Name>
+      <Description>Customer discovers products through browsing or search</Description>
+      <Sequence>
+        <Step order="1" from="frontend" to="gateway">Request product listing or search</Step>
+        <Step order="2" from="gateway" to="search-service">Route search request</Step>
+        <Step order="3" from="search-service" to="elasticsearch">Execute search query</Step>
+        <Step order="4" from="search-service" to="frontend">Return search results with facets</Step>
+        <Step order="5" from="frontend" to="media-service">Request product images</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Config-Pricing">
+      <Name>Configuration and Pricing Flow</Name>
+      <Description>Customer configures a product and receives real-time pricing</Description>
+      <Sequence>
+        <Step order="1" from="frontend" to="gateway">Request product template</Step>
+        <Step order="2" from="gateway" to="catalog-configuration-service">Get product template with options</Step>
+        <Step order="3" from="frontend" to="gateway">Submit configuration for validation</Step>
+        <Step order="4" from="gateway" to="catalog-configuration-service">Validate configuration</Step>
+        <Step order="5" from="catalog-configuration-service" to="pricing-service">Request price quote</Step>
+        <Step order="6" from="pricing-service" to="catalog-configuration-service">Return Quote</Step>
+        <Step order="7" from="catalog-configuration-service" to="frontend">Return validated configuration with price</Step>
+      </Sequence>
+      <AlternateFlows>
+        <Flow trigger="Validation fails">
+          <Step order="4a">catalog-configuration-service returns ValidationResult with errors</Step>
+          <Step order="4b">frontend displays errors and suggestions</Step>
+        </Flow>
+      </AlternateFlows>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Cart-Checkout">
+      <Name>Cart to Checkout Flow</Name>
+      <Description>Customer adds items to cart and proceeds to checkout</Description>
+      <Sequence>
+        <Step order="1" from="frontend" to="cart-service">Add configured item to cart</Step>
+        <Step order="2" from="cart-service" to="catalog-configuration-service">Validate configuration is still valid</Step>
+        <Step order="3" from="cart-service" to="pricing-service">Get current price quote</Step>
+        <Step order="4" from="cart-service" to="frontend">Return updated cart with totals</Step>
+        <Step order="5" from="frontend" to="cart-service">Proceed to checkout</Step>
+        <Step order="6" from="cart-service" to="frontend">Return cart snapshot for order creation</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Checkout-Payment">
+      <Name>Checkout and Payment Flow</Name>
+      <Description>Customer completes checkout and pays for order</Description>
+      <Sequence>
+        <Step order="1" from="frontend" to="order-service">Create order from cart</Step>
+        <Step order="2" from="order-service" to="cart-service">Get cart snapshot</Step>
+        <Step order="3" from="order-service" to="database">Create Order with CREATED status</Step>
+        <Step order="4" from="order-service" to="payment-gateway">Initiate payment session</Step>
+        <Step order="5" from="payment-gateway" to="frontend">Redirect to payment form</Step>
+        <Step order="6" from="frontend" to="payment-gateway">Customer submits payment</Step>
+        <Step order="7" from="payment-gateway" to="order-service">Webhook: payment authorized</Step>
+        <Step order="8" from="order-service" to="payment-gateway">Capture payment</Step>
+        <Step order="9" from="order-service" to="database">Update Order to CONFIRMED</Step>
+        <Step order="10" from="order-service" to="kafka">Publish OrderCreatedEvent</Step>
+        <Step order="11" from="notification-service" to="customer">Send order confirmation email</Step>
+      </Sequence>
+      <AlternateFlows>
+        <Flow trigger="Payment fails">
+          <Step order="7a">payment-gateway returns failure</Step>
+          <Step order="7b">order-service marks order as CANCELLED</Step>
+          <Step order="7c">frontend displays payment error</Step>
+        </Flow>
+      </AlternateFlows>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Order-Lifecycle">
+      <Name>Order Lifecycle Flow</Name>
+      <Description>Order progresses through states from creation to completion</Description>
+      <Sequence>
+        <Step order="1" from="order-service" to="kafka">OrderCreatedEvent</Step>
+        <Step order="2" from="installation-service" to="order-service">Schedule installation if requested</Step>
+        <Step order="3" from="order-service" to="kafka">Order moves to PROCESSING</Step>
+        <Step order="4" from="logistics-system" to="order-service">Order shipped (external trigger)</Step>
+        <Step order="5" from="order-service" to="kafka">OrderShippedEvent</Step>
+        <Step order="6" from="notification-service" to="customer">Send shipping notification</Step>
+        <Step order="7" from="logistics-system" to="order-service">Order delivered (external trigger)</Step>
+        <Step order="8" from="order-service" to="kafka">OrderDeliveredEvent</Step>
+        <Step order="9" from="installation-service" to="order-service">Installation completed</Step>
+        <Step order="10" from="order-service" to="kafka">OrderCompletedEvent</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-TRACK"/>
+        <Link ref="DP-SVC-order-service"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Event-Driven">
+      <Name>Asynchronous Event-Driven Communication</Name>
+      <Description>Services communicate asynchronously via Kafka domain events</Description>
+      <Producers>
+        <Producer service="catalog-configuration-service" events="ProductTemplatePublishedEvent, CatalogVersionPublishedEvent"/>
+        <Producer service="order-service" events="OrderCreatedEvent, OrderConfirmedEvent, OrderShippedEvent, OrderDeliveredEvent, OrderCompletedEvent, OrderCancelledEvent"/>
+        <Producer service="installation-service" events="InstallationScheduledEvent, InstallationCompletedEvent"/>
+        <Producer service="pricing-service" events="QuoteCalculatedEvent"/>
+      </Producers>
+      <Consumers>
+        <Consumer service="search-service" events="ProductTemplatePublishedEvent"/>
+        <Consumer service="notification-service" events="OrderCreatedEvent, OrderShippedEvent, InstallationScheduledEvent"/>
+        <Consumer service="reporting-service" events="OrderCreatedEvent, OrderCompletedEvent"/>
+        <Consumer service="installation-service" events="OrderCreatedEvent"/>
+        <Consumer service="order-service" events="InstallationCompletedEvent"/>
+      </Consumers>
+      <Links>
+        <Link ref="Technology.xml#TECH-kafka"/>
+      </Links>
+    </Flow>
+  </Flows>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       CONTRACT EVOLUTION POLICY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ContractEvolutionPolicy id="ContractEvolutionPolicy">
+    <REST>
+      <Versioning>URL path versioning (/api/v1/, /api/v2/)</Versioning>
+      <Deprecation>6-month deprecation window with Sunset header</Deprecation>
+      <CompatibilityRules>
+        <Rule>Adding optional fields is backward compatible</Rule>
+        <Rule>Removing required fields requires new version</Rule>
+        <Rule>Changing field types requires new version</Rule>
+      </CompatibilityRules>
+    </REST>
+    <Events>
+      <SchemaFormat>Protobuf</SchemaFormat>
+      <Registry>Confluent Schema Registry or equivalent</Registry>
+      <CompatibilityMode>BACKWARD</CompatibilityMode>
+      <CompatibilityRules>
+        <Rule>Add optional fields only; never remove or rename</Rule>
+        <Rule>Use reserved field numbers for deprecated fields</Rule>
+        <Rule>Event type name includes version if breaking change required (e.g., OrderCreatedEventV2)</Rule>
+      </CompatibilityRules>
+    </Events>
+    <ContractTesting>
+      <Tools>
+        <Tool>OpenAPI contract validation (spectral)</Tool>
+        <Tool>Protobuf compatibility checks (buf)</Tool>
+        <Tool>Spring Cloud Contract or Pact (optional for consumer-driven contracts)</Tool>
+      </Tools>
+      <Policy>Contract tests run in CI before merge</Policy>
+    </ContractTesting>
+    <Links>
+      <Link ref="Technology.xml#TECH-protobuf"/>
+      <Link ref="Technology.xml#TECH-contract-testing"/>
+    </Links>
+  </ContractEvolutionPolicy>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       TESTING STRATEGY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <TestingStrategy id="TestingStrategy">
+    <TestingPyramid>
+      <Layer name="Unit" percentage="70">
+        <Description>Domain logic, services, validators</Description>
+        <Tools>JUnit 5, Mockito, AssertJ</Tools>
+        <Coverage>80% minimum for domain and application layers</Coverage>
+      </Layer>
+      <Layer name="Slice" percentage="15">
+        <Description>Layer-specific tests (web, persistence)</Description>
+        <Tools>@WebMvcTest, @DataJpaTest, @JsonTest</Tools>
+        <Scope>Controller request/response, repository queries</Scope>
+      </Layer>
+      <Layer name="Integration" percentage="10">
+        <Description>Full stack with real dependencies</Description>
+        <Tools>Testcontainers (PostgreSQL, Kafka, Redis, Elasticsearch)</Tools>
+        <Scope>End-to-end service flows, event publishing/consuming</Scope>
+      </Layer>
+      <Layer name="Contract" percentage="5">
+        <Description>API and event contract validation</Description>
+        <Tools>OpenAPI validators, Schema Registry compatibility checks</Tools>
+        <Scope>Producer/consumer contract alignment</Scope>
+      </Layer>
+    </TestingPyramid>
+    <AdditionalTesting>
+      <ArchitectureTests>
+        <Tool>ArchUnit</Tool>
+        <Rules>
+          <Rule>Domain layer has no Spring/JPA dependencies</Rule>
+          <Rule>Application layer has no adapter dependencies</Rule>
+          <Rule>Adapters implement port interfaces</Rule>
+          <Rule>No cyclic dependencies between packages</Rule>
+        </Rules>
+      </ArchitectureTests>
+      <MutationTesting enabled="optional">
+        <Tool>Pitest</Tool>
+        <Scope>Critical domain logic (pricing, configuration validation)</Scope>
+      </MutationTesting>
+      <PerformanceTesting>
+        <Tool>Gatling or k6</Tool>
+        <Scope>Load testing for P95 latency validation</Scope>
+      </PerformanceTesting>
+    </AdditionalTesting>
+    <Links>
+      <Link ref="RequirementsAnalysis.xml#NFR-MAINT-TESTABILITY"/>
+      <Link ref="Technology.xml#TECH-testcontainers"/>
+      <Link ref="Technology.xml#TECH-archunit"/>
+    </Links>
+  </TestingStrategy>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       DEPLOYMENT STRATEGY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Deployment id="Deployment-Overview">
+    <Environments>
+      <Environment name="dev">
+        <Description>Local development with Docker Compose</Description>
+        <Infrastructure>
+          <Item>PostgreSQL, Redis, Kafka, Elasticsearch via Docker Compose</Item>
+          <Item>Keycloak for local OIDC</Item>
+          <Item>MinIO for S3-compatible storage</Item>
+        </Infrastructure>
+        <Profile>spring.profiles.active=dev</Profile>
+      </Environment>
+      <Environment name="stage">
+        <Description>Pre-production environment mirroring prod</Description>
+        <Infrastructure>
+          <Item>Kubernetes cluster (same config as prod)</Item>
+          <Item>Managed PostgreSQL, Redis, Kafka</Item>
+          <Item>Feature flags enabled for testing</Item>
+        </Infrastructure>
+        <Profile>spring.profiles.active=stage</Profile>
+      </Environment>
+      <Environment name="prod">
+        <Description>Production environment</Description>
+        <Infrastructure>
+          <Item>Kubernetes cluster with HPA</Item>
+          <Item>Managed PostgreSQL (RDS or Cloud SQL)</Item>
+          <Item>Managed Kafka (MSK or Confluent)</Item>
+          <Item>Managed Redis (ElastiCache)</Item>
+          <Item>Managed Elasticsearch (OpenSearch Service)</Item>
+          <Item>S3 for object storage with CloudFront CDN</Item>
+        </Infrastructure>
+        <Profile>spring.profiles.active=prod</Profile>
+      </Environment>
+    </Environments>
+    <RolloutStrategy>
+      <Default>Rolling update with readiness probes</Default>
+      <HighRisk>Blue-green for payment or order services</HighRisk>
+      <DatabaseMigrations>
+        <Strategy>Expand-Migrate-Contract</Strategy>
+        <Steps>
+          <Step order="1">Deploy code that works with old AND new schema</Step>
+          <Step order="2">Run Flyway migrations</Step>
+          <Step order="3">Deploy code that only uses new schema</Step>
+          <Step order="4">Clean up old columns/tables (later release)</Step>
+        </Steps>
+      </DatabaseMigrations>
+    </RolloutStrategy>
+    <Observability>
+      <HealthChecks>
+        <Liveness>/actuator/health/liveness</Liveness>
+        <Readiness>/actuator/health/readiness</Readiness>
+      </HealthChecks>
+      <Dashboards>
+        <Dashboard>Service health overview</Dashboard>
+        <Dashboard>Request latency and error rates</Dashboard>
+        <Dashboard>Business metrics (orders, conversions)</Dashboard>
+        <Dashboard>Kafka lag monitoring</Dashboard>
+      </Dashboards>
+      <Alerting>
+        <Alert trigger="P95 latency > 1s" severity="warning"/>
+        <Alert trigger="Error rate > 1%" severity="warning"/>
+        <Alert trigger="Error rate > 5%" severity="critical"/>
+        <Alert trigger="Service unavailable" severity="critical"/>
+      </Alerting>
+    </Observability>
+    <Links>
+      <Link ref="Technology.xml#TECH-kubernetes"/>
+      <Link ref="Technology.xml#TECH-ci-pipeline"/>
+    </Links>
+  </Deployment>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SEMANTIC CONTRACTS REGISTRY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Contracts>
+    <ContractRegistry>
+      <Description>
+        Central registry of MODULE_CONTRACT and FUNCTION_CONTRACT IDs.
+        Actual contracts are embedded in source code; this section provides an index.
+      </Description>
+
+      <!-- catalog-configuration-service -->
+      <ModuleContract id="MC-catalog-configuration-service-domain-ConfigurationValidation">
+        <Service>catalog-configuration-service</Service>
+        <Layer>domain.service</Layer>
+        <Description>Configuration validation domain service</Description>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
+        </Links>
+      </ModuleContract>
+
+      <FunctionContract id="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-validateConfiguration">
+        <Service>catalog-configuration-service</Service>
+        <UseCase>UC-CATALOG-CONFIGURE-ITEM</UseCase>
+        <Method>validateConfiguration</Method>
+        <Criticality>HIGH</Criticality>
+        <Links>
+          <Link ref="MC-catalog-configuration-service-domain-ConfigurationValidation"/>
+        </Links>
+      </FunctionContract>
+
+      <FunctionContract id="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-resolveBom">
+        <Service>catalog-configuration-service</Service>
+        <UseCase>UC-CATALOG-CONFIGURE-ITEM</UseCase>
+        <Method>resolveBom</Method>
+        <Criticality>MEDIUM</Criticality>
+      </FunctionContract>
+
+      <!-- pricing-service -->
+      <ModuleContract id="MC-pricing-service-domain-PriceCalculation">
+        <Service>pricing-service</Service>
+        <Layer>domain.service</Layer>
+        <Description>Price calculation domain service</Description>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+        </Links>
+      </ModuleContract>
+
+      <FunctionContract id="FC-pricing-service-UC-PRICING-QUOTE-calculateQuote">
+        <Service>pricing-service</Service>
+        <UseCase>UC-PRICING-QUOTE</UseCase>
+        <Method>calculateQuote</Method>
+        <Criticality>HIGH</Criticality>
+        <Links>
+          <Link ref="MC-pricing-service-domain-PriceCalculation"/>
+        </Links>
+      </FunctionContract>
+
+      <!-- order-service -->
+      <ModuleContract id="MC-order-service-domain-OrderAggregate">
+        <Service>order-service</Service>
+        <Layer>domain.model</Layer>
+        <Description>Order aggregate root with state machine</Description>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+        </Links>
+      </ModuleContract>
+
+      <ModuleContract id="MC-order-service-application-OrderPlacement">
+        <Service>order-service</Service>
+        <Layer>application.service</Layer>
+        <Description>Order placement use case service</Description>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+          <Link ref="Flow-Checkout-Payment"/>
+        </Links>
+      </ModuleContract>
+
+      <FunctionContract id="FC-order-service-UC-ORDER-PLACE-placeOrder">
+        <Service>order-service</Service>
+        <UseCase>UC-ORDER-PLACE</UseCase>
+        <Method>placeOrder</Method>
+        <Criticality>HIGH</Criticality>
+        <Links>
+          <Link ref="MC-order-service-application-OrderPlacement"/>
+        </Links>
+      </FunctionContract>
+
+      <FunctionContract id="FC-order-service-UC-ORDER-PLACE-initiatePayment">
+        <Service>order-service</Service>
+        <UseCase>UC-ORDER-PLACE</UseCase>
+        <Method>initiatePayment</Method>
+        <Criticality>HIGH</Criticality>
+      </FunctionContract>
+
+      <FunctionContract id="FC-order-service-UC-ORDER-PLACE-handlePaymentCallback">
+        <Service>order-service</Service>
+        <UseCase>UC-ORDER-PLACE</UseCase>
+        <Method>handlePaymentCallback</Method>
+        <Criticality>HIGH</Criticality>
+      </FunctionContract>
+    </ContractRegistry>
+
+    <BlockAnchorRegistry>
+      <Description>
+        Index of BLOCK_ANCHOR IDs for critical code segments.
+        Used for log correlation and RAG navigation.
+      </Description>
+
+      <!-- Configuration validation anchors -->
+      <BlockAnchor id="BA-CFG-VAL-01" service="catalog-configuration-service" purpose="Check dimension constraints"/>
+      <BlockAnchor id="BA-CFG-VAL-02" service="catalog-configuration-service" purpose="Check material/glazing compatibility"/>
+      <BlockAnchor id="BA-CFG-VAL-03" service="catalog-configuration-service" purpose="Check option dependencies"/>
+      <BlockAnchor id="BA-CFG-VAL-99" service="catalog-configuration-service" purpose="Final validation result"/>
+
+      <!-- Pricing anchors -->
+      <BlockAnchor id="BA-PRC-CALC-01" service="pricing-service" purpose="Load price book"/>
+      <BlockAnchor id="BA-PRC-CALC-02" service="pricing-service" purpose="Calculate base price from dimensions"/>
+      <BlockAnchor id="BA-PRC-CALC-03" service="pricing-service" purpose="Apply option premiums"/>
+      <BlockAnchor id="BA-PRC-CALC-04" service="pricing-service" purpose="Apply campaign discounts"/>
+      <BlockAnchor id="BA-PRC-CALC-05" service="pricing-service" purpose="Calculate taxes"/>
+      <BlockAnchor id="BA-PRC-CALC-99" service="pricing-service" purpose="Final quote result"/>
+
+      <!-- Order placement anchors -->
+      <BlockAnchor id="BA-ORD-PLACE-01" service="order-service" purpose="Validate cart snapshot"/>
+      <BlockAnchor id="BA-ORD-PLACE-02" service="order-service" purpose="Check idempotency key"/>
+      <BlockAnchor id="BA-ORD-PLACE-03" service="order-service" purpose="Create order aggregate"/>
+      <BlockAnchor id="BA-ORD-PLACE-04" service="order-service" purpose="Persist order to database"/>
+      <BlockAnchor id="BA-ORD-PLACE-05" service="order-service" purpose="Initiate payment with gateway"/>
+      <BlockAnchor id="BA-ORD-PLACE-99" service="order-service" purpose="Order placement result"/>
+
+      <!-- Payment callback anchors -->
+      <BlockAnchor id="BA-PAY-CB-01" service="order-service" purpose="Verify webhook signature"/>
+      <BlockAnchor id="BA-PAY-CB-02" service="order-service" purpose="Load order by payment reference"/>
+      <BlockAnchor id="BA-PAY-CB-03" service="order-service" purpose="Apply payment status transition"/>
+      <BlockAnchor id="BA-PAY-CB-04" service="order-service" purpose="Publish OrderConfirmedEvent"/>
+    </BlockAnchorRegistry>
+  </Contracts>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ASSUMPTIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Assumptions>
+    <Assumption id="DP-ASSUM-001">
+      Port numbers are defaults for local development; production uses Kubernetes service discovery.
+    </Assumption>
+    <Assumption id="DP-ASSUM-002" status="SUPERSEDED">
+      SUPERSEDED by DEC-INTER-SERVICE-COMM: gRPC is REQUIRED for inter-service sync communication.
+      Original assumption (WebClient/OpenFeign with optional gRPC) is no longer valid.
+    </Assumption>
+    <Assumption id="DP-ASSUM-003">
+      Product service (product-service) in POM is legacy; functionality merged into catalog-configuration-service.
+    </Assumption>
+    <Assumption id="DP-ASSUM-004">
+      Initial implementation prioritizes happy-path flows; advanced error handling enhanced iteratively.
+    </Assumption>
+  </Assumptions>
+
+</DevelopmentPlan>

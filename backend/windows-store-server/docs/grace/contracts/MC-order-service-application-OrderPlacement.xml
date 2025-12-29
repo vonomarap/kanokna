@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Semantic Contract: MODULE_CONTRACT
+  Service: order-service
+  Layer: application.service
+  Purpose: Order placement use case service contract
+-->
+<MODULE_CONTRACT
+    id="MC-order-service-application-OrderPlacement"
+    ROLE="ApplicationService"
+    SERVICE="order-service"
+    LAYER="application.service"
+    BOUNDED_CONTEXT="order"
+    SPECIFICATION="UC-ORDER-PLACE">
+
+  <PURPOSE>
+    Application service that orchestrates the order placement use case.
+    Converts cart into order, initiates payment, handles payment callbacks,
+    and publishes order events. Ensures transactional consistency and idempotency.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Validate cart snapshot and shipping information</Item>
+    <Item>Ensure idempotency via idempotency key</Item>
+    <Item>Create Order aggregate from cart data</Item>
+    <Item>Persist order within transaction boundary</Item>
+    <Item>Initiate payment session with payment gateway</Item>
+    <Item>Handle payment authorization callbacks (webhooks)</Item>
+    <Item>Capture payment on successful authorization</Item>
+    <Item>Transition order state machine (CREATED -> CONFIRMED)</Item>
+    <Item>Publish OrderCreatedEvent via outbox pattern</Item>
+    <Item>Clear cart after successful order confirmation</Item>
+  </RESPONSIBILITIES>
+
+  <INVARIANTS>
+    <Item>Order placement is idempotent: same idempotency key returns same order</Item>
+    <Item>Order is created within a single database transaction</Item>
+    <Item>Payment initiation happens after order persistence (saga pattern)</Item>
+    <Item>Payment callback processing is idempotent (same webhook handled once)</Item>
+    <Item>Events are published via outbox pattern for reliability</Item>
+    <Item>Order state transitions follow defined state machine</Item>
+  </INVARIANTS>
+
+  <CONTEXT>
+    <UPSTREAM>
+      <Item>adapters.in.web.OrderController: REST endpoint for order placement</Item>
+      <Item>adapters.in.web.PaymentCallbackController: Webhook endpoint for payment status</Item>
+      <Item>frontend: checkout flow initiator</Item>
+    </UPSTREAM>
+    <DOWNSTREAM>
+      <Item>application.port.out.CartPort: retrieves cart snapshot</Item>
+      <Item>application.port.out.OrderRepository: persists orders</Item>
+      <Item>application.port.out.PaymentRepository: persists payment records</Item>
+      <Item>application.port.out.PaymentGatewayPort: interacts with payment provider</Item>
+      <Item>application.port.out.IdempotencyStore: stores idempotency keys</Item>
+      <Item>application.port.out.OutboxPublisher: publishes domain events</Item>
+      <Item>domain.model.Order: aggregate root with state machine</Item>
+    </DOWNSTREAM>
+  </CONTEXT>
+
+  <ARCHITECTURE>
+    <TECHNOLOGY>
+      <Item ref="Technology.xml#TECH-spring-boot">Spring Boot for transaction management</Item>
+      <Item ref="Technology.xml#TECH-spring-data-jpa">JPA for persistence</Item>
+      <Item>Outbox pattern with Kafka for reliable event publishing</Item>
+      <Item>Idempotency via Redis or database</Item>
+    </TECHNOLOGY>
+    <PACKAGE>com.kanokna.order_service.application.service</PACKAGE>
+    <CLASS>OrderApplicationService</CLASS>
+  </ARCHITECTURE>
+
+  <PUBLIC_API>
+    <Method name="placeOrder">
+      <Input>PlaceOrderCommand</Input>
+      <Output>OrderCreatedResponse</Output>
+      <Contract ref="FC-order-service-UC-ORDER-PLACE-placeOrder"/>
+    </Method>
+    <Method name="initiatePayment">
+      <Input>InitiatePaymentCommand</Input>
+      <Output>PaymentGatewaySession</Output>
+      <Contract ref="FC-order-service-UC-ORDER-PLACE-initiatePayment"/>
+    </Method>
+    <Method name="handlePaymentCallback">
+      <Input>PaymentCallbackCommand</Input>
+      <Output>PaymentResult</Output>
+      <Contract ref="FC-order-service-UC-ORDER-PLACE-handlePaymentCallback"/>
+    </Method>
+  </PUBLIC_API>
+
+  <CROSS_CUTTING>
+    <SECURITY>
+      <Item>Customer must be authenticated to place order</Item>
+      <Item>Payment webhook must include valid signature from gateway</Item>
+      <Item>Order data visible only to owning customer or ADMIN role</Item>
+      <Item>PCI-DSS: no card data stored; tokenization only</Item>
+    </SECURITY>
+    <RELIABILITY>
+      <Item>Idempotent order placement prevents duplicate orders on retry</Item>
+      <Item>Outbox pattern ensures events are published even if Kafka temporarily unavailable</Item>
+      <Item>Payment capture retried with exponential backoff on transient failures</Item>
+      <Item>Circuit breaker on payment gateway calls</Item>
+    </RELIABILITY>
+    <OBSERVABILITY>
+      <Item>Metrics: orders_placed_total, orders_confirmed_total, orders_failed_total, payment_latency_ms</Item>
+      <Item>Traces span: order creation, payment initiation, payment capture</Item>
+      <Item>Alert on payment failures, order placement errors</Item>
+    </OBSERVABILITY>
+  </CROSS_CUTTING>
+
+  <TRANSACTIONS>
+    <Transaction method="placeOrder">
+      <Propagation>REQUIRED</Propagation>
+      <Isolation>READ_COMMITTED</Isolation>
+      <Scope>Order creation and idempotency check within single TX</Scope>
+    </Transaction>
+    <Transaction method="handlePaymentCallback">
+      <Propagation>REQUIRED</Propagation>
+      <Scope>Order state transition and payment record update</Scope>
+      <Notes>Uses optimistic locking (@Version) on Order aggregate</Notes>
+    </Transaction>
+  </TRANSACTIONS>
+
+  <LOGGING>
+    <FORMAT>[SVC=order-service][UC=UC-ORDER-PLACE][BLOCK={blockId}][STATE={state}] eventType={eventType} decision={decision} {keyValues}</FORMAT>
+    <EXAMPLES>
+      <Example blockId="BA-ORD-PLACE-01" state="VALIDATE_CART">
+        eventType=ORDER_PLACEMENT_STEP decision=VALIDATED cartId=CART-12345 itemCount=3 total=EUR450.00
+      </Example>
+      <Example blockId="BA-ORD-PLACE-02" state="CHECK_IDEMPOTENCY">
+        eventType=ORDER_PLACEMENT_STEP decision=NEW|DUPLICATE idempotencyKey=IK-ABC123
+      </Example>
+      <Example blockId="BA-ORD-PLACE-03" state="CREATE_ORDER">
+        eventType=ORDER_PLACEMENT_STEP decision=CREATED orderId=ORD-67890 customerId=USR-11111
+      </Example>
+      <Example blockId="BA-ORD-PLACE-04" state="PERSIST_ORDER">
+        eventType=ORDER_PLACEMENT_STEP decision=PERSISTED orderId=ORD-67890
+      </Example>
+      <Example blockId="BA-ORD-PLACE-05" state="INITIATE_PAYMENT">
+        eventType=ORDER_PLACEMENT_STEP decision=INITIATED orderId=ORD-67890 paymentSessionId=PS-STRIPE-XYZ
+      </Example>
+      <Example blockId="BA-ORD-PLACE-99" state="FINAL">
+        eventType=ORDER_PLACEMENT_RESULT decision=SUCCESS|FAILED orderId=ORD-67890 status=PENDING_PAYMENT latency_ms=250
+      </Example>
+      <Example blockId="BA-PAY-CB-01" state="VERIFY_WEBHOOK">
+        eventType=PAYMENT_CALLBACK_STEP decision=VERIFIED|REJECTED webhookId=WH-123
+      </Example>
+      <Example blockId="BA-PAY-CB-03" state="APPLY_PAYMENT">
+        eventType=PAYMENT_CALLBACK_STEP decision=CAPTURED orderId=ORD-67890 amount=EUR450.00
+      </Example>
+      <Example blockId="BA-PAY-CB-04" state="PUBLISH_EVENT">
+        eventType=PAYMENT_CALLBACK_STEP decision=PUBLISHED eventType=OrderConfirmedEvent orderId=ORD-67890
+      </Example>
+    </EXAMPLES>
+  </LOGGING>
+
+  <TESTS>
+    <Case id="TC-ORD-001" type="HAPPY_PATH">
+      Valid cart and payment creates order with PENDING_PAYMENT status
+    </Case>
+    <Case id="TC-ORD-002" type="HAPPY_PATH">
+      Duplicate idempotency key returns existing order without side effects
+    </Case>
+    <Case id="TC-ORD-003" type="HAPPY_PATH">
+      Successful payment callback transitions order to CONFIRMED
+    </Case>
+    <Case id="TC-ORD-004" type="ERROR_CASE">
+      Empty cart returns ERR-ORDER-EMPTY-CART
+    </Case>
+    <Case id="TC-ORD-005" type="ERROR_CASE">
+      Invalid cart (stale prices) returns ERR-ORDER-PRICE-CHANGED
+    </Case>
+    <Case id="TC-ORD-006" type="ERROR_CASE">
+      Payment gateway failure returns ERR-PAYMENT-INITIATION-FAILED
+    </Case>
+    <Case id="TC-ORD-007" type="ERROR_CASE">
+      Invalid webhook signature returns 401
+    </Case>
+    <Case id="TC-ORD-008" type="EDGE_CASE">
+      Payment callback for unknown order returns 404 (order not found)
+    </Case>
+    <Case id="TC-ORD-009" type="HAPPY_PATH">
+      OrderCreatedEvent is published via outbox after commit
+    </Case>
+    <Case id="TC-ORD-010" type="RELIABILITY">
+      Transient payment gateway failure is retried and eventually succeeds
+    </Case>
+  </TESTS>
+
+  <LINKS>
+    <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+    <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment"/>
+    <Link ref="DevelopmentPlan.xml#Flow-Order-Lifecycle"/>
+    <Link ref="Technology.xml#TECH-kafka"/>
+    <Link ref="RequirementsAnalysis.xml#ACT-PAYMENT-GATEWAY"/>
+  </LINKS>
+
+</MODULE_CONTRACT>

@@ -1,0 +1,754 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Canonical Artifact: Technology.xml
+  Purpose: Define approved technology stack, versions, and cross-cutting technical decisions
+  Version: 1.0.0
+  Last Updated: 2025-12-29
+-->
+<Technology version="1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       LANGUAGES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Languages>
+    <Language id="TECH-java">
+      <Name>Java</Name>
+      <Version>25</Version>
+      <Usage>Primary backend language for all services</Usage>
+      <Notes>
+        Using latest LTS features: records, sealed classes, pattern matching, virtual threads.
+        Preview features enabled selectively in dev profile only.
+      </Notes>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-shared-kernel"/>
+      </Links>
+    </Language>
+  </Languages>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FRAMEWORKS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Frameworks>
+    <Framework id="TECH-spring-boot">
+      <Name>Spring Boot</Name>
+      <Version status="TBD">4.0.0</Version>
+      <Usage>Foundation for all microservices</Usage>
+      <Notes>
+        Spring Boot 4.0.0 is declared in parent POM. As of knowledge cutoff,
+        Spring Boot 4.x is not yet released; version placeholder retained from project POM.
+        Implementation should verify API compatibility when actual release is available.
+      </Notes>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"/>
+      </Links>
+    </Framework>
+
+    <Framework id="TECH-spring-cloud">
+      <Name>Spring Cloud</Name>
+      <Version>2024.0.0</Version>
+      <Usage>Service discovery, configuration, resilience patterns</Usage>
+      <Components>
+        <Component name="spring-cloud-config">Centralized configuration (config-server)</Component>
+        <Component name="spring-cloud-gateway">API Gateway routing and filtering</Component>
+        <Component name="spring-cloud-circuitbreaker">Circuit breaker abstraction</Component>
+      </Components>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-config-server"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-gateway"/>
+      </Links>
+    </Framework>
+
+    <Framework id="TECH-grpc">
+      <Name>gRPC</Name>
+      <Version>1.60.x</Version>
+      <Usage>Synchronous inter-service communication</Usage>
+      <Components>
+        <Component name="grpc-spring-boot-starter">gRPC server and client integration</Component>
+        <Component name="protobuf-java">Protocol Buffers runtime</Component>
+        <Component name="grpc-netty-shaded">Netty transport</Component>
+      </Components>
+      <Configuration>
+        <Item>Service definitions in api-contracts module (.proto files)</Item>
+        <Item>Generated stubs used in adapters.out.grpc packages</Item>
+        <Item>Deadline propagation for timeout management</Item>
+        <Item>Interceptors for tracing and authentication</Item>
+        <Item>Health checks via gRPC Health Checking Protocol</Item>
+      </Configuration>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-api-contracts"/>
+        <Link ref="Technology.xml#TECH-protobuf"/>
+      </Links>
+    </Framework>
+
+    <Framework id="TECH-spring-security">
+      <Name>Spring Security</Name>
+      <Version>Managed by Spring Boot BOM</Version>
+      <Usage>Authentication, authorization, OAuth2 resource server</Usage>
+      <Configuration>
+        <Item>All services act as OAuth2 Resource Servers validating JWT tokens</Item>
+        <Item>Gateway performs initial authentication; services re-validate</Item>
+        <Item>Method-level security with @PreAuthorize for role-based access</Item>
+      </Configuration>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-SEC-RBAC"/>
+      </Links>
+    </Framework>
+
+    <Framework id="TECH-spring-data-jpa">
+      <Name>Spring Data JPA</Name>
+      <Version>Managed by Spring Boot BOM</Version>
+      <Usage>Repository abstraction for relational data access</Usage>
+      <Configuration>
+        <Item>Custom repository implementations for complex queries</Item>
+        <Item>Projections for read-optimized queries</Item>
+        <Item>Auditing enabled for created/modified timestamps</Item>
+      </Configuration>
+      <Links>
+        <Link ref="Technology.xml#TECH-hibernate-jpa"/>
+      </Links>
+    </Framework>
+
+    <Framework id="TECH-hibernate-jpa">
+      <Name>Hibernate ORM</Name>
+      <Version>Managed by Spring Boot BOM</Version>
+      <Usage>JPA implementation</Usage>
+      <Configuration>
+        <Item>ddl-auto=validate in all profiles (Flyway handles migrations)</Item>
+        <Item>Open-session-in-view disabled</Item>
+        <Item>Batch fetching enabled (default_batch_fetch_size=25)</Item>
+        <Item>Second-level cache disabled initially; enable per-entity as needed</Item>
+      </Configuration>
+      <Guidelines>
+        <Item>Use JPA API primarily; Hibernate extensions only when necessary</Item>
+        <Item>Entities have no-arg constructor; LAZY associations not final</Item>
+        <Item>equals/hashCode by business key, not DB id</Item>
+        <Item>Avoid N+1: use @EntityGraph, JOIN FETCH, or batch fetching</Item>
+      </Guidelines>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"/>
+      </Links>
+    </Framework>
+
+    <Framework id="TECH-jakarta-validation">
+      <Name>Jakarta Bean Validation</Name>
+      <Version>3.1</Version>
+      <Usage>Input validation in adapters and application DTOs</Usage>
+      <Configuration>
+        <Item>Validation at REST controller boundaries (@Valid)</Item>
+        <Item>Custom validators for domain-specific rules</Item>
+        <Item>Domain invariants enforced in domain layer (not via annotations)</Item>
+      </Configuration>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#NFR-SEC-INPUT-VALIDATION"/>
+      </Links>
+    </Framework>
+
+    <Framework id="TECH-mapstruct">
+      <Name>MapStruct</Name>
+      <Version>1.5.5.Final</Version>
+      <Usage>Type-safe mapping between layers (DTO to domain, entity to domain)</Usage>
+      <Configuration>
+        <Item>Mappers in adapter layer only</Item>
+        <Item>ComponentModel = spring for dependency injection</Item>
+      </Configuration>
+    </Framework>
+  </Frameworks>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       INFRASTRUCTURE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Infrastructure>
+    <!-- Databases -->
+    <Database id="TECH-postgresql">
+      <Name>PostgreSQL</Name>
+      <Version>16</Version>
+      <Usage>Primary OLTP database for all services</Usage>
+      <Configuration>
+        <Item>Each service has its own database (logical or physical)</Item>
+        <Item>Connection pooling via HikariCP (default Spring Boot pool)</Item>
+        <Item>Schema migrations via Flyway</Item>
+      </Configuration>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#NFR-SCALE-DB-PER-SERVICE"/>
+      </Links>
+    </Database>
+
+    <Database id="TECH-flyway">
+      <Name>Flyway</Name>
+      <Version>10.x</Version>
+      <Usage>Database schema migrations</Usage>
+      <Configuration>
+        <Item>Migration scripts in src/main/resources/db/migration</Item>
+        <Item>Versioned migrations (V1__, V2__, ...)</Item>
+        <Item>Repeatable migrations for views/functions (R__)</Item>
+        <Item>Baseline on existing databases if needed</Item>
+      </Configuration>
+    </Database>
+
+    <!-- Search -->
+    <SearchEngine id="TECH-elasticsearch">
+      <Name>Elasticsearch</Name>
+      <Version>8.x</Version>
+      <Usage>Full-text search, faceted filtering, autocomplete for products</Usage>
+      <Configuration>
+        <Item>Dedicated search-service manages indices</Item>
+        <Item>Async indexing triggered by domain events from catalog-configuration-service</Item>
+        <Item>Index aliases for zero-downtime reindexing</Item>
+      </Configuration>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY"/>
+      </Links>
+    </SearchEngine>
+
+    <!-- Messaging -->
+    <MessageBroker id="TECH-kafka">
+      <Name>Apache Kafka</Name>
+      <Version>3.7.x</Version>
+      <Usage>Asynchronous event-driven communication between services</Usage>
+      <Configuration>
+        <Item>Topics per domain event type (e.g., order.created, order.shipped)</Item>
+        <Item>Consumer groups per consuming service</Item>
+        <Item>Outbox pattern for reliable event publishing</Item>
+        <Item>Idempotent consumers with message ID deduplication</Item>
+        <Item>Schema Registry for Protobuf schema management</Item>
+      </Configuration>
+      <Topics>
+        <Topic name="catalog.product.published">Product catalog updates</Topic>
+        <Topic name="order.created">New order events</Topic>
+        <Topic name="order.status.changed">Order status transitions</Topic>
+        <Topic name="payment.captured">Payment capture confirmations</Topic>
+        <Topic name="installation.scheduled">Installation appointment events</Topic>
+      </Topics>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#Flow-Event-Driven"/>
+      </Links>
+    </MessageBroker>
+
+    <!-- Caching -->
+    <Cache id="TECH-redis">
+      <Name>Redis</Name>
+      <Version>7.x</Version>
+      <Usage>Caching, session storage, rate limiting</Usage>
+      <Configuration>
+        <Item>Price quote caching (TTL: 5 minutes)</Item>
+        <Item>Session data for anonymous carts</Item>
+        <Item>Distributed rate limiting counters</Item>
+        <Item>Jackson serializer for cache values</Item>
+      </Configuration>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </Cache>
+
+    <!-- Object Storage -->
+    <ObjectStorage id="TECH-s3-compatible">
+      <Name>S3-Compatible Object Storage</Name>
+      <Provider status="ASSUMED">MinIO (dev/stage), AWS S3 (prod)</Provider>
+      <Usage>Product images, renders, installation manuals, user uploads</Usage>
+      <Configuration>
+        <Item>media-service manages metadata; objects stored in S3</Item>
+        <Item>Presigned URLs for direct browser upload/download</Item>
+        <Item>Image variants generated on upload (thumbnail, web, original)</Item>
+        <Item>CDN (CloudFront) in front for production</Item>
+      </Configuration>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-media-service"/>
+        <Link ref="RequirementsAnalysis.xml#UC-MEDIA-SERVE"/>
+      </Links>
+    </ObjectStorage>
+  </Infrastructure>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       CROSS-CUTTING CONCERNS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <CrossCutting>
+    <!-- Security -->
+    <Security id="TECH-security-stack">
+      <IdentityProvider id="TECH-identity-provider">
+        <Name>OAuth2/OIDC Identity Provider</Name>
+        <Environments>
+          <Environment name="dev-stage" id="TECH-keycloak">
+            <Provider>Keycloak</Provider>
+            <Version>24.x</Version>
+            <Usage>Self-hosted OIDC for development and staging</Usage>
+            <Configuration>
+              <Item>Realm: kanokna</Item>
+              <Item>Clients: web-frontend, mobile-app, admin-console</Item>
+              <Item>Roles: CUSTOMER, INSTALLER, ADMIN, PRICING_ADMIN, CATALOG_ADMIN, REPORTING_VIEWER</Item>
+              <Item>JWT tokens with RS256 signing</Item>
+              <Item>Deployed via Docker Compose (dev) or Helm (stage)</Item>
+            </Configuration>
+          </Environment>
+          <Environment name="prod" id="TECH-auth0">
+            <Provider>Auth0</Provider>
+            <Usage>Managed OIDC for production (reduced operational burden)</Usage>
+            <Configuration>
+              <Item>Tenant: kanokna-prod</Item>
+              <Item>Applications: web-frontend, mobile-app, admin-console</Item>
+              <Item>Roles mapped to JWT claims</Item>
+              <Item>Social login support (Google, Facebook) if needed</Item>
+              <Item>MFA enforcement for admin roles</Item>
+              <Item>Branding customization for login pages</Item>
+            </Configuration>
+          </Environment>
+        </Environments>
+        <CommonConfiguration>
+          <Item>All services validate JWT tokens as OAuth2 Resource Servers</Item>
+          <Item>Token issuer URL configured per environment</Item>
+          <Item>JWKS endpoint for public key retrieval</Item>
+          <Item>Standard claims: sub, email, roles, permissions</Item>
+        </CommonConfiguration>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#ACT-IDENTITY-PROVIDER"/>
+          <Link ref="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION"/>
+        </Links>
+      </IdentityProvider>
+
+      <PaymentIntegration id="TECH-payment-integration">
+        <Provider id="TECH-yookassa" status="APPROVED">YooKassa (YooMoney)</Provider>
+        <Usage>Payment processing, authorization, capture, refunds for Russian market</Usage>
+        <Configuration>
+          <Item>YooKassa Java SDK for payment creation and management</Item>
+          <Item>Support for bank cards (Visa, Mastercard, Mir)</Item>
+          <Item>Support for YooMoney wallet payments</Item>
+          <Item>Support for SberPay, Tinkoff Pay, and other Russian payment methods</Item>
+          <Item>Webhooks for async payment status updates (payment.succeeded, payment.canceled, refund.succeeded)</Item>
+          <Item>Two-stage payments: authorize then capture (for orders with production lead time)</Item>
+          <Item>Receipts generation for Russian Federal Tax Service (54-FZ compliance)</Item>
+          <Item>PCI-DSS compliance via tokenization (no card data stored)</Item>
+          <Item>Idempotency keys for safe retries</Item>
+        </Configuration>
+        <Credentials>
+          <Item>Shop ID and Secret Key stored in Vault/K8s Secrets</Item>
+          <Item>Separate credentials per environment (test/prod)</Item>
+        </Credentials>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#ACT-PAYMENT-GATEWAY"/>
+          <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+        </Links>
+      </PaymentIntegration>
+
+      <SecretsManagement>
+        <Tool>Kubernetes Secrets (dev/stage), HashiCorp Vault (prod)</Tool>
+        <Policy>No secrets in source code; inject via environment or volume mounts</Policy>
+      </SecretsManagement>
+    </Security>
+
+    <!-- Observability -->
+    <Observability id="TECH-observability-stack">
+      <Logging id="TECH-logging">
+        <Format>JSON (Logstash encoder)</Format>
+        <Library>logstash-logback-encoder 7.4</Library>
+        <Configuration>
+          <Item>Structured fields: traceId, spanId, correlationId, service, level, message</Item>
+          <Item>MDC propagation for request context</Item>
+          <Item>Log aggregation: ELK stack or Grafana Loki</Item>
+        </Configuration>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#NFR-OBS-LOGGING"/>
+        </Links>
+      </Logging>
+
+      <Metrics id="TECH-micrometer">
+        <Name>Micrometer</Name>
+        <Version>Managed by Spring Boot BOM</Version>
+        <Backend id="TECH-prometheus">
+          <Name>Prometheus</Name>
+          <Version>2.x</Version>
+        </Backend>
+        <Dashboards id="TECH-grafana">
+          <Name>Grafana</Name>
+          <Version>10.x</Version>
+        </Dashboards>
+        <Configuration>
+          <Item>Spring Boot Actuator metrics exposed on /actuator/prometheus</Item>
+          <Item>Custom business metrics via MeterRegistry</Item>
+          <Item>Grafana dashboards for service health, latency, throughput</Item>
+        </Configuration>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#NFR-OBS-METRICS"/>
+        </Links>
+      </Metrics>
+
+      <Tracing id="TECH-opentelemetry">
+        <Name>OpenTelemetry</Name>
+        <Version>1.x</Version>
+        <Configuration>
+          <Item>Auto-instrumentation via spring-boot-starter-actuator + micrometer-tracing</Item>
+          <Item>Trace context propagation via W3C Trace Context headers</Item>
+          <Item>Export to Jaeger or Tempo</Item>
+        </Configuration>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#NFR-OBS-TRACING"/>
+        </Links>
+      </Tracing>
+    </Observability>
+
+    <!-- Resilience -->
+    <Resilience id="TECH-resilience4j">
+      <Name>Resilience4j</Name>
+      <Version>2.x</Version>
+      <Usage>Circuit breakers, retries, timeouts, bulkheads, rate limiters</Usage>
+      <Configuration>
+        <Item>Circuit breaker on external service calls (payment gateway, notification providers)</Item>
+        <Item>Retry with exponential backoff + jitter for transient failures</Item>
+        <Item>Timeouts on all inter-service calls (default: 3s)</Item>
+        <Item>Bulkhead isolation for critical paths</Item>
+      </Configuration>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#NFR-AVAIL-GRACEFUL-DEGRADATION"/>
+      </Links>
+    </Resilience>
+
+    <!-- Feature Flags -->
+    <FeatureFlags id="TECH-unleash">
+      <Name>Unleash</Name>
+      <Version status="ASSUMED">5.x</Version>
+      <Usage>Feature toggles for gradual rollouts and A/B testing</Usage>
+      <Configuration>
+        <Item>SDK integrated in each service</Item>
+        <Item>Flags for new features, pricing experiments, UI variations</Item>
+      </Configuration>
+    </FeatureFlags>
+
+    <!-- API Documentation -->
+    <ApiDocumentation id="TECH-springdoc">
+      <Name>SpringDoc OpenAPI</Name>
+      <Version status="TBD">2.x</Version>
+      <Usage>Auto-generated OpenAPI specs and Swagger UI</Usage>
+      <Configuration>
+        <Item>OpenAPI 3.1 specs generated from controllers</Item>
+        <Item>Swagger UI at /swagger-ui.html (dev/stage only)</Item>
+        <Item>Contract-first: specs stored in docs/api-contracts/openapi</Item>
+      </Configuration>
+    </ApiDocumentation>
+  </CrossCutting>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SERIALIZATION
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Serialization>
+    <Format id="TECH-json-jackson">
+      <Name>JSON (Jackson)</Name>
+      <Usage>REST API request/response serialization</Usage>
+      <Configuration>
+        <Item>Java 8 date/time module enabled</Item>
+        <Item>Fail on unknown properties: false</Item>
+        <Item>Property naming: SNAKE_CASE for API, camelCase internally</Item>
+      </Configuration>
+    </Format>
+
+    <Format id="TECH-protobuf">
+      <Name>Protocol Buffers</Name>
+      <Version>3.x</Version>
+      <Usage>Kafka event serialization and gRPC inter-service communication</Usage>
+      <Configuration>
+        <Item>Service definitions (.proto) stored in api-contracts module</Item>
+        <Item>Event schemas stored in docs/api-contracts/protobuf</Item>
+        <Item>Schema Registry for versioning and compatibility checks</Item>
+        <Item>Backward-compatible evolution: add optional fields, never remove/rename</Item>
+        <Item>Generated Java classes via protobuf-maven-plugin</Item>
+        <Item>gRPC stubs generated alongside message classes</Item>
+      </Configuration>
+      <ProtoStructure>
+        <Directory>api-contracts/src/main/proto/</Directory>
+        <Package pattern="com.kanokna.{service}.grpc">gRPC service definitions</Package>
+        <Package pattern="com.kanokna.{service}.event">Domain event schemas</Package>
+      </ProtoStructure>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#ContractEvolutionPolicy"/>
+        <Link ref="Technology.xml#TECH-grpc"/>
+      </Links>
+    </Format>
+  </Serialization>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       BUILD & DEPLOYMENT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <BuildAndDeployment>
+    <Build id="TECH-maven">
+      <Name>Apache Maven</Name>
+      <Version>3.9.x</Version>
+      <Configuration>
+        <Item>Multi-module project with parent POM</Item>
+        <Item>Profiles: dev, stage, prod</Item>
+        <Item>Plugin management centralized in parent</Item>
+      </Configuration>
+    </Build>
+
+    <ContainerImage id="TECH-jib">
+      <Name>Jib</Name>
+      <Usage>Build OCI container images without Dockerfile</Usage>
+      <Configuration>
+        <Item>Base image: eclipse-temurin:25-jre</Item>
+        <Item>Layered image for efficient caching</Item>
+        <Item>Push to container registry on CI</Item>
+      </Configuration>
+    </ContainerImage>
+
+    <Orchestration id="TECH-kubernetes">
+      <Name>Kubernetes</Name>
+      <Version>1.29+</Version>
+      <Configuration>
+        <Item>Helm charts for each service</Item>
+        <Item>ConfigMaps for non-sensitive configuration</Item>
+        <Item>Secrets for credentials</Item>
+        <Item>HPA for horizontal scaling</Item>
+        <Item>Readiness/liveness probes via Actuator health endpoints</Item>
+      </Configuration>
+    </Orchestration>
+
+    <CI id="TECH-ci-pipeline">
+      <Tool id="TECH-github-actions" status="APPROVED">GitHub Actions</Tool>
+      <Repository>GitHub (github.com/vonomarap/kanokna)</Repository>
+      <Workflows>
+        <Workflow name="ci.yml" trigger="push, pull_request">
+          <Stage order="1">Checkout and cache dependencies</Stage>
+          <Stage order="2">Build with Maven (mvn verify -DskipTests)</Stage>
+          <Stage order="3">Unit tests (mvn test)</Stage>
+          <Stage order="4">Integration tests with Testcontainers</Stage>
+          <Stage order="5">ArchUnit architecture tests</Stage>
+          <Stage order="6">Contract tests (OpenAPI, Protobuf validation)</Stage>
+          <Stage order="7">Security scan (SAST via CodeQL, dependency check via Dependabot)</Stage>
+          <Stage order="8">Code coverage report (JaCoCo)</Stage>
+        </Workflow>
+        <Workflow name="build-and-push.yml" trigger="push to main">
+          <Stage order="1">Build container images (Jib)</Stage>
+          <Stage order="2">Push to GitHub Container Registry (ghcr.io)</Stage>
+          <Stage order="3">Update image tags in Helm values</Stage>
+        </Workflow>
+        <Workflow name="deploy-stage.yml" trigger="workflow_dispatch, push to main">
+          <Stage order="1">Deploy to stage environment (Kubernetes)</Stage>
+          <Stage order="2">Run smoke tests</Stage>
+          <Stage order="3">Run E2E tests (optional)</Stage>
+        </Workflow>
+        <Workflow name="deploy-prod.yml" trigger="workflow_dispatch (manual)">
+          <Stage order="1">Require approval from CODEOWNERS</Stage>
+          <Stage order="2">Deploy to production (Kubernetes)</Stage>
+          <Stage order="3">Run smoke tests</Stage>
+          <Stage order="4">Notify Slack/Teams on success/failure</Stage>
+        </Workflow>
+      </Workflows>
+      <Configuration>
+        <Item>Reusable workflows for common steps</Item>
+        <Item>Matrix builds for multiple Java versions (if needed)</Item>
+        <Item>Caching for Maven dependencies (.m2/repository)</Item>
+        <Item>Secrets stored in GitHub Secrets</Item>
+        <Item>Environment protection rules for prod</Item>
+      </Configuration>
+      <Links>
+        <Link ref="Technology.xml#TECH-jib"/>
+        <Link ref="Technology.xml#TECH-kubernetes"/>
+      </Links>
+    </CI>
+  </BuildAndDeployment>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       TESTING
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Testing>
+    <Framework id="TECH-junit5">
+      <Name>JUnit 5</Name>
+      <Usage>Unit and integration test framework</Usage>
+    </Framework>
+
+    <Framework id="TECH-mockito">
+      <Name>Mockito</Name>
+      <Usage>Mocking for unit tests</Usage>
+    </Framework>
+
+    <Framework id="TECH-testcontainers">
+      <Name>Testcontainers</Name>
+      <Version>1.19.x</Version>
+      <Usage>Integration tests with real dependencies (PostgreSQL, Kafka, Redis, Elasticsearch)</Usage>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-TESTABILITY"/>
+      </Links>
+    </Framework>
+
+    <Framework id="TECH-archunit">
+      <Name>ArchUnit</Name>
+      <Version>1.2.x</Version>
+      <Usage>Enforce architectural rules (hexagonal layers, dependency direction)</Usage>
+      <Rules>
+        <Rule>Domain layer must not depend on adapters or application layer</Rule>
+        <Rule>Application layer must not depend on adapters</Rule>
+        <Rule>No Spring annotations in domain layer</Rule>
+        <Rule>No JPA annotations in domain layer</Rule>
+      </Rules>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"/>
+      </Links>
+    </Framework>
+
+    <Framework id="TECH-contract-testing">
+      <Name>Contract Testing</Name>
+      <Tools>
+        <Tool>OpenAPI contract validation (spectral, dredd)</Tool>
+        <Tool>Spring Cloud Contract or Pact (optional)</Tool>
+      </Tools>
+      <Usage>Verify producer/consumer compatibility against published contracts</Usage>
+    </Framework>
+  </Testing>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       DECISIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Decisions>
+    <Decision id="DEC-DB-ENGINE" status="APPROVED">
+      <Title>Primary OLTP Database</Title>
+      <Selected>PostgreSQL</Selected>
+      <Alternatives>
+        <Alternative>MySQL</Alternative>
+        <Alternative>MariaDB</Alternative>
+      </Alternatives>
+      <Rationale>
+        PostgreSQL offers superior support for JSON columns, full-text search fallback,
+        and advanced data types. Strong community and cloud provider support.
+      </Rationale>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#NFR-SCALE-DB-PER-SERVICE"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-SEARCH-ENGINE" status="APPROVED">
+      <Title>Search Engine</Title>
+      <Selected>Elasticsearch</Selected>
+      <Alternatives>
+        <Alternative>OpenSearch</Alternative>
+        <Alternative>Typesense</Alternative>
+        <Alternative>Meilisearch</Alternative>
+      </Alternatives>
+      <Rationale>
+        Elasticsearch is industry standard for faceted search and autocomplete.
+        Mature ecosystem, excellent Spring Data integration.
+      </Rationale>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-EVENT-SERIALIZATION" status="APPROVED">
+      <Title>Event Serialization Format</Title>
+      <Selected>Protobuf</Selected>
+      <Alternatives>
+        <Alternative>Avro</Alternative>
+        <Alternative>JSON</Alternative>
+      </Alternatives>
+      <Rationale>
+        Protobuf provides compact binary format, strong typing, and schema evolution.
+        Schema Registry integration ensures compatibility.
+      </Rationale>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#ContractEvolutionPolicy"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-IDENTITY-PROVIDER" status="APPROVED">
+      <Title>Identity Provider (Environment-Specific)</Title>
+      <Selected>Keycloak (dev/stage), Auth0 (prod)</Selected>
+      <Alternatives>
+        <Alternative>Okta</Alternative>
+        <Alternative>AWS Cognito</Alternative>
+        <Alternative>Keycloak for all environments</Alternative>
+      </Alternatives>
+      <Rationale>
+        Keycloak provides full OAuth2/OIDC support for dev/stage with easy Docker deployment.
+        Auth0 for production reduces operational and security burden with managed infrastructure,
+        automatic security updates, and enterprise-grade SLAs.
+      </Rationale>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#ACT-IDENTITY-PROVIDER"/>
+        <Link ref="Technology.xml#TECH-keycloak"/>
+        <Link ref="Technology.xml#TECH-auth0"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-PAYMENT-GATEWAY" status="APPROVED">
+      <Title>Payment Gateway Provider</Title>
+      <Selected>YooKassa (YooMoney)</Selected>
+      <Alternatives>
+        <Alternative>Stripe</Alternative>
+        <Alternative>Tinkoff Acquiring</Alternative>
+        <Alternative>Sberbank Acquiring</Alternative>
+      </Alternatives>
+      <Rationale>
+        YooKassa is the primary payment gateway for the Russian market.
+        Supports all major Russian payment methods (Mir, SberPay, YooMoney wallet),
+        provides 54-FZ compliant receipts, and has robust API and webhook infrastructure.
+        Stripe is not optimal for Russia-focused MVP.
+      </Rationale>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#ACT-PAYMENT-GATEWAY"/>
+        <Link ref="Technology.xml#TECH-yookassa"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-INTER-SERVICE-COMM" status="APPROVED">
+      <Title>Inter-Service Communication Protocol</Title>
+      <Selected>gRPC</Selected>
+      <Alternatives>
+        <Alternative>REST (HTTP/JSON)</Alternative>
+        <Alternative>GraphQL Federation</Alternative>
+      </Alternatives>
+      <Rationale>
+        gRPC provides efficient binary serialization (Protobuf), strong typing via
+        service definitions, streaming support, and excellent performance for
+        synchronous inter-service calls. Contract-first approach aligns with
+        GRACE methodology. REST retained for external/public APIs.
+      </Rationale>
+      <Links>
+        <Link ref="Technology.xml#TECH-grpc"/>
+        <Link ref="Technology.xml#TECH-protobuf"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CI-CD-PLATFORM" status="APPROVED">
+      <Title>CI/CD Platform</Title>
+      <Selected>GitHub Actions</Selected>
+      <Alternatives>
+        <Alternative>GitLab CI</Alternative>
+        <Alternative>Jenkins</Alternative>
+        <Alternative>CircleCI</Alternative>
+      </Alternatives>
+      <Rationale>
+        GitHub Actions integrates natively with GitHub repository. Provides
+        reusable workflows, matrix builds, and easy secrets management.
+        Large marketplace of actions for common tasks.
+      </Rationale>
+      <Links>
+        <Link ref="Technology.xml#TECH-github-actions"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-FEATURE-FLAGS" status="ASSUMED">
+      <Title>Feature Flag System</Title>
+      <Selected>Unleash</Selected>
+      <Alternatives>
+        <Alternative>LaunchDarkly</Alternative>
+        <Alternative>Flagsmith</Alternative>
+      </Alternatives>
+      <Rationale>
+        Unleash is open-source and self-hostable. Sufficient for initial needs;
+        may migrate to managed service if scale demands.
+      </Rationale>
+    </Decision>
+  </Decisions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ASSUMPTIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Assumptions>
+    <Assumption id="TECH-ASSUM-001">
+      Spring Boot 4.0.0 version in POM is a placeholder; actual APIs may differ from current 3.x.
+      Implementation must verify compatibility when 4.x is released.
+    </Assumption>
+    <Assumption id="TECH-ASSUM-002">
+      Object storage provider decision (MinIO vs S3) deferred to deployment configuration.
+      API is S3-compatible in either case.
+    </Assumption>
+  </Assumptions>
+
+</Technology>

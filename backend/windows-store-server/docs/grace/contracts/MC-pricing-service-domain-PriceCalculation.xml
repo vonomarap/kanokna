@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Semantic Contract: MODULE_CONTRACT
+  Service: pricing-service
+  Layer: domain.service
+  Purpose: Price calculation domain service contract
+-->
+<MODULE_CONTRACT
+    id="MC-pricing-service-domain-PriceCalculation"
+    ROLE="DomainService"
+    SERVICE="pricing-service"
+    LAYER="domain.service"
+    BOUNDED_CONTEXT="pricing"
+    SPECIFICATION="UC-PRICING-QUOTE">
+
+  <PURPOSE>
+    Domain service that calculates price quotes for product configurations.
+    Applies base pricing, option premiums, campaign discounts, and taxes
+    to produce a complete, auditable price breakdown.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Load active price book for the requested product</Item>
+    <Item>Calculate base price from dimensions (area-based pricing)</Item>
+    <Item>Apply option premiums (absolute or percentage)</Item>
+    <Item>Apply active campaigns and promotional discounts</Item>
+    <Item>Calculate taxes based on shipping region</Item>
+    <Item>Apply currency-specific rounding (Money value object)</Item>
+    <Item>Produce decision trace for pricing auditability</Item>
+    <Item>Cache quotes for session reuse (via application layer)</Item>
+  </RESPONSIBILITIES>
+
+  <INVARIANTS>
+    <Item>Price calculations are deterministic for same inputs and price book version</Item>
+    <Item>All monetary operations use Money value object to prevent precision errors</Item>
+    <Item>Rounding is applied only at final quote, not intermediate steps</Item>
+    <Item>Decision trace records every price component and rule applied</Item>
+    <Item>Negative prices are never produced; minimum is zero</Item>
+  </INVARIANTS>
+
+  <CONTEXT>
+    <UPSTREAM>
+      <Item>adapters.in.web.PricingController: REST endpoint for price quotes</Item>
+      <Item>catalog-configuration-service (sync): requests quotes during configuration</Item>
+      <Item>cart-service (sync): requests current prices for cart items</Item>
+    </UPSTREAM>
+    <DOWNSTREAM>
+      <Item>application.port.out.PriceBookRepository: loads price book definitions</Item>
+      <Item>application.port.out.CampaignRepository: loads active campaigns</Item>
+      <Item>application.port.out.TaxRuleRepository: loads regional tax rules</Item>
+      <Item>application.port.out.FxRatePort: currency conversion (if needed)</Item>
+      <Item>application.port.out.QuoteCache: caches computed quotes</Item>
+    </DOWNSTREAM>
+  </CONTEXT>
+
+  <ARCHITECTURE>
+    <TECHNOLOGY>
+      <Item ref="Technology.xml#TECH-java">Java 25 with records for Quote and components</Item>
+      <Item>Pure domain logic; depends only on shared-kernel Money</Item>
+      <Item>Caching handled by application layer via QuoteCache port</Item>
+    </TECHNOLOGY>
+    <PACKAGE>com.kanokna.pricing_service.domain.service</PACKAGE>
+    <CLASS>PriceCalculationService</CLASS>
+  </ARCHITECTURE>
+
+  <PUBLIC_API>
+    <Method name="calculateQuote">
+      <Input>QuoteRequest</Input>
+      <Output>QuoteCalculationResult</Output>
+      <Contract ref="FC-pricing-service-UC-PRICING-QUOTE-calculateQuote"/>
+    </Method>
+  </PUBLIC_API>
+
+  <CROSS_CUTTING>
+    <SECURITY>
+      <Item>No authentication required for price queries</Item>
+      <Item>Price book management requires PRICING_ADMIN role</Item>
+      <Item>Campaign codes may be restricted to authenticated users</Item>
+    </SECURITY>
+    <RELIABILITY>
+      <Item>Calculation is stateless and idempotent</Item>
+      <Item>Missing price book returns clear error; does not default to zero</Item>
+      <Item>Fallback to default tax rate if regional rule not found</Item>
+    </RELIABILITY>
+    <OBSERVABILITY>
+      <Item>Metrics: pricing_calculations_total, pricing_calculation_latency_ms, pricing_cache_hit_ratio</Item>
+      <Item>Structured logs with full decision trace</Item>
+      <Item>Alert on pricing errors or missing price books</Item>
+    </OBSERVABILITY>
+  </CROSS_CUTTING>
+
+  <LOGGING>
+    <FORMAT>[SVC=pricing-service][UC=UC-PRICING-QUOTE][BLOCK={blockId}][STATE={state}] eventType={eventType} decision={decision} {keyValues}</FORMAT>
+    <EXAMPLES>
+      <Example blockId="BA-PRC-CALC-01" state="LOAD_PRICE_BOOK">
+        eventType=PRICING_STEP decision=LOADED priceBookId=PB-2025-Q1 productId=WINDOW-CASEMENT-001 version=3
+      </Example>
+      <Example blockId="BA-PRC-CALC-02" state="CALC_BASE_PRICE">
+        eventType=PRICING_STEP decision=CALCULATED area_m2=1.80 rate_per_m2=EUR150.00 base_price=EUR270.00
+      </Example>
+      <Example blockId="BA-PRC-CALC-03" state="APPLY_PREMIUMS">
+        eventType=PRICING_STEP decision=APPLIED premium_type=GLAZING_TRIPLE amount=EUR45.00 subtotal=EUR315.00
+      </Example>
+      <Example blockId="BA-PRC-CALC-04" state="APPLY_DISCOUNT">
+        eventType=PRICING_STEP decision=APPLIED campaignId=WINTER-SALE-2025 discount_pct=10 discount_amount=EUR31.50 subtotal=EUR283.50
+      </Example>
+      <Example blockId="BA-PRC-CALC-05" state="CALC_TAX">
+        eventType=PRICING_STEP decision=CALCULATED region=DE tax_rate=19.0 tax_amount=EUR53.87
+      </Example>
+      <Example blockId="BA-PRC-CALC-99" state="FINAL">
+        eventType=PRICING_RESULT decision=QUOTED total=EUR337.37 currency=EUR latency_ms=8
+      </Example>
+    </EXAMPLES>
+  </LOGGING>
+
+  <TESTS>
+    <Case id="TC-PRC-001" type="HAPPY_PATH">
+      Standard configuration produces correct quote with all components
+    </Case>
+    <Case id="TC-PRC-002" type="HAPPY_PATH">
+      Multiple option premiums stack correctly
+    </Case>
+    <Case id="TC-PRC-003" type="HAPPY_PATH">
+      Percentage discount applies after premiums, before tax
+    </Case>
+    <Case id="TC-PRC-004" type="EDGE_CASE">
+      Zero-dimension edge case (minimum area) produces valid quote
+    </Case>
+    <Case id="TC-PRC-005" type="EDGE_CASE">
+      100% discount results in zero pre-tax, but tax still zero (not negative)
+    </Case>
+    <Case id="TC-PRC-006" type="ERROR_CASE">
+      Missing price book returns ERR-PRICEBOOK-NOT-FOUND
+    </Case>
+    <Case id="TC-PRC-007" type="HAPPY_PATH">
+      Currency-specific rounding (JPY rounds to whole, EUR to 2 decimals)
+    </Case>
+    <Case id="TC-PRC-008" type="HAPPY_PATH">
+      Multiple campaigns apply in priority order
+    </Case>
+    <Case id="TC-PRC-009" type="EDGE_CASE">
+      Expired campaign is not applied
+    </Case>
+    <Case id="TC-PRC-010" type="HAPPY_PATH">
+      Regional tax rule applied correctly; fallback to default if not found
+    </Case>
+  </TESTS>
+
+  <LINKS>
+    <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+    <Link ref="RequirementsAnalysis.xml#UC-PRICING-ADMIN-MANAGE"/>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+    <Link ref="DevelopmentPlan.xml#Flow-Config-Pricing"/>
+    <Link ref="Technology.xml#TECH-redis"/>
+  </LINKS>
+
+</MODULE_CONTRACT>

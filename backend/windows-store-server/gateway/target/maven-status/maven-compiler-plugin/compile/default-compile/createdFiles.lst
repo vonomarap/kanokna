@@ -1,5 +1,0 @@
-com\kanokna\api_gateway\GatewayRoutesConfig.class
-com\kanokna\api_gateway\filter\PrincipalKeyResolver.class
-com\kanokna\api_gateway\filter\CorrelationFilter.class
-com\kanokna\api_gateway\ApiGatewayServiceApplication.class
-com\kanokna\api_gateway\security\SecurityConfig.class

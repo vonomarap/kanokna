@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff Envelope
+  ID: Handoff-20251229-02
+  Purpose: Updated bootstrap with resolved decisions (YooKassa, Auth0, GitHub Actions, gRPC)
+  Status: APPROVED
+  Approved: 2025-12-30
+  Supersedes: Handoff-20251229-01
+-->
+<GRACE_HANDOFF id="Handoff-20251229-02" status="APPROVED" created="2025-12-29" approved="2025-12-30" supersedes="Handoff-20251229-01">
+
+  <Summary>
+    Updated canonical artifacts for the Windows and Doors E-Commerce backend platform.
+    All open questions from Handoff-20251229-01 have been resolved:
+    - Payment Gateway: YooKassa (YooMoney) for Russian market
+    - Identity Provider: Keycloak (dev/stage), Auth0 (prod)
+    - CI/CD Platform: GitHub Actions
+    - Inter-Service Communication: gRPC (required)
+  </Summary>
+
+  <Scope>
+    <Description>
+      Full system architecture with 14 Maven modules using gRPC for inter-service communication:
+      - 2 library modules (shared-kernel, api-contracts with gRPC stubs)
+      - 2 infrastructure services (config-server, gateway)
+      - 10 domain services with HTTP and gRPC ports
+    </Description>
+
+    <Services>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-shared-kernel"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-api-contracts"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-config-server"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-gateway"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-cart-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-account-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-installation-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-media-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-notification-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-search-service"/>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-reporting-service"/>
+    </Services>
+
+    <UseCases>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-PRICING-ADMIN-MANAGE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ORDER-TRACK"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ORDER-CANCEL"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-INSTALL-SCHEDULE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-INSTALL-COMPLETE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ACCOUNT-REGISTER"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ACCOUNT-LOGIN"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-NOTIFY-TRANSACTIONAL"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-MEDIA-SERVE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-REPORT-SALES"/>
+    </UseCases>
+  </Scope>
+
+  <Artifacts>
+    <Artifact ref="docs/grace/RequirementsAnalysis.xml" version="1.0.0" status="UNCHANGED">
+      <Description>Business requirements - no changes from initial bootstrap</Description>
+    </Artifact>
+
+    <Artifact ref="docs/grace/Technology.xml" version="1.1.0" status="UPDATED">
+      <Description>
+        Technology stack updated with resolved decisions:
+        - Added TECH-grpc framework (gRPC 1.60.x)
+        - Updated TECH-identity-provider with environment-specific config (Keycloak/Auth0)
+        - Updated TECH-payment-integration to YooKassa with 54-FZ compliance
+        - Updated TECH-ci-pipeline to GitHub Actions with detailed workflows
+        - Updated TECH-protobuf for gRPC service definitions
+        - Added 4 new APPROVED decisions (DEC-IDENTITY-PROVIDER, DEC-PAYMENT-GATEWAY, DEC-INTER-SERVICE-COMM, DEC-CI-CD-PLATFORM)
+      </Description>
+      <Changes>
+        <Change type="ADD">TECH-grpc framework definition</Change>
+        <Change type="UPDATE">TECH-identity-provider with Keycloak (dev/stage) + Auth0 (prod)</Change>
+        <Change type="UPDATE">TECH-payment-integration to YooKassa</Change>
+        <Change type="UPDATE">TECH-ci-pipeline to GitHub Actions</Change>
+        <Change type="UPDATE">TECH-protobuf with gRPC service structure</Change>
+        <Change type="UPDATE">DEC-IDENTITY-PROVIDER status to APPROVED</Change>
+        <Change type="UPDATE">DEC-PAYMENT-GATEWAY status to APPROVED</Change>
+        <Change type="ADD">DEC-INTER-SERVICE-COMM decision</Change>
+        <Change type="ADD">DEC-CI-CD-PLATFORM decision</Change>
+      </Changes>
+    </Artifact>
+
+    <Artifact ref="docs/grace/DevelopmentPlan.xml" version="1.1.1" status="UPDATED">
+      <Description>
+        Implementation blueprint updated for gRPC inter-service communication:
+        - api-contracts module now includes gRPC service definitions
+        - All domain services have HTTP and gRPC ports
+        - Package layouts include adapters.in.grpc and adapters.out.grpc
+        - Service dependencies updated from "sync" to "grpc" type
+        - order-service references YooKassa for payment
+        - DP-ASSUM-002 marked SUPERSEDED (gRPC is required, not optional)
+      </Description>
+      <Changes>
+        <Change type="UPDATE">DP-SVC-api-contracts with gRPC responsibilities and services</Change>
+        <Change type="UPDATE">All services with dual ports (HTTP + gRPC)</Change>
+        <Change type="UPDATE">Service dependencies to type="grpc"</Change>
+        <Change type="UPDATE">Package layouts with grpc adapter packages</Change>
+        <Change type="UPDATE">order-service ExternalRef to TECH-yookassa</Change>
+        <Change type="UPDATE">DP-ASSUM-002 status to SUPERSEDED by DEC-INTER-SERVICE-COMM</Change>
+      </Changes>
+    </Artifact>
+  </Artifacts>
+
+  <Contracts>
+    <ModuleContractRef id="MC-catalog-configuration-service-domain-ConfigurationValidation">
+      <File>docs/grace/contracts/MC-catalog-configuration-service-domain-ConfigurationValidation.xml</File>
+      <Criticality>HIGH</Criticality>
+      <Status>UNCHANGED</Status>
+    </ModuleContractRef>
+
+    <FunctionContractRef id="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-validateConfiguration">
+      <File>docs/grace/contracts/FC-catalog-configuration-service-validateConfiguration.xml</File>
+      <Criticality>HIGH</Criticality>
+      <Status>UNCHANGED</Status>
+    </FunctionContractRef>
+
+    <ModuleContractRef id="MC-pricing-service-domain-PriceCalculation">
+      <File>docs/grace/contracts/MC-pricing-service-domain-PriceCalculation.xml</File>
+      <Criticality>HIGH</Criticality>
+      <Status>UNCHANGED</Status>
+    </ModuleContractRef>
+
+    <ModuleContractRef id="MC-order-service-application-OrderPlacement">
+      <File>docs/grace/contracts/MC-order-service-application-OrderPlacement.xml</File>
+      <Criticality>HIGH</Criticality>
+      <Status>UNCHANGED</Status>
+      <Notes>Payment gateway references now point to YooKassa</Notes>
+    </ModuleContractRef>
+  </Contracts>
+
+  <Decisions>
+    <DecisionRef id="DEC-DB-ENGINE" status="APPROVED">PostgreSQL</DecisionRef>
+    <DecisionRef id="DEC-SEARCH-ENGINE" status="APPROVED">Elasticsearch</DecisionRef>
+    <DecisionRef id="DEC-EVENT-SERIALIZATION" status="APPROVED">Protobuf</DecisionRef>
+    <DecisionRef id="DEC-IDENTITY-PROVIDER" status="APPROVED">Keycloak (dev/stage), Auth0 (prod)</DecisionRef>
+    <DecisionRef id="DEC-PAYMENT-GATEWAY" status="APPROVED">YooKassa (YooMoney)</DecisionRef>
+    <DecisionRef id="DEC-INTER-SERVICE-COMM" status="APPROVED">gRPC</DecisionRef>
+    <DecisionRef id="DEC-CI-CD-PLATFORM" status="APPROVED">GitHub Actions</DecisionRef>
+    <DecisionRef id="DEC-FEATURE-FLAGS" status="ASSUMED">Unleash (pending confirmation)</DecisionRef>
+  </Decisions>
+
+  <Assumptions>
+    <Assumption id="ASSUM-SPRING-BOOT-4" status="OPEN">
+      Spring Boot 4.0.0 version is placeholder; APIs may differ when released.
+    </Assumption>
+    <Assumption id="ASSUM-OBJECT-STORAGE" status="OPEN">
+      Object storage provider (MinIO vs S3) deferred to deployment.
+    </Assumption>
+  </Assumptions>
+
+  <OpenQuestions>
+    <Question id="Q-001" priority="LOW" status="RESOLVED">
+      Payment gateway - RESOLVED: YooKassa selected
+    </Question>
+    <Question id="Q-002" priority="LOW" status="RESOLVED">
+      Identity provider for production - RESOLVED: Auth0 selected
+    </Question>
+    <Question id="Q-003" priority="LOW" status="RESOLVED">
+      CI/CD platform - RESOLVED: GitHub Actions selected
+    </Question>
+    <Question id="Q-004" priority="LOW" status="RESOLVED">
+      gRPC requirement - RESOLVED: Required for inter-service calls
+    </Question>
+  </OpenQuestions>
+
+  <ConsistencyChecklist>
+    <Check status="PASS">All IDs follow naming conventions</Check>
+    <Check status="PASS">All Link refs target existing IDs</Check>
+    <Check status="PASS">No "or" ambiguity in canonical artifacts</Check>
+    <Check status="PASS">Uncertainties captured in Assumptions</Check>
+    <Check status="PASS">All services have gRPC ports defined</Check>
+    <Check status="PASS">api-contracts includes gRPC service definitions</Check>
+    <Check status="PASS">Technology.xml has TECH-grpc framework</Check>
+    <Check status="PASS">YooKassa referenced in payment integration</Check>
+    <Check status="PASS">GitHub Actions workflows defined</Check>
+    <Check status="PASS">DP-ASSUM-002 aligned with DEC-INTER-SERVICE-COMM (gRPC required)</Check>
+    <Check status="PASS">Handoff-20251229-01 superseded - all conflicts resolved</Check>
+  </ConsistencyChecklist>
+
+  <NextSteps>
+    <Step order="1" status="COMPLETE">Human architect approves this handoff</Step>
+    <Step order="2">Coder agent generates api-contracts module with .proto files</Step>
+    <Step order="3">Coder agent generates service skeletons with gRPC adapters</Step>
+    <Step order="4">Implement critical services: catalog-configuration, pricing, order</Step>
+    <Step order="5">Set up GitHub Actions CI/CD pipeline</Step>
+    <Step order="6">Configure Keycloak for dev/stage environments</Step>
+    <Step order="7">Integrate YooKassa SDK in order-service</Step>
+  </NextSteps>
+
+  <ApprovalRecord>
+    <ApprovedBy>Human Architect</ApprovedBy>
+    <ApprovedDate>2025-12-30</ApprovedDate>
+    <Notes>All blueprint inconsistencies resolved. Coder agent may proceed with Wave 0.</Notes>
+  </ApprovalRecord>
+
+</GRACE_HANDOFF>

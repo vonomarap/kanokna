@@ -1,0 +1,918 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Canonical Artifact: RequirementsAnalysis.xml
+  Purpose: Formalize business intent, actors, use cases, and non-functional requirements
+  Version: 1.0.0
+  Last Updated: 2025-12-29
+-->
+<RequirementsAnalysis version="1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       DOMAIN DEFINITION
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Domain id="windows-doors-ecommerce">
+    <Name>Windows and Doors E-Commerce Platform</Name>
+    <Description>
+      A B2C e-commerce web application for selling configurable windows and doors.
+      Customers can browse products, configure dimensions/materials/glazing/accessories,
+      receive real-time pricing, place orders, and schedule professional installation.
+      The system supports multiple currencies, localization, and integrates with
+      payment gateways, logistics providers, and installer networks.
+    </Description>
+    <BusinessGoals>
+      <Goal id="BG-SALES">Enable online sales of configurable window and door products</Goal>
+      <Goal id="BG-SELF-SERVICE">Provide self-service configuration with real-time validation and pricing</Goal>
+      <Goal id="BG-INSTALLATION">Connect customers with certified installers for professional installation</Goal>
+      <Goal id="BG-MULTI-MARKET">Support multiple markets (currencies, languages, tax regimes)</Goal>
+      <Goal id="BG-ANALYTICS">Provide insights into sales, conversion, and product performance</Goal>
+    </BusinessGoals>
+    <Links>
+      <Link ref="Technology.xml#TECH-spring-boot"/>
+      <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+    </Links>
+  </Domain>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACTORS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Actors>
+    <!-- Primary Actors -->
+    <Actor id="ACT-CUSTOMER" type="primary">
+      <Name>Customer</Name>
+      <Description>
+        End-user who browses products, configures windows/doors, places orders,
+        and tracks deliveries. May be anonymous (browsing) or authenticated (purchasing).
+      </Description>
+      <Goals>
+        <Goal id="ACT-CUSTOMER-G1">Browse and search for window/door products</Goal>
+        <Goal id="ACT-CUSTOMER-G2">Configure products with custom dimensions, materials, and options</Goal>
+        <Goal id="ACT-CUSTOMER-G3">Receive accurate real-time pricing for configurations</Goal>
+        <Goal id="ACT-CUSTOMER-G4">Add configured items to cart and complete checkout</Goal>
+        <Goal id="ACT-CUSTOMER-G5">Track order status and delivery</Goal>
+        <Goal id="ACT-CUSTOMER-G6">Schedule and manage installation appointments</Goal>
+        <Goal id="ACT-CUSTOMER-G7">Save favorite configurations for later</Goal>
+      </Goals>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service"/>
+      </Links>
+    </Actor>
+
+    <Actor id="ACT-INSTALLER" type="primary">
+      <Name>Certified Installer</Name>
+      <Description>
+        Professional installer who views assigned installations, confirms availability,
+        completes jobs, and reports completion status.
+      </Description>
+      <Goals>
+        <Goal id="ACT-INSTALLER-G1">View assigned installation jobs</Goal>
+        <Goal id="ACT-INSTALLER-G2">Confirm or reschedule installation appointments</Goal>
+        <Goal id="ACT-INSTALLER-G3">Mark installations as completed</Goal>
+        <Goal id="ACT-INSTALLER-G4">Access installation manuals and product specifications</Goal>
+      </Goals>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-installation-service"/>
+      </Links>
+    </Actor>
+
+    <Actor id="ACT-ADMIN" type="primary">
+      <Name>System Administrator</Name>
+      <Description>
+        Back-office user who manages products, pricing rules, campaigns, users,
+        and monitors system health.
+      </Description>
+      <Goals>
+        <Goal id="ACT-ADMIN-G1">Manage product catalog (CRUD products, options, rules)</Goal>
+        <Goal id="ACT-ADMIN-G2">Configure pricing rules, discounts, and campaigns</Goal>
+        <Goal id="ACT-ADMIN-G3">Manage user accounts and permissions</Goal>
+        <Goal id="ACT-ADMIN-G4">View sales reports and analytics dashboards</Goal>
+        <Goal id="ACT-ADMIN-G5">Monitor system health and audit logs</Goal>
+      </Goals>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-reporting-service"/>
+      </Links>
+    </Actor>
+
+    <!-- External System Actors -->
+    <Actor id="ACT-PAYMENT-GATEWAY" type="external-system">
+      <Name>Payment Gateway</Name>
+      <Description>
+        External payment processor (e.g., Stripe, Adyen) that handles payment
+        authorization, capture, and refund operations.
+      </Description>
+      <Goals>
+        <Goal id="ACT-PG-G1">Authorize payment for orders</Goal>
+        <Goal id="ACT-PG-G2">Capture authorized payments</Goal>
+        <Goal id="ACT-PG-G3">Process refunds</Goal>
+        <Goal id="ACT-PG-G4">Notify of payment status changes via webhooks</Goal>
+      </Goals>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+        <Link ref="Technology.xml#TECH-payment-integration"/>
+      </Links>
+    </Actor>
+
+    <Actor id="ACT-NOTIFICATION-PROVIDER" type="external-system">
+      <Name>Notification Provider</Name>
+      <Description>
+        External services for sending emails (SendGrid, SES), SMS (Twilio),
+        and push notifications.
+      </Description>
+      <Goals>
+        <Goal id="ACT-NP-G1">Deliver transactional emails</Goal>
+        <Goal id="ACT-NP-G2">Send SMS notifications</Goal>
+        <Goal id="ACT-NP-G3">Report delivery status</Goal>
+      </Goals>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-notification-service"/>
+      </Links>
+    </Actor>
+
+    <Actor id="ACT-IDENTITY-PROVIDER" type="external-system">
+      <Name>Identity Provider (OIDC)</Name>
+      <Description>
+        OAuth2/OIDC provider (Keycloak) for authentication and identity management.
+      </Description>
+      <Goals>
+        <Goal id="ACT-IDP-G1">Authenticate users</Goal>
+        <Goal id="ACT-IDP-G2">Issue and validate JWT tokens</Goal>
+        <Goal id="ACT-IDP-G3">Manage user sessions</Goal>
+      </Goals>
+      <Links>
+        <Link ref="Technology.xml#TECH-keycloak"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service"/>
+      </Links>
+    </Actor>
+  </Actors>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       USE CASES - CATALOG & CONFIGURATION
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <UseCases>
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         CATALOG & CONFIGURATION DOMAIN
+         ───────────────────────────────────────────────────────────────────────── -->
+    <UseCase id="UC-CATALOG-BROWSE">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Browse product catalog</Action>
+      <Goal>Discover available window and door products with filtering and search</Goal>
+      <Preconditions>
+        <Item>System is available</Item>
+        <Item>Product catalog is populated</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Customer sees paginated product listings</Item>
+        <Item>Filters are applied correctly</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer navigates to catalog or search page</Step>
+        <Step order="2">System displays product categories and filters</Step>
+        <Step order="3">Customer applies filters (material, size range, price range)</Step>
+        <Step order="4">System queries search-service and returns matching products</Step>
+        <Step order="5">Customer selects a product to configure</Step>
+      </MainFlow>
+      <AlternateFlows>
+        <Flow id="UC-CATALOG-BROWSE-A1" trigger="No products match filters">
+          <Step order="1">System displays empty state with suggestions</Step>
+        </Flow>
+      </AlternateFlows>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+        <Link ref="DevelopmentPlan.xml#Flow-Browse-Search"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-CATALOG-CONFIGURE-ITEM">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Configure a window or door product</Action>
+      <Goal>Create a valid configuration with selected dimensions, materials, and options</Goal>
+      <Preconditions>
+        <Item>Product template exists and is active</Item>
+        <Item>Configuration rules are loaded</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Configuration passes all validation rules</Item>
+        <Item>Price quote is available for the configuration</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer selects a product family (window type or door type)</Step>
+        <Step order="2">System displays configurable dimensions and option groups</Step>
+        <Step order="3">Customer enters dimensions (width, height in cm)</Step>
+        <Step order="4">System validates dimensions against product constraints</Step>
+        <Step order="5">Customer selects material, glazing type, color/lamination</Step>
+        <Step order="6">System validates option compatibility</Step>
+        <Step order="7">Customer selects accessories (handles, locks, blinds)</Step>
+        <Step order="8">System requests price quote from pricing-service</Step>
+        <Step order="9">System displays final configuration with itemized pricing</Step>
+      </MainFlow>
+      <AlternateFlows>
+        <Flow id="UC-CATALOG-CONFIGURE-A1" trigger="Dimensions out of range">
+          <Step order="1">System displays validation error with allowed ranges</Step>
+          <Step order="2">Customer adjusts dimensions</Step>
+        </Flow>
+        <Flow id="UC-CATALOG-CONFIGURE-A2" trigger="Incompatible options selected">
+          <Step order="1">System highlights conflicting options</Step>
+          <Step order="2">System suggests compatible alternatives</Step>
+        </Flow>
+      </AlternateFlows>
+      <BusinessRules>
+        <Rule id="BR-CFG-001">Dimensions must be within MIN_DIMENSION_CM (50) and MAX_DIMENSION_CM (400)</Rule>
+        <Rule id="BR-CFG-002">Certain glazing types require minimum frame thickness</Rule>
+        <Rule id="BR-CFG-003">Some materials are not available with certain lamination colors</Rule>
+        <Rule id="BR-CFG-004">Large sizes may require reinforced profiles (auto-applied)</Rule>
+      </BusinessRules>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="DevelopmentPlan.xml#Flow-Config-Pricing"/>
+        <Link ref="Technology.xml#TECH-spring-boot"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-CATALOG-ADMIN-MANAGE">
+      <ActorRef ref="ACT-ADMIN"/>
+      <Action>Manage product templates and configuration rules</Action>
+      <Goal>Maintain the product catalog with accurate templates and valid rules</Goal>
+      <Preconditions>
+        <Item>Admin is authenticated with ADMIN role</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Changes are persisted and versioned</Item>
+        <Item>Search index is updated asynchronously</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Admin accesses catalog management interface</Step>
+        <Step order="2">Admin creates/updates product template</Step>
+        <Step order="3">Admin defines option groups and configuration rules</Step>
+        <Step order="4">System validates rule consistency</Step>
+        <Step order="5">Admin publishes changes (creates new catalog version)</Step>
+        <Step order="6">System emits CatalogVersionPublishedEvent</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+        <Link ref="NFR-SEC-RBAC"/>
+      </Links>
+    </UseCase>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         PRICING DOMAIN
+         ───────────────────────────────────────────────────────────────────────── -->
+    <UseCase id="UC-PRICING-QUOTE">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Request price quote for a configuration</Action>
+      <Goal>Receive accurate, currency-specific pricing with all applicable discounts</Goal>
+      <Preconditions>
+        <Item>Configuration is valid</Item>
+        <Item>Active price book exists for the product</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Quote includes base price, option premiums, discounts, taxes</Item>
+        <Item>Quote is cached for session reuse</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">catalog-configuration-service sends validated configuration to pricing-service</Step>
+        <Step order="2">pricing-service loads active price book for product</Step>
+        <Step order="3">pricing-service calculates base price from dimensions</Step>
+        <Step order="4">pricing-service applies option premiums</Step>
+        <Step order="5">pricing-service applies active campaigns and discounts</Step>
+        <Step order="6">pricing-service calculates taxes based on region</Step>
+        <Step order="7">pricing-service applies rounding policy and returns Quote</Step>
+      </MainFlow>
+      <BusinessRules>
+        <Rule id="BR-PRC-001">Base price = area_m2 * price_per_m2</Rule>
+        <Rule id="BR-PRC-002">Option premiums are additive (absolute) or multiplicative (percentage)</Rule>
+        <Rule id="BR-PRC-003">Campaign discounts apply after option premiums, before tax</Rule>
+        <Rule id="BR-PRC-004">Tax is calculated based on shipping address region</Rule>
+        <Rule id="BR-PRC-005">Final price is rounded per currency rules (HALF_UP)</Rule>
+      </BusinessRules>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="DevelopmentPlan.xml#Flow-Config-Pricing"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-PRICING-ADMIN-MANAGE">
+      <ActorRef ref="ACT-ADMIN"/>
+      <Action>Manage price books, campaigns, and tax rules</Action>
+      <Goal>Configure pricing rules that accurately reflect business pricing strategy</Goal>
+      <Preconditions>
+        <Item>Admin has PRICING_ADMIN role</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Price book changes are versioned</Item>
+        <Item>Active campaigns are validated for date ranges and conditions</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Admin creates or updates a price book</Step>
+        <Step order="2">Admin sets base prices and option premiums</Step>
+        <Step order="3">Admin creates campaigns with validity periods</Step>
+        <Step order="4">Admin configures tax rules per region</Step>
+        <Step order="5">System validates and activates changes</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </UseCase>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         CART DOMAIN
+         ───────────────────────────────────────────────────────────────────────── -->
+    <UseCase id="UC-CART-MANAGE">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Manage shopping cart</Action>
+      <Goal>Accumulate configured items before checkout</Goal>
+      <Preconditions>
+        <Item>Customer has a session (anonymous or authenticated)</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Cart reflects all added items with current prices</Item>
+        <Item>Cart totals are recalculated on any change</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer adds configured item to cart</Step>
+        <Step order="2">System validates configuration is still valid</Step>
+        <Step order="3">System retrieves current price quote</Step>
+        <Step order="4">System adds item to cart with snapshot of configuration and price</Step>
+        <Step order="5">System recalculates cart totals</Step>
+      </MainFlow>
+      <AlternateFlows>
+        <Flow id="UC-CART-MANAGE-A1" trigger="Customer updates item quantity">
+          <Step order="1">System updates quantity and recalculates totals</Step>
+        </Flow>
+        <Flow id="UC-CART-MANAGE-A2" trigger="Customer removes item">
+          <Step order="1">System removes item and recalculates totals</Step>
+        </Flow>
+        <Flow id="UC-CART-MANAGE-A3" trigger="Price changed since item was added">
+          <Step order="1">System notifies customer of price change</Step>
+          <Step order="2">Customer confirms or rejects updated price</Step>
+        </Flow>
+      </AlternateFlows>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service"/>
+        <Link ref="DevelopmentPlan.xml#Flow-Cart-Checkout"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-CART-APPLY-PROMO">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Apply promotional code to cart</Action>
+      <Goal>Receive discount by entering a valid promo code</Goal>
+      <Preconditions>
+        <Item>Cart has at least one item</Item>
+        <Item>Promo code is provided</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>If valid, discount is applied to cart totals</Item>
+        <Item>If invalid, error message is displayed</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer enters promo code</Step>
+        <Step order="2">cart-service validates code with pricing-service</Step>
+        <Step order="3">System applies discount and recalculates totals</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </UseCase>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         ORDER DOMAIN
+         ───────────────────────────────────────────────────────────────────────── -->
+    <UseCase id="UC-ORDER-PLACE">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Place an order from cart</Action>
+      <Goal>Convert cart into a confirmed, paid order</Goal>
+      <Preconditions>
+        <Item>Cart is not empty</Item>
+        <Item>Customer is authenticated</Item>
+        <Item>Shipping address is provided</Item>
+        <Item>Payment method is selected</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Order is created with status PENDING_PAYMENT or CONFIRMED</Item>
+        <Item>Payment is authorized or captured</Item>
+        <Item>OrderCreatedEvent is published</Item>
+        <Item>Cart is cleared</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer proceeds to checkout</Step>
+        <Step order="2">Customer enters/confirms shipping address</Step>
+        <Step order="3">Customer selects installation option (self or professional)</Step>
+        <Step order="4">System calculates final totals with shipping and installation</Step>
+        <Step order="5">Customer selects payment method</Step>
+        <Step order="6">System initiates payment with payment gateway</Step>
+        <Step order="7">Customer completes payment authorization</Step>
+        <Step order="8">System creates Order and clears cart</Step>
+        <Step order="9">System publishes OrderCreatedEvent</Step>
+        <Step order="10">notification-service sends order confirmation email</Step>
+      </MainFlow>
+      <AlternateFlows>
+        <Flow id="UC-ORDER-PLACE-A1" trigger="Payment authorization fails">
+          <Step order="1">System displays payment error</Step>
+          <Step order="2">Customer retries with different payment method</Step>
+        </Flow>
+        <Flow id="UC-ORDER-PLACE-A2" trigger="Customer selects professional installation">
+          <Step order="1">System shows available installation time slots</Step>
+          <Step order="2">Customer selects preferred slot</Step>
+          <Step order="3">Installation is tentatively reserved</Step>
+        </Flow>
+      </AlternateFlows>
+      <BusinessRules>
+        <Rule id="BR-ORD-001">Orders require full payment or approved deposit</Rule>
+        <Rule id="BR-ORD-002">Order state machine: CREATED -> PENDING_PAYMENT -> CONFIRMED -> PROCESSING -> SHIPPED -> DELIVERED -> COMPLETED</Rule>
+        <Rule id="BR-ORD-003">Cancellation is allowed before SHIPPED status</Rule>
+      </BusinessRules>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service"/>
+        <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment"/>
+        <Link ref="ACT-PAYMENT-GATEWAY"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-ORDER-TRACK">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Track order status</Action>
+      <Goal>View current order status and delivery tracking information</Goal>
+      <Preconditions>
+        <Item>Order exists for the customer</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Customer sees current order status and history</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer navigates to order history</Step>
+        <Step order="2">System displays list of orders</Step>
+        <Step order="3">Customer selects an order</Step>
+        <Step order="4">System displays order details, status timeline, and tracking info</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-ORDER-CANCEL">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Cancel an order</Action>
+      <Goal>Cancel order and receive refund if eligible</Goal>
+      <Preconditions>
+        <Item>Order is in cancellable state (before SHIPPED)</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Order status is CANCELLED</Item>
+        <Item>Refund is initiated if payment was captured</Item>
+        <Item>OrderCancelledEvent is published</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer requests cancellation</Step>
+        <Step order="2">System verifies order is cancellable</Step>
+        <Step order="3">System initiates refund with payment gateway</Step>
+        <Step order="4">System updates order status to CANCELLED</Step>
+        <Step order="5">System publishes OrderCancelledEvent</Step>
+        <Step order="6">notification-service sends cancellation confirmation</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+        <Link ref="ACT-PAYMENT-GATEWAY"/>
+      </Links>
+    </UseCase>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         INSTALLATION DOMAIN
+         ───────────────────────────────────────────────────────────────────────── -->
+    <UseCase id="UC-INSTALL-SCHEDULE">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Schedule professional installation</Action>
+      <Goal>Book a time slot for professional installation of ordered products</Goal>
+      <Preconditions>
+        <Item>Order includes professional installation option</Item>
+        <Item>Order is confirmed</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Installation appointment is scheduled</Item>
+        <Item>Installer is assigned</Item>
+        <Item>Customer and installer are notified</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">System identifies order requires installation</Step>
+        <Step order="2">Customer selects available date and time slot</Step>
+        <Step order="3">System assigns available installer from region</Step>
+        <Step order="4">System creates installation appointment</Step>
+        <Step order="5">notification-service sends confirmation to customer and installer</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-installation-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-INSTALL-COMPLETE">
+      <ActorRef ref="ACT-INSTALLER"/>
+      <Action>Complete installation job</Action>
+      <Goal>Mark installation as completed and trigger order completion</Goal>
+      <Preconditions>
+        <Item>Installation appointment exists</Item>
+        <Item>Installer is at the job site</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Installation is marked complete</Item>
+        <Item>Order status advances to COMPLETED</Item>
+        <Item>Customer is notified</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Installer accesses job details via mobile/web interface</Step>
+        <Step order="2">Installer marks installation as complete</Step>
+        <Step order="3">System updates installation status</Step>
+        <Step order="4">System publishes InstallationCompletedEvent</Step>
+        <Step order="5">order-service advances order to COMPLETED</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-installation-service"/>
+        <Link ref="ACT-INSTALLER"/>
+      </Links>
+    </UseCase>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         ACCOUNT DOMAIN
+         ───────────────────────────────────────────────────────────────────────── -->
+    <UseCase id="UC-ACCOUNT-REGISTER">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Register a new account</Action>
+      <Goal>Create an account to save configurations, track orders, and expedite checkout</Goal>
+      <Preconditions>
+        <Item>Email is not already registered</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Account is created in identity provider</Item>
+        <Item>Profile is created in account-service</Item>
+        <Item>Welcome email is sent</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer provides email, password, and basic info</Step>
+        <Step order="2">System validates input</Step>
+        <Step order="3">System creates user in Keycloak</Step>
+        <Step order="4">System creates profile in account-service</Step>
+        <Step order="5">notification-service sends welcome email with verification link</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service"/>
+        <Link ref="ACT-IDENTITY-PROVIDER"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-ACCOUNT-LOGIN">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Authenticate to the system</Action>
+      <Goal>Obtain authenticated session to access protected features</Goal>
+      <Preconditions>
+        <Item>Account exists</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>JWT token is issued</Item>
+        <Item>Session is established</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer provides credentials</Step>
+        <Step order="2">Keycloak validates credentials</Step>
+        <Step order="3">Keycloak issues JWT access token and refresh token</Step>
+        <Step order="4">Frontend stores tokens and includes in subsequent requests</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="ACT-IDENTITY-PROVIDER"/>
+        <Link ref="Technology.xml#TECH-keycloak"/>
+      </Links>
+    </UseCase>
+
+    <UseCase id="UC-ACCOUNT-MANAGE-PROFILE">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Manage account profile</Action>
+      <Goal>Update personal information, addresses, and preferences</Goal>
+      <Preconditions>
+        <Item>Customer is authenticated</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Profile changes are persisted</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer accesses profile settings</Step>
+        <Step order="2">Customer updates name, phone, addresses, preferences</Step>
+        <Step order="3">System validates and saves changes</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service"/>
+      </Links>
+    </UseCase>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         NOTIFICATION DOMAIN
+         ───────────────────────────────────────────────────────────────────────── -->
+    <UseCase id="UC-NOTIFY-TRANSACTIONAL">
+      <ActorRef ref="ACT-NOTIFICATION-PROVIDER"/>
+      <Action>Send transactional notifications</Action>
+      <Goal>Deliver order confirmations, shipping updates, and other transactional messages</Goal>
+      <Preconditions>
+        <Item>Domain event is received (OrderCreated, OrderShipped, etc.)</Item>
+        <Item>Customer has valid contact information</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Notification is sent via appropriate channel (email/SMS)</Item>
+        <Item>Delivery status is tracked</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">notification-service receives domain event from Kafka</Step>
+        <Step order="2">System loads notification template for event type</Step>
+        <Step order="3">System renders template with event data</Step>
+        <Step order="4">System sends via external provider (SendGrid, Twilio)</Step>
+        <Step order="5">System logs delivery status</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-notification-service"/>
+        <Link ref="ACT-NOTIFICATION-PROVIDER"/>
+      </Links>
+    </UseCase>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         SEARCH DOMAIN
+         ───────────────────────────────────────────────────────────────────────── -->
+    <UseCase id="UC-SEARCH-PRODUCTS">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>Search for products</Action>
+      <Goal>Find products matching keywords with faceted filtering</Goal>
+      <Preconditions>
+        <Item>Search index is populated</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Matching products are returned with relevance ranking</Item>
+        <Item>Facet counts are provided for filtering</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer enters search query</Step>
+        <Step order="2">System queries Elasticsearch with query and filters</Step>
+        <Step order="3">System returns ranked results with facets</Step>
+        <Step order="4">Customer refines with facet filters</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service"/>
+        <Link ref="Technology.xml#TECH-elasticsearch"/>
+      </Links>
+    </UseCase>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         MEDIA DOMAIN
+         ───────────────────────────────────────────────────────────────────────── -->
+    <UseCase id="UC-MEDIA-SERVE">
+      <ActorRef ref="ACT-CUSTOMER"/>
+      <Action>View product images and documents</Action>
+      <Goal>Access product photos, configuration renders, and installation manuals</Goal>
+      <Preconditions>
+        <Item>Media assets exist for the product</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Customer receives optimized media (thumbnails, web-quality images)</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Frontend requests media asset URL</Step>
+        <Step order="2">media-service returns signed URL or serves directly</Step>
+        <Step order="3">Asset is delivered from object storage/CDN</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-media-service"/>
+        <Link ref="Technology.xml#TECH-s3-compatible"/>
+      </Links>
+    </UseCase>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         REPORTING DOMAIN
+         ───────────────────────────────────────────────────────────────────────── -->
+    <UseCase id="UC-REPORT-SALES">
+      <ActorRef ref="ACT-ADMIN"/>
+      <Action>View sales reports</Action>
+      <Goal>Analyze sales performance, conversion rates, and revenue</Goal>
+      <Preconditions>
+        <Item>Admin has REPORTING role</Item>
+        <Item>Data is aggregated in reporting-service</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Reports are displayed with requested dimensions and filters</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Admin selects report type (sales, conversion, product performance)</Step>
+        <Step order="2">Admin applies date range and dimension filters</Step>
+        <Step order="3">reporting-service queries aggregated data</Step>
+        <Step order="4">System displays charts and tables</Step>
+      </MainFlow>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-reporting-service"/>
+      </Links>
+    </UseCase>
+  </UseCases>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       NON-FUNCTIONAL REQUIREMENTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <NonFunctionalRequirements>
+    <!-- Performance -->
+    <Requirement id="NFR-PERF-RESPONSE-TIME">
+      <Category>Performance</Category>
+      <Description>API response time for user-facing endpoints</Description>
+      <Metric>P95 response time &lt; 500ms for catalog browse, configuration validation, and pricing</Metric>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </Requirement>
+
+    <Requirement id="NFR-PERF-SEARCH-LATENCY">
+      <Category>Performance</Category>
+      <Description>Search query latency</Description>
+      <Metric>P95 search response time &lt; 200ms</Metric>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service"/>
+        <Link ref="Technology.xml#TECH-elasticsearch"/>
+      </Links>
+    </Requirement>
+
+    <Requirement id="NFR-PERF-THROUGHPUT">
+      <Category>Performance</Category>
+      <Description>System throughput capacity</Description>
+      <Metric>Support 1000 concurrent users with graceful degradation under higher load</Metric>
+    </Requirement>
+
+    <!-- Availability -->
+    <Requirement id="NFR-AVAIL-UPTIME">
+      <Category>Availability</Category>
+      <Description>System uptime target</Description>
+      <Metric>99.9% availability (approximately 8.76 hours downtime per year)</Metric>
+    </Requirement>
+
+    <Requirement id="NFR-AVAIL-GRACEFUL-DEGRADATION">
+      <Category>Availability</Category>
+      <Description>Graceful degradation when dependencies fail</Description>
+      <Metric>Core browsing and search remain available even if pricing or cart services are degraded</Metric>
+      <Links>
+        <Link ref="Technology.xml#TECH-resilience4j"/>
+      </Links>
+    </Requirement>
+
+    <!-- Security -->
+    <Requirement id="NFR-SEC-AUTHENTICATION">
+      <Category>Security</Category>
+      <Description>Authentication mechanism</Description>
+      <Specification>OAuth2/OIDC with JWT tokens; all services act as resource servers</Specification>
+      <Links>
+        <Link ref="Technology.xml#TECH-keycloak"/>
+        <Link ref="Technology.xml#TECH-spring-security"/>
+      </Links>
+    </Requirement>
+
+    <Requirement id="NFR-SEC-RBAC">
+      <Category>Security</Category>
+      <Description>Role-based access control</Description>
+      <Specification>
+        Roles: CUSTOMER, INSTALLER, ADMIN, PRICING_ADMIN, CATALOG_ADMIN, REPORTING_VIEWER.
+        Fine-grained permissions enforced at service level.
+      </Specification>
+    </Requirement>
+
+    <Requirement id="NFR-SEC-DATA-PROTECTION">
+      <Category>Security</Category>
+      <Description>Data protection and privacy</Description>
+      <Specification>
+        PII encrypted at rest; TLS 1.3 for all communications; GDPR-compliant data handling.
+        Secrets managed via Vault or Kubernetes Secrets.
+      </Specification>
+    </Requirement>
+
+    <Requirement id="NFR-SEC-INPUT-VALIDATION">
+      <Category>Security</Category>
+      <Description>Input validation</Description>
+      <Specification>
+        All external inputs validated at adapter boundaries using Jakarta Bean Validation.
+        Domain invariants enforced in domain layer.
+      </Specification>
+    </Requirement>
+
+    <!-- Scalability -->
+    <Requirement id="NFR-SCALE-HORIZONTAL">
+      <Category>Scalability</Category>
+      <Description>Horizontal scalability</Description>
+      <Specification>All services are stateless and horizontally scalable via Kubernetes HPA</Specification>
+    </Requirement>
+
+    <Requirement id="NFR-SCALE-DB-PER-SERVICE">
+      <Category>Scalability</Category>
+      <Description>Database isolation</Description>
+      <Specification>Each service owns its database; no cross-service joins; data shared via APIs or events</Specification>
+      <Links>
+        <Link ref="Technology.xml#TECH-postgresql"/>
+      </Links>
+    </Requirement>
+
+    <!-- Observability -->
+    <Requirement id="NFR-OBS-LOGGING">
+      <Category>Observability</Category>
+      <Description>Structured logging</Description>
+      <Specification>
+        JSON-formatted logs with traceId, spanId, correlationId.
+        Logs indexed in ELK or equivalent.
+      </Specification>
+      <Links>
+        <Link ref="Technology.xml#TECH-opentelemetry"/>
+      </Links>
+    </Requirement>
+
+    <Requirement id="NFR-OBS-METRICS">
+      <Category>Observability</Category>
+      <Description>Metrics collection</Description>
+      <Specification>
+        Micrometer metrics exported to Prometheus.
+        Business metrics: orders_placed_total, configuration_validations_total, pricing_calculations_total.
+        Technical metrics: request latency, error rates, JVM stats.
+      </Specification>
+      <Links>
+        <Link ref="Technology.xml#TECH-prometheus"/>
+        <Link ref="Technology.xml#TECH-micrometer"/>
+      </Links>
+    </Requirement>
+
+    <Requirement id="NFR-OBS-TRACING">
+      <Category>Observability</Category>
+      <Description>Distributed tracing</Description>
+      <Specification>
+        OpenTelemetry for distributed traces.
+        All inter-service calls propagate trace context.
+      </Specification>
+      <Links>
+        <Link ref="Technology.xml#TECH-opentelemetry"/>
+      </Links>
+    </Requirement>
+
+    <!-- Maintainability -->
+    <Requirement id="NFR-MAINT-TESTABILITY">
+      <Category>Maintainability</Category>
+      <Description>Testability</Description>
+      <Specification>
+        80% code coverage minimum.
+        Testing pyramid: unit, slice, integration, contract tests.
+        Testcontainers for integration tests.
+      </Specification>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#TestingStrategy"/>
+      </Links>
+    </Requirement>
+
+    <Requirement id="NFR-MAINT-MODULARITY">
+      <Category>Maintainability</Category>
+      <Description>Modular architecture</Description>
+      <Specification>
+        Hexagonal architecture enforced via ArchUnit.
+        Domain layer has no framework dependencies.
+      </Specification>
+    </Requirement>
+
+    <!-- Internationalization -->
+    <Requirement id="NFR-I18N-MULTI-LANGUAGE">
+      <Category>Internationalization</Category>
+      <Description>Multi-language support</Description>
+      <Specification>
+        Product descriptions, UI, and notifications support multiple languages.
+        LocalizedString value object in shared-kernel.
+      </Specification>
+    </Requirement>
+
+    <Requirement id="NFR-I18N-MULTI-CURRENCY">
+      <Category>Internationalization</Category>
+      <Description>Multi-currency support</Description>
+      <Specification>
+        Pricing supports multiple currencies with proper rounding.
+        Money value object in shared-kernel with currency-aware operations.
+      </Specification>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </Requirement>
+  </NonFunctionalRequirements>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ASSUMPTIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Assumptions>
+    <Assumption id="ASSUM-001">
+      Single frontend SPA (React/Vue/Angular) consuming REST APIs; no SSR requirement initially.
+    </Assumption>
+    <Assumption id="ASSUM-002">
+      Professional installation is offered in-house or via partner network; no third-party marketplace integration.
+    </Assumption>
+    <Assumption id="ASSUM-003">
+      Initial launch targets single market (single primary currency); multi-currency is a day-2 feature.
+    </Assumption>
+    <Assumption id="ASSUM-004">
+      Payment gateway integration is with a single provider (e.g., Stripe); additional providers are future scope.
+    </Assumption>
+    <Assumption id="ASSUM-005">
+      Product catalog is managed by admins; no supplier/vendor self-service portal initially.
+    </Assumption>
+  </Assumptions>
+
+</RequirementsAnalysis>

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Semantic Contract: MODULE_CONTRACT
+  Service: catalog-configuration-service
+  Layer: domain.service
+  Purpose: Configuration validation domain service contract
+-->
+<MODULE_CONTRACT
+    id="MC-catalog-configuration-service-domain-ConfigurationValidation"
+    ROLE="DomainService"
+    SERVICE="catalog-configuration-service"
+    LAYER="domain.service"
+    BOUNDED_CONTEXT="catalog-configuration"
+    SPECIFICATION="UC-CATALOG-CONFIGURE-ITEM">
+
+  <PURPOSE>
+    Domain service that validates product configurations against business rules.
+    Ensures that customer-selected options (dimensions, materials, glazing, accessories)
+    form a valid, manufacturable product configuration.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Validate dimensions are within allowed ranges for the product family</Item>
+    <Item>Check material and glazing type compatibility</Item>
+    <Item>Enforce option dependencies (e.g., certain handles require specific lock types)</Item>
+    <Item>Enforce option exclusions (e.g., cannot combine certain colors with certain materials)</Item>
+    <Item>Apply auto-corrections where allowed (e.g., reinforce profile for large sizes)</Item>
+    <Item>Produce detailed validation results with error codes and suggestions</Item>
+  </RESPONSIBILITIES>
+
+  <INVARIANTS>
+    <Item>Validation is pure: no state mutation, deterministic for same inputs and rule set version</Item>
+    <Item>All rule evaluations are traceable via DecisionTrace</Item>
+    <Item>Validation errors include actionable error codes (ERR-CONFIG-*)</Item>
+    <Item>Validation respects rule set version for reproducibility</Item>
+  </INVARIANTS>
+
+  <CONTEXT>
+    <UPSTREAM>
+      <Item>adapters.in.web.ConfigurationController: REST endpoint for configuration validation</Item>
+      <Item>cart-service (sync): validates configuration before adding to cart</Item>
+    </UPSTREAM>
+    <DOWNSTREAM>
+      <Item>application.port.out.ProductTemplateRepository: loads product template definitions</Item>
+      <Item>application.port.out.RuleRepository: loads configuration rules</Item>
+      <Item>domain.model.ConfigurationRuleSet: rule evaluation engine</Item>
+    </DOWNSTREAM>
+  </CONTEXT>
+
+  <ARCHITECTURE>
+    <TECHNOLOGY>
+      <Item ref="Technology.xml#TECH-java">Java 25 with records for immutable results</Item>
+      <Item>Pure domain logic; no framework dependencies</Item>
+      <Item>Depends only on shared-kernel value objects</Item>
+    </TECHNOLOGY>
+    <PACKAGE>com.kanokna.catalog_configuration_service.domain.service</PACKAGE>
+    <CLASS>ConfigurationValidationService</CLASS>
+  </ARCHITECTURE>
+
+  <PUBLIC_API>
+    <Method name="validateConfiguration">
+      <Input>ValidateConfigurationCommand</Input>
+      <Output>ValidationResult</Output>
+      <Contract ref="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-validateConfiguration"/>
+    </Method>
+  </PUBLIC_API>
+
+  <CROSS_CUTTING>
+    <SECURITY>
+      <Item>No authentication required for validation-only (browsing mode)</Item>
+      <Item>Saving configurations requires authenticated user</Item>
+      <Item>No sensitive data processed; configuration is product-related only</Item>
+    </SECURITY>
+    <RELIABILITY>
+      <Item>Validation is stateless and safe to retry</Item>
+      <Item>No external dependencies beyond in-memory rule evaluation</Item>
+      <Item>Graceful handling of missing rules: return technical error, not validation failure</Item>
+    </RELIABILITY>
+    <OBSERVABILITY>
+      <Item>Structured logs with traceId, spanId, correlationId</Item>
+      <Item>Metrics: configuration_validations_total, configuration_validation_failures_total, configuration_validation_latency_ms</Item>
+      <Item>Decision trace included in response for debugging</Item>
+    </OBSERVABILITY>
+  </CROSS_CUTTING>
+
+  <LOGGING>
+    <FORMAT>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK={blockId}][STATE={state}] eventType={eventType} decision={decision} {keyValues}</FORMAT>
+    <EXAMPLES>
+      <Example blockId="BA-CFG-VAL-01" state="CHECK_DIMENSIONS">
+        eventType=CONFIG_VALIDATION_STEP decision=EVALUATE productId=WINDOW-CASEMENT-001 width_cm=120 height_cm=150
+      </Example>
+      <Example blockId="BA-CFG-VAL-02" state="CHECK_COMPATIBILITY">
+        eventType=CONFIG_VALIDATION_STEP decision=EVALUATE materialId=PVC-WHITE glazingId=TRIPLE-ARGON
+      </Example>
+      <Example blockId="BA-CFG-VAL-99" state="FINAL">
+        eventType=CONFIG_VALIDATION_RESULT decision=ACCEPT|REJECT errors_count=0|N
+      </Example>
+    </EXAMPLES>
+  </LOGGING>
+
+  <TESTS>
+    <Case id="TC-CFG-VAL-001" type="HAPPY_PATH">
+      Valid configuration with standard dimensions and compatible options passes without errors
+    </Case>
+    <Case id="TC-CFG-VAL-002" type="EDGE_CASE">
+      Dimensions at exact MIN_DIMENSION_CM (50cm) boundary pass validation
+    </Case>
+    <Case id="TC-CFG-VAL-003" type="EDGE_CASE">
+      Dimensions at exact MAX_DIMENSION_CM (400cm) boundary pass validation
+    </Case>
+    <Case id="TC-CFG-VAL-004" type="ERROR_CASE">
+      Dimensions below MIN (49cm) return ERR-CONFIG-DIMENSIONS-TOO-SMALL
+    </Case>
+    <Case id="TC-CFG-VAL-005" type="ERROR_CASE">
+      Dimensions above MAX (401cm) return ERR-CONFIG-DIMENSIONS-TOO-LARGE
+    </Case>
+    <Case id="TC-CFG-VAL-006" type="ERROR_CASE">
+      Incompatible material and glazing return ERR-CONFIG-INCOMPATIBLE-OPTIONS
+    </Case>
+    <Case id="TC-CFG-VAL-007" type="ERROR_CASE">
+      Missing required option group returns ERR-CONFIG-MISSING-REQUIRED
+    </Case>
+    <Case id="TC-CFG-VAL-008" type="ERROR_CASE">
+      Option dependency violation returns ERR-CONFIG-DEPENDENCY-UNSATISFIED
+    </Case>
+    <Case id="TC-CFG-VAL-009" type="TECHNICAL">
+      Missing rule set returns ERR-RULES-NOT-FOUND with 500-level classification
+    </Case>
+    <Case id="TC-CFG-VAL-010" type="HAPPY_PATH">
+      Large dimensions (>300cm) auto-apply reinforced profile and pass
+    </Case>
+  </TESTS>
+
+  <LINKS>
+    <Link ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+    <Link ref="DevelopmentPlan.xml#Flow-Config-Pricing"/>
+    <Link ref="Technology.xml#TECH-java"/>
+  </LINKS>
+
+</MODULE_CONTRACT>

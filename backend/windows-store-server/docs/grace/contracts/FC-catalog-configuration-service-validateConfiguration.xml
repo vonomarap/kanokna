@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Semantic Contract: FUNCTION_CONTRACT
+  Service: catalog-configuration-service
+  UseCase: UC-CATALOG-CONFIGURE-ITEM
+  Method: validateConfiguration
+-->
+<FUNCTION_CONTRACT
+    id="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-validateConfiguration"
+    LAYER="domain.service"
+    INTENT="Validate a window/door configuration against all business rules and return detailed validation result"
+    INPUT="ValidateConfigurationCommand"
+    OUTPUT="ValidationResult"
+    SIDE_EFFECTS="None"
+    LINKS="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM;DevelopmentPlan.xml#Flow-Config-Pricing">
+
+  <ROLE_IN_MODULE>
+    Core validation method that orchestrates all configuration rule checks.
+    Called by application service to validate customer-submitted configurations.
+    Returns structured result with pass/fail status, errors, warnings, and decision trace.
+  </ROLE_IN_MODULE>
+
+  <SIGNATURE>
+    <INPUT>
+      <Parameter name="command" type="ValidateConfigurationCommand">
+        <Field name="productTemplateId" type="String" required="true">ID of the product template being configured</Field>
+        <Field name="dimensions" type="DimensionsCm" required="true">Width and height in centimeters</Field>
+        <Field name="selectedOptions" type="Map&lt;OptionGroupId, OptionId&gt;" required="true">Selected options by group</Field>
+        <Field name="ruleSetVersion" type="String" required="false">Optional pinned rule set version for reproducibility</Field>
+      </Parameter>
+    </INPUT>
+    <OUTPUT>
+      <Parameter name="result" type="ValidationResult">
+        <Field name="valid" type="boolean">True if configuration passes all rules</Field>
+        <Field name="errors" type="List&lt;ValidationMessage&gt;">List of validation errors (empty if valid)</Field>
+        <Field name="warnings" type="List&lt;ValidationMessage&gt;">Non-blocking warnings</Field>
+        <Field name="appliedCorrections" type="List&lt;String&gt;">Auto-applied corrections (e.g., reinforced profile)</Field>
+        <Field name="decisionTrace" type="DecisionTrace">Full trace of rule evaluations for auditability</Field>
+      </Parameter>
+    </OUTPUT>
+    <SIDE_EFFECTS>None; pure function</SIDE_EFFECTS>
+  </SIGNATURE>
+
+  <PRECONDITIONS>
+    <Item>command is non-null</Item>
+    <Item>command.productTemplateId references an existing, active product template</Item>
+    <Item>command.dimensions is valid DimensionsCm (enforced by value object)</Item>
+    <Item>command.selectedOptions contains entries only for known option groups</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>result.valid == true if and only if result.errors.isEmpty()</Item>
+    <Item>All rule evaluations are recorded in result.decisionTrace</Item>
+    <Item>Error messages include localization keys for frontend display</Item>
+    <Item>Each error has a unique error code (ERR-CONFIG-*)</Item>
+  </POSTCONDITIONS>
+
+  <INVARIANTS>
+    <Item>Validation does not mutate any state</Item>
+    <Item>Same inputs + same rule set version always produce same result</Item>
+    <Item>DecisionTrace contains entry for every rule evaluated</Item>
+    <Item>Errors are ordered by severity (BLOCKING before WARNING)</Item>
+  </INVARIANTS>
+
+  <ERROR_HANDLING>
+    <Error type="BUSINESS" code="ERR-CONFIG-DIMENSIONS-TOO-SMALL">
+      <Trigger>Width or height below MIN_DIMENSION_CM (50cm)</Trigger>
+      <Response>Include min allowed dimension in error message</Response>
+    </Error>
+    <Error type="BUSINESS" code="ERR-CONFIG-DIMENSIONS-TOO-LARGE">
+      <Trigger>Width or height above MAX_DIMENSION_CM (400cm)</Trigger>
+      <Response>Include max allowed dimension in error message</Response>
+    </Error>
+    <Error type="BUSINESS" code="ERR-CONFIG-INCOMPATIBLE-OPTIONS">
+      <Trigger>Selected options violate compatibility rules</Trigger>
+      <Response>List conflicting options and suggest alternatives</Response>
+    </Error>
+    <Error type="BUSINESS" code="ERR-CONFIG-MISSING-REQUIRED">
+      <Trigger>Required option group has no selection</Trigger>
+      <Response>List missing option group names</Response>
+    </Error>
+    <Error type="BUSINESS" code="ERR-CONFIG-DEPENDENCY-UNSATISFIED">
+      <Trigger>Selected option requires another option that is not selected</Trigger>
+      <Response>List required dependent options</Response>
+    </Error>
+    <Error type="BUSINESS" code="ERR-CONFIG-EXCLUDED-COMBINATION">
+      <Trigger>Selected options form an excluded combination</Trigger>
+      <Response>List which options cannot be combined</Response>
+    </Error>
+    <Error type="TECHNICAL" code="ERR-PRODUCT-NOT-FOUND">
+      <Trigger>Product template ID does not exist</Trigger>
+      <Response>Treat as 404; caller should not reach here with invalid ID</Response>
+    </Error>
+    <Error type="TECHNICAL" code="ERR-RULES-NOT-FOUND">
+      <Trigger>Rule set cannot be loaded (DB error, missing data)</Trigger>
+      <Response>Log error, return 500-level classification; do not expose as validation failure</Response>
+    </Error>
+  </ERROR_HANDLING>
+
+  <BLOCK_ANCHORS>
+    <Anchor id="BA-CFG-VAL-01" purpose="Check dimension constraints">
+      <Description>Validate width and height against product-specific min/max limits</Description>
+      <LogPattern>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK=BA-CFG-VAL-01][STATE=CHECK_DIMENSIONS]</LogPattern>
+    </Anchor>
+    <Anchor id="BA-CFG-VAL-02" purpose="Check material/glazing compatibility">
+      <Description>Ensure selected material and glazing type are compatible</Description>
+      <LogPattern>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK=BA-CFG-VAL-02][STATE=CHECK_COMPATIBILITY]</LogPattern>
+    </Anchor>
+    <Anchor id="BA-CFG-VAL-03" purpose="Check option dependencies">
+      <Description>Verify all option dependencies are satisfied</Description>
+      <LogPattern>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK=BA-CFG-VAL-03][STATE=CHECK_DEPENDENCIES]</LogPattern>
+    </Anchor>
+    <Anchor id="BA-CFG-VAL-04" purpose="Apply auto-corrections">
+      <Description>Apply automatic corrections (e.g., reinforce large profiles)</Description>
+      <LogPattern>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK=BA-CFG-VAL-04][STATE=APPLY_CORRECTIONS]</LogPattern>
+    </Anchor>
+    <Anchor id="BA-CFG-VAL-99" purpose="Final validation result">
+      <Description>Aggregate all rule results and return final ValidationResult</Description>
+      <LogPattern>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK=BA-CFG-VAL-99][STATE=FINAL]</LogPattern>
+    </Anchor>
+  </BLOCK_ANCHORS>
+
+  <LOGGING>
+    <Entry blockId="BA-CFG-VAL-01">
+      <Format>eventType=CONFIG_VALIDATION_STEP decision=EVALUATE|PASS|FAIL keyValues=productId,width_cm,height_cm,min_width,max_width,min_height,max_height</Format>
+      <Example>eventType=CONFIG_VALIDATION_STEP decision=PASS productId=WINDOW-CASEMENT-001 width_cm=120 height_cm=150 min_width=50 max_width=400 min_height=50 max_height=400</Example>
+    </Entry>
+    <Entry blockId="BA-CFG-VAL-02">
+      <Format>eventType=CONFIG_VALIDATION_STEP decision=EVALUATE|PASS|FAIL keyValues=materialId,glazingId,compatible</Format>
+      <Example>eventType=CONFIG_VALIDATION_STEP decision=PASS materialId=PVC-WHITE glazingId=TRIPLE-ARGON compatible=true</Example>
+    </Entry>
+    <Entry blockId="BA-CFG-VAL-03">
+      <Format>eventType=CONFIG_VALIDATION_STEP decision=EVALUATE|PASS|FAIL keyValues=optionId,requiredDependencies,satisfied</Format>
+      <Example>eventType=CONFIG_VALIDATION_STEP decision=PASS optionId=HANDLE-PREMIUM requiredDependencies=[LOCK-MULTI-POINT] satisfied=true</Example>
+    </Entry>
+    <Entry blockId="BA-CFG-VAL-04">
+      <Format>eventType=CONFIG_AUTO_CORRECTION decision=APPLY keyValues=correctionType,reason</Format>
+      <Example>eventType=CONFIG_AUTO_CORRECTION decision=APPLY correctionType=REINFORCE_PROFILE reason=width_exceeds_300cm</Example>
+    </Entry>
+    <Entry blockId="BA-CFG-VAL-99">
+      <Format>eventType=CONFIG_VALIDATION_RESULT decision=ACCEPT|REJECT keyValues=errors_count,warnings_count,corrections_count,latency_ms</Format>
+      <Example>eventType=CONFIG_VALIDATION_RESULT decision=ACCEPT errors_count=0 warnings_count=1 corrections_count=1 latency_ms=12</Example>
+    </Entry>
+  </LOGGING>
+
+  <TESTS>
+    <Case id="TC-FUNC-VAL-001" type="HAPPY_PATH">
+      <Description>Valid configuration returns valid=true with empty errors</Description>
+      <Input>
+        productTemplateId=WINDOW-CASEMENT-001, dimensions=120x150cm,
+        selectedOptions={MATERIAL: PVC-WHITE, GLAZING: DOUBLE, COLOR: WHITE}
+      </Input>
+      <Expected>valid=true, errors=[], decisionTrace.size > 0</Expected>
+    </Case>
+    <Case id="TC-FUNC-VAL-002" type="ERROR_CASE">
+      <Description>Dimensions below minimum return ERR-CONFIG-DIMENSIONS-TOO-SMALL</Description>
+      <Input>
+        productTemplateId=WINDOW-CASEMENT-001, dimensions=40x40cm
+      </Input>
+      <Expected>valid=false, errors contain code=ERR-CONFIG-DIMENSIONS-TOO-SMALL</Expected>
+    </Case>
+    <Case id="TC-FUNC-VAL-003" type="ERROR_CASE">
+      <Description>Incompatible material/glazing returns ERR-CONFIG-INCOMPATIBLE-OPTIONS</Description>
+      <Input>
+        productTemplateId=WINDOW-CASEMENT-001, dimensions=100x100cm,
+        selectedOptions={MATERIAL: WOOD-OAK, GLAZING: QUADRUPLE-SPECIAL}
+      </Input>
+      <Expected>valid=false, errors contain code=ERR-CONFIG-INCOMPATIBLE-OPTIONS</Expected>
+    </Case>
+    <Case id="TC-FUNC-VAL-004" type="HAPPY_PATH">
+      <Description>Large dimensions trigger auto-correction and still pass</Description>
+      <Input>
+        productTemplateId=WINDOW-CASEMENT-001, dimensions=350x300cm,
+        selectedOptions={MATERIAL: PVC-WHITE, GLAZING: DOUBLE}
+      </Input>
+      <Expected>valid=true, appliedCorrections contains REINFORCE_PROFILE</Expected>
+    </Case>
+    <Case id="TC-FUNC-VAL-005" type="EDGE_CASE">
+      <Description>Boundary dimension (exactly 50cm) passes</Description>
+      <Input>
+        productTemplateId=WINDOW-CASEMENT-001, dimensions=50x50cm
+      </Input>
+      <Expected>valid=true</Expected>
+    </Case>
+    <Case id="TC-FUNC-VAL-006" type="EDGE_CASE">
+      <Description>Boundary dimension (exactly 400cm) passes</Description>
+      <Input>
+        productTemplateId=WINDOW-CASEMENT-001, dimensions=400x400cm
+      </Input>
+      <Expected>valid=true, appliedCorrections contains REINFORCE_PROFILE</Expected>
+    </Case>
+    <Case id="TC-FUNC-VAL-007" type="ERROR_CASE">
+      <Description>Missing required option group returns ERR-CONFIG-MISSING-REQUIRED</Description>
+      <Input>
+        productTemplateId=WINDOW-CASEMENT-001, dimensions=100x100cm,
+        selectedOptions={MATERIAL: PVC-WHITE} // missing GLAZING
+      </Input>
+      <Expected>valid=false, errors contain code=ERR-CONFIG-MISSING-REQUIRED</Expected>
+    </Case>
+    <Case id="TC-FUNC-VAL-008" type="TECHNICAL">
+      <Description>Non-existent product returns ERR-PRODUCT-NOT-FOUND</Description>
+      <Input>
+        productTemplateId=NON-EXISTENT
+      </Input>
+      <Expected>Exception with code=ERR-PRODUCT-NOT-FOUND</Expected>
+    </Case>
+  </TESTS>
+
+</FUNCTION_CONTRACT>
