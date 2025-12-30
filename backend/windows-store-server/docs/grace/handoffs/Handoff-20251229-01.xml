@@ -3,9 +3,19 @@
   GRACE Handoff Envelope
   ID: Handoff-20251229-01
   Purpose: Bootstrap canonical artifacts for Windows & Doors E-Commerce Platform
-  Status: PROPOSED - Awaiting human approval
+  Status: PROPOSED (approval in docs/grace/approvals.log)
 -->
-<GRACE_HANDOFF id="Handoff-20251229-01" status="PROPOSED" created="2025-12-29">
+<GRACE_HANDOFF
+  id="Handoff-20251229-01"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2025-12-29T00:00:00+00:00"
+  author="GRACE-ARCHITECT"
+  taskRef="BOOTSTRAP"
+  planRef="DevelopmentExecutionPlan.xml#BOOTSTRAP"
+  blueprintRef="DevelopmentPlan.xml#BOOTSTRAP"
+  requirementsRef="RequirementsAnalysis.xml#ALL"
+>
 
   <Summary>
     Initial bootstrap of GRACE canonical artifacts for the Windows and Doors E-Commerce
@@ -207,20 +217,10 @@
     <Step order="5">Set up CI/CD pipeline with contract testing</Step>
   </NextSteps>
 
-  <ApprovalInstructions>
-    <Instruction>
-      The human architect must approve this blueprint before coding begins.
-      To approve, reply with:
-    </Instruction>
-    <ApprovalMarker>
-      <![CDATA[
-      <GRACE_APPROVAL ref="Handoff-20251229-01" status="APPROVED"/>
-      ]]>
-    </ApprovalMarker>
-    <Instruction>
-      To request changes, specify which sections need revision.
-      The architect will update artifacts and produce a new handoff.
-    </Instruction>
-  </ApprovalInstructions>
+
+  <MigrationNote>
+    Timestamp approximated during v1→v2 migration (2025-12-30).
+    Original file had date-only created value: "2025-12-29".
+  </MigrationNote>
 
 </GRACE_HANDOFF>

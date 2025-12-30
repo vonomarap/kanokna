@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff Document: Config Server Module
+  Handoff ID: Handoff-20251230-04
+  Scope: W0-T3 (Create config-server module)
+  Status: PROPOSED
+  Created: 2025-12-30
+  Author: GRACE-ARCHITECT
+-->
+<GRACE_HANDOFF
+  id="Handoff-20251230-04"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2025-12-30T00:00:00+00:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W0-T3"
+  planRef="DevelopmentExecutionPlan.xml#W0-T3"
+  blueprintRef="DevelopmentPlan.xml#DP-SVC-config-server"
+  techRef="Technology.xml#TECH-spring-cloud"
+>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       1. INTENT SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <IntentSummary>
+    <BusinessIntent>
+      Establish centralized configuration management for all microservices,
+      enabling environment-specific settings (dev/stage/prod) and runtime
+      configuration refresh without service restarts.
+    </BusinessIntent>
+    <TechnicalIntent>
+      Create Spring Cloud Config Server that:
+      - Serves externalized configuration from Git or file-based backend
+      - Supports encryption of sensitive values (passwords, API keys)
+      - Enables runtime configuration refresh
+      - Provides health endpoints for Kubernetes probes
+    </TechnicalIntent>
+    <Scope>
+      <Task ref="DevelopmentExecutionPlan.xml#W0-T3"/>
+      <Wave ref="DevelopmentExecutionPlan.xml#WAVE-0"/>
+      <Service ref="DevelopmentPlan.xml#DP-SVC-config-server"/>
+    </Scope>
+  </IntentSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       2. DECISIONS SNAPSHOT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DecisionsSnapshot>
+    <Decision ref="Technology.xml#TECH-spring-cloud">Spring Cloud Config Server</Decision>
+    <Decision id="DEC-CONFIG-BACKEND" status="APPROVED">
+      <Title>Configuration Backend Strategy</Title>
+      <Selected>File-based (native) for dev, Git-based for stage/prod</Selected>
+      <Rationale>
+        File-based is simpler for local development. Git-based provides
+        versioning, audit trail, and GitOps workflow for higher environments.
+      </Rationale>
+    </Decision>
+    <Decision id="DEC-CONFIG-ENCRYPTION" status="APPROVED">
+      <Title>Sensitive Value Encryption</Title>
+      <Selected>Symmetric encryption with ENCRYPT_KEY environment variable</Selected>
+      <Rationale>
+        Simple setup for MVP. Vault integration can be added later for
+        production-grade secret management.
+      </Rationale>
+    </Decision>
+  </DecisionsSnapshot>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       3. FILES TO CREATE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FilesToCreate>
+    <!-- Main Application -->
+    <File path="config-server/src/main/java/com/kanokna/configserver/ConfigServerApplication.java" action="CREATE">
+      Spring Boot main class with @EnableConfigServer
+    </File>
+
+    <!-- Application Configuration -->
+    <File path="config-server/src/main/resources/application.yml" action="CREATE">
+      Main configuration with server port and backend settings
+    </File>
+    <File path="config-server/src/main/resources/application-native.yml" action="CREATE">
+      File-based backend for local development
+    </File>
+    <File path="config-server/src/main/resources/application-git.yml" action="CREATE">
+      Git-based backend for stage/prod
+    </File>
+    <File path="config-server/src/main/resources/logback-spring.xml" action="CREATE">
+      Structured JSON logging configuration
+    </File>
+
+    <!-- Configuration Files (served to clients) -->
+    <File path="config-server/src/main/resources/config/application.yml" action="CREATE">
+      Default configuration for all services
+    </File>
+    <File path="config-server/src/main/resources/config/application-dev.yml" action="CREATE">
+      Development profile defaults
+    </File>
+    <File path="config-server/src/main/resources/config/gateway.yml" action="CREATE">
+      Gateway service configuration
+    </File>
+    <File path="config-server/src/main/resources/config/catalog-configuration-service.yml" action="CREATE">
+      Catalog service configuration
+    </File>
+    <File path="config-server/src/main/resources/config/pricing-service.yml" action="CREATE">
+      Pricing service configuration
+    </File>
+
+    <!-- Build -->
+    <File path="config-server/pom.xml" action="ENHANCE">
+      Add Spring Cloud Config Server dependency
+    </File>
+    <File path="config-server/Dockerfile" action="CREATE">
+      Container image definition
+    </File>
+
+    <!-- Tests -->
+    <File path="config-server/src/test/java/com/kanokna/configserver/ConfigServerApplicationTests.java" action="CREATE">
+      Context load and health check tests
+    </File>
+  </FilesToCreate>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       4. SEMANTIC CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <SemanticContractsAndAnchors>
+
+    <ModuleContract id="MC-config-server-infrastructure">
+      <EmbedInFile>config-server/src/main/java/com/kanokna/configserver/ConfigServerApplication.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <MODULE_CONTRACT id="MC-config-server-infrastructure"
+     ROLE="InfrastructureService"
+     SERVICE="config-server"
+     LAYER="infrastructure"
+     BOUNDED_CONTEXT="infrastructure"
+     SPECIFICATION="TECH-spring-cloud">
+  <PURPOSE>
+    Centralized configuration server providing externalized configuration
+    to all microservices based on profile (dev/stage/prod).
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Serve configuration from file-based or Git backend</Item>
+    <Item>Support profile-based configuration (dev, stage, prod)</Item>
+    <Item>Encrypt/decrypt sensitive values</Item>
+    <Item>Expose health endpoints for Kubernetes probes</Item>
+    <Item>Enable runtime configuration refresh</Item>
+  </RESPONSIBILITIES>
+
+  <INVARIANTS>
+    <Item>Configuration available at /{application}/{profile}</Item>
+    <Item>Encrypted values prefixed with {cipher}</Item>
+    <Item>Health endpoint returns UP when backend accessible</Item>
+  </INVARIANTS>
+
+  <ENDPOINTS>
+    <Endpoint path="/{application}/{profile}" method="GET">Get configuration</Endpoint>
+    <Endpoint path="/{application}/{profile}/{label}" method="GET">Get labeled configuration</Endpoint>
+    <Endpoint path="/encrypt" method="POST">Encrypt a value</Endpoint>
+    <Endpoint path="/decrypt" method="POST">Decrypt a value</Endpoint>
+    <Endpoint path="/actuator/health" method="GET">Health check</Endpoint>
+  </ENDPOINTS>
+
+  <CONFIGURATION_RESOLUTION>
+    <Item>1. {application}-{profile}.yml</Item>
+    <Item>2. {application}.yml</Item>
+    <Item>3. application-{profile}.yml</Item>
+    <Item>4. application.yml</Item>
+  </CONFIGURATION_RESOLUTION>
+
+  <TESTS>
+    <Case id="TC-CFG-001">Server starts on port 8888</Case>
+    <Case id="TC-CFG-002">Health endpoint returns UP</Case>
+    <Case id="TC-CFG-003">Configuration served for gateway service</Case>
+    <Case id="TC-CFG-004">Profile-specific configuration merged correctly</Case>
+    <Case id="TC-CFG-005">Encrypted values decrypted on fetch</Case>
+  </TESTS>
+
+  <LINKS>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-config-server"/>
+    <Link ref="Technology.xml#TECH-spring-cloud"/>
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]></Contract>
+    </ModuleContract>
+
+    <BlockAnchorRegistry>
+      <BlockAnchor id="BA-CFG-SRV-01" service="config-server" purpose="Load configuration backend"/>
+      <BlockAnchor id="BA-CFG-SRV-02" service="config-server" purpose="Resolve configuration for application/profile"/>
+      <BlockAnchor id="BA-CFG-SRV-03" service="config-server" purpose="Decrypt sensitive values"/>
+      <BlockAnchor id="BA-CFG-SRV-04" service="config-server" purpose="Health check backend connectivity"/>
+    </BlockAnchorRegistry>
+
+  </SemanticContractsAndAnchors>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       5. IMPLEMENTATION SPECIFICATIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationSpecifications>
+
+    <ApplicationYml file="config-server/src/main/resources/application.yml">
+      <![CDATA[
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-server
+  profiles:
+    active: native  # Use 'git' for stage/prod
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: classpath:/config
+
+encrypt:
+  key: ${ENCRYPT_KEY:changeme-dev-only}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+logging:
+  level:
+    org.springframework.cloud.config: DEBUG
+      ]]>
+    </ApplicationYml>
+
+    <DefaultConfigYml file="config-server/src/main/resources/config/application.yml">
+      <![CDATA[
+# Default configuration for all services
+
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 20000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 5s
+      ]]>
+    </DefaultConfigYml>
+
+    <PomSpec file="config-server/pom.xml">
+      <![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.kanokna</groupId>
+        <artifactId>windows-store-server</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>config-server</artifactId>
+    <name>config-server</name>
+    <description>Spring Cloud Config Server for centralized configuration</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-config-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>3.4.0</version>
+                <configuration>
+                    <from>
+                        <image>eclipse-temurin:21-jre</image>
+                    </from>
+                    <to>
+                        <image>ghcr.io/vonomarap/kanokna-config-server</image>
+                        <tags>
+                            <tag>${project.version}</tag>
+                            <tag>latest</tag>
+                        </tags>
+                    </to>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+      ]]>
+    </PomSpec>
+
+  </ImplementationSpecifications>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       6. ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria ref="DevelopmentExecutionPlan.xml#W0-T3">
+    <Criterion id="AC-CFGSRV-001">Server starts and serves configuration on port 8888</Criterion>
+    <Criterion id="AC-CFGSRV-002">Health endpoint returns UP</Criterion>
+    <Criterion id="AC-CFGSRV-003">Configuration refresh works</Criterion>
+    <Criterion id="AC-CFGSRV-004">Encryption/decryption of sensitive values works</Criterion>
+    <Criterion id="AC-CFGSRV-005">Docker image builds successfully</Criterion>
+  </AcceptanceCriteria>
+
+  <Scope>
+    <Services><ServiceRef ref="DevelopmentPlan.xml#DP-SVC-config-server"/></Services>
+    <Tasks><TaskRef ref="DevelopmentExecutionPlan.xml#W0-T3"/></Tasks>
+  </Scope>
+
+  <Contracts>
+    <ModuleContractRef id="MC-config-server-infrastructure"/>
+    <BlockAnchorRef id="BA-CFG-SRV-01"/>
+    <BlockAnchorRef id="BA-CFG-SRV-02"/>
+    <BlockAnchorRef id="BA-CFG-SRV-03"/>
+    <BlockAnchorRef id="BA-CFG-SRV-04"/>
+  </Contracts>
+
+
+  <MigrationNote>
+    Migrated to GRACE Markup v2 (2025-12-30).
+    created/author attributes were missing in original; derived from file header comment.
+  </MigrationNote>
+
+</GRACE_HANDOFF>

@@ -1,0 +1,614 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff Document: Shared Kernel Enhancement
+  Handoff ID: Handoff-20251230-02
+  Scope: W0-T1 (Enhance shared-kernel)
+  Status: PROPOSED
+  Created: 2025-12-30
+  Author: GRACE-ARCHITECT
+-->
+<GRACE_HANDOFF
+  id="Handoff-20251230-02"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2025-12-30T00:00:00+00:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W0-T1"
+  planRef="DevelopmentExecutionPlan.xml#W0-T1"
+  blueprintRef="DevelopmentPlan.xml#DP-SVC-shared-kernel"
+  requirementsRef="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"
+>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       1. INTENT SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <IntentSummary>
+    <BusinessIntent>
+      Complete the shared-kernel library with all cross-service domain primitives
+      required by the e-commerce platform. These value objects provide type-safe,
+      immutable representations of core business concepts used across all services.
+    </BusinessIntent>
+    <TechnicalIntent>
+      Enhance the shared-kernel module with:
+      - Complete Money value object with multi-currency support
+      - DimensionsCm with 50-400cm validation
+      - Address, Email, PhoneNumber value objects
+      - LocalizedString for i18n content
+      - DomainEvent interface with metadata
+      - Result/Either pattern for error handling
+      - Common enums (Language, Currency, Country)
+      All types must be framework-free (no Spring, JPA, Jackson annotations).
+    </TechnicalIntent>
+    <Scope>
+      <Task ref="DevelopmentExecutionPlan.xml#W0-T1"/>
+      <Wave ref="DevelopmentExecutionPlan.xml#WAVE-0"/>
+      <Service ref="DevelopmentPlan.xml#DP-SVC-shared-kernel"/>
+    </Scope>
+  </IntentSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       2. DECISIONS SNAPSHOT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DecisionsSnapshot>
+    <Decision ref="Technology.xml#TECH-java">Java 25 with records and sealed classes</Decision>
+    <Decision id="DEC-SHARED-KERNEL-PURITY" status="APPROVED">
+      <Title>Framework-Free Shared Kernel</Title>
+      <Selected>No Spring, JPA, Jackson, or framework dependencies</Selected>
+      <Rationale>
+        Shared-kernel must remain pure Java to ensure domain model purity
+        across all services. Enforced by maven-enforcer-plugin.
+      </Rationale>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-shared-kernel"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"/>
+      </Links>
+    </Decision>
+    <Decision id="DEC-RESULT-PATTERN" status="APPROVED">
+      <Title>Result Pattern for Domain Operations</Title>
+      <Selected>Sealed interface Result&lt;T&gt; with Success and Failure subtypes</Selected>
+      <Rationale>
+        Explicit error handling without exceptions for expected business failures.
+        Better for functional composition and forces caller to handle failures.
+      </Rationale>
+      <Links>
+        <Link ref="ArchitecturalRecommendations.xml#PAT-001"/>
+      </Links>
+    </Decision>
+  </DecisionsSnapshot>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       3. EXISTING STATE ANALYSIS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ExistingState>
+    <ExistingFiles>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/core/Address.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/core/Email.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/core/Id.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/core/ValidationUtils.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/core/CanonicalLogFormatter.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/event/DomainEvent.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/i18n/Language.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/i18n/LocalizedString.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/measure/DimensionsCm.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/measure/ThicknessTypeMM.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/money/Money.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/money/MoneyRoundingPolicy.java" status="EXISTS"/>
+      <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/money/DefaultMoneyRoundingPolicy.java" status="EXISTS"/>
+    </ExistingFiles>
+    <Action>Review existing files and enhance/complete as needed per deliverables</Action>
+  </ExistingState>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       4. FILES TO CREATE OR ENHANCE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FilesToCreateOrEnhance>
+    <!-- Core Value Objects -->
+    <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/core/PhoneNumber.java" action="CREATE">
+      Phone number value object with validation
+    </File>
+    <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/core/Result.java" action="CREATE">
+      Sealed Result interface with Success/Failure
+    </File>
+    <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/core/DomainError.java" action="CREATE">
+      Domain error representation for Result.Failure
+    </File>
+    <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/core/DomainException.java" action="CREATE">
+      Domain exception for when exceptions are needed
+    </File>
+
+    <!-- Money Package Enhancement -->
+    <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/money/Currency.java" action="CREATE">
+      Currency enum (RUB, EUR, USD, etc.)
+    </File>
+    <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/money/Money.java" action="ENHANCE">
+      Add multi-currency operations, ensure immutability
+    </File>
+
+    <!-- I18n Package Enhancement -->
+    <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/i18n/Country.java" action="CREATE">
+      Country enum for regional support
+    </File>
+
+    <!-- Event Package Enhancement -->
+    <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/event/DomainEvent.java" action="ENHANCE">
+      Ensure metadata: eventId, occurredAt, aggregateId, aggregateType, version
+    </File>
+    <File path="shared/shared-kernel/src/main/java/com/kanokna/shared/event/EventMetadata.java" action="CREATE">
+      Metadata record for domain events
+    </File>
+
+    <!-- Test Files -->
+    <File path="shared/shared-kernel/src/test/java/com/kanokna/shared/money/MoneyTest.java" action="CREATE">
+      Unit tests for Money operations
+    </File>
+    <File path="shared/shared-kernel/src/test/java/com/kanokna/shared/measure/DimensionsCmTest.java" action="CREATE">
+      Unit tests for dimension validation
+    </File>
+    <File path="shared/shared-kernel/src/test/java/com/kanokna/shared/core/ResultTest.java" action="CREATE">
+      Unit tests for Result pattern
+    </File>
+    <File path="shared/shared-kernel/src/test/java/com/kanokna/shared/core/EmailTest.java" action="CREATE">
+      Unit tests for Email validation
+    </File>
+    <File path="shared/shared-kernel/src/test/java/com/kanokna/shared/core/AddressTest.java" action="CREATE">
+      Unit tests for Address validation
+    </File>
+
+    <!-- Build Enforcement -->
+    <File path="shared/shared-kernel/pom.xml" action="ENHANCE">
+      Add maven-enforcer-plugin to ban framework dependencies
+    </File>
+  </FilesToCreateOrEnhance>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       5. SEMANTIC CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <SemanticContractsAndAnchors>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         MODULE CONTRACT: Shared Kernel
+         ───────────────────────────────────────────────────────────────────────── -->
+    <ModuleContract id="MC-shared-kernel-core">
+      <EmbedInFile>shared/shared-kernel/src/main/java/com/kanokna/shared/package-info.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <MODULE_CONTRACT id="MC-shared-kernel-core"
+     ROLE="SharedLibrary"
+     SERVICE="shared-kernel"
+     LAYER="domain"
+     BOUNDED_CONTEXT="shared-kernel"
+     SPECIFICATION="NFR-MAINT-MODULARITY">
+  <PURPOSE>
+    Cross-service domain primitives providing type-safe, immutable value objects
+    for the windows and doors e-commerce platform. Framework-free pure Java.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Money value object with multi-currency arithmetic (RUB, EUR, USD)</Item>
+    <Item>DimensionsCm for product dimensions (50-400cm range enforced)</Item>
+    <Item>Address, Email, PhoneNumber contact value objects</Item>
+    <Item>LocalizedString for internationalized content</Item>
+    <Item>DomainEvent interface with standard metadata</Item>
+    <Item>Result sealed type for explicit error handling</Item>
+    <Item>Common enums: Language, Currency, Country</Item>
+  </RESPONSIBILITIES>
+
+  <INVARIANTS>
+    <Item>All value objects are immutable (final fields, no setters)</Item>
+    <Item>No framework dependencies (Spring, JPA, Jackson annotations)</Item>
+    <Item>Validation performed in constructors/factory methods</Item>
+    <Item>equals/hashCode based on value, not identity</Item>
+    <Item>All types are serialization-agnostic (adapters handle serialization)</Item>
+  </INVARIANTS>
+
+  <CONSTRAINTS>
+    <Item>MUST NOT depend on Spring Framework</Item>
+    <Item>MUST NOT depend on JPA/Hibernate</Item>
+    <Item>MUST NOT depend on Jackson/JSON libraries</Item>
+    <Item>MUST NOT contain DTOs or API models</Item>
+    <Item>MUST NOT contain business logic beyond value validation</Item>
+  </CONSTRAINTS>
+
+  <PACKAGES>
+    <Package name="com.kanokna.shared.core">Base value objects (Id, Email, Address, Result)</Package>
+    <Package name="com.kanokna.shared.money">Money and Currency types</Package>
+    <Package name="com.kanokna.shared.measure">Dimensions and measurements</Package>
+    <Package name="com.kanokna.shared.event">Domain event interface and metadata</Package>
+    <Package name="com.kanokna.shared.i18n">Internationalization types</Package>
+  </PACKAGES>
+
+  <TESTS>
+    <Case id="TC-SK-001">Money arithmetic preserves currency and precision</Case>
+    <Case id="TC-SK-002">DimensionsCm rejects values outside 50-400cm</Case>
+    <Case id="TC-SK-003">Email validates format correctly</Case>
+    <Case id="TC-SK-004">Result.Success and Result.Failure work as expected</Case>
+    <Case id="TC-SK-005">LocalizedString retrieves correct language fallback</Case>
+    <Case id="TC-SK-006">All value objects are immutable</Case>
+    <Case id="TC-SK-007">equals/hashCode are value-based</Case>
+  </TESTS>
+
+  <LINKS>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-shared-kernel"/>
+    <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"/>
+    <Link ref="RequirementsAnalysis.xml#NFR-I18N-MULTI-CURRENCY"/>
+    <Link ref="Technology.xml#TECH-java"/>
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]></Contract>
+    </ModuleContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: Money Operations
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-shared-kernel-money-Money-add">
+      <EmbedInFile>shared/shared-kernel/src/main/java/com/kanokna/shared/money/Money.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-shared-kernel-money-Money-add"
+     LAYER="domain.value"
+     INTENT="Add two Money amounts of the same currency"
+     INPUT="Money other"
+     OUTPUT="Money (new instance with sum)"
+     SIDE_EFFECTS="None (immutable)"
+     LINKS="RequirementsAnalysis.xml#NFR-I18N-MULTI-CURRENCY">
+   <PRECONDITIONS>
+     <Item>other is not null</Item>
+     <Item>other.currency equals this.currency</Item>
+   </PRECONDITIONS>
+
+   <POSTCONDITIONS>
+     <Item>Returned Money has same currency as inputs</Item>
+     <Item>Returned amount equals this.amount + other.amount</Item>
+     <Item>Original Money instances unchanged</Item>
+   </POSTCONDITIONS>
+
+   <INVARIANTS>
+     <Item>Currency mismatch throws IllegalArgumentException</Item>
+     <Item>Result precision matches currency's default scale</Item>
+   </INVARIANTS>
+
+   <ERROR_HANDLING>
+     <Item type="TECHNICAL" code="IllegalArgumentException">Currency mismatch</Item>
+     <Item type="TECHNICAL" code="NullPointerException">Null argument</Item>
+   </ERROR_HANDLING>
+
+   <TESTS>
+     <Case id="TC-MONEY-001">Add two RUB amounts correctly</Case>
+     <Case id="TC-MONEY-002">Add two EUR amounts correctly</Case>
+     <Case id="TC-MONEY-003">Currency mismatch throws exception</Case>
+     <Case id="TC-MONEY-004">Null argument throws exception</Case>
+     <Case id="TC-MONEY-005">Precision maintained for currency</Case>
+   </TESTS>
+ </FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: Result Pattern
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-shared-kernel-core-Result">
+      <EmbedInFile>shared/shared-kernel/src/main/java/com/kanokna/shared/core/Result.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-shared-kernel-core-Result"
+     LAYER="domain.core"
+     INTENT="Represent success or failure of domain operations without exceptions"
+     INPUT="T value (for Success) or DomainError (for Failure)"
+     OUTPUT="Result<T>"
+     SIDE_EFFECTS="None (immutable)"
+     LINKS="ArchitecturalRecommendations.xml#PAT-001">
+   <DEFINITION>
+     sealed interface Result<T> permits Result.Success, Result.Failure
+   </DEFINITION>
+
+   <METHODS>
+     <Method name="isSuccess">Returns true if Success</Method>
+     <Method name="isFailure">Returns true if Failure</Method>
+     <Method name="getValue">Returns value if Success, throws if Failure</Method>
+     <Method name="getError">Returns error if Failure, throws if Success</Method>
+     <Method name="getOrElse">Returns value if Success, default if Failure</Method>
+     <Method name="map">Transform value if Success, propagate Failure</Method>
+     <Method name="flatMap">Chain operations that return Result</Method>
+   </METHODS>
+
+   <INVARIANTS>
+     <Item>Success contains non-null value</Item>
+     <Item>Failure contains non-null DomainError</Item>
+     <Item>Result is immutable</Item>
+   </INVARIANTS>
+
+   <TESTS>
+     <Case id="TC-RESULT-001">Success.isSuccess returns true</Case>
+     <Case id="TC-RESULT-002">Failure.isFailure returns true</Case>
+     <Case id="TC-RESULT-003">map transforms Success value</Case>
+     <Case id="TC-RESULT-004">map propagates Failure</Case>
+     <Case id="TC-RESULT-005">flatMap chains operations</Case>
+     <Case id="TC-RESULT-006">getOrElse returns default on Failure</Case>
+   </TESTS>
+ </FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: DimensionsCm Validation
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-shared-kernel-measure-DimensionsCm-validate">
+      <EmbedInFile>shared/shared-kernel/src/main/java/com/kanokna/shared/measure/DimensionsCm.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-shared-kernel-measure-DimensionsCm-validate"
+     LAYER="domain.value"
+     INTENT="Validate window/door dimensions are within allowed range"
+     INPUT="int widthCm, int heightCm"
+     OUTPUT="DimensionsCm (if valid) or throws IllegalArgumentException"
+     SIDE_EFFECTS="None"
+     LINKS="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM;RequirementsAnalysis.xml#BR-CFG-001">
+   <PRECONDITIONS>
+     <Item>widthCm and heightCm are positive integers</Item>
+   </PRECONDITIONS>
+
+   <POSTCONDITIONS>
+     <Item>Returned DimensionsCm has width and height within [50, 400] cm</Item>
+   </POSTCONDITIONS>
+
+   <INVARIANTS>
+     <Item>MIN_DIMENSION_CM = 50</Item>
+     <Item>MAX_DIMENSION_CM = 400</Item>
+     <Item>Both width and height must satisfy: MIN <= value <= MAX</Item>
+   </INVARIANTS>
+
+   <ERROR_HANDLING>
+     <Item type="BUSINESS" code="ERR-DIM-TOO-SMALL">Dimension below 50cm</Item>
+     <Item type="BUSINESS" code="ERR-DIM-TOO-LARGE">Dimension above 400cm</Item>
+   </ERROR_HANDLING>
+
+   <DERIVED_PROPERTIES>
+     <Property name="areaCm2">width * height</Property>
+     <Property name="areaM2">areaCm2 / 10000.0</Property>
+     <Property name="perimeterCm">2 * (width + height)</Property>
+   </DERIVED_PROPERTIES>
+
+   <TESTS>
+     <Case id="TC-DIM-001">Valid dimensions (100x150) accepted</Case>
+     <Case id="TC-DIM-002">Minimum dimensions (50x50) accepted</Case>
+     <Case id="TC-DIM-003">Maximum dimensions (400x400) accepted</Case>
+     <Case id="TC-DIM-004">Width below 50 rejected</Case>
+     <Case id="TC-DIM-005">Height above 400 rejected</Case>
+     <Case id="TC-DIM-006">Area calculated correctly</Case>
+   </TESTS>
+ </FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- Block Anchor Registry -->
+    <BlockAnchorRegistry>
+      <BlockAnchor id="BA-SK-MONEY-01" service="shared-kernel" purpose="Validate currency compatibility"/>
+      <BlockAnchor id="BA-SK-MONEY-02" service="shared-kernel" purpose="Perform arithmetic operation"/>
+      <BlockAnchor id="BA-SK-MONEY-03" service="shared-kernel" purpose="Apply rounding policy"/>
+      <BlockAnchor id="BA-SK-DIM-01" service="shared-kernel" purpose="Validate dimension range"/>
+      <BlockAnchor id="BA-SK-EMAIL-01" service="shared-kernel" purpose="Validate email format"/>
+      <BlockAnchor id="BA-SK-RESULT-01" service="shared-kernel" purpose="Create Success result"/>
+      <BlockAnchor id="BA-SK-RESULT-02" service="shared-kernel" purpose="Create Failure result"/>
+    </BlockAnchorRegistry>
+
+  </SemanticContractsAndAnchors>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       6. IMPLEMENTATION SPECIFICATIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationSpecifications>
+
+    <!-- Currency Enum -->
+    <TypeSpec file="shared/shared-kernel/src/main/java/com/kanokna/shared/money/Currency.java">
+      <![CDATA[
+public enum Currency {
+    RUB("Russian Ruble", "₽", 2),
+    EUR("Euro", "€", 2),
+    USD("US Dollar", "$", 2);
+
+    private final String displayName;
+    private final String symbol;
+    private final int defaultScale;
+
+    Currency(String displayName, String symbol, int defaultScale) {
+        this.displayName = displayName;
+        this.symbol = symbol;
+        this.defaultScale = defaultScale;
+    }
+
+    public String getDisplayName() { return displayName; }
+    public String getSymbol() { return symbol; }
+    public int getDefaultScale() { return defaultScale; }
+}
+      ]]>
+    </TypeSpec>
+
+    <!-- Result Sealed Interface -->
+    <TypeSpec file="shared/shared-kernel/src/main/java/com/kanokna/shared/core/Result.java">
+      <![CDATA[
+public sealed interface Result<T> permits Result.Success, Result.Failure {
+
+    boolean isSuccess();
+    boolean isFailure();
+    T getOrThrow();
+    T getOrElse(T defaultValue);
+    <U> Result<U> map(java.util.function.Function<T, U> mapper);
+    <U> Result<U> flatMap(java.util.function.Function<T, Result<U>> mapper);
+
+    record Success<T>(T value) implements Result<T> {
+        public Success {
+            java.util.Objects.requireNonNull(value, "Success value cannot be null");
+        }
+        @Override public boolean isSuccess() { return true; }
+        @Override public boolean isFailure() { return false; }
+        @Override public T getOrThrow() { return value; }
+        @Override public T getOrElse(T defaultValue) { return value; }
+        @Override public <U> Result<U> map(java.util.function.Function<T, U> mapper) {
+            return new Success<>(mapper.apply(value));
+        }
+        @Override public <U> Result<U> flatMap(java.util.function.Function<T, Result<U>> mapper) {
+            return mapper.apply(value);
+        }
+    }
+
+    record Failure<T>(DomainError error) implements Result<T> {
+        public Failure {
+            java.util.Objects.requireNonNull(error, "Failure error cannot be null");
+        }
+        @Override public boolean isSuccess() { return false; }
+        @Override public boolean isFailure() { return true; }
+        @Override public T getOrThrow() { throw new DomainException(error); }
+        @Override public T getOrElse(T defaultValue) { return defaultValue; }
+        @Override @SuppressWarnings("unchecked")
+        public <U> Result<U> map(java.util.function.Function<T, U> mapper) {
+            return (Result<U>) this;
+        }
+        @Override @SuppressWarnings("unchecked")
+        public <U> Result<U> flatMap(java.util.function.Function<T, Result<U>> mapper) {
+            return (Result<U>) this;
+        }
+    }
+
+    static <T> Result<T> success(T value) { return new Success<>(value); }
+    static <T> Result<T> failure(DomainError error) { return new Failure<>(error); }
+}
+      ]]>
+    </TypeSpec>
+
+    <!-- DomainError Record -->
+    <TypeSpec file="shared/shared-kernel/src/main/java/com/kanokna/shared/core/DomainError.java">
+      <![CDATA[
+public record DomainError(
+    String code,
+    String message,
+    java.util.Map<String, Object> context
+) {
+    public DomainError {
+        java.util.Objects.requireNonNull(code, "Error code cannot be null");
+        java.util.Objects.requireNonNull(message, "Error message cannot be null");
+        context = context != null ? java.util.Map.copyOf(context) : java.util.Map.of();
+    }
+
+    public DomainError(String code, String message) {
+        this(code, message, java.util.Map.of());
+    }
+
+    public static DomainError of(String code, String message) {
+        return new DomainError(code, message);
+    }
+
+    public static DomainError of(String code, String message, String key, Object value) {
+        return new DomainError(code, message, java.util.Map.of(key, value));
+    }
+}
+      ]]>
+    </TypeSpec>
+
+    <!-- Maven Enforcer Plugin Addition -->
+    <PomEnhancement file="shared/shared-kernel/pom.xml">
+      <![CDATA[
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-enforcer-plugin</artifactId>
+    <version>3.4.1</version>
+    <executions>
+        <execution>
+            <id>ban-framework-dependencies</id>
+            <goals>
+                <goal>enforce</goal>
+            </goals>
+            <configuration>
+                <rules>
+                    <bannedDependencies>
+                        <excludes>
+                            <exclude>org.springframework:*</exclude>
+                            <exclude>org.springframework.boot:*</exclude>
+                            <exclude>jakarta.persistence:*</exclude>
+                            <exclude>org.hibernate:*</exclude>
+                            <exclude>com.fasterxml.jackson.core:*</exclude>
+                        </excludes>
+                        <message>shared-kernel must remain framework-free</message>
+                    </bannedDependencies>
+                </rules>
+                <fail>true</fail>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+      ]]>
+    </PomEnhancement>
+
+  </ImplementationSpecifications>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       7. ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria ref="DevelopmentExecutionPlan.xml#W0-T1">
+    <Criterion id="AC-SK-001">All value objects are immutable (final fields, no setters)</Criterion>
+    <Criterion id="AC-SK-002">No Spring/JPA/framework dependencies (maven-enforcer validates)</Criterion>
+    <Criterion id="AC-SK-003">Unit tests for all validation rules pass</Criterion>
+    <Criterion id="AC-SK-004">Javadoc on all public API</Criterion>
+    <Criterion id="AC-SK-005">Money supports RUB, EUR, USD with correct precision</Criterion>
+    <Criterion id="AC-SK-006">DimensionsCm enforces 50-400cm range</Criterion>
+    <Criterion id="AC-SK-007">Result pattern with Success/Failure works correctly</Criterion>
+    <Criterion id="AC-SK-008">DomainEvent interface includes required metadata</Criterion>
+    <Criterion id="AC-SK-009">Module compiles with mvn clean install</Criterion>
+  </AcceptanceCriteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       8. ASSUMPTIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Assumptions>
+    <Assumption id="SK-ASSUM-001">
+      Primary currencies for MVP are RUB, EUR, USD. Additional currencies added later.
+    </Assumption>
+    <Assumption id="SK-ASSUM-002">
+      Phone number validation uses simple regex; no carrier validation.
+    </Assumption>
+  </Assumptions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       9. CONSISTENCY CHECKLIST
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ConsistencyChecklist>
+    <Check status="PASS">IDs follow naming conventions (MC-, FC-, BA-, TC-)</Check>
+    <Check status="PASS">All Link refs target existing artifacts</Check>
+    <Check status="PASS">No "or" ambiguity; decisions explicit</Check>
+    <Check status="PASS">DEC-SHARED-KERNEL-PURITY and DEC-RESULT-PATTERN documented</Check>
+  </ConsistencyChecklist>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       10. SCOPE AND ARTIFACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Scope>
+    <Services>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-shared-kernel"/>
+    </Services>
+    <Tasks>
+      <TaskRef ref="DevelopmentExecutionPlan.xml#W0-T1"/>
+    </Tasks>
+  </Scope>
+
+  <Artifacts>
+    <Artifact ref="RequirementsAnalysis.xml" version="1.0.0"/>
+    <Artifact ref="Technology.xml" version="1.0.0"/>
+    <Artifact ref="DevelopmentPlan.xml" version="1.1.1"/>
+  </Artifacts>
+
+  <Contracts>
+    <ModuleContractRef id="MC-shared-kernel-core"/>
+    <FunctionContractRef id="FC-shared-kernel-money-Money-add"/>
+    <FunctionContractRef id="FC-shared-kernel-core-Result"/>
+    <FunctionContractRef id="FC-shared-kernel-measure-DimensionsCm-validate"/>
+    <BlockAnchorRef id="BA-SK-MONEY-01"/>
+    <BlockAnchorRef id="BA-SK-MONEY-02"/>
+    <BlockAnchorRef id="BA-SK-MONEY-03"/>
+    <BlockAnchorRef id="BA-SK-DIM-01"/>
+    <BlockAnchorRef id="BA-SK-EMAIL-01"/>
+    <BlockAnchorRef id="BA-SK-RESULT-01"/>
+    <BlockAnchorRef id="BA-SK-RESULT-02"/>
+  </Contracts>
+
+
+  <MigrationNote>
+    Migrated to GRACE Markup v2 (2025-12-30).
+    created/author attributes were missing in original; derived from file header comment.
+  </MigrationNote>
+
+</GRACE_HANDOFF>

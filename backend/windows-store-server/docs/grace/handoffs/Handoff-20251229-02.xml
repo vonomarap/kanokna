@@ -3,11 +3,20 @@
   GRACE Handoff Envelope
   ID: Handoff-20251229-02
   Purpose: Updated bootstrap with resolved decisions (YooKassa, Auth0, GitHub Actions, gRPC)
-  Status: APPROVED
-  Approved: 2025-12-30
+  Status: PROPOSED (approval in docs/grace/approvals.log)
   Supersedes: Handoff-20251229-01
 -->
-<GRACE_HANDOFF id="Handoff-20251229-02" status="APPROVED" created="2025-12-29" approved="2025-12-30" supersedes="Handoff-20251229-01">
+<GRACE_HANDOFF
+  id="Handoff-20251229-02"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2025-12-29T00:00:00+00:00"
+  author="GRACE-ARCHITECT"
+  taskRef="BOOTSTRAP-V2"
+  planRef="DevelopmentExecutionPlan.xml#BOOTSTRAP"
+  blueprintRef="DevelopmentPlan.xml#BOOTSTRAP"
+  supersedes="Handoff-20251229-01"
+>
 
   <Summary>
     Updated canonical artifacts for the Windows and Doors E-Commerce backend platform.
@@ -201,10 +210,6 @@
     <Step order="7">Integrate YooKassa SDK in order-service</Step>
   </NextSteps>
 
-  <ApprovalRecord>
-    <ApprovedBy>Human Architect</ApprovedBy>
-    <ApprovedDate>2025-12-30</ApprovedDate>
-    <Notes>All blueprint inconsistencies resolved. Coder agent may proceed with Wave 0.</Notes>
-  </ApprovalRecord>
+  <!-- Approval recorded in docs/grace/approvals.log per approvals.log-only policy -->
 
 </GRACE_HANDOFF>

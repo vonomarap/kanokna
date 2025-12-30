@@ -1,0 +1,533 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff Document: GitHub Actions CI
+  Handoff ID: Handoff-20251230-05
+  Scope: W0-T5 (Set up GitHub Actions CI)
+  Status: PROPOSED
+  Created: 2025-12-30
+  Author: GRACE-ARCHITECT
+-->
+<GRACE_HANDOFF
+  id="Handoff-20251230-05"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2025-12-30T00:00:00+00:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W0-T5"
+  planRef="DevelopmentExecutionPlan.xml#W0-T5"
+  blueprintRef="DevelopmentPlan.xml#DP-INFRA-ci-cd"
+  techRef="Technology.xml#TECH-github-actions,Technology.xml#TECH-jib"
+>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       1. INTENT SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <IntentSummary>
+    <BusinessIntent>
+      Establish automated CI/CD pipeline ensuring code quality, security,
+      and reliable deployments for the e-commerce platform.
+    </BusinessIntent>
+    <TechnicalIntent>
+      Create GitHub Actions workflows for:
+      - Build and test on every push/PR
+      - Docker image builds and push to registry
+      - Stage deployment automation
+      - Code quality checks (Checkstyle, SpotBugs)
+      - Security scanning (Dependabot, CodeQL)
+    </TechnicalIntent>
+    <Scope>
+      <Task ref="DevelopmentExecutionPlan.xml#W0-T5"/>
+      <Wave ref="DevelopmentExecutionPlan.xml#WAVE-0"/>
+    </Scope>
+  </IntentSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       2. DECISIONS SNAPSHOT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DecisionsSnapshot>
+    <Decision ref="Technology.xml#DEC-CI-CD-PLATFORM">GitHub Actions selected</Decision>
+    <Decision ref="Technology.xml#TECH-github-actions">GitHub Actions approved</Decision>
+    <Decision ref="Technology.xml#TECH-jib">Jib for container images</Decision>
+  </DecisionsSnapshot>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       3. FILES TO CREATE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FilesToCreate>
+    <!-- CI Workflow -->
+    <File path=".github/workflows/ci.yml" action="CREATE">
+      Build and test on every push and PR
+    </File>
+
+    <!-- Build and Push Workflow -->
+    <File path=".github/workflows/build-and-push.yml" action="CREATE">
+      Docker image build and push to GHCR
+    </File>
+
+    <!-- Deploy Stage Workflow -->
+    <File path=".github/workflows/deploy-stage.yml" action="CREATE">
+      Staging environment deployment
+    </File>
+
+    <!-- Dependabot -->
+    <File path=".github/dependabot.yml" action="CREATE">
+      Dependabot configuration for security updates
+    </File>
+
+    <!-- CodeQL -->
+    <File path=".github/workflows/codeql.yml" action="CREATE">
+      CodeQL security analysis
+    </File>
+
+    <!-- Reusable Workflows -->
+    <File path=".github/workflows/maven-build.yml" action="CREATE">
+      Reusable workflow for Maven builds
+    </File>
+  </FilesToCreate>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       4. SEMANTIC CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <SemanticContractsAndAnchors>
+
+    <ModuleContract id="MC-ci-github-actions">
+      <EmbedInFile>.github/README.md</EmbedInFile>
+      <Contract><![CDATA[
+<!-- <MODULE_CONTRACT id="MC-ci-github-actions"
+     ROLE="CIPipeline"
+     SERVICE="ci-cd"
+     LAYER="infrastructure"
+     BOUNDED_CONTEXT="devops"
+     SPECIFICATION="TECH-github-actions">
+  <PURPOSE>
+    Automated CI/CD pipeline for build, test, security scan, and deployment
+    of the Windows and Doors E-Commerce platform.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Build and test all modules on push/PR</Item>
+    <Item>Run unit, integration, and architecture tests</Item>
+    <Item>Perform security scanning (CodeQL, dependency check)</Item>
+    <Item>Build and push Docker images to GHCR</Item>
+    <Item>Deploy to staging environment</Item>
+    <Item>Generate code coverage reports</Item>
+  </RESPONSIBILITIES>
+
+  <WORKFLOWS>
+    <Workflow name="ci.yml" trigger="push, pull_request">
+      Build, test, lint, security scan on every change
+    </Workflow>
+    <Workflow name="build-and-push.yml" trigger="push to main">
+      Build Docker images and push to registry
+    </Workflow>
+    <Workflow name="deploy-stage.yml" trigger="workflow_dispatch, push to main">
+      Deploy to staging Kubernetes cluster
+    </Workflow>
+    <Workflow name="codeql.yml" trigger="push, schedule">
+      CodeQL security analysis
+    </Workflow>
+  </WORKFLOWS>
+
+  <INVARIANTS>
+    <Item>All tests must pass before merge to main</Item>
+    <Item>Code coverage report generated for every build</Item>
+    <Item>Security scan must not have critical vulnerabilities</Item>
+    <Item>Docker images tagged with version and latest</Item>
+  </INVARIANTS>
+
+  <SECRETS_REQUIRED>
+    <Secret name="GHCR_TOKEN">GitHub Container Registry push token</Secret>
+    <Secret name="KUBE_CONFIG_STAGE">Kubernetes config for staging</Secret>
+    <Secret name="CODECOV_TOKEN">Codecov upload token (optional)</Secret>
+  </SECRETS_REQUIRED>
+
+  <TESTS>
+    <Case id="TC-CI-001">CI runs on every push</Case>
+    <Case id="TC-CI-002">All modules compile successfully</Case>
+    <Case id="TC-CI-003">Unit tests pass</Case>
+    <Case id="TC-CI-004">Integration tests with Testcontainers pass</Case>
+    <Case id="TC-CI-005">ArchUnit architecture tests pass</Case>
+    <Case id="TC-CI-006">Docker images built successfully</Case>
+    <Case id="TC-CI-007">Dependabot creates PRs for vulnerabilities</Case>
+  </TESTS>
+
+  <LINKS>
+    <Link ref="Technology.xml#TECH-github-actions"/>
+    <Link ref="Technology.xml#TECH-jib"/>
+  </LINKS>
+</MODULE_CONTRACT> -->
+      ]]></Contract>
+    </ModuleContract>
+
+    <BlockAnchorRegistry>
+      <BlockAnchor id="BA-CI-BUILD-01" service="ci-cd" purpose="Checkout and cache dependencies"/>
+      <BlockAnchor id="BA-CI-BUILD-02" service="ci-cd" purpose="Maven build"/>
+      <BlockAnchor id="BA-CI-TEST-01" service="ci-cd" purpose="Run unit tests"/>
+      <BlockAnchor id="BA-CI-TEST-02" service="ci-cd" purpose="Run integration tests"/>
+      <BlockAnchor id="BA-CI-TEST-03" service="ci-cd" purpose="Run ArchUnit tests"/>
+      <BlockAnchor id="BA-CI-SCAN-01" service="ci-cd" purpose="Security scan"/>
+      <BlockAnchor id="BA-CI-DOCKER-01" service="ci-cd" purpose="Build Docker images"/>
+      <BlockAnchor id="BA-CI-DEPLOY-01" service="ci-cd" purpose="Deploy to staging"/>
+    </BlockAnchorRegistry>
+
+  </SemanticContractsAndAnchors>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       5. IMPLEMENTATION SPECIFICATIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationSpecifications>
+
+    <WorkflowSpec file=".github/workflows/ci.yml">
+      <![CDATA[
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+
+env:
+  JAVA_VERSION: '21'
+  MAVEN_OPTS: '-Xmx1024m'
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/windows-store-server
+
+    steps:
+      # BA-CI-BUILD-01: Checkout and cache dependencies
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      # BA-CI-BUILD-02: Maven build
+      - name: Build with Maven
+        run: mvn clean compile -DskipTests -B
+
+      # BA-CI-TEST-01: Run unit tests
+      - name: Run Unit Tests
+        run: mvn test -B
+
+      # BA-CI-TEST-02: Run integration tests
+      - name: Run Integration Tests
+        run: mvn verify -DskipUnitTests -B
+
+      # BA-CI-TEST-03: Run ArchUnit tests
+      - name: Verify Architecture
+        run: mvn test -Dtest="*ArchTest*" -B
+
+      - name: Generate Coverage Report
+        run: mvn jacoco:report -B
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: '**/target/site/jacoco/jacoco.xml'
+          fail_ci_if_error: false
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/windows-store-server
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run Checkstyle
+        run: mvn checkstyle:check -B
+        continue-on-error: true
+
+      - name: Run SpotBugs
+        run: mvn spotbugs:check -B
+        continue-on-error: true
+
+  proto-lint:
+    name: Proto Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/windows-store-server/api-contracts
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Buf
+        uses: bufbuild/buf-setup-action@v1
+
+      # BA-PROTO-LINT-01: Run buf lint
+      - name: Buf Lint
+        run: buf lint
+
+      # BA-PROTO-COMPAT-01: Check breaking changes
+      - name: Buf Breaking
+        run: buf breaking --against 'https://github.com/${{ github.repository }}.git#branch=main,subdir=backend/windows-store-server/api-contracts'
+        continue-on-error: true
+      ]]>
+    </WorkflowSpec>
+
+    <WorkflowSpec file=".github/workflows/build-and-push.yml">
+      <![CDATA[
+name: Build and Push
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '21'
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/kanokna
+
+jobs:
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service:
+          - config-server
+          - gateway
+
+    defaults:
+      run:
+        working-directory: backend/windows-store-server
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # BA-CI-DOCKER-01: Build Docker images
+      - name: Build and Push ${{ matrix.service }}
+        run: |
+          mvn -pl ${{ matrix.service }} jib:build \
+            -Djib.to.image=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ github.sha }} \
+            -Djib.to.tags=latest,${{ github.sha }} \
+            -B
+      ]]>
+    </WorkflowSpec>
+
+    <WorkflowSpec file=".github/workflows/deploy-stage.yml">
+      <![CDATA[
+name: Deploy to Staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure Kubernetes
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_STAGE }}" | base64 -d > ~/.kube/config
+
+      # BA-CI-DEPLOY-01: Deploy to staging
+      - name: Deploy to Staging
+        run: |
+          kubectl set image deployment/config-server \
+            config-server=ghcr.io/${{ github.repository_owner }}/kanokna-config-server:${{ github.sha }} \
+            -n kanokna-stage
+
+          kubectl set image deployment/gateway \
+            gateway=ghcr.io/${{ github.repository_owner }}/kanokna-gateway:${{ github.sha }} \
+            -n kanokna-stage
+
+      - name: Verify Deployment
+        run: |
+          kubectl rollout status deployment/config-server -n kanokna-stage --timeout=300s
+          kubectl rollout status deployment/gateway -n kanokna-stage --timeout=300s
+
+      - name: Run Smoke Tests
+        run: |
+          GATEWAY_URL=$(kubectl get svc gateway -n kanokna-stage -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          curl -f "http://${GATEWAY_URL}:8080/actuator/health" || exit 1
+      ]]>
+    </WorkflowSpec>
+
+    <DependabotSpec file=".github/dependabot.yml">
+      <![CDATA[
+version: 2
+updates:
+  - package-ecosystem: "maven"
+    directory: "/backend/windows-store-server"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "vonomarap"
+    labels:
+      - "dependencies"
+      - "security"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/windows-store-server"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+      ]]>
+    </DependabotSpec>
+
+    <CodeQLSpec file=".github/workflows/codeql.yml">
+      <![CDATA[
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly on Monday
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['java']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Build
+        working-directory: backend/windows-store-server
+        run: mvn compile -DskipTests -B
+
+      # BA-CI-SCAN-01: Security scan
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+      ]]>
+    </CodeQLSpec>
+
+  </ImplementationSpecifications>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       6. ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria ref="DevelopmentExecutionPlan.xml#W0-T5">
+    <Criterion id="AC-CI-001">CI runs on every push and PR</Criterion>
+    <Criterion id="AC-CI-002">All modules compile and tests pass</Criterion>
+    <Criterion id="AC-CI-003">Docker images built for infrastructure services</Criterion>
+    <Criterion id="AC-CI-004">Dependabot configured for security updates</Criterion>
+    <Criterion id="AC-CI-005">CodeQL security scanning enabled</Criterion>
+    <Criterion id="AC-CI-006">Code quality checks (Checkstyle, SpotBugs) integrated</Criterion>
+  </AcceptanceCriteria>
+
+  <Scope>
+    <Tasks><TaskRef ref="DevelopmentExecutionPlan.xml#W0-T5"/></Tasks>
+  </Scope>
+
+  <Contracts>
+    <ModuleContractRef id="MC-ci-github-actions"/>
+    <BlockAnchorRef id="BA-CI-BUILD-01"/>
+    <BlockAnchorRef id="BA-CI-BUILD-02"/>
+    <BlockAnchorRef id="BA-CI-TEST-01"/>
+    <BlockAnchorRef id="BA-CI-TEST-02"/>
+    <BlockAnchorRef id="BA-CI-TEST-03"/>
+    <BlockAnchorRef id="BA-CI-SCAN-01"/>
+    <BlockAnchorRef id="BA-CI-DOCKER-01"/>
+    <BlockAnchorRef id="BA-CI-DEPLOY-01"/>
+  </Contracts>
+
+
+  <MigrationNote>
+    Migrated to GRACE Markup v2 (2025-12-30).
+    created/author attributes were missing in original; derived from file header comment.
+  </MigrationNote>
+
+</GRACE_HANDOFF>

@@ -3,7 +3,7 @@
   GRACE Canonical Artifact: RequirementsAnalysis.xml
   Purpose: Formalize business intent, actors, use cases, and non-functional requirements
   Version: 1.0.0
-  Last Updated: 2025-12-29
+  Last Updated: 2025-12-29T00:00:00+00:00
 -->
 <RequirementsAnalysis version="1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 

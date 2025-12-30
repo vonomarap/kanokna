@@ -1,0 +1,999 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff Document: Catalog Configuration Service
+  Handoff ID: Handoff-20251230-07
+  Scope: W1-T1 + W1-T2 (Skeleton + Domain Logic)
+  Status: PROPOSED (approval in docs/grace/approvals.log)
+  Author: GRACE-ARCHITECT
+-->
+<GRACE_HANDOFF
+  id="Handoff-20251230-07"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2025-12-30T00:00:00+00:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W1-T1,W1-T2"
+  planRef="DevelopmentExecutionPlan.xml#W1-T1,DevelopmentExecutionPlan.xml#W1-T2"
+  blueprintRef="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"
+  techRef="Technology.xml#TECH-spring-boot,Technology.xml#TECH-spring-data-jpa,Technology.xml#TECH-grpc"
+  requirementsRef="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM,RequirementsAnalysis.xml#UC-CATALOG-BROWSE,RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"
+>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       1. INTENT SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <IntentSummary>
+    <BusinessIntent>
+      Implement the core Catalog Configuration Service that enables customers to
+      configure windows and doors with selected dimensions, materials, glazing,
+      and accessories. The service validates configurations against business rules
+      and resolves bills of materials for pricing and manufacturing.
+    </BusinessIntent>
+    <TechnicalIntent>
+      Create a hexagonal architecture microservice with:
+      - Domain layer: Aggregates (ProductTemplate, ConfigurationRuleSet, BomTemplate)
+      - Application layer: Use case services with ports (in/out)
+      - Adapters: REST (HTTP:8081), gRPC (9081), JPA persistence, Kafka events
+      - Full validation engine with dimension, material, and compatibility rules
+      - Integration with pricing-service via gRPC for real-time quotes
+    </TechnicalIntent>
+    <Scope>
+      <Task ref="DevelopmentExecutionPlan.xml#W1-T1">Skeleton structure</Task>
+      <Task ref="DevelopmentExecutionPlan.xml#W1-T2">Domain logic implementation</Task>
+      <Wave ref="DevelopmentExecutionPlan.xml#WAVE-1"/>
+      <Service ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+    </Scope>
+  </IntentSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       2. DECISIONS SNAPSHOT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DecisionsSnapshot>
+    <Decision ref="Technology.xml#TECH-spring-boot">Spring Boot 3.2.x</Decision>
+    <Decision ref="Technology.xml#TECH-spring-data-jpa">JPA for persistence</Decision>
+    <Decision ref="Technology.xml#TECH-grpc">gRPC for inter-service sync calls</Decision>
+    <Decision ref="Technology.xml#TECH-postgresql">PostgreSQL for OLTP</Decision>
+    <Decision ref="Technology.xml#TECH-kafka">Kafka for domain events</Decision>
+    <Decision id="DEC-CATALOG-RULE-ENGINE" status="APPROVED">
+      <Title>Configuration Rule Engine Strategy</Title>
+      <Selected>Domain-native rule evaluation with RuleSet aggregate</Selected>
+      <Rationale>
+        Rules are core domain logic. Using a domain-native approach keeps
+        business rules explicit and testable without external dependencies.
+        Complex rules (Drools) can be added later if needed.
+      </Rationale>
+    </Decision>
+    <Decision id="DEC-CATALOG-VERSIONING" status="APPROVED">
+      <Title>Catalog Versioning Strategy</Title>
+      <Selected>Soft-delete with versioned snapshots (CatalogVersion aggregate)</Selected>
+      <Rationale>
+        Supports audit trail, rollback, and time-travel queries for
+        orders referencing historical catalog state.
+      </Rationale>
+    </Decision>
+  </DecisionsSnapshot>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       3. FILES TO CREATE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FilesToCreate>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         BUILD CONFIGURATION
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FileGroup name="Build">
+      <File path="catalog-configuration-service/pom.xml" action="CREATE">
+        Maven module with Spring Boot, JPA, gRPC, Kafka dependencies
+      </File>
+      <File path="catalog-configuration-service/Dockerfile" action="CREATE">
+        Multi-stage build with Jib fallback
+      </File>
+    </FileGroup>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         DOMAIN LAYER - Pure Java, No Framework Dependencies
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FileGroup name="Domain Model">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/ProductTemplate.java" action="CREATE">
+        Aggregate root for product definitions (windows, doors)
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/ProductTemplateId.java" action="CREATE">
+        Typed ID for ProductTemplate
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/ProductFamily.java" action="CREATE">
+        Enum: WINDOW, DOOR, SLIDING_DOOR, etc.
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/OptionGroup.java" action="CREATE">
+        Entity: Group of selectable options (material, glazing, color)
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/Option.java" action="CREATE">
+        Entity: Single option within a group
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/DimensionConstraints.java" action="CREATE">
+        Value object: Min/max width/height for product
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/ConfigurationRuleSet.java" action="CREATE">
+        Aggregate root for configuration validation rules
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/ConfigurationRule.java" action="CREATE">
+        Entity: Single rule (compatibility, dependency, exclusion)
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/RuleType.java" action="CREATE">
+        Enum: COMPATIBILITY, DEPENDENCY, EXCLUSION, CONSTRAINT
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/BomTemplate.java" action="CREATE">
+        Aggregate: Bill of materials template
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/BomLine.java" action="CREATE">
+        Entity: Single line in BOM (SKU, quantity formula)
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/Configuration.java" action="CREATE">
+        Value object: Customer's configuration (dimensions + selected options)
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/ValidationResult.java" action="CREATE">
+        Value object: Result of configuration validation
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/ValidationError.java" action="CREATE">
+        Value object: Single validation error with code and message
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/ResolvedBom.java" action="CREATE">
+        Value object: Resolved bill of materials for a configuration
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/model/CatalogVersion.java" action="CREATE">
+        Aggregate: Versioned catalog snapshot
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Domain Services">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/service/ConfigurationValidationService.java" action="CREATE">
+        Domain service: Validates configurations against rules
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/service/BomResolutionService.java" action="CREATE">
+        Domain service: Resolves BOM from configuration
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/service/RuleEvaluator.java" action="CREATE">
+        Domain service: Evaluates individual rules
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Domain Events">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/event/ProductTemplatePublishedEvent.java" action="CREATE">
+        Event: Published when product template becomes active
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/event/CatalogVersionPublishedEvent.java" action="CREATE">
+        Event: Published when new catalog version is released
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/event/ConfigurationValidatedEvent.java" action="CREATE">
+        Event: Audit trail for configuration validations
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Domain Exceptions">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/exception/ProductTemplateNotFoundException.java" action="CREATE">
+        Exception: Product template not found
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/exception/InvalidConfigurationException.java" action="CREATE">
+        Exception: Configuration validation failed
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/exception/RuleSetNotFoundException.java" action="CREATE">
+        Exception: Rule set not found for product
+      </File>
+    </FileGroup>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         APPLICATION LAYER - Use Cases and Ports
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FileGroup name="Application Ports (Inbound)">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/in/ValidateConfigurationUseCase.java" action="CREATE">
+        Port: Validate configuration command
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/in/GetProductTemplateQuery.java" action="CREATE">
+        Port: Get product template with options
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/in/ListProductTemplatesQuery.java" action="CREATE">
+        Port: List product templates with pagination
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/in/CreateProductTemplateUseCase.java" action="CREATE">
+        Port: Create new product template (admin)
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/in/UpdateProductTemplateUseCase.java" action="CREATE">
+        Port: Update product template (admin)
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/in/PublishCatalogVersionUseCase.java" action="CREATE">
+        Port: Publish new catalog version (admin)
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Application Ports (Outbound)">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/out/ProductTemplateRepository.java" action="CREATE">
+        Port: Product template persistence
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/out/ConfigurationRuleSetRepository.java" action="CREATE">
+        Port: Rule set persistence
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/out/BomTemplateRepository.java" action="CREATE">
+        Port: BOM template persistence
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/out/CatalogVersionRepository.java" action="CREATE">
+        Port: Catalog version persistence
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/out/PricingClient.java" action="CREATE">
+        Port: Pricing service client (gRPC)
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/port/out/EventPublisher.java" action="CREATE">
+        Port: Domain event publishing (Kafka)
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Application Services">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/service/ConfigurationValidationUseCaseService.java" action="CREATE">
+        Implements ValidateConfigurationUseCase
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/service/ProductTemplateQueryService.java" action="CREATE">
+        Implements GetProductTemplateQuery, ListProductTemplatesQuery
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/service/ProductTemplateCommandService.java" action="CREATE">
+        Implements Create/Update/Publish use cases
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Application DTOs">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/dto/ValidateConfigurationCommand.java" action="CREATE">
+        Command DTO for configuration validation
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/dto/ConfigurationResponse.java" action="CREATE">
+        Response DTO with validation result and optional price
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/dto/ProductTemplateDto.java" action="CREATE">
+        DTO for product template details
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/dto/OptionGroupDto.java" action="CREATE">
+        DTO for option groups
+      </File>
+    </FileGroup>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         ADAPTERS LAYER - Infrastructure
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FileGroup name="REST Adapter (Inbound)">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/in/web/CatalogController.java" action="CREATE">
+        REST controller for catalog browsing (public)
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/in/web/ConfigurationController.java" action="CREATE">
+        REST controller for configuration validation
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/in/web/AdminCatalogController.java" action="CREATE">
+        REST controller for admin operations
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/in/web/GlobalExceptionHandler.java" action="CREATE">
+        Exception handler with problem details
+      </File>
+    </FileGroup>
+
+    <FileGroup name="gRPC Adapter (Inbound)">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/in/grpc/CatalogConfigurationGrpcService.java" action="CREATE">
+        gRPC service implementation (for cart-service, etc.)
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/in/grpc/GrpcExceptionAdvice.java" action="CREATE">
+        gRPC exception handler
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Persistence Adapter (Outbound)">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/persistence/ProductTemplateJpaEntity.java" action="CREATE">
+        JPA entity for ProductTemplate
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/persistence/OptionGroupJpaEntity.java" action="CREATE">
+        JPA entity for OptionGroup
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/persistence/OptionJpaEntity.java" action="CREATE">
+        JPA entity for Option
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/persistence/ConfigurationRuleSetJpaEntity.java" action="CREATE">
+        JPA entity for ConfigurationRuleSet
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/persistence/ConfigurationRuleJpaEntity.java" action="CREATE">
+        JPA entity for ConfigurationRule
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/persistence/BomTemplateJpaEntity.java" action="CREATE">
+        JPA entity for BomTemplate
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/persistence/ProductTemplateJpaRepository.java" action="CREATE">
+        Spring Data JPA repository
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/persistence/ProductTemplateRepositoryAdapter.java" action="CREATE">
+        Adapter implementing ProductTemplateRepository port
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/persistence/ProductTemplateMapper.java" action="CREATE">
+        Mapper: Domain &lt;-&gt; JPA entity
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/persistence/ConfigurationRuleSetRepositoryAdapter.java" action="CREATE">
+        Adapter for rule set repository
+      </File>
+    </FileGroup>
+
+    <FileGroup name="gRPC Client Adapter (Outbound)">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/grpc/PricingGrpcClient.java" action="CREATE">
+        gRPC client to pricing-service
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/grpc/PricingGrpcClientAdapter.java" action="CREATE">
+        Adapter implementing PricingClient port
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Kafka Adapter (Outbound)">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/kafka/KafkaEventPublisher.java" action="CREATE">
+        Kafka producer for domain events
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/out/kafka/EventSerializer.java" action="CREATE">
+        Protobuf serializer for events
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Configuration">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/config/PersistenceConfig.java" action="CREATE">
+        JPA and transaction configuration
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/config/GrpcConfig.java" action="CREATE">
+        gRPC server and client configuration
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/config/KafkaConfig.java" action="CREATE">
+        Kafka producer configuration
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/adapters/config/SecurityConfig.java" action="CREATE">
+        OAuth2 resource server configuration
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/CatalogConfigurationServiceApplication.java" action="CREATE">
+        Spring Boot main class
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Resources">
+      <File path="catalog-configuration-service/src/main/resources/application.yml" action="CREATE">
+        Application configuration
+      </File>
+      <File path="catalog-configuration-service/src/main/resources/application-dev.yml" action="CREATE">
+        Development profile
+      </File>
+      <File path="catalog-configuration-service/src/main/resources/db/migration/V1__init_catalog_schema.sql" action="CREATE">
+        Flyway migration: Initial schema
+      </File>
+      <File path="catalog-configuration-service/src/main/resources/db/migration/V2__seed_product_templates.sql" action="CREATE">
+        Flyway migration: Seed data for development
+      </File>
+    </FileGroup>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         TESTS
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FileGroup name="Unit Tests">
+      <File path="catalog-configuration-service/src/test/java/com/kanokna/catalog/domain/service/ConfigurationValidationServiceTest.java" action="CREATE">
+        Unit tests for validation service
+      </File>
+      <File path="catalog-configuration-service/src/test/java/com/kanokna/catalog/domain/service/BomResolutionServiceTest.java" action="CREATE">
+        Unit tests for BOM resolution
+      </File>
+      <File path="catalog-configuration-service/src/test/java/com/kanokna/catalog/domain/model/ConfigurationTest.java" action="CREATE">
+        Unit tests for Configuration value object
+      </File>
+      <File path="catalog-configuration-service/src/test/java/com/kanokna/catalog/domain/model/DimensionConstraintsTest.java" action="CREATE">
+        Unit tests for dimension validation
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Integration Tests">
+      <File path="catalog-configuration-service/src/test/java/com/kanokna/catalog/adapters/in/web/CatalogControllerIntegrationTest.java" action="CREATE">
+        Integration tests for REST endpoints
+      </File>
+      <File path="catalog-configuration-service/src/test/java/com/kanokna/catalog/adapters/out/persistence/ProductTemplateRepositoryIntegrationTest.java" action="CREATE">
+        Integration tests with Testcontainers
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Architecture Tests">
+      <File path="catalog-configuration-service/src/test/java/com/kanokna/catalog/ArchitectureTest.java" action="CREATE">
+        ArchUnit tests for hexagonal layering
+      </File>
+    </FileGroup>
+
+  </FilesToCreate>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       4. SEMANTIC CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <SemanticContractsAndAnchors>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         MODULE CONTRACT: Configuration Validation Domain Service
+         ───────────────────────────────────────────────────────────────────────── -->
+    <ModuleContract id="MC-catalog-configuration-service-domain-ConfigurationValidation">
+      <EmbedInFile>catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/service/ConfigurationValidationService.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <MODULE_CONTRACT id="MC-catalog-configuration-service-domain-ConfigurationValidation"
+     ROLE="DomainService"
+     SERVICE="catalog-configuration-service"
+     LAYER="domain"
+     BOUNDED_CONTEXT="catalog-configuration"
+     SPECIFICATION="UC-CATALOG-CONFIGURE-ITEM">
+  <PURPOSE>
+    Domain service that validates product configurations against business rules.
+    Ensures configurations are technically feasible and comply with all constraints.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Validate dimensions against product constraints (50-400cm)</Item>
+    <Item>Check material/glazing compatibility</Item>
+    <Item>Verify option dependencies are satisfied</Item>
+    <Item>Detect and report exclusion rule violations</Item>
+    <Item>Return detailed validation errors for UI feedback</Item>
+  </RESPONSIBILITIES>
+
+  <INVARIANTS>
+    <Item>Validation is pure (no side effects, no state mutation)</Item>
+    <Item>Validation is deterministic for same inputs and rule version</Item>
+    <Item>All rules must be evaluated; partial results are not returned</Item>
+    <Item>ValidationResult.valid == true iff errors list is empty</Item>
+  </INVARIANTS>
+
+  <CONTEXT>
+    <UPSTREAM>
+      <Item>ConfigurationValidationUseCaseService: orchestrates validation + pricing</Item>
+      <Item>CatalogConfigurationGrpcService: exposes validation to other services</Item>
+    </UPSTREAM>
+    <DOWNSTREAM>
+      <Item>ConfigurationRuleSetRepository: loads rules for product</Item>
+      <Item>ProductTemplateRepository: loads product constraints</Item>
+    </DOWNSTREAM>
+  </CONTEXT>
+
+  <PUBLIC_API>
+    <Method name="validate" input="Configuration, ProductTemplateId" output="ValidationResult"/>
+  </PUBLIC_API>
+
+  <BUSINESS_RULES>
+    <Rule id="BR-CFG-001">Dimensions: 50cm <= width,height <= 400cm</Rule>
+    <Rule id="BR-CFG-002">Glazing thickness depends on frame material strength</Rule>
+    <Rule id="BR-CFG-003">Some lamination colors only available with specific materials</Rule>
+    <Rule id="BR-CFG-004">Large sizes (>250cm) require reinforced profiles</Rule>
+  </BUSINESS_RULES>
+
+  <ERROR_HANDLING>
+    <Item type="BUSINESS" code="ERR-CFG-DIMENSIONS">Dimensions outside allowed range</Item>
+    <Item type="BUSINESS" code="ERR-CFG-MATERIAL-GLAZING">Incompatible material/glazing combination</Item>
+    <Item type="BUSINESS" code="ERR-CFG-DEPENDENCY">Required dependent option not selected</Item>
+    <Item type="BUSINESS" code="ERR-CFG-EXCLUSION">Mutually exclusive options selected</Item>
+    <Item type="TECHNICAL" code="ERR-RULES-NOT-FOUND">Rule set not found for product</Item>
+  </ERROR_HANDLING>
+
+  <LOGGING>
+    <FORMAT>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK=...][STATE=...] eventType=... decision=... keyValues=...</FORMAT>
+    <EXAMPLES>
+      <Item>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK=BA-CFG-VAL-01][STATE=CHECK_SIZE] eventType=CONFIG_VALIDATION_STEP decision=EVALUATE keyValues=productId,width_cm=120,height_cm=150</Item>
+      <Item>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK=BA-CFG-VAL-99][STATE=FINAL] eventType=CONFIG_VALIDATION_RESULT decision=ACCEPT keyValues=valid=true,errors_count=0</Item>
+    </EXAMPLES>
+  </LOGGING>
+
+  <TESTS>
+    <Case id="TC-VAL-001">Valid configuration with all constraints satisfied returns valid=true</Case>
+    <Case id="TC-VAL-002">Width below 50cm returns ERR-CFG-DIMENSIONS</Case>
+    <Case id="TC-VAL-003">Width above 400cm returns ERR-CFG-DIMENSIONS</Case>
+    <Case id="TC-VAL-004">Incompatible material/glazing returns ERR-CFG-MATERIAL-GLAZING</Case>
+    <Case id="TC-VAL-005">Missing dependent option returns ERR-CFG-DEPENDENCY</Case>
+    <Case id="TC-VAL-006">Exclusive options together returns ERR-CFG-EXCLUSION</Case>
+    <Case id="TC-VAL-007">Large size auto-applies reinforcement rule</Case>
+    <Case id="TC-VAL-008">Missing ruleset returns ERR-RULES-NOT-FOUND</Case>
+  </TESTS>
+
+  <LINKS>
+    <Link ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+    <Link ref="DevelopmentPlan.xml#Flow-Config-Pricing"/>
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]></Contract>
+    </ModuleContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: validateConfiguration
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-validateConfiguration">
+      <EmbedInFile>catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/service/ConfigurationValidationService.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-validateConfiguration"
+     LAYER="domain.service"
+     INTENT="Validate a product configuration against all business rules"
+     INPUT="Configuration, ProductTemplateId"
+     OUTPUT="ValidationResult"
+     SIDE_EFFECTS="None"
+     LINKS="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM;DevelopmentPlan.xml#Flow-Config-Pricing">
+  <PRECONDITIONS>
+    <Item>configuration != null</Item>
+    <Item>productTemplateId != null</Item>
+    <Item>configuration.dimensions are within domain range</Item>
+    <Item>configuration.selectedOptions has at least required option groups</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>ValidationResult is never null</Item>
+    <Item>ValidationResult.valid == true iff errors is empty</Item>
+    <Item>Each error has unique code and field reference</Item>
+  </POSTCONDITIONS>
+
+  <INVARIANTS>
+    <Item>Validation is deterministic for same inputs and rule version</Item>
+    <Item>No database writes during validation</Item>
+    <Item>No external service calls during validation</Item>
+  </INVARIANTS>
+
+  <ERROR_HANDLING>
+    <Item type="BUSINESS" code="ERR-CFG-DIMENSIONS">width/height outside [50, 400] cm</Item>
+    <Item type="BUSINESS" code="ERR-CFG-MATERIAL-GLAZING">Incompatible combination</Item>
+    <Item type="BUSINESS" code="ERR-CFG-DEPENDENCY">Missing required dependent option</Item>
+    <Item type="BUSINESS" code="ERR-CFG-EXCLUSION">Mutually exclusive options selected</Item>
+    <Item type="TECHNICAL" code="ERR-RULES-NOT-FOUND">Rule set not found</Item>
+  </ERROR_HANDLING>
+
+  <BLOCK_ANCHORS>
+    <Item id="BA-CFG-VAL-01">Check dimension constraints</Item>
+    <Item id="BA-CFG-VAL-02">Check material/glazing compatibility</Item>
+    <Item id="BA-CFG-VAL-03">Check option dependencies</Item>
+    <Item id="BA-CFG-VAL-04">Check exclusion rules</Item>
+    <Item id="BA-CFG-VAL-99">Final validation result</Item>
+  </BLOCK_ANCHORS>
+
+  <LOGGING>
+    <Item>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK=BA-CFG-VAL-01][STATE=CHECK_SIZE] eventType=CONFIG_VALIDATION_STEP decision=EVALUATE keyValues=productId,width_cm,height_cm</Item>
+    <Item>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK=BA-CFG-VAL-02][STATE=CHECK_COMPAT] eventType=CONFIG_VALIDATION_STEP decision=EVALUATE keyValues=material,glazingType</Item>
+    <Item>[SVC=catalog-configuration-service][UC=UC-CATALOG-CONFIGURE-ITEM][BLOCK=BA-CFG-VAL-99][STATE=FINAL] eventType=CONFIG_VALIDATION_RESULT decision=ACCEPT|REJECT keyValues=valid,errors_count</Item>
+  </LOGGING>
+
+  <TESTS>
+    <Case id="TC-FUNC-VAL-001">Valid config returns valid=true and empty errors</Case>
+    <Case id="TC-FUNC-VAL-002">Invalid dimensions returns ERR-CFG-DIMENSIONS with field path</Case>
+    <Case id="TC-FUNC-VAL-003">Incompatible options returns ERR-CFG-MATERIAL-GLAZING</Case>
+    <Case id="TC-FUNC-VAL-004">Multiple errors are aggregated in result</Case>
+  </TESTS>
+</FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: resolveBom
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-resolveBom">
+      <EmbedInFile>catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/service/BomResolutionService.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-resolveBom"
+     LAYER="domain.service"
+     INTENT="Resolve bill of materials for a validated configuration"
+     INPUT="Configuration, ProductTemplateId"
+     OUTPUT="ResolvedBom"
+     SIDE_EFFECTS="None"
+     LINKS="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM">
+  <PRECONDITIONS>
+    <Item>Configuration has been validated successfully</Item>
+    <Item>BomTemplate exists for the product</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>ResolvedBom contains all required SKUs</Item>
+    <Item>Quantities are calculated from formulas</Item>
+  </POSTCONDITIONS>
+
+  <BLOCK_ANCHORS>
+    <Item id="BA-BOM-RESOLVE-01">Load BOM template for product</Item>
+    <Item id="BA-BOM-RESOLVE-02">Calculate quantities from dimensions</Item>
+    <Item id="BA-BOM-RESOLVE-03">Add option-specific SKUs</Item>
+  </BLOCK_ANCHORS>
+
+  <TESTS>
+    <Case id="TC-BOM-001">Standard window returns frame + glass SKUs</Case>
+    <Case id="TC-BOM-002">Quantity scales with dimensions</Case>
+    <Case id="TC-BOM-003">Optional accessories included in BOM</Case>
+  </TESTS>
+</FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- Block Anchor Registry -->
+    <BlockAnchorRegistry>
+      <BlockAnchor id="BA-CFG-VAL-01" service="catalog-configuration-service" purpose="Check dimension constraints"/>
+      <BlockAnchor id="BA-CFG-VAL-02" service="catalog-configuration-service" purpose="Check material/glazing compatibility"/>
+      <BlockAnchor id="BA-CFG-VAL-03" service="catalog-configuration-service" purpose="Check option dependencies"/>
+      <BlockAnchor id="BA-CFG-VAL-04" service="catalog-configuration-service" purpose="Check exclusion rules"/>
+      <BlockAnchor id="BA-CFG-VAL-99" service="catalog-configuration-service" purpose="Final validation result"/>
+      <BlockAnchor id="BA-BOM-RESOLVE-01" service="catalog-configuration-service" purpose="Load BOM template"/>
+      <BlockAnchor id="BA-BOM-RESOLVE-02" service="catalog-configuration-service" purpose="Calculate quantities"/>
+      <BlockAnchor id="BA-BOM-RESOLVE-03" service="catalog-configuration-service" purpose="Add option SKUs"/>
+    </BlockAnchorRegistry>
+
+  </SemanticContractsAndAnchors>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       5. IMPLEMENTATION SPECIFICATIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationSpecifications>
+
+    <!-- POM -->
+    <PomSpec file="catalog-configuration-service/pom.xml">
+      <![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.kanokna</groupId>
+        <artifactId>windows-store-server</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>catalog-configuration-service</artifactId>
+    <name>catalog-configuration-service</name>
+    <description>Product catalog and configuration validation service</description>
+
+    <dependencies>
+        <!-- Internal modules -->
+        <dependency>
+            <groupId>com.kanokna</groupId>
+            <artifactId>shared-kernel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.kanokna</groupId>
+            <artifactId>api-contracts</artifactId>
+        </dependency>
+
+        <!-- Spring Boot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <!-- gRPC -->
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-server-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-client-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- Kafka -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <!-- Database -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- Observability -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>kafka</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+      ]]>
+    </PomSpec>
+
+    <!-- Application Configuration -->
+    <ApplicationYml file="catalog-configuration-service/src/main/resources/application.yml">
+      <![CDATA[
+server:
+  port: 8081
+
+spring:
+  application:
+    name: catalog-configuration-service
+  config:
+    import: optional:configserver:http://localhost:8888
+  datasource:
+    url: jdbc:postgresql://localhost:5432/catalog_configuration
+    username: ${DB_USERNAME:kanokna}
+    password: ${DB_PASSWORD:kanokna_dev}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: catalog_configuration
+  flyway:
+    schemas: catalog_configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer
+
+grpc:
+  server:
+    port: 9081
+  client:
+    pricing-service:
+      address: static://localhost:9082
+      negotiationType: plaintext
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+
+logging:
+  level:
+    com.kanokna.catalog: DEBUG
+      ]]>
+    </ApplicationYml>
+
+    <!-- Flyway Initial Migration -->
+    <FlywayMigration file="catalog-configuration-service/src/main/resources/db/migration/V1__init_catalog_schema.sql">
+      <![CDATA[
+-- Schema: catalog_configuration
+CREATE SCHEMA IF NOT EXISTS catalog_configuration;
+
+-- Product Templates
+CREATE TABLE catalog_configuration.product_templates (
+    id UUID PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    product_family VARCHAR(50) NOT NULL,
+    min_width_cm INT NOT NULL DEFAULT 50,
+    max_width_cm INT NOT NULL DEFAULT 400,
+    min_height_cm INT NOT NULL DEFAULT 50,
+    max_height_cm INT NOT NULL DEFAULT 400,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    version BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_product_templates_family ON catalog_configuration.product_templates(product_family);
+CREATE INDEX idx_product_templates_status ON catalog_configuration.product_templates(status);
+
+-- Option Groups
+CREATE TABLE catalog_configuration.option_groups (
+    id UUID PRIMARY KEY,
+    product_template_id UUID NOT NULL REFERENCES catalog_configuration.product_templates(id),
+    name VARCHAR(100) NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    required BOOLEAN NOT NULL DEFAULT false,
+    multi_select BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_option_groups_template ON catalog_configuration.option_groups(product_template_id);
+
+-- Options
+CREATE TABLE catalog_configuration.options (
+    id UUID PRIMARY KEY,
+    option_group_id UUID NOT NULL REFERENCES catalog_configuration.option_groups(id),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    sku_code VARCHAR(50),
+    display_order INT NOT NULL DEFAULT 0,
+    default_selected BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_options_group ON catalog_configuration.options(option_group_id);
+
+-- Configuration Rule Sets
+CREATE TABLE catalog_configuration.configuration_rule_sets (
+    id UUID PRIMARY KEY,
+    product_template_id UUID NOT NULL REFERENCES catalog_configuration.product_templates(id),
+    version INT NOT NULL DEFAULT 1,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_rule_sets_template ON catalog_configuration.configuration_rule_sets(product_template_id);
+
+-- Configuration Rules
+CREATE TABLE catalog_configuration.configuration_rules (
+    id UUID PRIMARY KEY,
+    rule_set_id UUID NOT NULL REFERENCES catalog_configuration.configuration_rule_sets(id),
+    rule_type VARCHAR(30) NOT NULL,
+    source_option_id UUID REFERENCES catalog_configuration.options(id),
+    target_option_id UUID REFERENCES catalog_configuration.options(id),
+    condition_expression TEXT,
+    error_code VARCHAR(50) NOT NULL,
+    error_message TEXT NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_rules_set ON catalog_configuration.configuration_rules(rule_set_id);
+CREATE INDEX idx_rules_type ON catalog_configuration.configuration_rules(rule_type);
+
+-- BOM Templates
+CREATE TABLE catalog_configuration.bom_templates (
+    id UUID PRIMARY KEY,
+    product_template_id UUID NOT NULL REFERENCES catalog_configuration.product_templates(id),
+    version INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- BOM Lines
+CREATE TABLE catalog_configuration.bom_lines (
+    id UUID PRIMARY KEY,
+    bom_template_id UUID NOT NULL REFERENCES catalog_configuration.bom_templates(id),
+    sku VARCHAR(50) NOT NULL,
+    description VARCHAR(200),
+    quantity_formula VARCHAR(200) NOT NULL DEFAULT '1',
+    condition_expression TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_bom_lines_template ON catalog_configuration.bom_lines(bom_template_id);
+
+-- Catalog Versions (for audit/rollback)
+CREATE TABLE catalog_configuration.catalog_versions (
+    id UUID PRIMARY KEY,
+    version_number INT NOT NULL,
+    published_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    published_by VARCHAR(100),
+    snapshot JSONB NOT NULL,
+    UNIQUE(version_number)
+);
+      ]]>
+    </FlywayMigration>
+
+  </ImplementationSpecifications>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       6. ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria ref="DevelopmentExecutionPlan.xml#W1-T1,W1-T2">
+    <!-- W1-T1: Skeleton -->
+    <Criterion id="AC-CAT-001">Package structure follows hexagonal architecture</Criterion>
+    <Criterion id="AC-CAT-002">Domain model has no Spring/JPA annotations</Criterion>
+    <Criterion id="AC-CAT-003">Application ports define clear interfaces</Criterion>
+    <Criterion id="AC-CAT-004">ArchUnit tests pass for layer dependencies</Criterion>
+    <Criterion id="AC-CAT-005">Flyway migrations create schema successfully</Criterion>
+
+    <!-- W1-T2: Domain Logic -->
+    <Criterion id="AC-CAT-006">Dimension validation enforces 50-400cm range</Criterion>
+    <Criterion id="AC-CAT-007">Material/glazing compatibility rules work</Criterion>
+    <Criterion id="AC-CAT-008">Option dependency rules work</Criterion>
+    <Criterion id="AC-CAT-009">BOM resolution produces correct SKUs</Criterion>
+    <Criterion id="AC-CAT-010">Logs contain block anchor IDs</Criterion>
+    <Criterion id="AC-CAT-011">gRPC server starts on port 9081</Criterion>
+    <Criterion id="AC-CAT-012">REST endpoints accessible on port 8081</Criterion>
+    <Criterion id="AC-CAT-013">Health endpoint returns UP</Criterion>
+    <Criterion id="AC-CAT-014">Unit tests achieve >80% coverage for domain layer</Criterion>
+  </AcceptanceCriteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       7. CONSISTENCY CHECKLIST
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ConsistencyChecklist>
+    <Check status="PASS">All IDs follow naming conventions (UC-/MC-/FC-/BA-)</Check>
+    <Check status="PASS">All Link refs target existing IDs in canonical artifacts</Check>
+    <Check status="PASS">Package layout matches DevelopmentPlan.xml#DP-SVC-catalog-configuration-service</Check>
+    <Check status="PASS">Ports match blueprint (HTTP:8081, gRPC:9081)</Check>
+    <Check status="PASS">Dependencies align with DevelopmentPlan.xml (shared-kernel, api-contracts, pricing-service)</Check>
+    <Check status="PASS">Domain events match blueprint (ProductTemplatePublished, CatalogVersionPublished)</Check>
+    <Check status="PASS">Aggregates match blueprint (ProductTemplate, ConfigurationRuleSet, BomTemplate, CatalogVersion)</Check>
+  </ConsistencyChecklist>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       8. SCOPE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Scope>
+    <Services>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+    </Services>
+    <UseCases>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
+    </UseCases>
+    <Tasks>
+      <TaskRef ref="DevelopmentExecutionPlan.xml#W1-T1"/>
+      <TaskRef ref="DevelopmentExecutionPlan.xml#W1-T2"/>
+    </Tasks>
+  </Scope>
+
+  <Artifacts>
+    <Artifact ref="RequirementsAnalysis.xml" version="1.0.0"/>
+    <Artifact ref="Technology.xml" version="1.0.0"/>
+    <Artifact ref="DevelopmentPlan.xml" version="1.1.1"/>
+  </Artifacts>
+
+  <Contracts>
+    <ModuleContractRef id="MC-catalog-configuration-service-domain-ConfigurationValidation"/>
+    <FunctionContractRef id="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-validateConfiguration"/>
+    <FunctionContractRef id="FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-resolveBom"/>
+    <BlockAnchorRef id="BA-CFG-VAL-01"/>
+    <BlockAnchorRef id="BA-CFG-VAL-02"/>
+    <BlockAnchorRef id="BA-CFG-VAL-03"/>
+    <BlockAnchorRef id="BA-CFG-VAL-04"/>
+    <BlockAnchorRef id="BA-CFG-VAL-99"/>
+    <BlockAnchorRef id="BA-BOM-RESOLVE-01"/>
+    <BlockAnchorRef id="BA-BOM-RESOLVE-02"/>
+    <BlockAnchorRef id="BA-BOM-RESOLVE-03"/>
+  </Contracts>
+
+  <!-- Approval recorded in docs/grace/approvals.log per approvals.log-only policy -->
+
+</GRACE_HANDOFF>

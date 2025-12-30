@@ -3,7 +3,7 @@
   GRACE Canonical Artifact: DevelopmentPlan.xml
   Purpose: Blueprint for implementation - services, flows, contracts, testing, deployment
   Version: 1.1.1
-  Last Updated: 2025-12-30
+  Last Updated: 2025-12-30T00:00:00+00:00
   Changes: Fixed DP-ASSUM-002 to align with DEC-INTER-SERVICE-COMM (gRPC required)
 -->
 <DevelopmentPlan version="1.1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">

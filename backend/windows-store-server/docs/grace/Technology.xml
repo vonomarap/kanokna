@@ -3,7 +3,7 @@
   GRACE Canonical Artifact: Technology.xml
   Purpose: Define approved technology stack, versions, and cross-cutting technical decisions
   Version: 1.0.0
-  Last Updated: 2025-12-29
+  Last Updated: 2025-12-29T00:00:00+00:00
 -->
 <Technology version="1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 

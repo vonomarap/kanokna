@@ -1,0 +1,995 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff Document: Gateway Module Implementation
+  Handoff ID: Handoff-20251230-01
+  Scope: W0-T4 (Create gateway module)
+  Status: PROPOSED
+  Created: 2025-12-30
+  Author: GRACE-ARCHITECT
+-->
+<GRACE_HANDOFF
+  id="Handoff-20251230-01"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2025-12-30T00:00:00+00:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W0-T4"
+  planRef="DevelopmentExecutionPlan.xml#W0-T4"
+  blueprintRef="DevelopmentPlan.xml#DP-SVC-gateway"
+  requirementsRef="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION,RequirementsAnalysis.xml#NFR-OBS-TRACING"
+>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       1. INTENT SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <IntentSummary>
+    <BusinessIntent>
+      Implement the API Gateway as the single entry point for all frontend and external
+      client requests. The gateway provides routing, authentication enforcement,
+      rate limiting, CORS handling, and distributed tracing context propagation.
+    </BusinessIntent>
+    <TechnicalIntent>
+      Create a Spring Cloud Gateway application that:
+      - Routes requests to backend microservices based on path prefixes
+      - Validates JWT tokens as OAuth2 Resource Server (first line of defense)
+      - Injects X-Correlation-ID header for distributed tracing
+      - Applies rate limiting per client (authenticated vs anonymous)
+      - Configures CORS for allowed frontend origins
+      - Exposes health endpoints for Kubernetes probes
+    </TechnicalIntent>
+    <Scope>
+      <Task ref="DevelopmentExecutionPlan.xml#W0-T4"/>
+      <Wave ref="DevelopmentExecutionPlan.xml#WAVE-0"/>
+      <Service ref="DevelopmentPlan.xml#DP-SVC-gateway"/>
+    </Scope>
+  </IntentSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       2. REQUIREMENTS IMPACT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <RequirementsImpact>
+    <ExistingRequirements>
+      <RequirementRef ref="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION">
+        Gateway enforces JWT validation as OAuth2 Resource Server
+      </RequirementRef>
+      <RequirementRef ref="RequirementsAnalysis.xml#NFR-OBS-TRACING">
+        Gateway injects correlation ID for distributed tracing
+      </RequirementRef>
+      <RequirementRef ref="RequirementsAnalysis.xml#NFR-AVAIL-GRACEFUL-DEGRADATION">
+        Gateway applies circuit breakers for backend service calls
+      </RequirementRef>
+      <RequirementRef ref="RequirementsAnalysis.xml#NFR-PERF-RESPONSE-TIME">
+        Gateway must add minimal latency (&lt;10ms overhead)
+      </RequirementRef>
+    </ExistingRequirements>
+    <NoNewRequirements>
+      This task implements existing infrastructure requirements; no new use cases or NFRs.
+    </NoNewRequirements>
+  </RequirementsImpact>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       3. TECHNOLOGY IMPACT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <TechnologyImpact>
+    <NoChanges>
+      All technologies are already defined in Technology.xml. This handoff uses:
+      - Spring Cloud Gateway (TECH-spring-cloud)
+      - Spring Security OAuth2 Resource Server (TECH-spring-security)
+      - Resilience4j (TECH-resilience4j)
+      - Micrometer/OpenTelemetry (TECH-micrometer, TECH-opentelemetry)
+    </NoChanges>
+    <DependenciesRequired>
+      <Dependency>spring-cloud-starter-gateway</Dependency>
+      <Dependency>spring-boot-starter-oauth2-resource-server</Dependency>
+      <Dependency>spring-cloud-starter-circuitbreaker-reactor-resilience4j</Dependency>
+      <Dependency>spring-boot-starter-actuator</Dependency>
+      <Dependency>micrometer-tracing-bridge-otel</Dependency>
+      <Dependency>io.opentelemetry:opentelemetry-exporter-otlp</Dependency>
+      <Dependency>net.logstash.logback:logstash-logback-encoder</Dependency>
+    </DependenciesRequired>
+  </TechnologyImpact>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       4. DEVELOPMENT PLAN UPDATES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DevelopmentPlanUpdates>
+    <ServiceDetails ref="DevelopmentPlan.xml#DP-SVC-gateway">
+      <!-- Expanded package layout for implementation -->
+      <PackageLayout>
+        <Package purpose="Configuration">com.kanokna.gateway.config</Package>
+        <Package purpose="Security">com.kanokna.gateway.security</Package>
+        <Package purpose="Filters">com.kanokna.gateway.filter</Package>
+        <Package purpose="Routes">com.kanokna.gateway.route</Package>
+        <Package purpose="Health">com.kanokna.gateway.health</Package>
+      </PackageLayout>
+    </ServiceDetails>
+
+    <FilesToCreate>
+      <!-- Main Application -->
+      <File path="gateway/src/main/java/com/kanokna/gateway/GatewayApplication.java">
+        Spring Boot main class with @EnableWebFluxSecurity
+      </File>
+
+      <!-- Configuration -->
+      <File path="gateway/src/main/java/com/kanokna/gateway/config/GatewayConfig.java">
+        Route definitions using RouteLocatorBuilder
+      </File>
+      <File path="gateway/src/main/java/com/kanokna/gateway/config/SecurityConfig.java">
+        OAuth2 Resource Server and security filter chain
+      </File>
+      <File path="gateway/src/main/java/com/kanokna/gateway/config/RateLimitConfig.java">
+        Rate limiting configuration using Redis
+      </File>
+      <File path="gateway/src/main/java/com/kanokna/gateway/config/CorsConfig.java">
+        CORS configuration for allowed origins
+      </File>
+      <File path="gateway/src/main/java/com/kanokna/gateway/config/CircuitBreakerConfig.java">
+        Resilience4j circuit breaker configuration
+      </File>
+
+      <!-- Filters -->
+      <File path="gateway/src/main/java/com/kanokna/gateway/filter/CorrelationIdFilter.java">
+        Global filter to inject/propagate X-Correlation-ID
+      </File>
+      <File path="gateway/src/main/java/com/kanokna/gateway/filter/RequestLoggingFilter.java">
+        Request/response logging with timing
+      </File>
+      <File path="gateway/src/main/java/com/kanokna/gateway/filter/AuthenticationLoggingFilter.java">
+        Log authentication decisions for audit
+      </File>
+
+      <!-- Application Configuration -->
+      <File path="gateway/src/main/resources/application.yml">
+        Main configuration with route definitions
+      </File>
+      <File path="gateway/src/main/resources/application-dev.yml">
+        Development profile configuration
+      </File>
+      <File path="gateway/src/main/resources/application-stage.yml">
+        Staging profile configuration
+      </File>
+      <File path="gateway/src/main/resources/application-prod.yml">
+        Production profile configuration
+      </File>
+      <File path="gateway/src/main/resources/logback-spring.xml">
+        Structured JSON logging configuration
+      </File>
+
+      <!-- Build -->
+      <File path="gateway/pom.xml">
+        Maven module POM with dependencies
+      </File>
+      <File path="gateway/Dockerfile">
+        Container image definition (or Jib configuration)
+      </File>
+
+      <!-- Tests -->
+      <File path="gateway/src/test/java/com/kanokna/gateway/GatewayApplicationTests.java">
+        Context load test
+      </File>
+      <File path="gateway/src/test/java/com/kanokna/gateway/filter/CorrelationIdFilterTest.java">
+        Unit tests for correlation ID filter
+      </File>
+      <File path="gateway/src/test/java/com/kanokna/gateway/config/SecurityConfigTest.java">
+        Security configuration tests
+      </File>
+      <File path="gateway/src/test/java/com/kanokna/gateway/route/RouteIntegrationTest.java">
+        Integration tests for routing
+      </File>
+    </FilesToCreate>
+  </DevelopmentPlanUpdates>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       5. SEMANTIC CONTRACTS AND ANCHORS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <SemanticContractsAndAnchors>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         MODULE CONTRACT: Gateway Application
+         ───────────────────────────────────────────────────────────────────────── -->
+    <ModuleContract id="MC-gateway-infrastructure-GatewayApplication">
+      <EmbedInFile>gateway/src/main/java/com/kanokna/gateway/GatewayApplication.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <MODULE_CONTRACT id="MC-gateway-infrastructure-GatewayApplication"
+     ROLE="InfrastructureService"
+     SERVICE="gateway"
+     LAYER="infrastructure"
+     BOUNDED_CONTEXT="infrastructure"
+     SPECIFICATION="NFR-SEC-AUTHENTICATION, NFR-OBS-TRACING">
+  <PURPOSE>
+    API Gateway serving as the single entry point for all frontend and external
+    client requests. Routes requests to backend microservices, enforces authentication,
+    applies rate limiting, injects correlation IDs, and handles CORS.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Route HTTP requests to backend services based on path prefixes</Item>
+    <Item>Validate JWT tokens from OAuth2/OIDC provider (Keycloak dev/stage, Auth0 prod)</Item>
+    <Item>Inject X-Correlation-ID header for distributed tracing (generate if missing)</Item>
+    <Item>Apply rate limiting: 100 req/min authenticated, 20 req/min anonymous</Item>
+    <Item>Configure CORS for allowed frontend origins</Item>
+    <Item>Apply circuit breakers for backend service resilience</Item>
+    <Item>Expose health endpoints for Kubernetes probes</Item>
+  </RESPONSIBILITIES>
+
+  <INVARIANTS>
+    <Item>All requests to /api/** require valid JWT token (except explicitly excluded paths)</Item>
+    <Item>Every response includes X-Correlation-ID header</Item>
+    <Item>Requests exceeding rate limit receive 429 Too Many Requests</Item>
+    <Item>Failed backend calls trigger circuit breaker after threshold</Item>
+  </INVARIANTS>
+
+  <CONTEXT>
+    <UPSTREAM>
+      <Item>Frontend SPA: web-frontend (browser)</Item>
+      <Item>Mobile apps: mobile-app (native)</Item>
+      <Item>External integrations (webhook callbacks from payment gateway)</Item>
+    </UPSTREAM>
+    <DOWNSTREAM>
+      <Item>catalog-configuration-service: /api/catalog/**</Item>
+      <Item>pricing-service: /api/pricing/**</Item>
+      <Item>cart-service: /api/cart/**</Item>
+      <Item>order-service: /api/orders/**</Item>
+      <Item>account-service: /api/accounts/**</Item>
+      <Item>media-service: /api/media/**</Item>
+      <Item>search-service: /api/search/**</Item>
+      <Item>installation-service: /api/installations/**</Item>
+      <Item>reporting-service: /api/reports/**</Item>
+    </DOWNSTREAM>
+  </CONTEXT>
+
+  <ARCHITECTURE>
+    <TECHNOLOGY>
+      <Item>Spring Cloud Gateway (reactive, WebFlux-based)</Item>
+      <Item>Spring Security OAuth2 Resource Server</Item>
+      <Item>Resilience4j for circuit breakers</Item>
+      <Item>Redis for distributed rate limiting (optional, in-memory fallback)</Item>
+    </TECHNOLOGY>
+  </ARCHITECTURE>
+
+  <PUBLIC_API>
+    <Item>All /api/** routes proxied to backend services</Item>
+    <Item>/actuator/health/liveness - Kubernetes liveness probe</Item>
+    <Item>/actuator/health/readiness - Kubernetes readiness probe</Item>
+    <Item>/actuator/prometheus - Metrics endpoint (internal network only)</Item>
+  </PUBLIC_API>
+
+  <CROSS_CUTTING>
+    <SECURITY>
+      <Item>JWT validation with RS256 signature verification</Item>
+      <Item>Token issuer and audience claims validated</Item>
+      <Item>Public paths: /api/catalog/products (GET), /api/search (GET), /actuator/health/**</Item>
+      <Item>Admin paths require ADMIN role: /api/reports/**, /api/*/admin/**</Item>
+    </SECURITY>
+    <RELIABILITY>
+      <Item>Circuit breaker: 50% failure threshold, 10s open state, 3 half-open calls</Item>
+      <Item>Timeout: 10s for all backend calls</Item>
+      <Item>Retry: 3 attempts with 500ms backoff for 5xx errors (idempotent only)</Item>
+    </RELIABILITY>
+    <OBSERVABILITY>
+      <Item>Structured JSON logs with correlationId, path, method, status, latencyMs</Item>
+      <Item>Metrics: gateway.requests.total, gateway.requests.latency, gateway.circuit.state</Item>
+      <Item>Traces propagated via W3C Trace Context headers</Item>
+    </OBSERVABILITY>
+  </CROSS_CUTTING>
+
+  <LOGGING>
+    <FORMAT>[SVC=gateway][UC=ROUTING][BLOCK=...][STATE=...] eventType=... decision=... keyValues=...</FORMAT>
+    <EXAMPLES>
+      <Item>[SVC=gateway][UC=ROUTING][BLOCK=BA-GW-ROUTE-01][STATE=ROUTE_MATCHED] eventType=REQUEST_ROUTED decision=FORWARD keyValues=path=/api/catalog/products,target=catalog-configuration-service</Item>
+      <Item>[SVC=gateway][UC=AUTH][BLOCK=BA-GW-AUTH-01][STATE=TOKEN_VALIDATED] eventType=AUTH_CHECK decision=ALLOW keyValues=userId=uuid,roles=[CUSTOMER]</Item>
+      <Item>[SVC=gateway][UC=RATE-LIMIT][BLOCK=BA-GW-RATE-01][STATE=LIMIT_CHECK] eventType=RATE_LIMIT decision=ALLOW|REJECT keyValues=clientId,remaining,limit</Item>
+    </EXAMPLES>
+  </LOGGING>
+
+  <TESTS>
+    <Case id="TC-GW-001">Valid JWT token allows request to protected endpoint</Case>
+    <Case id="TC-GW-002">Missing JWT token on protected endpoint returns 401</Case>
+    <Case id="TC-GW-003">Expired JWT token returns 401</Case>
+    <Case id="TC-GW-004">Public endpoints accessible without token</Case>
+    <Case id="TC-GW-005">Rate limit exceeded returns 429</Case>
+    <Case id="TC-GW-006">Correlation ID generated if not present</Case>
+    <Case id="TC-GW-007">Correlation ID propagated if present</Case>
+    <Case id="TC-GW-008">Circuit breaker opens after failures</Case>
+    <Case id="TC-GW-009">CORS preflight returns correct headers</Case>
+    <Case id="TC-GW-010">Admin endpoint requires ADMIN role</Case>
+  </TESTS>
+
+  <LINKS>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-gateway"/>
+    <Link ref="Technology.xml#TECH-spring-cloud"/>
+    <Link ref="Technology.xml#TECH-spring-security"/>
+    <Link ref="Technology.xml#TECH-resilience4j"/>
+    <Link ref="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION"/>
+    <Link ref="RequirementsAnalysis.xml#NFR-OBS-TRACING"/>
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]></Contract>
+    </ModuleContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: Correlation ID Filter
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-gateway-filter-CorrelationIdFilter-filter">
+      <EmbedInFile>gateway/src/main/java/com/kanokna/gateway/filter/CorrelationIdFilter.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-gateway-filter-CorrelationIdFilter-filter"
+     LAYER="filter"
+     INTENT="Inject or propagate X-Correlation-ID header for distributed tracing"
+     INPUT="ServerWebExchange (incoming request)"
+     OUTPUT="Mono<Void> (modified exchange with correlation ID)"
+     SIDE_EFFECTS="Adds correlation ID to MDC for logging, modifies request headers"
+     LINKS="RequirementsAnalysis.xml#NFR-OBS-TRACING;Technology.xml#TECH-opentelemetry">
+   <PRECONDITIONS>
+     <Item>ServerWebExchange is not null</Item>
+     <Item>GatewayFilterChain is not null</Item>
+   </PRECONDITIONS>
+
+   <POSTCONDITIONS>
+     <Item>X-Correlation-ID header present on request to downstream service</Item>
+     <Item>X-Correlation-ID header present on response to client</Item>
+     <Item>Correlation ID available in MDC for log statements</Item>
+   </POSTCONDITIONS>
+
+   <INVARIANTS>
+     <Item>Correlation ID is a valid UUID v4 string</Item>
+     <Item>If incoming request has X-Correlation-ID, it is preserved (not replaced)</Item>
+     <Item>Filter executes on every request (ordered before routing)</Item>
+   </INVARIANTS>
+
+   <ERROR_HANDLING>
+     <Item type="TECHNICAL" code="N/A">Filter chain exceptions propagate; correlation ID still logged</Item>
+   </ERROR_HANDLING>
+
+   <BLOCK_ANCHORS>
+     <Item id="BA-GW-CORR-01">Extract or generate correlation ID</Item>
+     <Item id="BA-GW-CORR-02">Set MDC context</Item>
+     <Item id="BA-GW-CORR-03">Mutate request with correlation ID header</Item>
+     <Item id="BA-GW-CORR-04">Add correlation ID to response headers</Item>
+   </BLOCK_ANCHORS>
+
+   <LOGGING>
+     <Item>[SVC=gateway][UC=TRACING][BLOCK=BA-GW-CORR-01][STATE=EXTRACT_OR_GENERATE] eventType=CORRELATION_ID decision=EXTRACTED|GENERATED keyValues=correlationId</Item>
+   </LOGGING>
+
+   <TESTS>
+     <Case id="TC-CORR-001">Request without X-Correlation-ID gets new UUID generated</Case>
+     <Case id="TC-CORR-002">Request with X-Correlation-ID preserves existing value</Case>
+     <Case id="TC-CORR-003">Response includes X-Correlation-ID header</Case>
+     <Case id="TC-CORR-004">Logs include correlation ID in MDC</Case>
+   </TESTS>
+ </FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: Security Configuration
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-gateway-config-SecurityConfig-securityWebFilterChain">
+      <EmbedInFile>gateway/src/main/java/com/kanokna/gateway/config/SecurityConfig.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-gateway-config-SecurityConfig-securityWebFilterChain"
+     LAYER="config"
+     INTENT="Configure OAuth2 Resource Server security for JWT token validation"
+     INPUT="ServerHttpSecurity"
+     OUTPUT="SecurityWebFilterChain"
+     SIDE_EFFECTS="None (configuration only)"
+     LINKS="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION;Technology.xml#TECH-spring-security">
+   <PRECONDITIONS>
+     <Item>JWKS endpoint is configured (spring.security.oauth2.resourceserver.jwt.jwk-set-uri)</Item>
+     <Item>Token issuer is configured (spring.security.oauth2.resourceserver.jwt.issuer-uri)</Item>
+   </PRECONDITIONS>
+
+   <POSTCONDITIONS>
+     <Item>All /api/** paths require authentication except explicitly permitted</Item>
+     <Item>Public paths accessible without token</Item>
+     <Item>Admin paths require ADMIN role in JWT</Item>
+     <Item>CSRF disabled for stateless API</Item>
+   </POSTCONDITIONS>
+
+   <INVARIANTS>
+     <Item>JWT signature verified against JWKS</Item>
+     <Item>Token expiration enforced</Item>
+     <Item>Token issuer claim validated</Item>
+   </INVARIANTS>
+
+   <ERROR_HANDLING>
+     <Item type="BUSINESS" code="401">Invalid or missing JWT token</Item>
+     <Item type="BUSINESS" code="403">Valid token but insufficient role</Item>
+   </ERROR_HANDLING>
+
+   <BLOCK_ANCHORS>
+     <Item id="BA-GW-AUTH-01">Validate JWT token</Item>
+     <Item id="BA-GW-AUTH-02">Extract roles from JWT claims</Item>
+     <Item id="BA-GW-AUTH-03">Authorize request based on path and roles</Item>
+   </BLOCK_ANCHORS>
+
+   <LOGGING>
+     <Item>[SVC=gateway][UC=AUTH][BLOCK=BA-GW-AUTH-01][STATE=TOKEN_VALIDATED] eventType=AUTH_CHECK decision=ALLOW|DENY keyValues=userId,roles,path</Item>
+     <Item>[SVC=gateway][UC=AUTH][BLOCK=BA-GW-AUTH-03][STATE=AUTHORIZATION] eventType=AUTHZ_CHECK decision=ALLOW|DENY keyValues=requiredRole,userRoles,path</Item>
+   </LOGGING>
+
+   <PUBLIC_PATHS>
+     <Path>/api/catalog/products</Path>
+     <Path>/api/catalog/products/**</Path>
+     <Path>/api/search/**</Path>
+     <Path>/api/media/public/**</Path>
+     <Path>/actuator/health/**</Path>
+     <Path>/actuator/info</Path>
+   </PUBLIC_PATHS>
+
+   <ADMIN_PATHS>
+     <Path>/api/reports/**</Path>
+     <Path>/api/catalog/admin/**</Path>
+     <Path>/api/pricing/admin/**</Path>
+     <Path>/api/accounts/admin/**</Path>
+   </ADMIN_PATHS>
+
+   <TESTS>
+     <Case id="TC-SEC-001">Request to public path without token succeeds</Case>
+     <Case id="TC-SEC-002">Request to protected path without token returns 401</Case>
+     <Case id="TC-SEC-003">Request with valid token to protected path succeeds</Case>
+     <Case id="TC-SEC-004">Request with expired token returns 401</Case>
+     <Case id="TC-SEC-005">Request to admin path with CUSTOMER role returns 403</Case>
+     <Case id="TC-SEC-006">Request to admin path with ADMIN role succeeds</Case>
+     <Case id="TC-SEC-007">Request with invalid signature returns 401</Case>
+   </TESTS>
+ </FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: Route Configuration
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-gateway-config-GatewayConfig-routeLocator">
+      <EmbedInFile>gateway/src/main/java/com/kanokna/gateway/config/GatewayConfig.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-gateway-config-GatewayConfig-routeLocator"
+     LAYER="config"
+     INTENT="Define route mappings from gateway paths to backend services"
+     INPUT="RouteLocatorBuilder"
+     OUTPUT="RouteLocator"
+     SIDE_EFFECTS="None (configuration only)"
+     LINKS="DevelopmentPlan.xml#DP-SVC-gateway">
+   <PRECONDITIONS>
+     <Item>Backend service URIs configured (via config-server or environment)</Item>
+   </PRECONDITIONS>
+
+   <POSTCONDITIONS>
+     <Item>All /api/{service}/** paths route to corresponding service</Item>
+     <Item>Path rewriting strips /api prefix where needed</Item>
+     <Item>Circuit breaker applied to each route</Item>
+     <Item>Timeout configured per route</Item>
+   </POSTCONDITIONS>
+
+   <INVARIANTS>
+     <Item>Route order matters: more specific routes before general</Item>
+     <Item>All routes have circuit breaker configured</Item>
+     <Item>All routes have timeout configured</Item>
+   </INVARIANTS>
+
+   <ROUTES>
+     <Route id="catalog-route" path="/api/catalog/**" target="lb://catalog-configuration-service"/>
+     <Route id="pricing-route" path="/api/pricing/**" target="lb://pricing-service"/>
+     <Route id="cart-route" path="/api/cart/**" target="lb://cart-service"/>
+     <Route id="orders-route" path="/api/orders/**" target="lb://order-service"/>
+     <Route id="accounts-route" path="/api/accounts/**" target="lb://account-service"/>
+     <Route id="media-route" path="/api/media/**" target="lb://media-service"/>
+     <Route id="search-route" path="/api/search/**" target="lb://search-service"/>
+     <Route id="installations-route" path="/api/installations/**" target="lb://installation-service"/>
+     <Route id="reports-route" path="/api/reports/**" target="lb://reporting-service"/>
+   </ROUTES>
+
+   <BLOCK_ANCHORS>
+     <Item id="BA-GW-ROUTE-01">Match incoming path to route</Item>
+     <Item id="BA-GW-ROUTE-02">Apply route filters (rewrite, headers)</Item>
+     <Item id="BA-GW-ROUTE-03">Forward to backend service</Item>
+   </BLOCK_ANCHORS>
+
+   <LOGGING>
+     <Item>[SVC=gateway][UC=ROUTING][BLOCK=BA-GW-ROUTE-01][STATE=ROUTE_MATCHED] eventType=REQUEST_ROUTED decision=FORWARD keyValues=path,routeId,target</Item>
+     <Item>[SVC=gateway][UC=ROUTING][BLOCK=BA-GW-ROUTE-03][STATE=RESPONSE_RECEIVED] eventType=BACKEND_RESPONSE decision=COMPLETE keyValues=status,latencyMs</Item>
+   </LOGGING>
+
+   <TESTS>
+     <Case id="TC-ROUTE-001">/api/catalog/products routes to catalog-configuration-service</Case>
+     <Case id="TC-ROUTE-002">/api/orders routes to order-service</Case>
+     <Case id="TC-ROUTE-003">Unknown path returns 404</Case>
+     <Case id="TC-ROUTE-004">Backend timeout triggers fallback</Case>
+     <Case id="TC-ROUTE-005">Circuit breaker opens after failures</Case>
+   </TESTS>
+ </FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: Rate Limiting
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-gateway-config-RateLimitConfig-rateLimiter">
+      <EmbedInFile>gateway/src/main/java/com/kanokna/gateway/config/RateLimitConfig.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-gateway-config-RateLimitConfig-rateLimiter"
+     LAYER="config"
+     INTENT="Apply rate limiting to protect backend services from abuse"
+     INPUT="KeyResolver (identifies client for rate limiting)"
+     OUTPUT="RedisRateLimiter or in-memory fallback"
+     SIDE_EFFECTS="Redis state updated with request counts"
+     LINKS="RequirementsAnalysis.xml#NFR-PERF-THROUGHPUT">
+   <PRECONDITIONS>
+     <Item>Redis available for distributed rate limiting (fallback to in-memory if not)</Item>
+   </PRECONDITIONS>
+
+   <POSTCONDITIONS>
+     <Item>Requests within limit proceed normally</Item>
+     <Item>Requests exceeding limit receive 429 Too Many Requests</Item>
+     <Item>Rate limit headers included in response</Item>
+   </POSTCONDITIONS>
+
+   <INVARIANTS>
+     <Item>Authenticated users: 100 requests per minute</Item>
+     <Item>Anonymous users: 20 requests per minute</Item>
+     <Item>Rate limit based on client identifier (userId or IP)</Item>
+   </INVARIANTS>
+
+   <ERROR_HANDLING>
+     <Item type="BUSINESS" code="429">Rate limit exceeded - Retry-After header included</Item>
+   </ERROR_HANDLING>
+
+   <BLOCK_ANCHORS>
+     <Item id="BA-GW-RATE-01">Resolve client identifier (userId or IP)</Item>
+     <Item id="BA-GW-RATE-02">Check rate limit</Item>
+     <Item id="BA-GW-RATE-03">Update rate limit counter</Item>
+   </BLOCK_ANCHORS>
+
+   <LOGGING>
+     <Item>[SVC=gateway][UC=RATE-LIMIT][BLOCK=BA-GW-RATE-02][STATE=LIMIT_CHECK] eventType=RATE_LIMIT decision=ALLOW|REJECT keyValues=clientId,remaining,limit,window</Item>
+   </LOGGING>
+
+   <RESPONSE_HEADERS>
+     <Header name="X-RateLimit-Limit">Maximum requests per window</Header>
+     <Header name="X-RateLimit-Remaining">Requests remaining in window</Header>
+     <Header name="X-RateLimit-Reset">Seconds until window resets</Header>
+     <Header name="Retry-After">Seconds to wait before retry (on 429)</Header>
+   </RESPONSE_HEADERS>
+
+   <TESTS>
+     <Case id="TC-RATE-001">Request within limit succeeds with rate limit headers</Case>
+     <Case id="TC-RATE-002">Request exceeding limit returns 429</Case>
+     <Case id="TC-RATE-003">Authenticated user has higher limit than anonymous</Case>
+     <Case id="TC-RATE-004">Rate limit resets after window expires</Case>
+     <Case id="TC-RATE-005">Redis unavailable falls back to in-memory limiter</Case>
+   </TESTS>
+ </FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         BLOCK ANCHOR REGISTRY
+         ───────────────────────────────────────────────────────────────────────── -->
+    <BlockAnchorRegistry>
+      <!-- Correlation ID -->
+      <BlockAnchor id="BA-GW-CORR-01" service="gateway" purpose="Extract or generate correlation ID"/>
+      <BlockAnchor id="BA-GW-CORR-02" service="gateway" purpose="Set MDC context for logging"/>
+      <BlockAnchor id="BA-GW-CORR-03" service="gateway" purpose="Mutate request with correlation ID header"/>
+      <BlockAnchor id="BA-GW-CORR-04" service="gateway" purpose="Add correlation ID to response headers"/>
+
+      <!-- Authentication -->
+      <BlockAnchor id="BA-GW-AUTH-01" service="gateway" purpose="Validate JWT token"/>
+      <BlockAnchor id="BA-GW-AUTH-02" service="gateway" purpose="Extract roles from JWT claims"/>
+      <BlockAnchor id="BA-GW-AUTH-03" service="gateway" purpose="Authorize request based on path and roles"/>
+
+      <!-- Routing -->
+      <BlockAnchor id="BA-GW-ROUTE-01" service="gateway" purpose="Match incoming path to route"/>
+      <BlockAnchor id="BA-GW-ROUTE-02" service="gateway" purpose="Apply route filters"/>
+      <BlockAnchor id="BA-GW-ROUTE-03" service="gateway" purpose="Forward to backend service"/>
+
+      <!-- Rate Limiting -->
+      <BlockAnchor id="BA-GW-RATE-01" service="gateway" purpose="Resolve client identifier"/>
+      <BlockAnchor id="BA-GW-RATE-02" service="gateway" purpose="Check rate limit"/>
+      <BlockAnchor id="BA-GW-RATE-03" service="gateway" purpose="Update rate limit counter"/>
+
+      <!-- Circuit Breaker -->
+      <BlockAnchor id="BA-GW-CB-01" service="gateway" purpose="Check circuit breaker state"/>
+      <BlockAnchor id="BA-GW-CB-02" service="gateway" purpose="Record success/failure"/>
+      <BlockAnchor id="BA-GW-CB-03" service="gateway" purpose="Execute fallback on open circuit"/>
+    </BlockAnchorRegistry>
+
+  </SemanticContractsAndAnchors>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       6. IMPLEMENTATION SPECIFICATIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationSpecifications>
+
+    <!-- Application Configuration Template -->
+    <ConfigurationTemplate file="gateway/src/main/resources/application.yml">
+      <![CDATA[
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+      default-filters:
+        - name: CircuitBreaker
+          args:
+            name: defaultCircuitBreaker
+            fallbackUri: forward:/fallback
+        - name: Retry
+          args:
+            retries: 3
+            statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+            methods: GET
+            backoff:
+              firstBackoff: 100ms
+              maxBackoff: 500ms
+              factor: 2
+              basedOnPreviousValue: false
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "${ALLOWED_ORIGINS:http://localhost:3000}"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+      routes:
+        - id: catalog-route
+          uri: lb://catalog-configuration-service
+          predicates:
+            - Path=/api/catalog/**
+          filters:
+            - StripPrefix=1
+        - id: pricing-route
+          uri: lb://pricing-service
+          predicates:
+            - Path=/api/pricing/**
+          filters:
+            - StripPrefix=1
+        - id: cart-route
+          uri: lb://cart-service
+          predicates:
+            - Path=/api/cart/**
+          filters:
+            - StripPrefix=1
+        - id: orders-route
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - StripPrefix=1
+        - id: accounts-route
+          uri: lb://account-service
+          predicates:
+            - Path=/api/accounts/**
+          filters:
+            - StripPrefix=1
+        - id: media-route
+          uri: lb://media-service
+          predicates:
+            - Path=/api/media/**
+          filters:
+            - StripPrefix=1
+        - id: search-route
+          uri: lb://search-service
+          predicates:
+            - Path=/api/search/**
+          filters:
+            - StripPrefix=1
+        - id: installations-route
+          uri: lb://installation-service
+          predicates:
+            - Path=/api/installations/**
+          filters:
+            - StripPrefix=1
+        - id: reports-route
+          uri: lb://reporting-service
+          predicates:
+            - Path=/api/reports/**
+          filters:
+            - StripPrefix=1
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8180/realms/kanokna}
+          jwk-set-uri: ${OAUTH2_JWK_SET_URI:http://localhost:8180/realms/kanokna/protocol/openid-connect/certs}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        slowCallDurationThreshold: 2s
+        slowCallRateThreshold: 50
+    instances:
+      defaultCircuitBreaker:
+        baseConfig: default
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 10s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+      ]]>
+    </ConfigurationTemplate>
+
+    <!-- POM Template -->
+    <PomTemplate file="gateway/pom.xml">
+      <![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.kanokna</groupId>
+        <artifactId>windows-store-server</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gateway</artifactId>
+    <name>gateway</name>
+    <description>API Gateway for Windows and Doors E-Commerce Platform</description>
+
+    <dependencies>
+        <!-- Spring Cloud Gateway -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway</artifactId>
+        </dependency>
+
+        <!-- OAuth2 Resource Server -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <!-- Circuit Breaker -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
+        </dependency>
+
+        <!-- Config Client -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-config</artifactId>
+        </dependency>
+
+        <!-- Actuator -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Observability -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+        </dependency>
+
+        <!-- Redis for Rate Limiting (optional) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <!-- Jib for container image -->
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>3.4.0</version>
+                <configuration>
+                    <from>
+                        <image>eclipse-temurin:21-jre</image>
+                    </from>
+                    <to>
+                        <image>ghcr.io/vonomarap/kanokna-gateway</image>
+                        <tags>
+                            <tag>${project.version}</tag>
+                            <tag>latest</tag>
+                        </tags>
+                    </to>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+      ]]>
+    </PomTemplate>
+
+  </ImplementationSpecifications>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       7. ASSUMPTIONS AND OPEN QUESTIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AssumptionsAndOpenQuestions>
+    <Assumptions>
+      <Assumption id="GW-ASSUM-001">
+        Backend services will use Kubernetes service discovery (lb://) in stage/prod.
+        In dev, direct HTTP URLs will be used via config-server overrides.
+      </Assumption>
+      <Assumption id="GW-ASSUM-002">
+        Rate limiting uses Redis in stage/prod. In dev, in-memory rate limiting is acceptable.
+      </Assumption>
+      <Assumption id="GW-ASSUM-003">
+        Payment gateway webhooks from YooKassa will use a dedicated path (/api/webhooks/payment)
+        that bypasses normal JWT validation but requires signature verification.
+        This will be implemented in order-service adapter; gateway just routes.
+      </Assumption>
+      <Assumption id="GW-ASSUM-004">
+        Initial implementation uses Java 21 LTS for container images (not Java 25 preview)
+        until Java 25 is GA and Jib/Temurin images are available.
+      </Assumption>
+      <Assumption id="GW-ASSUM-005">
+        CORS allowed origins will be configured per environment via environment variables.
+        Dev: localhost:3000, Stage: stage.kanokna.com, Prod: www.kanokna.com
+      </Assumption>
+    </Assumptions>
+
+    <OpenQuestions>
+      <Question id="GW-OQ-001" priority="LOW">
+        Should the gateway implement request/response body logging for debugging?
+        This has security implications (PII in logs) but aids troubleshooting.
+        RECOMMENDATION: Enable only in dev profile, with sensitive field masking.
+      </Question>
+      <Question id="GW-OQ-002" priority="MEDIUM">
+        How should the gateway handle YooKassa webhook signature verification?
+        OPTIONS:
+        (a) Gateway validates signature (requires shared secret)
+        (b) Gateway routes to order-service which validates (current assumption)
+        RECOMMENDATION: Option (b) - order-service handles webhook security.
+      </Question>
+    </OpenQuestions>
+  </AssumptionsAndOpenQuestions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       8. CONSISTENCY CHECKLIST
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ConsistencyChecklist>
+    <Check status="PASS">IDs follow naming conventions (MC-, FC-, BA-, TC-, GW-ASSUM-, GW-OQ-)</Check>
+    <Check status="PASS">All Link refs target existing artifacts in RequirementsAnalysis.xml, Technology.xml, DevelopmentPlan.xml</Check>
+    <Check status="PASS">No "or" ambiguity in specifications; decisions are explicit</Check>
+    <Check status="PASS">Assumptions documented for uncertain items</Check>
+    <Check status="PASS">All FUNCTION_CONTRACTs have BLOCK_ANCHORS defined</Check>
+    <Check status="PASS">All test cases have unique IDs (TC-GW-*, TC-CORR-*, TC-SEC-*, etc.)</Check>
+    <Check status="PASS">Logging format consistent with GRACE standards ([SVC=...][UC=...][BLOCK=...])</Check>
+    <Check status="NOTE">Java version in Jib set to 21 (GW-ASSUM-004) - update when 25 is GA</Check>
+  </ConsistencyChecklist>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       9. ACCEPTANCE CRITERIA (from DevelopmentExecutionPlan.xml#W0-T4)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria ref="DevelopmentExecutionPlan.xml#W0-T4">
+    <Criterion id="AC-GW-001">Gateway starts on port 8080</Criterion>
+    <Criterion id="AC-GW-002">Routes correctly proxy to backend services (all 9 route mappings work)</Criterion>
+    <Criterion id="AC-GW-003">JWT validation works with Keycloak tokens (valid token allows, invalid denies)</Criterion>
+    <Criterion id="AC-GW-004">Correlation ID header injected on all requests (generated or propagated)</Criterion>
+    <Criterion id="AC-GW-005">Rate limiting returns 429 when limit exceeded</Criterion>
+    <Criterion id="AC-GW-006">CORS preflight returns correct Access-Control-* headers</Criterion>
+    <Criterion id="AC-GW-007">Circuit breaker opens after configured failure threshold</Criterion>
+    <Criterion id="AC-GW-008">Health endpoints return UP (/actuator/health/liveness, /actuator/health/readiness)</Criterion>
+    <Criterion id="AC-GW-009">All test cases pass (TC-GW-*, TC-CORR-*, TC-SEC-*, TC-ROUTE-*, TC-RATE-*)</Criterion>
+    <Criterion id="AC-GW-010">Structured JSON logs include correlationId, path, method, status, latencyMs</Criterion>
+  </AcceptanceCriteria>
+
+
+  <MigrationNote>
+    Timestamp approximated during v1→v2 migration (2025-12-30).
+    Original file had date-only created value.
+  </MigrationNote>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       11. SCOPE SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Scope>
+    <Services>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-gateway"/>
+    </Services>
+    <UseCases>
+      <UseCaseRef ref="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#NFR-OBS-TRACING"/>
+      <UseCaseRef ref="RequirementsAnalysis.xml#NFR-AVAIL-GRACEFUL-DEGRADATION"/>
+    </UseCases>
+    <Tasks>
+      <TaskRef ref="DevelopmentExecutionPlan.xml#W0-T4"/>
+    </Tasks>
+  </Scope>
+
+  <Artifacts>
+    <Artifact ref="RequirementsAnalysis.xml" version="1.0.0"/>
+    <Artifact ref="Technology.xml" version="1.0.0"/>
+    <Artifact ref="DevelopmentPlan.xml" version="1.1.1"/>
+    <Artifact ref="DevelopmentExecutionPlan.xml" version="1.0.0"/>
+  </Artifacts>
+
+  <Contracts>
+    <ModuleContractRef id="MC-gateway-infrastructure-GatewayApplication"/>
+    <FunctionContractRef id="FC-gateway-filter-CorrelationIdFilter-filter"/>
+    <FunctionContractRef id="FC-gateway-config-SecurityConfig-securityWebFilterChain"/>
+    <FunctionContractRef id="FC-gateway-config-GatewayConfig-routeLocator"/>
+    <FunctionContractRef id="FC-gateway-config-RateLimitConfig-rateLimiter"/>
+    <BlockAnchorRef id="BA-GW-CORR-01"/>
+    <BlockAnchorRef id="BA-GW-CORR-02"/>
+    <BlockAnchorRef id="BA-GW-CORR-03"/>
+    <BlockAnchorRef id="BA-GW-CORR-04"/>
+    <BlockAnchorRef id="BA-GW-AUTH-01"/>
+    <BlockAnchorRef id="BA-GW-AUTH-02"/>
+    <BlockAnchorRef id="BA-GW-AUTH-03"/>
+    <BlockAnchorRef id="BA-GW-ROUTE-01"/>
+    <BlockAnchorRef id="BA-GW-ROUTE-02"/>
+    <BlockAnchorRef id="BA-GW-ROUTE-03"/>
+    <BlockAnchorRef id="BA-GW-RATE-01"/>
+    <BlockAnchorRef id="BA-GW-RATE-02"/>
+    <BlockAnchorRef id="BA-GW-RATE-03"/>
+    <BlockAnchorRef id="BA-GW-CB-01"/>
+    <BlockAnchorRef id="BA-GW-CB-02"/>
+    <BlockAnchorRef id="BA-GW-CB-03"/>
+  </Contracts>
+
+</GRACE_HANDOFF>

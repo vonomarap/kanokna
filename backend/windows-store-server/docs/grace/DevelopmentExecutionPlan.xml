@@ -1,0 +1,665 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Artifact: DevelopmentExecutionPlan.xml
+  Purpose: Phased implementation roadmap for Coder agent execution
+  Version: 1.0.0
+  Created: 2025-12-30
+  Approved Handoff: Handoff-20251229-02
+-->
+<DevelopmentExecutionPlan version="1.0.0" handoffRef="Handoff-20251229-02">
+
+  <Overview>
+    <Description>
+      Phased implementation plan for the Windows and Doors E-Commerce backend platform.
+      Organized into 5 waves with clear dependencies, deliverables, and acceptance criteria.
+      Each wave builds on the previous, enabling incremental validation.
+    </Description>
+    <Principles>
+      <Principle>Contract-first: Define APIs before implementation</Principle>
+      <Principle>Skeleton-first: Generate structure, then fill logic</Principle>
+      <Principle>Test-driven: Tests accompany every implementation</Principle>
+      <Principle>Incremental: Each wave produces deployable artifacts</Principle>
+    </Principles>
+  </Overview>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       WAVE 0: FOUNDATION
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Wave id="WAVE-0" name="Foundation" priority="CRITICAL">
+    <Description>
+      Establish shared libraries, contract definitions, and build infrastructure.
+      This wave produces no runnable services but enables all subsequent waves.
+    </Description>
+
+    <Prerequisites>
+      <Item>Parent POM exists with dependency management</Item>
+      <Item>shared-kernel module exists with basic value objects</Item>
+    </Prerequisites>
+
+    <Tasks>
+      <Task id="W0-T1" name="Enhance shared-kernel">
+        <Description>Complete shared-kernel with all required value objects and interfaces</Description>
+        <Deliverables>
+          <Item>Money value object with currency operations</Item>
+          <Item>DimensionsCm value object (50-400cm range validation)</Item>
+          <Item>Address, Email, PhoneNumber value objects</Item>
+          <Item>LocalizedString for i18n content</Item>
+          <Item>DomainEvent interface with metadata</Item>
+          <Item>Result/Either pattern for error handling</Item>
+          <Item>Common enums (Language, Currency, Country)</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>All value objects are immutable (final fields, no setters)</Criterion>
+          <Criterion>No Spring/JPA/framework dependencies (maven-enforcer validates)</Criterion>
+          <Criterion>Unit tests for all validation rules</Criterion>
+          <Criterion>Javadoc on public API</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>15-20</EstimatedFiles>
+      </Task>
+
+      <Task id="W0-T2" name="Create api-contracts module">
+        <Description>Contract-first API definitions with Protobuf and OpenAPI</Description>
+        <Deliverables>
+          <Item>Module pom.xml with protobuf-maven-plugin</Item>
+          <Item>Proto files for gRPC services:
+            - catalog_configuration.proto
+            - pricing.proto
+            - cart.proto
+            - account.proto
+            - media.proto
+          </Item>
+          <Item>Proto files for domain events:
+            - catalog_events.proto
+            - order_events.proto
+            - pricing_events.proto
+            - installation_events.proto
+          </Item>
+          <Item>Common proto definitions (money.proto, dimensions.proto, common.proto)</Item>
+          <Item>Build generates Java stubs automatically</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>mvn compile generates gRPC stubs without errors</Criterion>
+          <Criterion>Proto files follow Google style guide</Criterion>
+          <Criterion>All messages have field documentation</Criterion>
+          <Criterion>Backward compatibility lint (buf) passes</Criterion>
+        </AcceptanceCriteria>
+        <Dependencies>
+          <Dependency ref="W0-T1">Shared types inform proto definitions</Dependency>
+        </Dependencies>
+        <EstimatedFiles>12-15</EstimatedFiles>
+      </Task>
+
+      <Task id="W0-T3" name="Create config-server module">
+        <Description>Spring Cloud Config Server for centralized configuration</Description>
+        <Deliverables>
+          <Item>Module structure with Spring Cloud Config Server</Item>
+          <Item>Configuration files for dev/stage/prod profiles</Item>
+          <Item>Git-backed or file-based config repository</Item>
+          <Item>Encryption support for secrets</Item>
+          <Item>Dockerfile for containerization</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Server starts and serves configuration on port 8888</Criterion>
+          <Criterion>Health endpoint returns UP</Criterion>
+          <Criterion>Configuration refresh works</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>8-10</EstimatedFiles>
+      </Task>
+
+      <Task id="W0-T4" name="Create gateway module">
+        <Description>API Gateway with routing, auth, and rate limiting</Description>
+        <Deliverables>
+          <Item>Spring Cloud Gateway application</Item>
+          <Item>Route definitions for all services</Item>
+          <Item>OAuth2 resource server configuration</Item>
+          <Item>Correlation ID filter</Item>
+          <Item>Rate limiting configuration</Item>
+          <Item>CORS configuration</Item>
+          <Item>Dockerfile</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Gateway starts on port 8080</Criterion>
+          <Criterion>Routes correctly proxy to backend services</Criterion>
+          <Criterion>JWT validation works with Keycloak tokens</Criterion>
+          <Criterion>Correlation ID header injected on all requests</Criterion>
+        </AcceptanceCriteria>
+        <Dependencies>
+          <Dependency ref="W0-T3">Fetches config from config-server</Dependency>
+        </Dependencies>
+        <EstimatedFiles>10-12</EstimatedFiles>
+      </Task>
+
+      <Task id="W0-T5" name="Set up GitHub Actions CI">
+        <Description>CI/CD pipeline for build, test, and artifact publishing</Description>
+        <Deliverables>
+          <Item>.github/workflows/ci.yml - Build and test on PR</Item>
+          <Item>.github/workflows/build-and-push.yml - Docker image builds</Item>
+          <Item>.github/workflows/deploy-stage.yml - Stage deployment</Item>
+          <Item>Dependabot configuration</Item>
+          <Item>Code quality checks (checkstyle, spotbugs)</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>CI runs on every push and PR</Criterion>
+          <Criterion>All modules compile and tests pass</Criterion>
+          <Criterion>Docker images built for infrastructure services</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>5-7</EstimatedFiles>
+      </Task>
+
+      <Task id="W0-T6" name="Docker Compose for local dev">
+        <Description>Local development environment with all infrastructure</Description>
+        <Deliverables>
+          <Item>docker-compose.yml with:
+            - PostgreSQL
+            - Redis
+            - Kafka + Zookeeper
+            - Elasticsearch
+            - Keycloak
+            - MinIO (S3-compatible)
+          </Item>
+          <Item>docker-compose.override.yml for dev tweaks</Item>
+          <Item>Init scripts for Keycloak realm</Item>
+          <Item>Sample data seeding scripts</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>docker-compose up starts all infrastructure</Criterion>
+          <Criterion>Keycloak accessible with pre-configured realm</Criterion>
+          <Criterion>All services can connect to dependencies</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>8-10</EstimatedFiles>
+      </Task>
+    </Tasks>
+
+    <WaveAcceptance>
+      <Criterion>All modules compile with mvn clean install</Criterion>
+      <Criterion>Proto stubs generated successfully</Criterion>
+      <Criterion>config-server and gateway start and pass health checks</Criterion>
+      <Criterion>Docker Compose brings up full infrastructure stack</Criterion>
+      <Criterion>CI pipeline executes successfully</Criterion>
+    </WaveAcceptance>
+  </Wave>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       WAVE 1: CATALOG & PRICING (Core Domain)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Wave id="WAVE-1" name="Catalog and Pricing" priority="CRITICAL">
+    <Description>
+      Implement the core product configuration and pricing services.
+      These are the foundation of the shopping experience.
+    </Description>
+
+    <Prerequisites>
+      <Item>Wave 0 complete</Item>
+      <Item>api-contracts module with catalog and pricing protos</Item>
+    </Prerequisites>
+
+    <Tasks>
+      <Task id="W1-T1" name="catalog-configuration-service skeleton">
+        <Description>Generate hexagonal architecture skeleton</Description>
+        <Deliverables>
+          <Item>Package structure per DevelopmentPlan.xml</Item>
+          <Item>Domain model: ProductTemplate, ConfigurationRuleSet, BomTemplate</Item>
+          <Item>Application ports (in/out interfaces)</Item>
+          <Item>REST controller stubs</Item>
+          <Item>gRPC service stubs</Item>
+          <Item>JPA entities and repositories</Item>
+          <Item>Flyway migrations (V1__catalog_schema.sql)</Item>
+          <Item>application.yml with profiles</Item>
+          <Item>Dockerfile</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Service starts and connects to PostgreSQL</Criterion>
+          <Criterion>Health endpoints return UP</Criterion>
+          <Criterion>gRPC server starts on port 9081</Criterion>
+          <Criterion>ArchUnit tests pass for layer dependencies</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>40-50</EstimatedFiles>
+      </Task>
+
+      <Task id="W1-T2" name="catalog-configuration-service domain logic">
+        <Description>Implement configuration validation per MC-catalog-configuration-service-domain-ConfigurationValidation</Description>
+        <Deliverables>
+          <Item>ConfigurationValidationService with validateConfiguration()</Item>
+          <Item>BomResolutionService with resolveBom()</Item>
+          <Item>Rule engine for compatibility checks</Item>
+          <Item>Block anchors: BA-CFG-VAL-01 through BA-CFG-VAL-99</Item>
+          <Item>Domain events: ConfigurationValidatedEvent, ProductTemplatePublishedEvent</Item>
+          <Item>Decision trace logging</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>All test cases from FC-catalog-configuration-service-validateConfiguration pass</Criterion>
+          <Criterion>Dimension validation enforces 50-400cm range</Criterion>
+          <Criterion>Material/glazing compatibility rules work</Criterion>
+          <Criterion>Logs contain block anchor IDs</Criterion>
+        </AcceptanceCriteria>
+        <Dependencies>
+          <Dependency ref="W1-T1">Skeleton must exist</Dependency>
+        </Dependencies>
+        <ContractRef>FC-catalog-configuration-service-UC-CATALOG-CONFIGURE-ITEM-validateConfiguration</ContractRef>
+        <EstimatedFiles>20-25</EstimatedFiles>
+      </Task>
+
+      <Task id="W1-T3" name="pricing-service skeleton">
+        <Description>Generate hexagonal architecture skeleton for pricing</Description>
+        <Deliverables>
+          <Item>Package structure per DevelopmentPlan.xml</Item>
+          <Item>Domain model: PriceBook, Campaign, TaxRule, Quote</Item>
+          <Item>Application ports (in/out interfaces)</Item>
+          <Item>REST controller stubs</Item>
+          <Item>gRPC service stubs</Item>
+          <Item>JPA entities and Redis cache adapter</Item>
+          <Item>Flyway migrations (V1__pricing_schema.sql)</Item>
+          <Item>Dockerfile</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Service starts on ports 8082/9082</Criterion>
+          <Criterion>Connects to PostgreSQL and Redis</Criterion>
+          <Criterion>ArchUnit tests pass</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>35-45</EstimatedFiles>
+      </Task>
+
+      <Task id="W1-T4" name="pricing-service domain logic">
+        <Description>Implement price calculation per MC-pricing-service-domain-PriceCalculation</Description>
+        <Deliverables>
+          <Item>PriceCalculationService with calculateQuote()</Item>
+          <Item>Price book lookup with versioning</Item>
+          <Item>Option premium calculation (absolute/percentage)</Item>
+          <Item>Campaign discount application</Item>
+          <Item>Tax calculation per region</Item>
+          <Item>Block anchors: BA-PRC-CALC-01 through BA-PRC-CALC-99</Item>
+          <Item>Quote caching in Redis</Item>
+          <Item>Decision trace for audit</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Quote calculation matches test cases</Criterion>
+          <Criterion>Campaigns apply within validity period</Criterion>
+          <Criterion>Tax rules apply per region</Criterion>
+          <Criterion>Quotes cached with 5-minute TTL</Criterion>
+        </AcceptanceCriteria>
+        <Dependencies>
+          <Dependency ref="W1-T3">Skeleton must exist</Dependency>
+        </Dependencies>
+        <ContractRef>MC-pricing-service-domain-PriceCalculation</ContractRef>
+        <EstimatedFiles>20-25</EstimatedFiles>
+      </Task>
+
+      <Task id="W1-T5" name="gRPC integration: catalog calls pricing">
+        <Description>Wire gRPC client in catalog-configuration-service to call pricing-service</Description>
+        <Deliverables>
+          <Item>PricingGrpcClient adapter in catalog-configuration-service</Item>
+          <Item>Circuit breaker configuration</Item>
+          <Item>Deadline propagation</Item>
+          <Item>Integration test with both services</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Configuration validation returns price quote</Criterion>
+          <Criterion>Circuit breaker trips on pricing service failure</Criterion>
+          <Criterion>Tracing spans connected across services</Criterion>
+        </AcceptanceCriteria>
+        <Dependencies>
+          <Dependency ref="W1-T2">Catalog service implemented</Dependency>
+          <Dependency ref="W1-T4">Pricing service implemented</Dependency>
+        </Dependencies>
+        <EstimatedFiles>5-8</EstimatedFiles>
+      </Task>
+    </Tasks>
+
+    <WaveAcceptance>
+      <Criterion>Both services start and pass health checks</Criterion>
+      <Criterion>Configuration validation returns prices via gRPC</Criterion>
+      <Criterion>All contract test cases pass</Criterion>
+      <Criterion>Services deployable via Docker Compose</Criterion>
+    </WaveAcceptance>
+  </Wave>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       WAVE 2: CART & ORDER (Transaction Path)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Wave id="WAVE-2" name="Cart and Order" priority="CRITICAL">
+    <Description>
+      Implement shopping cart and order placement with payment integration.
+      Completes the core purchase flow.
+    </Description>
+
+    <Prerequisites>
+      <Item>Wave 1 complete</Item>
+      <Item>catalog-configuration and pricing services operational</Item>
+    </Prerequisites>
+
+    <Tasks>
+      <Task id="W2-T1" name="cart-service implementation">
+        <Description>Shopping cart with configuration validation and pricing</Description>
+        <Deliverables>
+          <Item>Full hexagonal skeleton</Item>
+          <Item>Cart aggregate with items</Item>
+          <Item>gRPC clients for catalog and pricing</Item>
+          <Item>Promo code application</Item>
+          <Item>Cart merge on login</Item>
+          <Item>Cart snapshot for checkout</Item>
+          <Item>Flyway migrations</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Add/update/remove cart items works</Criterion>
+          <Criterion>Configurations validated on add</Criterion>
+          <Criterion>Prices updated from pricing-service</Criterion>
+          <Criterion>Cart snapshot includes all data for order creation</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>40-50</EstimatedFiles>
+      </Task>
+
+      <Task id="W2-T2" name="order-service skeleton">
+        <Description>Order service with state machine and payment integration</Description>
+        <Deliverables>
+          <Item>Full hexagonal skeleton</Item>
+          <Item>Order aggregate with state machine</Item>
+          <Item>Payment aggregate</Item>
+          <Item>State transitions per DevelopmentPlan.xml</Item>
+          <Item>Flyway migrations</Item>
+          <Item>Outbox table for events</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Service starts on ports 8084/9084</Criterion>
+          <Criterion>State machine enforces valid transitions</Criterion>
+          <Criterion>ArchUnit tests pass</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>45-55</EstimatedFiles>
+      </Task>
+
+      <Task id="W2-T3" name="order-service domain logic">
+        <Description>Implement order placement per MC-order-service-application-OrderPlacement</Description>
+        <Deliverables>
+          <Item>OrderApplicationService with placeOrder(), initiatePayment(), handlePaymentCallback()</Item>
+          <Item>Idempotency via idempotency key</Item>
+          <Item>Block anchors: BA-ORD-PLACE-01 through BA-ORD-PLACE-99</Item>
+          <Item>Block anchors: BA-PAY-CB-01 through BA-PAY-CB-04</Item>
+          <Item>Outbox publisher for OrderCreatedEvent</Item>
+          <Item>gRPC client for cart-service</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>All test cases from MC-order-service-application-OrderPlacement pass</Criterion>
+          <Criterion>Idempotent order placement</Criterion>
+          <Criterion>Events published via outbox</Criterion>
+        </AcceptanceCriteria>
+        <Dependencies>
+          <Dependency ref="W2-T2">Skeleton must exist</Dependency>
+        </Dependencies>
+        <ContractRef>MC-order-service-application-OrderPlacement</ContractRef>
+        <EstimatedFiles>25-30</EstimatedFiles>
+      </Task>
+
+      <Task id="W2-T4" name="YooKassa payment integration">
+        <Description>Integrate YooKassa SDK for Russian market payments</Description>
+        <Deliverables>
+          <Item>YooKassa SDK dependency</Item>
+          <Item>PaymentGatewayPort implementation for YooKassa</Item>
+          <Item>Payment session creation</Item>
+          <Item>Webhook handler with signature verification</Item>
+          <Item>Capture and refund operations</Item>
+          <Item>54-FZ receipt generation</Item>
+          <Item>Test mode configuration</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Payment session created via YooKassa API</Criterion>
+          <Criterion>Webhook signature verified</Criterion>
+          <Criterion>Payment captured on authorization</Criterion>
+          <Criterion>Receipts generated per 54-FZ</Criterion>
+        </AcceptanceCriteria>
+        <Dependencies>
+          <Dependency ref="W2-T3">Order service logic needed</Dependency>
+        </Dependencies>
+        <ExternalRef>Technology.xml#TECH-yookassa</ExternalRef>
+        <EstimatedFiles>10-15</EstimatedFiles>
+      </Task>
+
+      <Task id="W2-T5" name="Kafka event publishing">
+        <Description>Set up Kafka producers and outbox relay</Description>
+        <Deliverables>
+          <Item>Kafka producer configuration</Item>
+          <Item>Outbox relay job (polling or CDC)</Item>
+          <Item>Event serialization with Protobuf</Item>
+          <Item>Topic configuration (partitions, replication)</Item>
+          <Item>Dead letter queue handling</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Events published to Kafka topics</Criterion>
+          <Criterion>Outbox ensures at-least-once delivery</Criterion>
+          <Criterion>Events deserializable by consumers</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>10-12</EstimatedFiles>
+      </Task>
+    </Tasks>
+
+    <WaveAcceptance>
+      <Criterion>Full checkout flow works: browse -> configure -> cart -> order -> pay</Criterion>
+      <Criterion>YooKassa test payments succeed</Criterion>
+      <Criterion>Order state machine transitions correctly</Criterion>
+      <Criterion>Events published to Kafka</Criterion>
+    </WaveAcceptance>
+  </Wave>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       WAVE 3: SUPPORTING SERVICES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Wave id="WAVE-3" name="Supporting Services" priority="HIGH">
+    <Description>
+      Implement supporting services: account, search, media, notification.
+      Enhances the core experience with user management and discovery.
+    </Description>
+
+    <Prerequisites>
+      <Item>Wave 2 complete</Item>
+      <Item>Core purchase flow operational</Item>
+    </Prerequisites>
+
+    <Tasks>
+      <Task id="W3-T1" name="account-service implementation">
+        <Description>User profile management integrated with Keycloak</Description>
+        <Deliverables>
+          <Item>User profile sync from Keycloak</Item>
+          <Item>Address management</Item>
+          <Item>User preferences</Item>
+          <Item>Saved configurations</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Profile created on first login</Criterion>
+          <Criterion>Multiple addresses supported</Criterion>
+          <Criterion>Preferences persisted</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>30-35</EstimatedFiles>
+      </Task>
+
+      <Task id="W3-T2" name="search-service implementation">
+        <Description>Elasticsearch-backed product search</Description>
+        <Deliverables>
+          <Item>Elasticsearch index management</Item>
+          <Item>Kafka consumer for ProductTemplatePublishedEvent</Item>
+          <Item>Full-text search with facets</Item>
+          <Item>Autocomplete suggestions</Item>
+          <Item>Synonym support</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Products indexed on publish event</Criterion>
+          <Criterion>Search returns relevant results</Criterion>
+          <Criterion>Faceted filtering works</Criterion>
+          <Criterion>P95 latency under 200ms</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>25-30</EstimatedFiles>
+      </Task>
+
+      <Task id="W3-T3" name="media-service implementation">
+        <Description>Media asset management with S3-compatible storage</Description>
+        <Deliverables>
+          <Item>Upload to MinIO/S3</Item>
+          <Item>Image variant generation</Item>
+          <Item>Presigned URL generation</Item>
+          <Item>Metadata management</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Images uploaded and stored</Criterion>
+          <Criterion>Variants generated (thumbnail, web, original)</Criterion>
+          <Criterion>Presigned URLs work with expiry</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>25-30</EstimatedFiles>
+      </Task>
+
+      <Task id="W3-T4" name="notification-service implementation">
+        <Description>Transactional notifications via email/SMS</Description>
+        <Deliverables>
+          <Item>Kafka consumers for order events</Item>
+          <Item>Template management with localization</Item>
+          <Item>Email sending (SendGrid or SMTP)</Item>
+          <Item>SMS sending (Twilio placeholder)</Item>
+          <Item>Delivery tracking</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Order confirmation emails sent</Criterion>
+          <Criterion>Templates rendered with event data</Criterion>
+          <Criterion>Delivery status tracked</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>30-35</EstimatedFiles>
+      </Task>
+    </Tasks>
+
+    <WaveAcceptance>
+      <Criterion>User can register, login, manage profile</Criterion>
+      <Criterion>Product search returns results with facets</Criterion>
+      <Criterion>Media assets served correctly</Criterion>
+      <Criterion>Order confirmation emails received</Criterion>
+    </WaveAcceptance>
+  </Wave>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       WAVE 4: INSTALLATION & REPORTING
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Wave id="WAVE-4" name="Installation and Reporting" priority="MEDIUM">
+    <Description>
+      Complete the platform with installation scheduling and business reporting.
+    </Description>
+
+    <Prerequisites>
+      <Item>Wave 3 complete</Item>
+    </Prerequisites>
+
+    <Tasks>
+      <Task id="W4-T1" name="installation-service implementation">
+        <Description>Installation scheduling and tracking</Description>
+        <Deliverables>
+          <Item>Installer profile management</Item>
+          <Item>Availability calendar</Item>
+          <Item>Appointment scheduling</Item>
+          <Item>Job completion tracking</Item>
+          <Item>Integration with order-service</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Available slots shown based on region</Criterion>
+          <Criterion>Appointments scheduled and confirmed</Criterion>
+          <Criterion>Completion advances order status</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>35-40</EstimatedFiles>
+      </Task>
+
+      <Task id="W4-T2" name="reporting-service implementation">
+        <Description>Business intelligence and reporting</Description>
+        <Deliverables>
+          <Item>Event consumers for data aggregation</Item>
+          <Item>Materialized views for reports</Item>
+          <Item>Sales reports API</Item>
+          <Item>Export to CSV/Excel</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Sales data aggregated from events</Criterion>
+          <Criterion>Reports queryable by date range</Criterion>
+          <Criterion>Export produces valid files</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>25-30</EstimatedFiles>
+      </Task>
+
+      <Task id="W4-T3" name="End-to-end integration testing">
+        <Description>Full platform integration and load testing</Description>
+        <Deliverables>
+          <Item>E2E test suite with Testcontainers</Item>
+          <Item>Load test scenarios with Gatling/k6</Item>
+          <Item>Performance baseline documentation</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Full purchase flow tested E2E</Criterion>
+          <Criterion>P95 latency meets NFR targets</Criterion>
+          <Criterion>No data inconsistencies under load</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>15-20</EstimatedFiles>
+      </Task>
+    </Tasks>
+
+    <WaveAcceptance>
+      <Criterion>Installation scheduling works end-to-end</Criterion>
+      <Criterion>Reports show accurate data</Criterion>
+      <Criterion>Platform meets performance NFRs</Criterion>
+    </WaveAcceptance>
+  </Wave>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       EXECUTION GUIDELINES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ExecutionGuidelines>
+    <Guideline id="EG-001" title="Skeleton Generation">
+      For each service, generate the complete package structure first:
+      - domain.model, domain.service, domain.event, domain.exception
+      - application.port.in, application.port.out, application.service, application.dto
+      - adapters.in.web, adapters.in.grpc, adapters.in.listener
+      - adapters.out.persistence, adapters.out.grpc, adapters.out.kafka
+      - adapters.config
+      Create stub implementations that compile but throw UnsupportedOperationException.
+    </Guideline>
+
+    <Guideline id="EG-002" title="Test-First Implementation">
+      Before implementing logic:
+      1. Write unit tests from contract test cases
+      2. Write integration tests for adapter boundaries
+      3. Implement until tests pass
+    </Guideline>
+
+    <Guideline id="EG-003" title="Contract Compliance">
+      Every implementation MUST:
+      - Include block anchor comments (// BA-XXX-XXX: description)
+      - Follow logging format from contracts
+      - Implement all error codes from contracts
+      - Pass all contract test cases
+    </Guideline>
+
+    <Guideline id="EG-004" title="Incremental Commits">
+      Commit after each logical unit:
+      - One commit per skeleton generation
+      - One commit per domain model
+      - One commit per use case implementation
+      - One commit per integration point
+    </Guideline>
+
+    <Guideline id="EG-005" title="Documentation">
+      Maintain:
+      - Javadoc on all public APIs
+      - README.md per service with setup instructions
+      - API documentation via OpenAPI/Swagger
+    </Guideline>
+  </ExecutionGuidelines>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FILE ESTIMATES SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FileEstimates>
+    <Wave ref="WAVE-0" files="58-74"/>
+    <Wave ref="WAVE-1" files="120-153"/>
+    <Wave ref="WAVE-2" files="130-162"/>
+    <Wave ref="WAVE-3" files="110-130"/>
+    <Wave ref="WAVE-4" files="75-90"/>
+    <Total>493-609 files</Total>
+  </FileEstimates>
+
+  <Links>
+    <Link ref="Handoff-20251229-02"/>
+    <Link ref="DevelopmentPlan.xml"/>
+    <Link ref="Technology.xml"/>
+    <Link ref="RequirementsAnalysis.xml"/>
+  </Links>
+
+</DevelopmentExecutionPlan>

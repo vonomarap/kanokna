@@ -1,0 +1,748 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff Document: API Contracts Module
+  Handoff ID: Handoff-20251230-03
+  Scope: W0-T2 (Create api-contracts module)
+  Status: PROPOSED
+  Created: 2025-12-30
+  Author: GRACE-ARCHITECT
+-->
+<GRACE_HANDOFF
+  id="Handoff-20251230-03"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2025-12-30T00:00:00+00:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W0-T2"
+  planRef="DevelopmentExecutionPlan.xml#W0-T2"
+  blueprintRef="DevelopmentPlan.xml#DP-SVC-api-contracts"
+  techRef="Technology.xml#DEC-EVENT-SERIALIZATION,Technology.xml#DEC-INTER-SERVICE-COMM"
+  requirementsRef="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM,RequirementsAnalysis.xml#UC-PRICING-QUOTE"
+>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       1. INTENT SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <IntentSummary>
+    <BusinessIntent>
+      Define contract-first API specifications that govern all inter-service
+      communication and domain events. Enables decoupled service development
+      with explicit compatibility guarantees.
+    </BusinessIntent>
+    <TechnicalIntent>
+      Create the api-contracts module with:
+      - Protobuf definitions for gRPC services (catalog, pricing, cart, account, media)
+      - Protobuf definitions for Kafka domain events
+      - Common proto types (money, dimensions, common)
+      - Maven build generating Java stubs automatically
+      - Backward compatibility linting via buf
+    </TechnicalIntent>
+    <Scope>
+      <Task ref="DevelopmentExecutionPlan.xml#W0-T2"/>
+      <Wave ref="DevelopmentExecutionPlan.xml#WAVE-0"/>
+      <Service ref="DevelopmentPlan.xml#DP-SVC-api-contracts"/>
+    </Scope>
+  </IntentSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       2. DECISIONS SNAPSHOT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DecisionsSnapshot>
+    <Decision ref="Technology.xml#DEC-EVENT-SERIALIZATION">Protobuf for events</Decision>
+    <Decision ref="Technology.xml#DEC-INTER-SERVICE-COMM">gRPC for sync communication</Decision>
+    <Decision ref="Technology.xml#TECH-grpc">gRPC 1.60.x with protobuf-java</Decision>
+    <Decision ref="Technology.xml#TECH-protobuf">Protocol Buffers 3.x</Decision>
+    <Decision ref="DevelopmentPlan.xml#ContractEvolutionPolicy">
+      Backward-compatible evolution: add optional fields only, never remove/rename
+    </Decision>
+  </DecisionsSnapshot>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       3. FILES TO CREATE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FilesToCreate>
+    <!-- Build Configuration -->
+    <File path="api-contracts/pom.xml" action="ENHANCE">
+      Add protobuf-maven-plugin, grpc-java plugin, buf plugin
+    </File>
+    <File path="api-contracts/buf.yaml" action="CREATE">
+      Buf configuration for linting and breaking change detection
+    </File>
+    <File path="api-contracts/buf.gen.yaml" action="CREATE">
+      Buf code generation configuration
+    </File>
+
+    <!-- Common Proto Types -->
+    <File path="api-contracts/src/main/proto/kanokna/common/v1/money.proto" action="CREATE">
+      Money and Currency message types
+    </File>
+    <File path="api-contracts/src/main/proto/kanokna/common/v1/dimensions.proto" action="CREATE">
+      Dimensions message type
+    </File>
+    <File path="api-contracts/src/main/proto/kanokna/common/v1/common.proto" action="CREATE">
+      Common types: Pagination, Timestamp, LocalizedString
+    </File>
+    <File path="api-contracts/src/main/proto/kanokna/common/v1/address.proto" action="CREATE">
+      Address message type
+    </File>
+
+    <!-- gRPC Service Definitions -->
+    <File path="api-contracts/src/main/proto/kanokna/catalog/v1/catalog_configuration_service.proto" action="CREATE">
+      CatalogConfigurationService gRPC definition
+    </File>
+    <File path="api-contracts/src/main/proto/kanokna/pricing/v1/pricing_service.proto" action="CREATE">
+      PricingService gRPC definition
+    </File>
+    <File path="api-contracts/src/main/proto/kanokna/cart/v1/cart_service.proto" action="CREATE">
+      CartService gRPC definition
+    </File>
+    <File path="api-contracts/src/main/proto/kanokna/account/v1/account_service.proto" action="CREATE">
+      AccountService gRPC definition
+    </File>
+    <File path="api-contracts/src/main/proto/kanokna/media/v1/media_service.proto" action="CREATE">
+      MediaService gRPC definition
+    </File>
+
+    <!-- Domain Event Definitions -->
+    <File path="api-contracts/src/main/proto/kanokna/catalog/v1/catalog_events.proto" action="CREATE">
+      Catalog domain events (ProductTemplatePublished, etc.)
+    </File>
+    <File path="api-contracts/src/main/proto/kanokna/order/v1/order_events.proto" action="CREATE">
+      Order domain events (OrderCreated, OrderConfirmed, etc.)
+    </File>
+    <File path="api-contracts/src/main/proto/kanokna/pricing/v1/pricing_events.proto" action="CREATE">
+      Pricing domain events (QuoteCalculated)
+    </File>
+    <File path="api-contracts/src/main/proto/kanokna/installation/v1/installation_events.proto" action="CREATE">
+      Installation domain events (InstallationScheduled, InstallationCompleted)
+    </File>
+  </FilesToCreate>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       4. SEMANTIC CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <SemanticContractsAndAnchors>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         MODULE CONTRACT: API Contracts
+         ───────────────────────────────────────────────────────────────────────── -->
+    <ModuleContract id="MC-api-contracts-proto">
+      <EmbedInFile>api-contracts/README.md</EmbedInFile>
+      <Contract><![CDATA[
+<!-- <MODULE_CONTRACT id="MC-api-contracts-proto"
+     ROLE="ContractLibrary"
+     SERVICE="api-contracts"
+     LAYER="contracts"
+     BOUNDED_CONTEXT="contracts"
+     SPECIFICATION="DEC-INTER-SERVICE-COMM, DEC-EVENT-SERIALIZATION">
+  <PURPOSE>
+    Contract-first API specifications defining all inter-service gRPC APIs
+    and Kafka domain event schemas. Generated stubs used by service adapters.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Define gRPC service interfaces (CatalogConfiguration, Pricing, Cart, Account, Media)</Item>
+    <Item>Define Protobuf message schemas for domain events</Item>
+    <Item>Define common types (Money, Dimensions, Address, Pagination)</Item>
+    <Item>Generate Java stubs via protobuf-maven-plugin</Item>
+    <Item>Enforce backward compatibility via buf lint</Item>
+  </RESPONSIBILITIES>
+
+  <INVARIANTS>
+    <Item>All proto files follow Google style guide</Item>
+    <Item>Field numbers never reused after deletion (use reserved)</Item>
+    <Item>New fields are optional (no required in proto3)</Item>
+    <Item>Package naming: kanokna.{domain}.v{version}</Item>
+    <Item>Generated stubs confined to adapters (ArchUnit enforced)</Item>
+  </INVARIANTS>
+
+  <CONSTRAINTS>
+    <Item>MUST NOT contain business logic</Item>
+    <Item>MUST NOT depend on Spring Boot runtime</Item>
+    <Item>MUST NOT depend on JPA/Hibernate</Item>
+    <Item>Domain layer MUST NOT import generated types</Item>
+  </CONSTRAINTS>
+
+  <GRPC_SERVICES>
+    <Service name="CatalogConfigurationService" package="kanokna.catalog.v1">
+      Configuration validation, product queries
+    </Service>
+    <Service name="PricingService" package="kanokna.pricing.v1">
+      Quote calculation
+    </Service>
+    <Service name="CartService" package="kanokna.cart.v1">
+      Cart operations, snapshot for checkout
+    </Service>
+    <Service name="AccountService" package="kanokna.account.v1">
+      User profile queries
+    </Service>
+    <Service name="MediaService" package="kanokna.media.v1">
+      Media metadata queries
+    </Service>
+  </GRPC_SERVICES>
+
+  <EVENT_SCHEMAS>
+    <Topic name="catalog.product.published">ProductTemplatePublishedEvent</Topic>
+    <Topic name="order.created">OrderCreatedEvent</Topic>
+    <Topic name="order.status.changed">OrderStatusChangedEvent</Topic>
+    <Topic name="payment.captured">PaymentCapturedEvent</Topic>
+    <Topic name="installation.scheduled">InstallationScheduledEvent</Topic>
+    <Topic name="installation.completed">InstallationCompletedEvent</Topic>
+  </EVENT_SCHEMAS>
+
+  <TESTS>
+    <Case id="TC-PROTO-001">mvn compile generates gRPC stubs without errors</Case>
+    <Case id="TC-PROTO-002">buf lint passes for all proto files</Case>
+    <Case id="TC-PROTO-003">buf breaking detects removed fields</Case>
+    <Case id="TC-PROTO-004">All messages have field documentation</Case>
+  </TESTS>
+
+  <LINKS>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-api-contracts"/>
+    <Link ref="DevelopmentPlan.xml#ContractEvolutionPolicy"/>
+    <Link ref="Technology.xml#TECH-protobuf"/>
+    <Link ref="Technology.xml#TECH-grpc"/>
+  </LINKS>
+</MODULE_CONTRACT> -->
+      ]]></Contract>
+    </ModuleContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: Catalog Configuration gRPC Service
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-api-contracts-catalog-ValidateConfiguration">
+      <EmbedInFile>api-contracts/src/main/proto/kanokna/catalog/v1/catalog_configuration_service.proto</EmbedInFile>
+      <Contract><![CDATA[
+// <FUNCTION_CONTRACT id="FC-api-contracts-catalog-ValidateConfiguration"
+//    LAYER="grpc"
+//    INTENT="Validate a product configuration against business rules"
+//    INPUT="ValidateConfigurationRequest"
+//    OUTPUT="ValidateConfigurationResponse"
+//    LINKS="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM">
+//  <REQUEST_FIELDS>
+//    product_template_id: string (required)
+//    dimensions: Dimensions (required)
+//    selected_options: repeated SelectedOption (required)
+//  </REQUEST_FIELDS>
+//  <RESPONSE_FIELDS>
+//    valid: bool
+//    validation_errors: repeated ValidationError
+//    resolved_bom: BillOfMaterials (if valid)
+//  </RESPONSE_FIELDS>
+//  <ERROR_CODES>
+//    INVALID_ARGUMENT: Missing required fields
+//    NOT_FOUND: Product template not found
+//    FAILED_PRECONDITION: Configuration rules violated
+//  </ERROR_CODES>
+// </FUNCTION_CONTRACT>
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: Pricing Service gRPC
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-api-contracts-pricing-CalculateQuote">
+      <EmbedInFile>api-contracts/src/main/proto/kanokna/pricing/v1/pricing_service.proto</EmbedInFile>
+      <Contract><![CDATA[
+// <FUNCTION_CONTRACT id="FC-api-contracts-pricing-CalculateQuote"
+//    LAYER="grpc"
+//    INTENT="Calculate price quote for a validated configuration"
+//    INPUT="CalculateQuoteRequest"
+//    OUTPUT="CalculateQuoteResponse"
+//    LINKS="RequirementsAnalysis.xml#UC-PRICING-QUOTE">
+//  <REQUEST_FIELDS>
+//    product_template_id: string (required)
+//    dimensions: Dimensions (required)
+//    resolved_bom: BillOfMaterials (required)
+//    currency: Currency (required)
+//    promo_code: string (optional)
+//    region: string (for tax calculation)
+//  </REQUEST_FIELDS>
+//  <RESPONSE_FIELDS>
+//    quote_id: string
+//    base_price: Money
+//    option_premiums: repeated PremiumLine
+//    discount: Money
+//    tax: Money
+//    total: Money
+//    valid_until: Timestamp
+//    decision_trace: repeated PricingDecision (for audit)
+//  </RESPONSE_FIELDS>
+//  <ERROR_CODES>
+//    INVALID_ARGUMENT: Invalid configuration or currency
+//    NOT_FOUND: No price book for product
+//  </ERROR_CODES>
+// </FUNCTION_CONTRACT>
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- Block Anchor Registry -->
+    <BlockAnchorRegistry>
+      <BlockAnchor id="BA-PROTO-BUILD-01" service="api-contracts" purpose="Compile proto files"/>
+      <BlockAnchor id="BA-PROTO-BUILD-02" service="api-contracts" purpose="Generate gRPC stubs"/>
+      <BlockAnchor id="BA-PROTO-LINT-01" service="api-contracts" purpose="Run buf lint"/>
+      <BlockAnchor id="BA-PROTO-COMPAT-01" service="api-contracts" purpose="Check breaking changes"/>
+    </BlockAnchorRegistry>
+
+  </SemanticContractsAndAnchors>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       5. IMPLEMENTATION SPECIFICATIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationSpecifications>
+
+    <!-- Common Money Proto -->
+    <ProtoSpec file="api-contracts/src/main/proto/kanokna/common/v1/money.proto">
+      <![CDATA[
+syntax = "proto3";
+
+package kanokna.common.v1;
+
+option java_package = "com.kanokna.common.v1";
+option java_outer_classname = "MoneyProto";
+option java_multiple_files = true;
+
+// Represents a monetary amount with currency
+message Money {
+  // Amount in minor units (kopeks for RUB, cents for EUR/USD)
+  int64 amount_minor = 1;
+
+  // ISO 4217 currency code
+  Currency currency = 2;
+}
+
+// Supported currencies
+enum Currency {
+  CURRENCY_UNSPECIFIED = 0;
+  CURRENCY_RUB = 1;  // Russian Ruble
+  CURRENCY_EUR = 2;  // Euro
+  CURRENCY_USD = 3;  // US Dollar
+}
+      ]]>
+    </ProtoSpec>
+
+    <!-- Common Dimensions Proto -->
+    <ProtoSpec file="api-contracts/src/main/proto/kanokna/common/v1/dimensions.proto">
+      <![CDATA[
+syntax = "proto3";
+
+package kanokna.common.v1;
+
+option java_package = "com.kanokna.common.v1";
+option java_outer_classname = "DimensionsProto";
+option java_multiple_files = true;
+
+// Product dimensions in centimeters
+message Dimensions {
+  // Width in centimeters (50-400)
+  int32 width_cm = 1;
+
+  // Height in centimeters (50-400)
+  int32 height_cm = 2;
+}
+      ]]>
+    </ProtoSpec>
+
+    <!-- Catalog Configuration Service Proto -->
+    <ProtoSpec file="api-contracts/src/main/proto/kanokna/catalog/v1/catalog_configuration_service.proto">
+      <![CDATA[
+syntax = "proto3";
+
+package kanokna.catalog.v1;
+
+import "kanokna/common/v1/dimensions.proto";
+import "kanokna/common/v1/money.proto";
+
+option java_package = "com.kanokna.catalog.v1";
+option java_outer_classname = "CatalogConfigurationServiceProto";
+option java_multiple_files = true;
+
+// Service for validating product configurations
+service CatalogConfigurationService {
+  // Validate a product configuration against business rules
+  rpc ValidateConfiguration(ValidateConfigurationRequest) returns (ValidateConfigurationResponse);
+
+  // Get product template with available options
+  rpc GetProductTemplate(GetProductTemplateRequest) returns (GetProductTemplateResponse);
+
+  // List product templates with pagination
+  rpc ListProductTemplates(ListProductTemplatesRequest) returns (ListProductTemplatesResponse);
+}
+
+message ValidateConfigurationRequest {
+  string product_template_id = 1;
+  kanokna.common.v1.Dimensions dimensions = 2;
+  repeated SelectedOption selected_options = 3;
+}
+
+message SelectedOption {
+  string option_group_id = 1;
+  string option_id = 2;
+}
+
+message ValidateConfigurationResponse {
+  bool valid = 1;
+  repeated ValidationError errors = 2;
+  BillOfMaterials resolved_bom = 3;
+}
+
+message ValidationError {
+  string code = 1;
+  string message = 2;
+  string field = 3;
+}
+
+message BillOfMaterials {
+  repeated BomLine lines = 1;
+}
+
+message BomLine {
+  string sku = 1;
+  string description = 2;
+  int32 quantity = 3;
+}
+
+message GetProductTemplateRequest {
+  string product_template_id = 1;
+}
+
+message GetProductTemplateResponse {
+  ProductTemplate template = 1;
+}
+
+message ProductTemplate {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string product_family = 4;
+  repeated OptionGroup option_groups = 5;
+  DimensionConstraints dimension_constraints = 6;
+}
+
+message OptionGroup {
+  string id = 1;
+  string name = 2;
+  bool required = 3;
+  repeated Option options = 4;
+}
+
+message Option {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  kanokna.common.v1.Money base_premium = 4;
+}
+
+message DimensionConstraints {
+  int32 min_width_cm = 1;
+  int32 max_width_cm = 2;
+  int32 min_height_cm = 3;
+  int32 max_height_cm = 4;
+}
+
+message ListProductTemplatesRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string product_family_filter = 3;
+}
+
+message ListProductTemplatesResponse {
+  repeated ProductTemplate templates = 1;
+  string next_page_token = 2;
+}
+      ]]>
+    </ProtoSpec>
+
+    <!-- Pricing Service Proto -->
+    <ProtoSpec file="api-contracts/src/main/proto/kanokna/pricing/v1/pricing_service.proto">
+      <![CDATA[
+syntax = "proto3";
+
+package kanokna.pricing.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/dimensions.proto";
+import "kanokna/common/v1/money.proto";
+import "kanokna/catalog/v1/catalog_configuration_service.proto";
+
+option java_package = "com.kanokna.pricing.v1";
+option java_outer_classname = "PricingServiceProto";
+option java_multiple_files = true;
+
+// Service for calculating price quotes
+service PricingService {
+  // Calculate a price quote for a validated configuration
+  rpc CalculateQuote(CalculateQuoteRequest) returns (CalculateQuoteResponse);
+
+  // Validate a promo code
+  rpc ValidatePromoCode(ValidatePromoCodeRequest) returns (ValidatePromoCodeResponse);
+}
+
+message CalculateQuoteRequest {
+  string product_template_id = 1;
+  kanokna.common.v1.Dimensions dimensions = 2;
+  kanokna.catalog.v1.BillOfMaterials resolved_bom = 3;
+  kanokna.common.v1.Currency currency = 4;
+  string promo_code = 5;
+  string region = 6;  // For tax calculation
+}
+
+message CalculateQuoteResponse {
+  string quote_id = 1;
+  kanokna.common.v1.Money base_price = 2;
+  repeated PremiumLine option_premiums = 3;
+  kanokna.common.v1.Money discount = 4;
+  kanokna.common.v1.Money subtotal = 5;
+  kanokna.common.v1.Money tax = 6;
+  kanokna.common.v1.Money total = 7;
+  google.protobuf.Timestamp valid_until = 8;
+  repeated PricingDecision decision_trace = 9;
+}
+
+message PremiumLine {
+  string option_id = 1;
+  string option_name = 2;
+  kanokna.common.v1.Money amount = 3;
+}
+
+message PricingDecision {
+  string step = 1;
+  string rule_applied = 2;
+  string result = 3;
+}
+
+message ValidatePromoCodeRequest {
+  string promo_code = 1;
+  kanokna.common.v1.Money subtotal = 2;
+}
+
+message ValidatePromoCodeResponse {
+  bool valid = 1;
+  string error_message = 2;
+  kanokna.common.v1.Money discount_amount = 3;
+}
+      ]]>
+    </ProtoSpec>
+
+    <!-- Order Events Proto -->
+    <ProtoSpec file="api-contracts/src/main/proto/kanokna/order/v1/order_events.proto">
+      <![CDATA[
+syntax = "proto3";
+
+package kanokna.order.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/money.proto";
+import "kanokna/common/v1/address.proto";
+
+option java_package = "com.kanokna.order.v1";
+option java_outer_classname = "OrderEventsProto";
+option java_multiple_files = true;
+
+// Domain event: Order was created
+message OrderCreatedEvent {
+  EventMetadata metadata = 1;
+  string order_id = 2;
+  string customer_id = 3;
+  repeated OrderItem items = 4;
+  kanokna.common.v1.Money total = 5;
+  kanokna.common.v1.Address shipping_address = 6;
+  bool requires_installation = 7;
+}
+
+// Domain event: Order status changed
+message OrderStatusChangedEvent {
+  EventMetadata metadata = 1;
+  string order_id = 2;
+  string previous_status = 3;
+  string new_status = 4;
+  string reason = 5;
+}
+
+// Domain event: Payment captured successfully
+message PaymentCapturedEvent {
+  EventMetadata metadata = 1;
+  string order_id = 2;
+  string payment_id = 3;
+  kanokna.common.v1.Money amount = 4;
+  string payment_method = 5;
+}
+
+// Common event metadata
+message EventMetadata {
+  string event_id = 1;
+  google.protobuf.Timestamp occurred_at = 2;
+  string aggregate_id = 3;
+  string aggregate_type = 4;
+  int64 version = 5;
+  string correlation_id = 6;
+}
+
+message OrderItem {
+  string product_template_id = 1;
+  string configuration_snapshot = 2;  // JSON for flexibility
+  int32 quantity = 3;
+  kanokna.common.v1.Money unit_price = 4;
+  kanokna.common.v1.Money line_total = 5;
+}
+      ]]>
+    </ProtoSpec>
+
+    <!-- POM Enhancement -->
+    <PomSpec file="api-contracts/pom.xml">
+      <![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.kanokna</groupId>
+        <artifactId>windows-store-server</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>api-contracts</artifactId>
+    <name>api-contracts</name>
+    <description>Contract-first API definitions (Protobuf/gRPC)</description>
+
+    <properties>
+        <protobuf.version>3.25.1</protobuf.version>
+        <grpc.version>1.60.1</grpc.version>
+        <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>2.1.1</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.7.1</version>
+            </extension>
+        </extensions>
+        <plugins>
+            <plugin>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>${protobuf-maven-plugin.version}</version>
+                <configuration>
+                    <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+                    <pluginId>grpc-java</pluginId>
+                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>compile-custom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+      ]]>
+    </PomSpec>
+
+    <!-- Buf Configuration -->
+    <BufConfig file="api-contracts/buf.yaml">
+      <![CDATA[
+version: v1
+name: buf.build/kanokna/api-contracts
+lint:
+  use:
+    - DEFAULT
+  except:
+    - PACKAGE_VERSION_SUFFIX
+breaking:
+  use:
+    - FILE
+      ]]>
+    </BufConfig>
+
+  </ImplementationSpecifications>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       6. ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria ref="DevelopmentExecutionPlan.xml#W0-T2">
+    <Criterion id="AC-PROTO-001">mvn compile generates gRPC stubs without errors</Criterion>
+    <Criterion id="AC-PROTO-002">Proto files follow Google style guide</Criterion>
+    <Criterion id="AC-PROTO-003">All messages have field documentation</Criterion>
+    <Criterion id="AC-PROTO-004">Backward compatibility lint (buf) passes</Criterion>
+    <Criterion id="AC-PROTO-005">All 5 gRPC services defined (Catalog, Pricing, Cart, Account, Media)</Criterion>
+    <Criterion id="AC-PROTO-006">Domain events defined for catalog, order, pricing, installation</Criterion>
+    <Criterion id="AC-PROTO-007">Common types (Money, Dimensions, Address) reused across definitions</Criterion>
+  </AcceptanceCriteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       7. CONSISTENCY CHECKLIST
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ConsistencyChecklist>
+    <Check status="PASS">All decisions from Technology.xml referenced</Check>
+    <Check status="PASS">Proto package naming follows convention (kanokna.{domain}.v1)</Check>
+    <Check status="PASS">Event schemas include EventMetadata</Check>
+    <Check status="PASS">gRPC services match DevelopmentPlan.xml#DP-SVC-api-contracts</Check>
+  </ConsistencyChecklist>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       8. SCOPE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Scope>
+    <Services>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-api-contracts"/>
+    </Services>
+    <Tasks>
+      <TaskRef ref="DevelopmentExecutionPlan.xml#W0-T2"/>
+    </Tasks>
+  </Scope>
+
+  <Artifacts>
+    <Artifact ref="RequirementsAnalysis.xml" version="1.0.0"/>
+    <Artifact ref="Technology.xml" version="1.0.0"/>
+    <Artifact ref="DevelopmentPlan.xml" version="1.1.1"/>
+  </Artifacts>
+
+  <Contracts>
+    <ModuleContractRef id="MC-api-contracts-proto"/>
+    <FunctionContractRef id="FC-api-contracts-catalog-ValidateConfiguration"/>
+    <FunctionContractRef id="FC-api-contracts-pricing-CalculateQuote"/>
+    <BlockAnchorRef id="BA-PROTO-BUILD-01"/>
+    <BlockAnchorRef id="BA-PROTO-BUILD-02"/>
+    <BlockAnchorRef id="BA-PROTO-LINT-01"/>
+    <BlockAnchorRef id="BA-PROTO-COMPAT-01"/>
+  </Contracts>
+
+
+  <MigrationNote>
+    Migrated to GRACE Markup v2 (2025-12-30).
+    created/author attributes were missing in original; derived from file header comment.
+  </MigrationNote>
+
+</GRACE_HANDOFF>

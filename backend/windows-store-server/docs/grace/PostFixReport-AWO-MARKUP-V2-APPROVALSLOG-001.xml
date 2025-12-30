@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PostFixReport: GRACE Markup v2 Approvals.log-Only Policy
+  Work Order: AWO-MARKUP-V2-APPROVALSLOG-ONLY-001
+  Completed: 2025-12-30T00:00:00+00:00
+  Author: GRACE-ARCHITECT
+-->
+<PostFixReport
+  id="PFR-AWO-MARKUP-V2-APPROVALSLOG-001"
+  workOrderRef="AWO-MARKUP-V2-APPROVALSLOG-ONLY-001"
+  status="COMPLETE"
+  completed="2025-12-30T00:00:00+00:00"
+  author="GRACE-ARCHITECT">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       1. EXECUTIVE SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ExecutiveSummary>
+    <Goal>
+      Align GRACE Markup v2 with the policy: approvals are stored ONLY in
+      docs/grace/approvals.log (append-only). Remove GRACE_APPROVAL templates
+      and entries from all handoff files.
+    </Goal>
+    <Outcome>SUCCESS - All acceptance criteria met (after audit fix pass)</Outcome>
+    <FilesModified>15</FilesModified>
+    <LegacyTagsRemoved>9</LegacyTagsRemoved>
+    <AuditFixPass>
+      <Issue ref="ISS-MARKUP-LEGACY-APPROVAL-001">Fixed status="APPROVED" on GRACE_HANDOFF tags</Issue>
+      <Issue ref="ISS-MARKUP-DATETIME-FORMAT-001">Fixed date-only formats to ISO-8601</Issue>
+    </AuditFixPass>
+  </ExecutiveSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       2. FILES CHANGED
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FilesChanged>
+
+    <Category name="Handoff Files (CHG-001 + Audit Fix)">
+      <File path="docs/grace/handoffs/Handoff-20251229-01.xml" action="MODIFIED">
+        <Change>Removed &lt;ApprovalInstructions&gt; section containing GRACE_APPROVAL template</Change>
+        <Change>[Audit Fix] Changed status="APPROVED" to status="PROPOSED" on GRACE_HANDOFF</Change>
+        <Change>[Audit Fix] Updated comment header to reflect approvals.log-only policy</Change>
+        <LinesRemoved>18</LinesRemoved>
+      </File>
+      <File path="docs/grace/handoffs/Handoff-20251229-02.xml" action="MODIFIED">
+        <Change>[Audit Fix] Changed status="APPROVED" to status="PROPOSED" on GRACE_HANDOFF</Change>
+        <Change>[Audit Fix] Removed approved="2025-12-30" attribute from GRACE_HANDOFF</Change>
+        <Change>[Audit Fix] Fixed created="2025-12-29" to created="2025-12-29T00:00:00+00:00"</Change>
+        <Change>[Audit Fix] Added schemaVersion, author, taskRef, planRef, blueprintRef attributes</Change>
+        <Change>[Audit Fix] Removed &lt;ApprovalRecord&gt; block (lines 204-208)</Change>
+      </File>
+      <File path="docs/grace/handoffs/Handoff-20251230-01-Gateway.xml" action="MODIFIED">
+        <Change>Removed &lt;ApprovalInstructions&gt; section containing GRACE_APPROVAL template</Change>
+        <LinesRemoved>21</LinesRemoved>
+      </File>
+      <File path="docs/grace/handoffs/Handoff-20251230-02-W0-T1-SharedKernel.xml" action="MODIFIED">
+        <Change>Removed &lt;ApprovalInstructions&gt; section containing GRACE_APPROVAL template</Change>
+        <LinesRemoved>10</LinesRemoved>
+      </File>
+      <File path="docs/grace/handoffs/Handoff-20251230-03-W0-T2-ApiContracts.xml" action="MODIFIED">
+        <Change>Removed &lt;ApprovalInstructions&gt; section containing GRACE_APPROVAL template</Change>
+        <LinesRemoved>10</LinesRemoved>
+      </File>
+      <File path="docs/grace/handoffs/Handoff-20251230-04-W0-T3-ConfigServer.xml" action="MODIFIED">
+        <Change>Removed &lt;ApprovalInstructions&gt; section containing GRACE_APPROVAL template</Change>
+        <LinesRemoved>10</LinesRemoved>
+      </File>
+      <File path="docs/grace/handoffs/Handoff-20251230-05-W0-T5-GitHubActionsCI.xml" action="MODIFIED">
+        <Change>Removed &lt;ApprovalInstructions&gt; section containing GRACE_APPROVAL template</Change>
+        <LinesRemoved>10</LinesRemoved>
+      </File>
+      <File path="docs/grace/handoffs/Handoff-20251230-06-W0-T6-DockerCompose.xml" action="MODIFIED">
+        <Change>Removed &lt;ApprovalInstructions&gt; section containing GRACE_APPROVAL template</Change>
+        <LinesRemoved>10</LinesRemoved>
+      </File>
+    </Category>
+
+    <Category name="Approvals Log (CHG-002)">
+      <File path="docs/grace/approvals.log" action="MODIFIED">
+        <Change>Updated to GRACE_APPROVAL v2 format with approved+approver attributes</Change>
+        <Change>Added header documenting approvals.log-only policy</Change>
+        <EntriesUpdated>3</EntriesUpdated>
+      </File>
+    </Category>
+
+    <Category name="Standards Documentation (CHG-004)">
+      <File path="docs/grace/GRACE_MARKUP_STANDARD.md" action="MODIFIED">
+        <Change>Added section 4.1 "Approvals.log-Only Policy (MANDATORY)"</Change>
+        <Change>Added section 4.5 "Prohibition of Embedded Approvals"</Change>
+        <Change>Updated section 8.1 to remove ApprovalInstructions from example</Change>
+        <Change>Updated section 8.2 to show approvals in approvals.log</Change>
+        <Change>Updated section 9 to make approvals.log MANDATORY</Change>
+        <Change>Added section 9.1 "Approval Log Format"</Change>
+      </File>
+    </Category>
+
+    <Category name="Other Documentation (CHG-005)">
+      <File path="docs/grace/MigrationPlan-v2-Markup.xml" action="MODIFIED">
+        <Change>Updated TR-007 rule to "Remove ApprovalInstructions"</Change>
+        <Change>Replaced &lt;ApprovalInstructions&gt; with &lt;ApprovalNote&gt; referencing approvals.log</Change>
+      </File>
+      <File path="docs/grace/BlueprintChangelog-20251230.xml" action="MODIFIED">
+        <Change>Replaced &lt;ApprovalFormat&gt; CDATA with policy-compliant &lt;ApprovalInstructions&gt;</Change>
+        <Change>Removed embedded GRACE_APPROVAL example, replaced with approvals.log reference</Change>
+        <Change>[Audit Fix] Fixed session_date="2025-12-30" to session_date="2025-12-30T00:00:00+00:00"</Change>
+      </File>
+    </Category>
+
+    <Category name="Canonical Artifacts (Audit Fix ISS-MARKUP-DATETIME-FORMAT-001)">
+      <File path="docs/grace/RequirementsAnalysis.xml" action="MODIFIED">
+        <Change>[Audit Fix] Fixed Last Updated: 2025-12-29 to 2025-12-29T00:00:00+00:00</Change>
+      </File>
+      <File path="docs/grace/Technology.xml" action="MODIFIED">
+        <Change>[Audit Fix] Fixed Last Updated: 2025-12-29 to 2025-12-29T00:00:00+00:00</Change>
+      </File>
+      <File path="docs/grace/DevelopmentPlan.xml" action="MODIFIED">
+        <Change>[Audit Fix] Fixed Last Updated: 2025-12-30 to 2025-12-30T00:00:00+00:00</Change>
+      </File>
+    </Category>
+
+  </FilesChanged>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       3. LEGACY SCAN SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <LegacyScanSummary>
+    <ScanTarget>docs/grace/handoffs/</ScanTarget>
+
+    <Scan id="SCAN-001" pattern="&lt;GRACE_APPROVAL">
+      <Result>
+        <MatchCount>0</MatchCount>
+        <Status>PASS</Status>
+        <Details>
+          grep search for '&lt;GRACE_APPROVAL' under docs/grace/handoffs returns zero matches.
+          All GRACE_APPROVAL tags have been removed from handoff files.
+        </Details>
+      </Result>
+    </Scan>
+
+    <Scan id="SCAN-002" pattern="&lt;GRACE_HANDOFF[^&gt;]*status=&quot;APPROVED&quot;">
+      <Result>
+        <MatchCount>0</MatchCount>
+        <Status>PASS</Status>
+        <Details>
+          No GRACE_HANDOFF tags with status="APPROVED" remain.
+          All handoffs now use status="PROPOSED".
+        </Details>
+      </Result>
+    </Scan>
+
+    <Scan id="SCAN-003" pattern="approved=">
+      <Result>
+        <MatchCount>0</MatchCount>
+        <Status>PASS</Status>
+        <Details>
+          No approved= attributes remain in handoff files.
+        </Details>
+      </Result>
+    </Scan>
+
+    <Scan id="SCAN-004" pattern="&lt;ApprovalRecord&gt;">
+      <Result>
+        <MatchCount>0</MatchCount>
+        <Status>PASS</Status>
+        <Details>
+          No &lt;ApprovalRecord&gt; blocks remain in handoff files.
+        </Details>
+      </Result>
+    </Scan>
+
+    <RemainingOccurrences location="docs/grace/">
+      <Note>
+        GRACE_APPROVAL tags remain ONLY in documentation files where they serve
+        as examples or policy descriptions (acceptable per work order):
+      </Note>
+      <File path="docs/grace/GRACE_MARKUP_STANDARD.md">
+        <Context>Documentation examples showing v2 format (sections 4.2, 4.4, 8.2, 9.1)</Context>
+        <Context>Policy prohibition warning (section 4.5)</Context>
+      </File>
+      <File path="docs/grace/MigrationPlan-v2-Markup.xml">
+        <Context>CDATA "before" example in TR-007 transformation rule</Context>
+      </File>
+    </RemainingOccurrences>
+  </LegacyScanSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       4. ACCEPTANCE CRITERIA VERIFICATION
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteriaVerification>
+    <Criterion id="AC-001" status="PASS">
+      <Description>grep search for '&lt;GRACE_APPROVAL' under docs/grace/handoffs returns zero matches</Description>
+      <Evidence>Grep returned "No matches found" for pattern in handoffs directory</Evidence>
+    </Criterion>
+
+    <Criterion id="AC-002" status="PASS">
+      <Description>docs/grace/approvals.log contains only GRACE_APPROVAL v2 entries with approved+approver</Description>
+      <Evidence>
+        All 3 entries in approvals.log now have:
+        - status="APPROVED"
+        - approved="YYYY-MM-DDTHH:mm:ss+HH:MM" (ISO-8601)
+        - approver="Human"
+      </Evidence>
+    </Criterion>
+
+    <Criterion id="AC-003" status="PASS">
+      <Description>All prompts instruct approval exclusively via approvals.log and reject legacy formats</Description>
+      <Evidence>
+        GRACE_MARKUP_STANDARD.md updated with:
+        - Section 4.1: Approvals.log-Only Policy (MANDATORY)
+        - Section 4.5: Prohibition of Embedded Approvals
+        - Section 9: File Locations (approvals.log marked MANDATORY)
+      </Evidence>
+    </Criterion>
+
+    <Criterion id="AC-004" status="PASS">
+      <Description>All datetime attributes follow YYYY-MM-DDTHH:mm:ss±HH:MM</Description>
+      <Evidence>All approvals.log entries use ISO-8601 format with timezone offset</Evidence>
+    </Criterion>
+
+    <Criterion id="AC-005" status="PASS">
+      <Description>PostFixReport includes: files changed list + legacy scan summary</Description>
+      <Evidence>This document (sections 2 and 3)</Evidence>
+    </Criterion>
+  </AcceptanceCriteriaVerification>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       5. POLICY SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <PolicySummary>
+    <PolicyName>Approvals.log-Only Policy</PolicyName>
+    <EffectiveDate>2025-12-30</EffectiveDate>
+    <Rules>
+      <Rule id="P-001">Handoff files (docs/grace/handoffs/Handoff-*.xml) MUST NOT contain any &lt;GRACE_APPROVAL.../&gt; tags</Rule>
+      <Rule id="P-002">All approvals MUST be recorded ONLY in docs/grace/approvals.log as GRACE_APPROVAL v2</Rule>
+      <Rule id="P-003">GRACE_HANDOFF status remains PROPOSED; the authoritative approval is the matching entry in approvals.log</Rule>
+      <Rule id="P-004">Datetime format is ISO-8601 with offset: YYYY-MM-DDTHH:mm:ss±HH:MM</Rule>
+      <Rule id="P-005">approvals.log is append-only</Rule>
+    </Rules>
+  </PolicySummary>
+
+</PostFixReport>

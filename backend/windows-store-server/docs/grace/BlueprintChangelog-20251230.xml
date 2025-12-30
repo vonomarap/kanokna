@@ -1,0 +1,554 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Blueprint Changelog
+  Session: 2025-12-30
+  Scope: Wave 0 Handoff Creation (AWO-W0-HANDOFFS-REMAINING-001)
+  Author: GRACE-ARCHITECT
+-->
+<GRACE_BLUEPRINT_CHANGELOG
+    id="BPC-20251230"
+    session_date="2025-12-30T00:00:00+00:00"
+    work_order_ref="AWO-W0-HANDOFFS-REMAINING-001">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       1. EXECUTIVE SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ExecutiveSummary>
+    <Description>
+      Complete handoff documentation for all Wave 0 (Foundation) tasks.
+      Six deterministic handoff documents created with full contract specifications,
+      enabling the Coder agent to implement with zero ambiguity.
+    </Description>
+    <Metrics>
+      <HandoffsCreated>6</HandoffsCreated>
+      <ModuleContracts>6</ModuleContracts>
+      <FunctionContracts>10</FunctionContracts>
+      <BlockAnchors>51</BlockAnchors>
+      <TestCases>62</TestCases>
+      <NewDecisions>4</NewDecisions>
+      <FilesSpecified>~85</FilesSpecified>
+    </Metrics>
+    <Status>READY_FOR_IMPLEMENTATION</Status>
+  </ExecutiveSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       2. HANDOFFS CREATED
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <HandoffsCreated>
+
+    <Handoff id="Handoff-20251230-01" task="W0-T4" status="PROPOSED">
+      <Title>Gateway Module</Title>
+      <File>docs/grace/handoffs/Handoff-20251230-01-Gateway.xml</File>
+      <Description>
+        Spring Cloud Gateway with OAuth2/JWT security, rate limiting,
+        circuit breakers, and correlation ID propagation.
+      </Description>
+      <Contracts>
+        <ModuleContract id="MC-gateway-infrastructure-GatewayApplication"/>
+        <FunctionContract id="FC-gateway-infrastructure-CorrelationIdFilter"/>
+        <FunctionContract id="FC-gateway-infrastructure-SecurityConfig"/>
+        <FunctionContract id="FC-gateway-infrastructure-GatewayConfig"/>
+        <FunctionContract id="FC-gateway-infrastructure-RateLimitConfig"/>
+      </Contracts>
+      <BlockAnchors count="21">
+        BA-GW-CORR-*, BA-GW-SEC-*, BA-GW-ROUTE-*, BA-GW-RATE-*, BA-GW-CB-*
+      </BlockAnchors>
+      <TestCases count="27">TC-GW-*, TC-CORR-*, TC-SEC-*, TC-ROUTE-*, TC-RATE-*</TestCases>
+      <FilesToCreate>18</FilesToCreate>
+    </Handoff>
+
+    <Handoff id="Handoff-20251230-02" task="W0-T1" status="PROPOSED">
+      <Title>Shared Kernel Enhancement</Title>
+      <File>docs/grace/handoffs/Handoff-20251230-02-W0-T1-SharedKernel.xml</File>
+      <Description>
+        Framework-free value objects and domain primitives: Money, Result pattern,
+        DimensionsCm, Email, Address, LocalizedString, DomainEvent interface.
+      </Description>
+      <Contracts>
+        <ModuleContract id="MC-shared-kernel-core"/>
+        <FunctionContract id="FC-shared-kernel-Money-add"/>
+        <FunctionContract id="FC-shared-kernel-Result-pattern"/>
+        <FunctionContract id="FC-shared-kernel-DimensionsCm-validate"/>
+      </Contracts>
+      <BlockAnchors count="7">BA-SK-*</BlockAnchors>
+      <TestCases count="15">TC-SK-*, TC-MONEY-*, TC-RESULT-*, TC-DIM-*</TestCases>
+      <FilesToCreate>18</FilesToCreate>
+      <NewDecisions>
+        <Decision ref="DEC-SHARED-KERNEL-PURITY"/>
+        <Decision ref="DEC-RESULT-PATTERN"/>
+      </NewDecisions>
+    </Handoff>
+
+    <Handoff id="Handoff-20251230-03" task="W0-T2" status="PROPOSED">
+      <Title>API Contracts Module</Title>
+      <File>docs/grace/handoffs/Handoff-20251230-03-W0-T2-ApiContracts.xml</File>
+      <Description>
+        Protobuf definitions for gRPC services (catalog, pricing, cart, account, media),
+        event schemas for Kafka topics, common types (Money, Dimensions, Address).
+      </Description>
+      <Contracts>
+        <ModuleContract id="MC-api-contracts-proto"/>
+        <FunctionContract id="FC-api-contracts-ValidateConfiguration"/>
+        <FunctionContract id="FC-api-contracts-CalculateQuote"/>
+      </Contracts>
+      <BlockAnchors count="4">BA-PROTO-*</BlockAnchors>
+      <TestCases count="8">TC-PROTO-*</TestCases>
+      <FilesToCreate>15</FilesToCreate>
+      <ProtoServices>
+        <Service>CatalogConfigurationService</Service>
+        <Service>PricingService</Service>
+        <Service>CartService</Service>
+        <Service>AccountService</Service>
+        <Service>MediaService</Service>
+      </ProtoServices>
+      <EventSchemas>
+        <Event topic="catalog.product.published">ProductTemplatePublishedEvent</Event>
+        <Event topic="order.created">OrderCreatedEvent</Event>
+        <Event topic="order.status.changed">OrderStatusChangedEvent</Event>
+        <Event topic="payment.captured">PaymentCapturedEvent</Event>
+        <Event topic="installation.scheduled">InstallationScheduledEvent</Event>
+        <Event topic="installation.completed">InstallationCompletedEvent</Event>
+      </EventSchemas>
+    </Handoff>
+
+    <Handoff id="Handoff-20251230-04" task="W0-T3" status="PROPOSED">
+      <Title>Config Server Module</Title>
+      <File>docs/grace/handoffs/Handoff-20251230-04-W0-T3-ConfigServer.xml</File>
+      <Description>
+        Spring Cloud Config Server with file-based backend (dev) and Git-based
+        backend (stage/prod), encryption support for sensitive values.
+      </Description>
+      <Contracts>
+        <ModuleContract id="MC-config-server-infrastructure"/>
+      </Contracts>
+      <BlockAnchors count="4">BA-CFG-SRV-*</BlockAnchors>
+      <TestCases count="5">TC-CFG-*</TestCases>
+      <FilesToCreate>10</FilesToCreate>
+      <NewDecisions>
+        <Decision ref="DEC-CONFIG-BACKEND"/>
+        <Decision ref="DEC-CONFIG-ENCRYPTION"/>
+      </NewDecisions>
+    </Handoff>
+
+    <Handoff id="Handoff-20251230-05" task="W0-T5" status="PROPOSED">
+      <Title>GitHub Actions CI</Title>
+      <File>docs/grace/handoffs/Handoff-20251230-05-W0-T5-GitHubActionsCI.xml</File>
+      <Description>
+        Complete CI/CD pipeline: build, test, lint, security scan, Docker image
+        building, staging deployment, CodeQL analysis, Dependabot configuration.
+      </Description>
+      <Contracts>
+        <ModuleContract id="MC-ci-github-actions"/>
+      </Contracts>
+      <BlockAnchors count="8">BA-CI-BUILD-*, BA-CI-TEST-*, BA-CI-DOCKER-*, BA-CI-DEPLOY-*</BlockAnchors>
+      <TestCases count="5">TC-CI-*</TestCases>
+      <FilesToCreate>8</FilesToCreate>
+      <Workflows>
+        <Workflow file="ci.yml">Build, test, lint on push/PR</Workflow>
+        <Workflow file="build-and-push.yml">Docker image building with Jib</Workflow>
+        <Workflow file="deploy-stage.yml">Staging deployment</Workflow>
+        <Workflow file="codeql.yml">Security analysis</Workflow>
+      </Workflows>
+    </Handoff>
+
+    <Handoff id="Handoff-20251230-06" task="W0-T6" status="PROPOSED">
+      <Title>Docker Compose Local Development</Title>
+      <File>docs/grace/handoffs/Handoff-20251230-06-W0-T6-DockerCompose.xml</File>
+      <Description>
+        Complete local development environment: PostgreSQL (9 databases), Redis,
+        Kafka, Elasticsearch, Keycloak (with realm), MinIO, setup scripts.
+      </Description>
+      <Contracts>
+        <ModuleContract id="MC-docker-compose-dev"/>
+      </Contracts>
+      <BlockAnchors count="4">BA-DC-*</BlockAnchors>
+      <TestCases count="2">TC-DC-*</TestCases>
+      <FilesToCreate>6</FilesToCreate>
+      <InfrastructureServices>
+        <Service name="PostgreSQL" version="16-alpine">9 per-service databases</Service>
+        <Service name="Redis" version="7-alpine">Caching, rate limiting</Service>
+        <Service name="Kafka" version="3.7">Message broker with Zookeeper</Service>
+        <Service name="Elasticsearch" version="8.11">Full-text search</Service>
+        <Service name="Keycloak" version="24.0">Identity provider with realm</Service>
+        <Service name="MinIO" version="latest">S3-compatible object storage</Service>
+      </InfrastructureServices>
+    </Handoff>
+
+  </HandoffsCreated>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       3. NEW DECISIONS INTRODUCED
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <NewDecisions>
+    <Note>
+      These decisions were introduced during handoff creation to resolve
+      implementation ambiguities. They should be added to Technology.xml
+      or a dedicated Decisions.xml artifact for long-term tracking.
+    </Note>
+
+    <Decision id="DEC-SHARED-KERNEL-PURITY" status="APPROVED">
+      <Title>Framework-Free Shared Kernel</Title>
+      <Context>
+        The shared-kernel module contains value objects and domain primitives
+        used across all services. Framework dependencies would create coupling.
+      </Context>
+      <Selected>Pure Java only - no Spring, JPA, Jackson dependencies allowed</Selected>
+      <Rationale>
+        - Value objects must be framework-agnostic for true reusability
+        - Prevents transitive dependency conflicts
+        - Enables use in non-Spring contexts (CLI tools, tests)
+        - Maven enforcer plugin enforces this constraint
+      </Rationale>
+      <Consequences>
+        - Serialization handled at adapter layer, not in domain
+        - No @Value or @Data annotations (use records instead)
+        - No @JsonProperty annotations (use external mappers)
+      </Consequences>
+      <HandoffRef>Handoff-20251230-02-W0-T1-SharedKernel.xml</HandoffRef>
+    </Decision>
+
+    <Decision id="DEC-RESULT-PATTERN" status="APPROVED">
+      <Title>Sealed Result Pattern for Error Handling</Title>
+      <Context>
+        Domain operations need to express success/failure without exceptions
+        for expected business errors (validation failures, not-found, etc.).
+      </Context>
+      <Selected>
+        Sealed interface Result&lt;T&gt; with Success&lt;T&gt; and Failure&lt;T&gt; records
+      </Selected>
+      <Rationale>
+        - Compile-time exhaustiveness checking via sealed types
+        - No exceptions for expected business errors
+        - Clear separation of error types via DomainError
+        - Pattern matching support in Java 21+
+      </Rationale>
+      <Implementation>
+        <![CDATA[
+public sealed interface Result<T> permits Result.Success, Result.Failure {
+    record Success<T>(T value) implements Result<T> {}
+    record Failure<T>(DomainError error) implements Result<T> {}
+
+    static <T> Result<T> success(T value) { return new Success<>(value); }
+    static <T> Result<T> failure(DomainError error) { return new Failure<>(error); }
+
+    default T getOrThrow() {
+        return switch (this) {
+            case Success<T> s -> s.value();
+            case Failure<T> f -> throw new DomainException(f.error());
+        };
+    }
+}
+        ]]>
+      </Implementation>
+      <HandoffRef>Handoff-20251230-02-W0-T1-SharedKernel.xml</HandoffRef>
+    </Decision>
+
+    <Decision id="DEC-CONFIG-BACKEND" status="APPROVED">
+      <Title>Configuration Backend Strategy</Title>
+      <Context>
+        Spring Cloud Config Server supports multiple backends. Need to choose
+        appropriate backend for each environment.
+      </Context>
+      <Selected>File-based (native) for dev, Git-based for stage/prod</Selected>
+      <Rationale>
+        - File-based is simpler for local development, no Git repo required
+        - Git-based provides versioning, audit trail, and GitOps workflow
+        - Environment-specific via Spring profiles (native vs git)
+      </Rationale>
+      <Configuration>
+        - Dev: spring.profiles.active=native, search-locations=classpath:/config
+        - Stage/Prod: spring.profiles.active=git, uri=https://github.com/org/config-repo
+      </Configuration>
+      <HandoffRef>Handoff-20251230-04-W0-T3-ConfigServer.xml</HandoffRef>
+    </Decision>
+
+    <Decision id="DEC-CONFIG-ENCRYPTION" status="APPROVED">
+      <Title>Sensitive Value Encryption</Title>
+      <Context>
+        Configuration may contain sensitive values (database passwords, API keys)
+        that should not be stored in plaintext.
+      </Context>
+      <Selected>Symmetric encryption with ENCRYPT_KEY environment variable</Selected>
+      <Rationale>
+        - Simple setup suitable for MVP
+        - Encrypted values prefixed with {cipher}
+        - Key management via environment variable
+        - Vault integration can be added later for production-grade secret management
+      </Rationale>
+      <Configuration>
+        - Set ENCRYPT_KEY environment variable on config-server
+        - Use /encrypt endpoint to encrypt values
+        - Store as: password: '{cipher}ENCRYPTED_VALUE'
+        - Config server decrypts automatically on fetch
+      </Configuration>
+      <FutureEvolution>
+        Consider HashiCorp Vault or AWS Secrets Manager for production
+        environments requiring stricter key management and rotation.
+      </FutureEvolution>
+      <HandoffRef>Handoff-20251230-04-W0-T3-ConfigServer.xml</HandoffRef>
+    </Decision>
+
+  </NewDecisions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       4. CANONICAL ARTIFACT REFERENCES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <CanonicalArtifactReferences>
+    <Note>
+      All handoffs maintain traceability to these authoritative GRACE artifacts.
+    </Note>
+
+    <Artifact id="RequirementsAnalysis.xml" version="1.0.0">
+      <Usage>Use case references (UC-*), actor definitions, NFR constraints</Usage>
+      <LinkedContracts>
+        All MODULE_CONTRACTs reference relevant use cases in LINKS section
+      </LinkedContracts>
+    </Artifact>
+
+    <Artifact id="Technology.xml" version="1.0.0">
+      <Usage>Technology stack decisions (DEC-*, TECH-*)</Usage>
+      <Decisions>
+        <Decision ref="DEC-DB-ENGINE">PostgreSQL 16</Decision>
+        <Decision ref="DEC-SEARCH-ENGINE">Elasticsearch 8.x</Decision>
+        <Decision ref="DEC-EVENT-SERIALIZATION">Protobuf for events</Decision>
+        <Decision ref="DEC-INTER-SERVICE-COMM">gRPC sync, Kafka async</Decision>
+        <Decision ref="DEC-IDENTITY-PROVIDER">Keycloak (dev/stage), Auth0 (prod)</Decision>
+        <Decision ref="DEC-PAYMENT-GATEWAY">YooKassa</Decision>
+        <Decision ref="DEC-CI-CD-PLATFORM">GitHub Actions</Decision>
+        <Decision ref="DEC-FEATURE-FLAGS">Unleash</Decision>
+      </Decisions>
+    </Artifact>
+
+    <Artifact id="DevelopmentPlan.xml" version="1.1.1">
+      <Usage>Service definitions (DP-SVC-*), flow specifications, contract registry</Usage>
+      <Services>
+        <Service ref="DP-SVC-shared-kernel"/>
+        <Service ref="DP-SVC-api-contracts"/>
+        <Service ref="DP-SVC-config-server"/>
+        <Service ref="DP-SVC-gateway"/>
+      </Services>
+    </Artifact>
+
+    <Artifact id="DevelopmentExecutionPlan.xml" version="1.0.0">
+      <Usage>Task definitions (W0-T*), wave structure, dependencies</Usage>
+      <Tasks>
+        <Task ref="W0-T1">Enhance shared-kernel module</Task>
+        <Task ref="W0-T2">Create api-contracts module</Task>
+        <Task ref="W0-T3">Create config-server module</Task>
+        <Task ref="W0-T4">Create gateway module</Task>
+        <Task ref="W0-T5">Set up GitHub Actions CI</Task>
+        <Task ref="W0-T6">Create Docker Compose for local dev</Task>
+      </Tasks>
+    </Artifact>
+
+    <Artifact id="ArchitecturalRecommendations.xml" version="1.0.0">
+      <Usage>Risk mitigation, patterns, immediate actions</Usage>
+      <CriticalItems>
+        <Item ref="RISK-001">Spring Boot 4.0.0 placeholder - BLOCKER</Item>
+        <Item ref="IA-001">Immediate action: Downgrade to Spring Boot 3.3.7</Item>
+      </CriticalItems>
+    </Artifact>
+
+  </CanonicalArtifactReferences>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       5. CRITICAL ISSUES AND BLOCKERS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <CriticalIssues>
+
+    <Issue id="BLOCKER-001" severity="CRITICAL" status="UNRESOLVED">
+      <Title>Spring Boot 4.0.0 Not Released</Title>
+      <Description>
+        Parent POM declares Spring Boot 4.0.0 which does not exist.
+        This is a placeholder that blocks all builds.
+      </Description>
+      <Reference>ArchitecturalRecommendations.xml#RISK-001</Reference>
+      <Impact>
+        - Maven builds will fail immediately
+        - No services can be compiled or tested
+        - Blocks entire Wave 0 implementation
+      </Impact>
+      <Resolution>
+        Before implementing any handoff, update parent POM:
+        - Spring Boot: 3.3.7
+        - Spring Cloud: 2023.0.4
+        - Java: 21 (not 25, as 25 is also not released)
+      </Resolution>
+      <Action ref="IA-001">Must be resolved before any implementation begins</Action>
+    </Issue>
+
+  </CriticalIssues>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       6. CONTRACT SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ContractSummary>
+
+    <ModuleContracts total="6">
+      <Contract id="MC-gateway-infrastructure-GatewayApplication" service="gateway"/>
+      <Contract id="MC-shared-kernel-core" service="shared-kernel"/>
+      <Contract id="MC-api-contracts-proto" service="api-contracts"/>
+      <Contract id="MC-config-server-infrastructure" service="config-server"/>
+      <Contract id="MC-ci-github-actions" service="ci"/>
+      <Contract id="MC-docker-compose-dev" service="docker"/>
+    </ModuleContracts>
+
+    <FunctionContracts total="10">
+      <!-- Gateway -->
+      <Contract id="FC-gateway-infrastructure-CorrelationIdFilter"/>
+      <Contract id="FC-gateway-infrastructure-SecurityConfig"/>
+      <Contract id="FC-gateway-infrastructure-GatewayConfig"/>
+      <Contract id="FC-gateway-infrastructure-RateLimitConfig"/>
+      <!-- Shared Kernel -->
+      <Contract id="FC-shared-kernel-Money-add"/>
+      <Contract id="FC-shared-kernel-Result-pattern"/>
+      <Contract id="FC-shared-kernel-DimensionsCm-validate"/>
+      <!-- API Contracts -->
+      <Contract id="FC-api-contracts-ValidateConfiguration"/>
+      <Contract id="FC-api-contracts-CalculateQuote"/>
+      <!-- Config Server - no FCs (straightforward Spring Boot app) -->
+    </FunctionContracts>
+
+    <BlockAnchors total="51">
+      <AnchorGroup prefix="BA-GW-" service="gateway" count="21"/>
+      <AnchorGroup prefix="BA-SK-" service="shared-kernel" count="7"/>
+      <AnchorGroup prefix="BA-PROTO-" service="api-contracts" count="4"/>
+      <AnchorGroup prefix="BA-CFG-SRV-" service="config-server" count="4"/>
+      <AnchorGroup prefix="BA-CI-" service="ci" count="8"/>
+      <AnchorGroup prefix="BA-DC-" service="docker-compose" count="4"/>
+      <AnchorGroup prefix="BA-LOGBACK-" service="logging" count="3"/>
+    </BlockAnchors>
+
+    <TestCases total="62">
+      <TestGroup prefix="TC-GW-" service="gateway" count="27"/>
+      <TestGroup prefix="TC-SK-" service="shared-kernel" count="15"/>
+      <TestGroup prefix="TC-PROTO-" service="api-contracts" count="8"/>
+      <TestGroup prefix="TC-CFG-" service="config-server" count="5"/>
+      <TestGroup prefix="TC-CI-" service="ci" count="5"/>
+      <TestGroup prefix="TC-DC-" service="docker-compose" count="2"/>
+    </TestCases>
+
+  </ContractSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       7. RECOMMENDED IMPLEMENTATION ORDER
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationOrder>
+    <Note>
+      Tasks should be implemented in dependency order. Some can be parallelized.
+    </Note>
+
+    <Phase id="1" name="Critical Blocker Resolution">
+      <Task priority="CRITICAL">
+        Fix parent POM: Spring Boot 3.3.7, Spring Cloud 2023.0.4, Java 21
+      </Task>
+    </Phase>
+
+    <Phase id="2" name="Foundation Modules (Parallel)">
+      <Task ref="W0-T1" handoff="Handoff-20251230-02">
+        shared-kernel - No dependencies
+      </Task>
+      <Task ref="W0-T2" handoff="Handoff-20251230-03">
+        api-contracts - No dependencies
+      </Task>
+      <Task ref="W0-T6" handoff="Handoff-20251230-06">
+        Docker Compose - No code dependencies
+      </Task>
+    </Phase>
+
+    <Phase id="3" name="Infrastructure Services (Sequential)">
+      <Task ref="W0-T3" handoff="Handoff-20251230-04" depends="W0-T1">
+        config-server - Uses shared-kernel types in configs
+      </Task>
+    </Phase>
+
+    <Phase id="4" name="Gateway (Depends on Config)">
+      <Task ref="W0-T4" handoff="Handoff-20251230-01" depends="W0-T3">
+        gateway - Fetches config from config-server
+      </Task>
+    </Phase>
+
+    <Phase id="5" name="CI Pipeline (After All Modules)">
+      <Task ref="W0-T5" handoff="Handoff-20251230-05" depends="W0-T1,W0-T2,W0-T3,W0-T4">
+        GitHub Actions CI - Needs all modules to exist for build/test
+      </Task>
+    </Phase>
+
+  </ImplementationOrder>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       8. APPROVAL STATUS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ApprovalStatus>
+    <AllHandoffs status="PROPOSED">
+      All 6 handoffs are in PROPOSED status awaiting approval.
+    </AllHandoffs>
+    <ApprovalInstructions>
+      To approve handoffs, add individual GRACE_APPROVAL v2 entries to docs/grace/approvals.log.
+
+      Policy (effective 2025-12-30):
+      - Approvals are recorded ONLY in docs/grace/approvals.log
+      - Handoff files MUST NOT contain embedded GRACE_APPROVAL tags
+      - Each handoff requires a separate approval entry
+
+      Example entry for approvals.log:
+      ----------------------------------------
+      &lt;GRACE_APPROVAL
+        ref="Handoff-20251230-01"
+        status="APPROVED"
+        approved="YYYY-MM-DDTHH:mm:ss±HH:MM"
+        approver="Human"
+      /&gt;
+      ----------------------------------------
+    </ApprovalInstructions>
+  </ApprovalStatus>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       9. GRACE MARKUP V2 MIGRATION (2025-12-30)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ChangeEntry id="CHG-20251230-MARKUP-V2" timestamp="2025-12-30T00:00:00+00:00">
+    <Type>MIGRATION</Type>
+    <Scope>All handoff files</Scope>
+    <Summary>
+      Migrated all GRACE_HANDOFF and GRACE_APPROVAL markup from legacy v1 format
+      to GRACE Markup v2 (ISO-8601 datetime with timezone offset).
+    </Summary>
+    <WorkOrderRef>AWO-MARKUP-V2-MIGRATION-001</WorkOrderRef>
+    <FilesCreated>
+      <File>docs/grace/GRACE_MARKUP_STANDARD.md</File>
+      <File>docs/grace/MigrationPlan-v2-Markup.xml</File>
+    </FilesCreated>
+    <FilesModified>
+      <File>docs/grace/handoffs/Handoff-20251229-01.xml</File>
+      <File>docs/grace/handoffs/Handoff-20251230-01-Gateway.xml</File>
+      <File>docs/grace/handoffs/Handoff-20251230-02-W0-T1-SharedKernel.xml</File>
+      <File>docs/grace/handoffs/Handoff-20251230-03-W0-T2-ApiContracts.xml</File>
+      <File>docs/grace/handoffs/Handoff-20251230-04-W0-T3-ConfigServer.xml</File>
+      <File>docs/grace/handoffs/Handoff-20251230-05-W0-T5-GitHubActionsCI.xml</File>
+      <File>docs/grace/handoffs/Handoff-20251230-06-W0-T6-DockerCompose.xml</File>
+    </FilesModified>
+    <TransformationsApplied>
+      <Item>Added schemaVersion="grace-markup-v2" to all GRACE_HANDOFF tags</Item>
+      <Item>Converted date-only created values to ISO-8601 with offset (T00:00:00+00:00)</Item>
+      <Item>Added required attributes: taskRef, planRef, blueprintRef</Item>
+      <Item>Added optional attributes: techRef, requirementsRef where applicable</Item>
+      <Item>Updated ApprovalInstructions to show v2 GRACE_APPROVAL format</Item>
+      <Item>Added MigrationNote elements documenting timestamp approximations</Item>
+    </TransformationsApplied>
+    <GateRule id="GATE-NO-LEGACY-MARKUP">
+      <Name>No Legacy Markup Gate</Name>
+      <Description>
+        All future handoffs MUST use GRACE Markup v2 format.
+        Coordinator agent will BLOCK implementation for non-compliant handoffs.
+      </Description>
+      <Checks>
+        <Check>schemaVersion="grace-markup-v2" is present</Check>
+        <Check>Datetime attributes use ISO-8601 with timezone offset</Check>
+        <Check>Required attributes: id, status, author, taskRef, planRef, blueprintRef</Check>
+        <Check>GRACE_APPROVAL includes approved/approver attributes</Check>
+      </Checks>
+    </GateRule>
+    <ValidationStatus>COMPLETE</ValidationStatus>
+  </ChangeEntry>
+
+</GRACE_BLUEPRINT_CHANGELOG>

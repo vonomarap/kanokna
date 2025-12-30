@@ -1,0 +1,543 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff Document: Docker Compose for Local Development
+  Handoff ID: Handoff-20251230-06
+  Scope: W0-T6 (Docker Compose for local dev)
+  Status: PROPOSED
+  Created: 2025-12-30
+  Author: GRACE-ARCHITECT
+-->
+<GRACE_HANDOFF
+  id="Handoff-20251230-06"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2025-12-30T00:00:00+00:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W0-T6"
+  planRef="DevelopmentExecutionPlan.xml#W0-T6"
+  blueprintRef="DevelopmentPlan.xml#DP-INFRA-docker-compose"
+  techRef="Technology.xml#DEC-DB-ENGINE,Technology.xml#TECH-redis,Technology.xml#TECH-kafka"
+>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       1. INTENT SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <IntentSummary>
+    <BusinessIntent>
+      Enable developers to run the complete platform infrastructure locally
+      with a single command, ensuring consistent development environments
+      and rapid iteration cycles.
+    </BusinessIntent>
+    <TechnicalIntent>
+      Create Docker Compose configuration providing:
+      - PostgreSQL database (per-service isolation)
+      - Redis cache
+      - Kafka + Zookeeper message broker
+      - Elasticsearch search engine
+      - Keycloak identity provider
+      - MinIO S3-compatible object storage
+      - Init scripts for Keycloak realm setup
+      - Sample data seeding
+    </TechnicalIntent>
+    <Scope>
+      <Task ref="DevelopmentExecutionPlan.xml#W0-T6"/>
+      <Wave ref="DevelopmentExecutionPlan.xml#WAVE-0"/>
+    </Scope>
+  </IntentSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       2. DECISIONS SNAPSHOT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DecisionsSnapshot>
+    <Decision ref="Technology.xml#DEC-DB-ENGINE">PostgreSQL 16</Decision>
+    <Decision ref="Technology.xml#TECH-redis">Redis 7.x</Decision>
+    <Decision ref="Technology.xml#TECH-kafka">Apache Kafka 3.7.x</Decision>
+    <Decision ref="Technology.xml#TECH-elasticsearch">Elasticsearch 8.x</Decision>
+    <Decision ref="Technology.xml#TECH-keycloak">Keycloak 24.x for dev/stage</Decision>
+    <Decision ref="Technology.xml#TECH-s3-compatible">MinIO for local S3</Decision>
+  </DecisionsSnapshot>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       3. FILES TO CREATE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FilesToCreate>
+    <!-- Docker Compose Files -->
+    <File path="docker-compose.yml" action="CREATE">
+      Main Docker Compose with all infrastructure
+    </File>
+    <File path="docker-compose.override.yml" action="CREATE">
+      Development-specific overrides (ports, volumes)
+    </File>
+
+    <!-- Keycloak Init -->
+    <File path="docker/keycloak/realm-kanokna.json" action="CREATE">
+      Keycloak realm configuration with users and roles
+    </File>
+
+    <!-- PostgreSQL Init -->
+    <File path="docker/postgres/init-databases.sql" action="CREATE">
+      Create per-service databases
+    </File>
+
+    <!-- Scripts -->
+    <File path="scripts/dev-setup.sh" action="CREATE">
+      Initialize local development environment
+    </File>
+    <File path="scripts/seed-data.sh" action="CREATE">
+      Load sample test data
+    </File>
+    <File path="scripts/reset-db.sh" action="CREATE">
+      Clean database state
+    </File>
+    <File path="scripts/logs.sh" action="CREATE">
+      Tail all service logs
+    </File>
+
+    <!-- Environment -->
+    <File path=".env.example" action="CREATE">
+      Example environment variables
+    </File>
+  </FilesToCreate>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       4. SEMANTIC CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <SemanticContractsAndAnchors>
+
+    <ModuleContract id="MC-docker-compose-dev">
+      <EmbedInFile>docker-compose.yml</EmbedInFile>
+      <Contract><![CDATA[
+# <MODULE_CONTRACT id="MC-docker-compose-dev"
+#    ROLE="DevelopmentInfrastructure"
+#    SERVICE="docker-compose"
+#    LAYER="infrastructure"
+#    BOUNDED_CONTEXT="devops"
+#    SPECIFICATION="DevelopmentPlan.xml#Deployment-Overview">
+#  <PURPOSE>
+#    Local development environment with all infrastructure dependencies
+#    running in Docker containers, enabling single-command startup.
+#  </PURPOSE>
+#
+#  <RESPONSIBILITIES>
+#    <Item>Run PostgreSQL with per-service databases</Item>
+#    <Item>Run Redis for caching</Item>
+#    <Item>Run Kafka + Zookeeper for messaging</Item>
+#    <Item>Run Elasticsearch for search</Item>
+#    <Item>Run Keycloak with pre-configured realm</Item>
+#    <Item>Run MinIO for S3-compatible storage</Item>
+#  </RESPONSIBILITIES>
+#
+#  <SERVICES>
+#    <Service name="postgres" port="5432">PostgreSQL 16</Service>
+#    <Service name="redis" port="6379">Redis 7</Service>
+#    <Service name="zookeeper" port="2181">Zookeeper</Service>
+#    <Service name="kafka" port="9092">Kafka 3.7</Service>
+#    <Service name="elasticsearch" port="9200">Elasticsearch 8</Service>
+#    <Service name="keycloak" port="8180">Keycloak 24</Service>
+#    <Service name="minio" port="9000,9001">MinIO S3</Service>
+#  </SERVICES>
+#
+#  <INVARIANTS>
+#    <Item>All services start with docker-compose up</Item>
+#    <Item>Data persisted in named volumes</Item>
+#    <Item>Keycloak realm auto-imported on first start</Item>
+#    <Item>PostgreSQL databases created by init script</Item>
+#  </INVARIANTS>
+#
+#  <TESTS>
+#    <Case id="TC-DC-001">docker-compose up starts all services</Case>
+#    <Case id="TC-DC-002">PostgreSQL accessible on port 5432</Case>
+#    <Case id="TC-DC-003">Keycloak accessible on port 8180 with realm</Case>
+#    <Case id="TC-DC-004">Kafka accessible on port 9092</Case>
+#    <Case id="TC-DC-005">All services can connect to dependencies</Case>
+#  </TESTS>
+#
+#  <LINKS>
+#    <Link ref="DevelopmentPlan.xml#Deployment-Overview"/>
+#    <Link ref="Technology.xml"/>
+#  </LINKS>
+# </MODULE_CONTRACT>
+      ]]></Contract>
+    </ModuleContract>
+
+    <BlockAnchorRegistry>
+      <BlockAnchor id="BA-DC-START-01" service="docker-compose" purpose="Start all containers"/>
+      <BlockAnchor id="BA-DC-INIT-01" service="docker-compose" purpose="Initialize PostgreSQL databases"/>
+      <BlockAnchor id="BA-DC-INIT-02" service="docker-compose" purpose="Import Keycloak realm"/>
+      <BlockAnchor id="BA-DC-HEALTH-01" service="docker-compose" purpose="Check service health"/>
+    </BlockAnchorRegistry>
+
+  </SemanticContractsAndAnchors>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       5. IMPLEMENTATION SPECIFICATIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationSpecifications>
+
+    <DockerComposeSpec file="docker-compose.yml">
+      <![CDATA[
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # PostgreSQL - Primary OLTP Database
+  # ─────────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: kanokna-postgres
+    environment:
+      POSTGRES_USER: kanokna
+      POSTGRES_PASSWORD: kanokna_dev
+      POSTGRES_DB: kanokna
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kanokna"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kanokna-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Redis - Caching and Rate Limiting
+  # ─────────────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: kanokna-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kanokna-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Zookeeper - Kafka Coordination
+  # ─────────────────────────────────────────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: kanokna-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - kanokna-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Kafka - Message Broker
+  # ─────────────────────────────────────────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kanokna-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - kanokna-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Elasticsearch - Search Engine
+  # ─────────────────────────────────────────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: kanokna-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - kanokna-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Keycloak - Identity Provider
+  # ─────────────────────────────────────────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: kanokna-keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8180
+    command:
+      - start-dev
+      - --import-realm
+    ports:
+      - "8180:8180"
+    volumes:
+      - ./docker/keycloak/realm-kanokna.json:/opt/keycloak/data/import/realm-kanokna.json
+      - keycloak_data:/opt/keycloak/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8180/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    networks:
+      - kanokna-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # MinIO - S3-Compatible Object Storage
+  # ─────────────────────────────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: kanokna-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - kanokna-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  zookeeper_data:
+  kafka_data:
+  elasticsearch_data:
+  keycloak_data:
+  minio_data:
+
+networks:
+  kanokna-network:
+    driver: bridge
+      ]]>
+    </DockerComposeSpec>
+
+    <PostgresInitSpec file="docker/postgres/init-databases.sql">
+      <![CDATA[
+-- Create per-service databases
+CREATE DATABASE catalog_configuration;
+CREATE DATABASE pricing;
+CREATE DATABASE cart;
+CREATE DATABASE orders;
+CREATE DATABASE accounts;
+CREATE DATABASE installations;
+CREATE DATABASE media;
+CREATE DATABASE notifications;
+CREATE DATABASE reporting;
+
+-- Grant privileges
+GRANT ALL PRIVILEGES ON DATABASE catalog_configuration TO kanokna;
+GRANT ALL PRIVILEGES ON DATABASE pricing TO kanokna;
+GRANT ALL PRIVILEGES ON DATABASE cart TO kanokna;
+GRANT ALL PRIVILEGES ON DATABASE orders TO kanokna;
+GRANT ALL PRIVILEGES ON DATABASE accounts TO kanokna;
+GRANT ALL PRIVILEGES ON DATABASE installations TO kanokna;
+GRANT ALL PRIVILEGES ON DATABASE media TO kanokna;
+GRANT ALL PRIVILEGES ON DATABASE notifications TO kanokna;
+GRANT ALL PRIVILEGES ON DATABASE reporting TO kanokna;
+      ]]>
+    </PostgresInitSpec>
+
+    <KeycloakRealmSpec file="docker/keycloak/realm-kanokna.json">
+      <![CDATA[
+{
+  "realm": "kanokna",
+  "enabled": true,
+  "registrationAllowed": true,
+  "roles": {
+    "realm": [
+      { "name": "CUSTOMER", "description": "Customer role" },
+      { "name": "INSTALLER", "description": "Installer role" },
+      { "name": "ADMIN", "description": "Administrator role" },
+      { "name": "PRICING_ADMIN", "description": "Pricing administrator" },
+      { "name": "CATALOG_ADMIN", "description": "Catalog administrator" },
+      { "name": "REPORTING_VIEWER", "description": "Reports viewer" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "web-frontend",
+      "enabled": true,
+      "publicClient": true,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true
+    },
+    {
+      "clientId": "gateway",
+      "enabled": true,
+      "serviceAccountsEnabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "gateway-secret-dev"
+    }
+  ],
+  "users": [
+    {
+      "username": "customer@example.com",
+      "email": "customer@example.com",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "Customer",
+      "credentials": [{ "type": "password", "value": "customer123" }],
+      "realmRoles": ["CUSTOMER"]
+    },
+    {
+      "username": "installer@example.com",
+      "email": "installer@example.com",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "Installer",
+      "credentials": [{ "type": "password", "value": "installer123" }],
+      "realmRoles": ["INSTALLER"]
+    },
+    {
+      "username": "admin@example.com",
+      "email": "admin@example.com",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "Admin",
+      "credentials": [{ "type": "password", "value": "admin123" }],
+      "realmRoles": ["ADMIN", "PRICING_ADMIN", "CATALOG_ADMIN", "REPORTING_VIEWER"]
+    }
+  ]
+}
+      ]]>
+    </KeycloakRealmSpec>
+
+    <DevSetupScript file="scripts/dev-setup.sh">
+      <![CDATA[
+#!/bin/bash
+# BA-DC-START-01: Start all containers
+set -e
+
+echo "=== Kanokna Development Setup ==="
+
+# Check Docker is running
+if ! docker info > /dev/null 2>&1; then
+    echo "Error: Docker is not running"
+    exit 1
+fi
+
+# Start infrastructure
+echo "Starting infrastructure services..."
+docker-compose up -d
+
+# Wait for services to be healthy
+echo "Waiting for services to be healthy..."
+sleep 10
+
+# Check PostgreSQL
+echo "Checking PostgreSQL..."
+until docker-compose exec -T postgres pg_isready -U kanokna; do
+    sleep 2
+done
+echo "PostgreSQL is ready!"
+
+# Check Keycloak
+echo "Checking Keycloak..."
+until curl -sf http://localhost:8180/health/ready > /dev/null; do
+    sleep 5
+done
+echo "Keycloak is ready!"
+
+# Check Kafka
+echo "Checking Kafka..."
+until docker-compose exec -T kafka kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1; do
+    sleep 5
+done
+echo "Kafka is ready!"
+
+echo ""
+echo "=== Development environment is ready! ==="
+echo ""
+echo "Services:"
+echo "  PostgreSQL:    localhost:5432 (user: kanokna, pass: kanokna_dev)"
+echo "  Redis:         localhost:6379"
+echo "  Kafka:         localhost:9092"
+echo "  Elasticsearch: localhost:9200"
+echo "  Keycloak:      http://localhost:8180 (admin/admin)"
+echo "  MinIO:         http://localhost:9001 (minioadmin/minioadmin)"
+echo ""
+echo "Test users (password in parentheses):"
+echo "  customer@example.com (customer123)"
+echo "  installer@example.com (installer123)"
+echo "  admin@example.com (admin123)"
+      ]]>
+    </DevSetupScript>
+
+  </ImplementationSpecifications>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       6. ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria ref="DevelopmentExecutionPlan.xml#W0-T6">
+    <Criterion id="AC-DC-001">docker-compose up starts all infrastructure</Criterion>
+    <Criterion id="AC-DC-002">Keycloak accessible with pre-configured realm</Criterion>
+    <Criterion id="AC-DC-003">All services can connect to dependencies</Criterion>
+    <Criterion id="AC-DC-004">PostgreSQL has all per-service databases created</Criterion>
+    <Criterion id="AC-DC-005">Test users available in Keycloak</Criterion>
+    <Criterion id="AC-DC-006">MinIO accessible for media storage</Criterion>
+  </AcceptanceCriteria>
+
+  <Scope>
+    <Tasks><TaskRef ref="DevelopmentExecutionPlan.xml#W0-T6"/></Tasks>
+  </Scope>
+
+  <Contracts>
+    <ModuleContractRef id="MC-docker-compose-dev"/>
+    <BlockAnchorRef id="BA-DC-START-01"/>
+    <BlockAnchorRef id="BA-DC-INIT-01"/>
+    <BlockAnchorRef id="BA-DC-INIT-02"/>
+    <BlockAnchorRef id="BA-DC-HEALTH-01"/>
+  </Contracts>
+
+
+  <MigrationNote>
+    Migrated to GRACE Markup v2 (2025-12-30).
+    created/author attributes were missing in original; derived from file header comment.
+  </MigrationNote>
+
+</GRACE_HANDOFF>
