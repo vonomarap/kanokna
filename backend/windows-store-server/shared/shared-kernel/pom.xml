@@ -12,13 +12,27 @@
 
   <artifactId>shared-kernel</artifactId>
   <name>shared-kernel</name>
+  <description>Framework-free domain primitives for the Windows and Doors E-Commerce platform</description>
   <packaging>jar</packaging>
 
   <properties>
     <java.version>25</java.version>
   </properties>
 
-  <dependencies> 
+  <dependencies>
+    <!-- Test dependencies only -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.25.3</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -31,6 +45,7 @@
           <release>${java.version}</release>
         </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -39,21 +54,56 @@
         </configuration>
       </plugin>
 
+      <!--
+        Maven Enforcer Plugin: Ban Framework Dependencies
+        Per DEC-SHARED-KERNEL-PURITY: shared-kernel must remain framework-free.
+        See: Handoff-20251230-02#DEC-SHARED-KERNEL-PURITY
+      -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.4.1</version>
         <executions>
           <execution>
-            <id>ban-frameworks</id>
-            <goals><goal>enforce</goal></goals>
+            <id>ban-framework-dependencies</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
             <configuration>
               <rules>
                 <bannedDependencies>
                   <excludes>
-                    <exclude>org.springframework:*:*</exclude>
-                    <exclude>jakarta.persistence:*:*</exclude>
-                    <exclude>com.fasterxml.jackson.core:*:*</exclude>
+                    <!-- Spring Framework -->
+                    <exclude>org.springframework:*</exclude>
+                    <exclude>org.springframework.boot:*</exclude>
+                    <exclude>org.springframework.cloud:*</exclude>
+                    <exclude>org.springframework.data:*</exclude>
+                    <exclude>org.springframework.security:*</exclude>
+                    <!-- JPA/Hibernate -->
+                    <exclude>jakarta.persistence:*</exclude>
+                    <exclude>org.hibernate:*</exclude>
+                    <exclude>org.hibernate.orm:*</exclude>
+                    <!-- Jackson/JSON -->
+                    <exclude>com.fasterxml.jackson.core:*</exclude>
+                    <exclude>com.fasterxml.jackson.datatype:*</exclude>
+                    <!-- Servlet/Web -->
+                    <exclude>jakarta.servlet:*</exclude>
+                    <exclude>javax.servlet:*</exclude>
+                    <!-- Messaging -->
+                    <exclude>org.apache.kafka:*</exclude>
+                    <exclude>org.springframework.kafka:*</exclude>
                   </excludes>
+                  <message>
+                    ================================================================================
+                    SHARED-KERNEL PURITY VIOLATION!
+
+                    The shared-kernel module must remain framework-free to ensure domain purity.
+                    No Spring, JPA, Jackson, or messaging dependencies are allowed.
+
+                    Decision Reference: DEC-SHARED-KERNEL-PURITY
+                    Blueprint Reference: DevelopmentPlan.xml#DP-SVC-shared-kernel
+                    ================================================================================
+                  </message>
                 </bannedDependencies>
               </rules>
               <fail>true</fail>
@@ -61,6 +111,18 @@
           </execution>
         </executions>
       </plugin>
+
+      <!-- Javadoc generation -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.6.3</version>
+        <configuration>
+          <doclint>none</doclint>
+          <source>${java.version}</source>
+        </configuration>
+      </plugin>
+
     </plugins>
   </build>
 </project>

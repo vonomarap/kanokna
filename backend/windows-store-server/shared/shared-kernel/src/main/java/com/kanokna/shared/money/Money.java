@@ -1,285 +1,399 @@
 package com.kanokna.shared.money;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Objects;
-import java.util.Currency;
+
+/* <FUNCTION_CONTRACT id="FC-shared-kernel-money-Money-add"
+     LAYER="domain.value"
+     INTENT="Add two Money amounts of the same currency"
+     INPUT="Money other"
+     OUTPUT="Money (new instance with sum)"
+     SIDE_EFFECTS="None (immutable)"
+     LINKS="RequirementsAnalysis.xml#NFR-I18N-MULTI-CURRENCY">
+   <PRECONDITIONS>
+     <Item>other is not null</Item>
+     <Item>other.currency equals this.currency</Item>
+   </PRECONDITIONS>
+
+   <POSTCONDITIONS>
+     <Item>Returned Money has same currency as inputs</Item>
+     <Item>Returned amount equals this.amount + other.amount</Item>
+     <Item>Original Money instances unchanged</Item>
+   </POSTCONDITIONS>
+
+   <INVARIANTS>
+     <Item>Currency mismatch throws IllegalArgumentException</Item>
+     <Item>Result precision matches currency's default scale</Item>
+   </INVARIANTS>
+
+   <ERROR_HANDLING>
+     <Item type="TECHNICAL" code="IllegalArgumentException">Currency mismatch</Item>
+     <Item type="TECHNICAL" code="NullPointerException">Null argument</Item>
+   </ERROR_HANDLING>
+
+   <TESTS>
+     <Case id="TC-MONEY-001">Add two RUB amounts correctly</Case>
+     <Case id="TC-MONEY-002">Add two EUR amounts correctly</Case>
+     <Case id="TC-MONEY-003">Currency mismatch throws exception</Case>
+     <Case id="TC-MONEY-004">Null argument throws exception</Case>
+     <Case id="TC-MONEY-005">Precision maintained for currency</Case>
+   </TESTS>
+ </FUNCTION_CONTRACT> */
 
 /**
  * An immutable, type-safe representation of a monetary value.
- *
- * This class ensures that the internal BigDecimal amount is always stored
- * with the correct scale for its currency (e.g., 2 for USD, 0 for JPY).
+ * <p>
+ * This class ensures that the internal {@link BigDecimal} amount is always stored
+ * with the correct scale for its {@link Currency} (e.g., 2 for RUB, EUR, USD).
  * All arithmetic operations return a new, correctly rounded Money object.
+ * <p>
+ * Money is designed to be framework-free and serialization-agnostic.
+ * Adapters handle serialization to/from DTOs or persistence formats.
  *
+ * <h2>Usage Example:</h2>
+ * <pre>{@code
+ * Money price = Money.of(new BigDecimal("1500.00"), Currency.RUB);
+ * Money tax = price.multiplyBy(new BigDecimal("0.20"));
+ * Money total = price.add(tax);
+ * }</pre>
+ *
+ * @see Currency
  * @see MoneyRoundingPolicy
+ * @see <a href="RequirementsAnalysis.xml#NFR-I18N-MULTI-CURRENCY">NFR-I18N-MULTI-CURRENCY</a>
  */
-
 public final class Money implements Comparable<Money> {
 
     private final BigDecimal amount;
     private final Currency currency;
 
+    /**
+     * Private constructor - use factory methods.
+     */
     private Money(BigDecimal amount, Currency currency) {
         this.amount = Objects.requireNonNull(amount, "amount must not be null");
         this.currency = Objects.requireNonNull(currency, "currency must not be null");
     }
 
-    // --- FACTORY METHODS ---
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Factory Methods
+    // ─────────────────────────────────────────────────────────────────────────────
 
-    /*<FUNCTION_CONTRACT
-        id="money.of.defaultPolicy"
-        module="mod.shared.kernel"
-        SPECIFICATION="RequirementsAnalysis.xml#PRICING.CURRENCY"
-        LINKS="MODULE_CONTRACT#mod.shared.kernel,Technology.xml#MoneyTime">
-      <ROLE_IN_MODULE>
-        Factory method that creates a Money instance using the default rounding policy to enforce currency-scale normalization.
-      </ROLE_IN_MODULE>
-      <SIGNATURE>
-        <INPUT>
-          - amount:BigDecimal (non-null) representing major+minor units.
-          - currency:java.util.Currency (non-null) defining scale and ISO code.
-        </INPUT>
-        <OUTPUT>
-          - Immutable Money with amount scaled per currency and policy.
-        </OUTPUT>
-        <SIDE_EFFECTS>
-          - None; pure factory.
-        </SIDE_EFFECTS>
-      </SIGNATURE>
-      <PRECONDITIONS>
-        - amount and currency must be non-null.
-      </PRECONDITIONS>
-      <POSTCONDITIONS>
-        - Returned Money amount has scale matching currency default fraction digits after default policy applied.
-        - Currency of result equals input currency.
-      </POSTCONDITIONS>
-      <INVARIANTS>
-        - Money instances are immutable; no state mutation after construction.
-      </INVARIANTS>
-      <ERROR_HANDLING>
-        - Null inputs throw NullPointerException or IllegalArgumentException via policy.
-      </ERROR_HANDLING>
-      <LOGGING>
-        - None; factory remains side-effect free.
-      </LOGGING>
-      <TEST_CASES>
-        <HAPPY_PATH>
-          - amount=10.125, currency=USD -> rounds to 10.13 with HALF_UP.
-          - amount=100, currency=JPY -> returns scale 0.
-        </HAPPY_PATH>
-        <EDGE_CASES>
-          - amount=null -> NullPointerException.
-          - currency=null -> NullPointerException.
-          - policy adjusts amount to currency scale (e.g., CHF with 2 decimals).
-        </EDGE_CASES>
-        <SECURITY_CASES>
-          - Not applicable; no auth context.
-        </SECURITY_CASES>
-      </TEST_CASES>
-    </FUNCTION_CONTRACT>
-    */
+    /**
+     * Creates a Money instance with the given amount and currency,
+     * using the default rounding policy.
+     *
+     * @param amount   the monetary amount
+     * @param currency the currency
+     * @return a new Money instance with scaled amount
+     * @throws NullPointerException if amount or currency is null
+     */
     public static Money of(BigDecimal amount, Currency currency) {
         return of(amount, currency, MoneyRoundingPolicy.defaultPolicy());
     }
 
+    /**
+     * Creates a Money instance with the given amount, currency, and rounding policy.
+     *
+     * @param amount   the monetary amount
+     * @param currency the currency
+     * @param policy   the rounding policy to apply
+     * @return a new Money instance with scaled amount
+     * @throws NullPointerException if any argument is null
+     */
     public static Money of(BigDecimal amount, Currency currency, MoneyRoundingPolicy policy) {
+        Objects.requireNonNull(amount, "amount must not be null");
+        Objects.requireNonNull(currency, "currency must not be null");
         Objects.requireNonNull(policy, "policy must not be null");
-        return new Money(policy.round(amount, currency), currency);
+
+        // BA-SK-MONEY-03: Apply rounding policy
+        BigDecimal scaled = policy.round(amount, currency);
+        return new Money(scaled, currency);
     }
 
+    /**
+     * Creates a Money instance from a whole number of major currency units.
+     *
+     * @param majorUnits the amount in major units (e.g., rubles, euros)
+     * @param currency   the currency
+     * @return a new Money instance
+     */
     public static Money ofMajor(long majorUnits, Currency currency) {
-        return new Money(BigDecimal.valueOf(majorUnits), currency);
+        Objects.requireNonNull(currency, "currency must not be null");
+        BigDecimal amount = BigDecimal.valueOf(majorUnits)
+            .setScale(currency.getDefaultScale(), RoundingMode.UNNECESSARY);
+        return new Money(amount, currency);
     }
 
+    /**
+     * Creates a Money instance from minor currency units (e.g., kopecks, cents).
+     *
+     * @param minorUnits the amount in minor units
+     * @param currency   the currency
+     * @return a new Money instance
+     */
+    public static Money ofMinor(long minorUnits, Currency currency) {
+        Objects.requireNonNull(currency, "currency must not be null");
+        BigDecimal divisor = BigDecimal.TEN.pow(currency.getDefaultScale());
+        BigDecimal amount = BigDecimal.valueOf(minorUnits)
+            .divide(divisor, currency.getDefaultScale(), RoundingMode.UNNECESSARY);
+        return new Money(amount, currency);
+    }
+
+    /**
+     * Creates a zero Money in the given currency.
+     *
+     * @param currency the currency
+     * @return Money representing zero in the given currency
+     */
     public static Money zero(Currency currency) {
-        // Using ofMajor for efficiency and to ensure correct scale if default were 0
         return ofMajor(0, currency);
     }
 
-    // --- GETTERS ---
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Getters
+    // ─────────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Returns the monetary amount.
+     *
+     * @return the amount as BigDecimal
+     */
     public BigDecimal getAmount() {
         return amount;
     }
 
+    /**
+     * Returns the currency.
+     *
+     * @return the currency
+     */
     public Currency getCurrency() {
         return currency;
     }
 
-    // --- QUERIES ---
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Queries
+    // ─────────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Returns true if this Money represents zero.
+     *
+     * @return true if amount is zero
+     */
     public boolean isZero() {
         return amount.compareTo(BigDecimal.ZERO) == 0;
     }
 
+    /**
+     * Returns true if this Money is positive (greater than zero).
+     *
+     * @return true if amount is positive
+     */
+    public boolean isPositive() {
+        return amount.compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    /**
+     * Returns true if this Money is negative (less than zero).
+     *
+     * @return true if amount is negative
+     */
     public boolean isNegative() {
         return amount.compareTo(BigDecimal.ZERO) < 0;
     }
 
-    // --- ARITHMETIC OPERATIONS ---
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Arithmetic Operations
+    // ─────────────────────────────────────────────────────────────────────────────
 
-    /*<FUNCTION_CONTRACT
-        id="money.add.withPolicy"
-        module="mod.shared.kernel"
-        SPECIFICATION="RequirementsAnalysis.xml#PRICING.FORMULA"
-        LINKS="MODULE_CONTRACT#mod.shared.kernel,Technology.xml#MoneyTime">
-      <ROLE_IN_MODULE>
-        Adds two Money amounts of the same currency, returning a new rounded Money per policy.
-      </ROLE_IN_MODULE>
-      <SIGNATURE>
-        <INPUT>
-          - other:Money (non-null) with same currency.
-          - policy:MoneyRoundingPolicy used to normalize the result.
-        </INPUT>
-        <OUTPUT>
-          - New Money representing sum with correct scale.
-        </OUTPUT>
-        <SIDE_EFFECTS>
-          - None; returns new instance.
-        </SIDE_EFFECTS>
-      </SIGNATURE>
-      <PRECONDITIONS>
-        - other is non-null and currency matches this.currency.
-      </PRECONDITIONS>
-      <POSTCONDITIONS>
-        - Result currency equals operands’ currency.
-        - Result amount equals this.amount + other.amount after rounding policy.
-      </POSTCONDITIONS>
-      <INVARIANTS>
-        - No mutation of either operand.
-        - Currency mismatch results in IllegalArgumentException.
-      </INVARIANTS>
-      <ERROR_HANDLING>
-        - Null other -> NullPointerException.
-        - Currency mismatch -> IllegalArgumentException.
-      </ERROR_HANDLING>
-      <LOGGING>
-        - None; arithmetic remains pure.
-      </LOGGING>
-      <TEST_CASES>
-        <HAPPY_PATH>
-          - USD 10.10 + USD 5.15 = USD 15.25.
-        </HAPPY_PATH>
-        <EDGE_CASES>
-          - Currency mismatch (USD vs EUR) -> IllegalArgumentException.
-          - Adding zero -> returns same amount.
-        </EDGE_CASES>
-        <SECURITY_CASES>
-          - Not applicable.
-        </SECURITY_CASES>
-      </TEST_CASES>
-    </FUNCTION_CONTRACT>
-    */
+    /**
+     * Adds another Money amount to this one.
+     * Both amounts must have the same currency.
+     *
+     * @param other the Money to add
+     * @return a new Money representing the sum
+     * @throws NullPointerException     if other is null
+     * @throws IllegalArgumentException if currencies don't match
+     */
     public Money add(Money other) {
         return add(other, MoneyRoundingPolicy.defaultPolicy());
     }
 
+    /**
+     * Adds another Money amount with a specific rounding policy.
+     * <!-- BLOCK_ANCHOR id="BA-SK-MONEY-02" purpose="Perform arithmetic operation" -->
+     *
+     * @param other  the Money to add
+     * @param policy the rounding policy
+     * @return a new Money representing the sum
+     * @throws NullPointerException     if other or policy is null
+     * @throws IllegalArgumentException if currencies don't match
+     */
     public Money add(Money other, MoneyRoundingPolicy policy) {
+        // BA-SK-MONEY-01: Validate currency compatibility
         requireSameCurrency(other);
-        return of(this.amount.add(other.amount), currency, policy);
+        Objects.requireNonNull(policy, "policy must not be null");
+
+        // BA-SK-MONEY-02: Perform arithmetic operation
+        BigDecimal sum = this.amount.add(other.amount);
+        return of(sum, currency, policy);
     }
 
-    /*<FUNCTION_CONTRACT
-        id="money.multiply.withPolicy"
-        module="mod.shared.kernel"
-        SPECIFICATION="RequirementsAnalysis.xml#PRICING.FORMULA"
-        LINKS="MODULE_CONTRACT#mod.shared.kernel,Technology.xml#MoneyTime">
-      <ROLE_IN_MODULE>
-        Multiplies a Money amount by a factor and rounds the result according to policy.
-      </ROLE_IN_MODULE>
-      <SIGNATURE>
-        <INPUT>
-          - factor:BigDecimal (non-null) scalar.
-          - policy:MoneyRoundingPolicy to normalize result.
-        </INPUT>
-        <OUTPUT>
-          - New Money with amount multiplied and rounded; currency unchanged.
-        </OUTPUT>
-        <SIDE_EFFECTS>
-          - None; returns new instance.
-        </SIDE_EFFECTS>
-      </SIGNATURE>
-      <PRECONDITIONS>
-        - factor is non-null.
-      </PRECONDITIONS>
-      <POSTCONDITIONS>
-        - Result currency equals this.currency; amount scaled per policy.
-      </POSTCONDITIONS>
-      <INVARIANTS>
-        - Negative factors allowed; caller interprets business meaning (e.g., discounts).
-        - Immutability preserved.
-      </INVARIANTS>
-      <ERROR_HANDLING>
-        - Null factor -> NullPointerException.
-      </ERROR_HANDLING>
-      <LOGGING>
-        - None; pure computation.
-      </LOGGING>
-      <TEST_CASES>
-        <HAPPY_PATH>
-          - USD 10.00 * 0.15 -> USD 1.50 with HALF_UP.
-        </HAPPY_PATH>
-        <EDGE_CASES>
-          - factor=0 -> returns zero amount same currency.
-          - factor negative -> returns negative Money allowed for adjustments.
-        </EDGE_CASES>
-        <SECURITY_CASES>
-          - Not applicable.
-        </SECURITY_CASES>
-      </TEST_CASES>
-    </FUNCTION_CONTRACT>
-    */
+    /**
+     * Subtracts another Money amount from this one.
+     * Both amounts must have the same currency.
+     *
+     * @param other the Money to subtract
+     * @return a new Money representing the difference
+     * @throws NullPointerException     if other is null
+     * @throws IllegalArgumentException if currencies don't match
+     */
+    public Money subtract(Money other) {
+        return subtract(other, MoneyRoundingPolicy.defaultPolicy());
+    }
+
+    /**
+     * Subtracts another Money amount with a specific rounding policy.
+     *
+     * @param other  the Money to subtract
+     * @param policy the rounding policy
+     * @return a new Money representing the difference
+     */
+    public Money subtract(Money other, MoneyRoundingPolicy policy) {
+        requireSameCurrency(other);
+        Objects.requireNonNull(policy, "policy must not be null");
+
+        BigDecimal difference = this.amount.subtract(other.amount);
+        return of(difference, currency, policy);
+    }
+
+    /**
+     * Multiplies this Money by a factor.
+     *
+     * @param factor the multiplication factor
+     * @return a new Money representing the product
+     * @throws NullPointerException if factor is null
+     */
     public Money multiplyBy(BigDecimal factor) {
         return multiplyBy(factor, MoneyRoundingPolicy.defaultPolicy());
     }
+
+    /**
+     * Multiplies this Money by a factor with a specific rounding policy.
+     *
+     * @param factor the multiplication factor
+     * @param policy the rounding policy
+     * @return a new Money representing the product
+     */
     public Money multiplyBy(BigDecimal factor, MoneyRoundingPolicy policy) {
         Objects.requireNonNull(factor, "factor must not be null");
+        Objects.requireNonNull(policy, "policy must not be null");
 
-        BigDecimal newAmount = this.amount.multiply(factor);
-        return of(newAmount, currency, policy);
+        BigDecimal product = this.amount.multiply(factor);
+        return of(product, currency, policy);
     }
 
-    public Money subtract(Money other) {
-      return subtract(other, MoneyRoundingPolicy.defaultPolicy());
-    }
-    public Money subtract(Money other, MoneyRoundingPolicy policy) {
-        requireSameCurrency(other);
-        return of(this.amount.subtract(other.amount), currency, policy);
+    /**
+     * Returns the negation of this Money.
+     *
+     * @return a new Money with negated amount
+     */
+    public Money negate() {
+        return new Money(amount.negate(), currency);
     }
 
-    // --- COMPARISON ---
+    /**
+     * Returns the absolute value of this Money.
+     *
+     * @return a new Money with absolute amount
+     */
+    public Money abs() {
+        return isNegative() ? negate() : this;
+    }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Comparison
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Compares this Money to another of the same currency.
+     *
+     * @param other the other Money
+     * @return negative if this < other, zero if equal, positive if this > other
+     * @throws IllegalArgumentException if currencies don't match
+     */
     @Override
     public int compareTo(Money other) {
         requireSameCurrency(other);
         return this.amount.compareTo(other.amount);
     }
 
+    /**
+     * Returns true if this Money is greater than the other.
+     *
+     * @param other the other Money
+     * @return true if this > other
+     */
+    public boolean isGreaterThan(Money other) {
+        return compareTo(other) > 0;
+    }
+
+    /**
+     * Returns true if this Money is less than the other.
+     *
+     * @param other the other Money
+     * @return true if this < other
+     */
+    public boolean isLessThan(Money other) {
+        return compareTo(other) < 0;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Validation
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Ensures the other Money has the same currency.
+     * <!-- BLOCK_ANCHOR id="BA-SK-MONEY-01" purpose="Validate currency compatibility" -->
+     */
     private void requireSameCurrency(Money other) {
+        // BA-SK-MONEY-01: Validate currency compatibility
         Objects.requireNonNull(other, "other Money instance must not be null");
 
         if (this.currency != other.currency) {
             throw new IllegalArgumentException(
-              "Currency mismatch: %s vs %s".formatted(this.currency, other.currency));
+                "Currency mismatch: %s vs %s".formatted(this.currency, other.currency));
         }
     }
 
-    @Override 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Object Methods
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    @Override
     public boolean equals(Object o) {
-        if (this == o)
-          return true;
-        if (!(o instanceof Money money))
-          return false;
-        return currency.equals(money.currency) && amount.compareTo(money.amount) == 0;
+        if (this == o) return true;
+        if (!(o instanceof Money money)) return false;
+        return currency == money.currency && amount.compareTo(money.amount) == 0;
     }
 
-    @Override 
-    public int hashCode() { 
-        return Objects.hash(amount.stripTrailingZeros(), currency); 
+    @Override
+    public int hashCode() {
+        return Objects.hash(amount.stripTrailingZeros(), currency);
     }
 
-    @Override 
+    @Override
     public String toString() {
-        return currency.getCurrencyCode() + " " + amount.toPlainString();
+        return currency.name() + " " + amount.toPlainString();
+    }
+
+    /**
+     * Returns a formatted string with currency symbol.
+     *
+     * @return formatted string (e.g., "1,500.00 ₽")
+     */
+    public String toFormattedString() {
+        return amount.toPlainString() + " " + currency.getSymbol();
     }
 }

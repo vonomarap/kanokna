@@ -1,73 +1,89 @@
-/*<MODULE_CONTRACT
-    id="mod.shared.kernel"
-    name="Shared Kernel"
-    layer="shared-kernel"
-    boundedContext="Platform"
-    SPECIFICATION="RA-CONSTRAINTS.PRICE_CURRENCY,RA-ORDER.IDEMPOTENCY,Technology.xml#MoneyTime"
-    LINKS="RequirementsAnalysis.xml#PRICING.CURRENCY,RequirementsAnalysis.xml#ORDER.IDEMPOTENCY,Technology.xml#MoneyTime,Technology.xml#Patterns">
+/* <MODULE_CONTRACT id="MC-shared-kernel-core"
+     ROLE="SharedLibrary"
+     SERVICE="shared-kernel"
+     LAYER="domain"
+     BOUNDED_CONTEXT="shared-kernel"
+     SPECIFICATION="NFR-MAINT-MODULARITY">
   <PURPOSE>
-    Provide immutable, validated primitives and domain-level abstractions (IDs, value objects, money, dimensions, localization, domain events) used across bounded contexts without leaking infrastructure concerns.
+    Cross-service domain primitives providing type-safe, immutable value objects
+    for the windows and doors e-commerce platform. Framework-free pure Java.
   </PURPOSE>
+
   <RESPONSIBILITIES>
-    - Offer canonical value objects for identity, email, address, and localized text with strict validation and normalization.
-    - Supply monetary primitives (Money + rounding policy) enforcing currency consistency and deterministic rounding.
-    - Define measurement/value helpers (dimensions, thickness enums) and domain event contract for cross-module messaging.
-    - Remain side-effect free and framework-agnostic to protect domain purity and reusability.
+    <Item>Money value object with multi-currency arithmetic (RUB, EUR, USD)</Item>
+    <Item>DimensionsCm for product dimensions (50-400cm range enforced)</Item>
+    <Item>Address, Email, PhoneNumber contact value objects</Item>
+    <Item>LocalizedString for internationalized content</Item>
+    <Item>DomainEvent interface with standard metadata</Item>
+    <Item>Result sealed type for explicit error handling</Item>
+    <Item>Common enums: Language, Currency, Country</Item>
   </RESPONSIBILITIES>
-  <CONTEXT>
-    <UPSTREAM>
-      - Domain models and application services in services (catalog, checkout, pricing) consume these primitives for validation and persistence safety.
-    </UPSTREAM>
-    <DOWNSTREAM>
-      - None directly; integrates only with JDK types to avoid infrastructure coupling.
-    </DOWNSTREAM>
-  </CONTEXT>
-  <ARCHITECTURE>
-    <PATTERNS>
-      - Shared-kernel value objects with immutability and validation on creation.
-      - Hexagonal alignment: no Spring/JPA/web dependencies; serialization left to adapters.
-    </PATTERNS>
-    <TECHNOLOGY>
-      - Java 25 core types; BigDecimal/Currency for money; UUID for identifiers.
-      - Bean Validation messages supported via consuming layers; MapStruct/serialization handled upstream.
-    </TECHNOLOGY>
-  </ARCHITECTURE>
-  <PUBLIC_API>
-    - Id.of(value)/random(): create stable identifiers with non-blank semantics.
-    - Email.of(raw): produce canonical email addresses (NFKC + Punycode).
-    - Address(record): validated postal address with canonical optional line2.
-    - Money.of(amount,currency[,policy]): scaled, rounded money with arithmetic enforcing currency equality.
-    - LocalizedString.resolve(language): retrieve localized text with fallback order.
-    - DimensionsCm(width,height): enforce min/max constraints and compute area/fitting checks.
-    - DomainEvent contract: eventId + occurredAt + type() default.
-  </PUBLIC_API>
-  <DOMAIN_INVARIANTS>
-    - All value objects are immutable once constructed and validated at creation time.
-    - Money operations require matching Currency; amounts are rounded to currency default fraction digits.
-    - Id values are non-null, non-blank; Email and Address are canonical and validated.
-    - Localization requires at least one translation; fallback order always yields a value.
-    - Dimensions respect min/max bounds and never allow non-positive values.
-  </DOMAIN_INVARIANTS>
-  <CROSS_CUTTING>
-    <SECURITY>
-      - No PII logging inside primitives; masking provided where applicable (Email.masked).
-    </SECURITY>
-    <RELIABILITY>
-      - Pure functions with no I/O; deterministic rounding policies for reproducible calculations.
-    </RELIABILITY>
-    <OBSERVABILITY>
-      - Primitives avoid logging to keep side-effect free; callers log at boundaries with correlation IDs.
-    </OBSERVABILITY>
-  </CROSS_CUTTING>
-  <LOGGING>
-    - Avoid logging within shared-kernel; rely on upstream layers to emit structured logs with correlation data.
-  </LOGGING>
-  <TESTING_STRATEGY>
-    - Creation happy/negative cases for each value object (null/blank/invalid formats, bounds).
-    - Money arithmetic with matching/mismatched currencies; rounding for currencies with 0/2/3 fraction digits.
-    - Localization fallback resolution when requested language missing; builder prevents empty translations.
-    - Dimensions area overflow prevention and fit checks; Id.random uniqueness sanity.
-  </TESTING_STRATEGY>
-</MODULE_CONTRACT>
-*/
+
+  <INVARIANTS>
+    <Item>All value objects are immutable (final fields, no setters)</Item>
+    <Item>No framework dependencies (Spring, JPA, Jackson annotations)</Item>
+    <Item>Validation performed in constructors/factory methods</Item>
+    <Item>equals/hashCode based on value, not identity</Item>
+    <Item>All types are serialization-agnostic (adapters handle serialization)</Item>
+  </INVARIANTS>
+
+  <CONSTRAINTS>
+    <Item>MUST NOT depend on Spring Framework</Item>
+    <Item>MUST NOT depend on JPA/Hibernate</Item>
+    <Item>MUST NOT depend on Jackson/JSON libraries</Item>
+    <Item>MUST NOT contain DTOs or API models</Item>
+    <Item>MUST NOT contain business logic beyond value validation</Item>
+  </CONSTRAINTS>
+
+  <PACKAGES>
+    <Package name="com.kanokna.shared.core">Base value objects (Id, Email, Address, Result, PhoneNumber)</Package>
+    <Package name="com.kanokna.shared.money">Money and Currency types</Package>
+    <Package name="com.kanokna.shared.measure">Dimensions and measurements</Package>
+    <Package name="com.kanokna.shared.event">Domain event interface and metadata</Package>
+    <Package name="com.kanokna.shared.i18n">Internationalization types (Language, Country, LocalizedString)</Package>
+  </PACKAGES>
+
+  <TESTS>
+    <Case id="TC-SK-001">Money arithmetic preserves currency and precision</Case>
+    <Case id="TC-SK-002">DimensionsCm rejects values outside 50-400cm</Case>
+    <Case id="TC-SK-003">Email validates format correctly</Case>
+    <Case id="TC-SK-004">Result.Success and Result.Failure work as expected</Case>
+    <Case id="TC-SK-005">LocalizedString retrieves correct language fallback</Case>
+    <Case id="TC-SK-006">All value objects are immutable</Case>
+    <Case id="TC-SK-007">equals/hashCode are value-based</Case>
+  </TESTS>
+
+  <LINKS>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-shared-kernel"/>
+    <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"/>
+    <Link ref="RequirementsAnalysis.xml#NFR-I18N-MULTI-CURRENCY"/>
+    <Link ref="Technology.xml#TECH-java"/>
+  </LINKS>
+</MODULE_CONTRACT> */
+
+/**
+ * Shared-kernel module providing cross-service domain primitives.
+ * <p>
+ * This module contains framework-free, immutable value objects used across
+ * all bounded contexts in the Windows &amp; Doors E-Commerce platform.
+ *
+ * <h2>Core Packages:</h2>
+ * <ul>
+ *   <li>{@link com.kanokna.shared.core} - Base value objects (Id, Email, Address, Result)</li>
+ *   <li>{@link com.kanokna.shared.money} - Money and Currency types</li>
+ *   <li>{@link com.kanokna.shared.measure} - Dimensions and measurements</li>
+ *   <li>{@link com.kanokna.shared.event} - Domain event interface and metadata</li>
+ *   <li>{@link com.kanokna.shared.i18n} - Internationalization types</li>
+ * </ul>
+ *
+ * <h2>Design Principles:</h2>
+ * <ul>
+ *   <li>Framework-free: No Spring, JPA, or Jackson dependencies</li>
+ *   <li>Immutable: All value objects have final fields</li>
+ *   <li>Validated: Invariants enforced at construction time</li>
+ *   <li>Value-based: equals/hashCode based on content, not identity</li>
+ * </ul>
+ *
+ * @see <a href="DevelopmentPlan.xml#DP-SVC-shared-kernel">DP-SVC-shared-kernel</a>
+ */
 package com.kanokna.shared;
