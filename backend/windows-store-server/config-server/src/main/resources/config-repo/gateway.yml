@@ -1,0 +1,163 @@
+# ============================================================================
+# Gateway Service Configuration
+# ============================================================================
+server:
+  port: 8080
+
+spring:
+  cloud:
+    gateway:
+      # ─────────────────────────────────────────────────────────────────────────
+      # Route Definitions
+      # ─────────────────────────────────────────────────────────────────────────
+      routes:
+        # Catalog Configuration Service
+        - id: catalog-configuration-service
+          uri: lb://catalog-configuration-service
+          predicates:
+            - Path=/api/catalog/**
+          filters:
+            - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: catalogCircuitBreaker
+                fallbackUri: forward:/fallback/catalog
+
+        # Pricing Service
+        - id: pricing-service
+          uri: lb://pricing-service
+          predicates:
+            - Path=/api/pricing/**
+          filters:
+            - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: pricingCircuitBreaker
+
+        # Cart Service
+        - id: cart-service
+          uri: lb://cart-service
+          predicates:
+            - Path=/api/cart/**
+          filters:
+            - StripPrefix=1
+
+        # Order Service
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - StripPrefix=1
+
+        # Account Service
+        - id: account-service
+          uri: lb://account-service
+          predicates:
+            - Path=/api/accounts/**
+          filters:
+            - StripPrefix=1
+
+        # Media Service
+        - id: media-service
+          uri: lb://media-service
+          predicates:
+            - Path=/api/media/**
+          filters:
+            - StripPrefix=1
+
+        # Search Service
+        - id: search-service
+          uri: lb://search-service
+          predicates:
+            - Path=/api/search/**
+          filters:
+            - StripPrefix=1
+
+        # Installation Service
+        - id: installation-service
+          uri: lb://installation-service
+          predicates:
+            - Path=/api/installations/**
+          filters:
+            - StripPrefix=1
+
+        # Reporting Service
+        - id: reporting-service
+          uri: lb://reporting-service
+          predicates:
+            - Path=/api/reports/**
+          filters:
+            - StripPrefix=1
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # Global Filters
+      # ─────────────────────────────────────────────────────────────────────────
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 100
+            redis-rate-limiter.burstCapacity: 200
+            key-resolver: "#{@principalKeyResolver}"
+        - AddRequestHeader=X-Gateway-Source, kanokna-gateway
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # CORS Configuration
+      # ─────────────────────────────────────────────────────────────────────────
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins:
+              - ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowed-headers: "*"
+            exposed-headers:
+              - X-Correlation-ID
+            allow-credentials: true
+            max-age: 3600
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Security
+# ─────────────────────────────────────────────────────────────────────────────
+spring.security:
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8180/realms/kanokna}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Circuit Breaker Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+resilience4j:
+  circuitbreaker:
+    instances:
+      catalogCircuitBreaker:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+      pricingCircuitBreaker:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+  timelimiter:
+    instances:
+      catalogCircuitBreaker:
+        timeout-duration: 5s
+      pricingCircuitBreaker:
+        timeout-duration: 5s
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Logging
+# ─────────────────────────────────────────────────────────────────────────────
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    org.springframework.security: INFO
+    reactor.netty: INFO
