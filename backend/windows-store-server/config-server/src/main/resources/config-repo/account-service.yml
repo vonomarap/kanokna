@@ -1,0 +1,66 @@
+# ============================================================================
+# Account Service Configuration
+# ============================================================================
+# Manages user profiles, addresses, and preferences. Integrates with identity
+# provider for authentication. Stores application-specific user data.
+#
+# Links:
+#   - DevelopmentPlan.xml#DP-SVC-account-service
+#   - RequirementsAnalysis.xml#UC-ACCOUNT-REGISTER
+#   - RequirementsAnalysis.xml#UC-ACCOUNT-LOGIN
+#   - RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE
+# ============================================================================
+
+server:
+  port: 8085
+
+grpc:
+  server:
+    port: 9085
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:accounts}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    schemas: accounts
+
+# -----------------------------------------------------------------------------
+# Account Domain Configuration
+# -----------------------------------------------------------------------------
+account:
+  # Profile creation on first login
+  auto-create-profile: true
+
+  # Address limits per user
+  max-addresses-per-user: 10
+
+  # Saved configurations limits
+  saved-configurations:
+    max-per-user: 50
+    default-name-pattern: "Config {timestamp}"
+
+  # Default preferences
+  defaults:
+    language: ru
+    currency: RUB
+    notification-email: true
+    notification-sms: false
+    notification-push: true
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
+logging:
+  level:
+    com.kanokna.account_service.domain: DEBUG
+    com.kanokna.account_service.application: DEBUG

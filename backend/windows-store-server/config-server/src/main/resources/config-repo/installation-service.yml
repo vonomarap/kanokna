@@ -1,0 +1,98 @@
+# ============================================================================
+# Installation Service Configuration
+# ============================================================================
+# Manages professional installation scheduling, installer assignments,
+# and job completion tracking.
+#
+# Links:
+#   - DevelopmentPlan.xml#DP-SVC-installation-service
+#   - RequirementsAnalysis.xml#UC-INSTALL-SCHEDULE
+#   - RequirementsAnalysis.xml#UC-INSTALL-COMPLETE
+#   - RequirementsAnalysis.xml#ACT-INSTALLER
+# ============================================================================
+
+server:
+  port: 8086
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:installations}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    schemas: installations
+
+# -----------------------------------------------------------------------------
+# Installation Domain Configuration
+# -----------------------------------------------------------------------------
+installation:
+  # Scheduling settings
+  scheduling:
+    # Minimum days from order to first available slot
+    min-lead-days: 3
+    # Maximum days in advance for scheduling
+    max-advance-days: 60
+    # Time slot duration in minutes
+    slot-duration-minutes: 120
+    # Working hours
+    working-hours:
+      start: "09:00"
+      end: "18:00"
+    # Working days (1=Monday, 7=Sunday)
+    working-days:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+
+  # Installer assignment
+  assignment:
+    strategy: NEAREST_AVAILABLE  # Options: NEAREST_AVAILABLE, ROUND_ROBIN, MANUAL
+    max-jobs-per-day: 4
+    travel-buffer-minutes: 30
+
+  # Appointment reminders
+  reminders:
+    customer:
+      days-before:
+        - 3
+        - 1
+    installer:
+      days-before:
+        - 1
+
+  # Job completion
+  completion:
+    require-photo: true
+    require-signature: false
+
+# -----------------------------------------------------------------------------
+# Kafka Configuration
+# -----------------------------------------------------------------------------
+kafka:
+  consumer:
+    group-id: installation-service
+  topics:
+    # Consumed
+    order-created: order.created
+    # Produced
+    installation-scheduled: installation.scheduled
+    installation-completed: installation.completed
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
+logging:
+  level:
+    com.kanokna.installation_service.domain: DEBUG
+    com.kanokna.installation_service.application: DEBUG

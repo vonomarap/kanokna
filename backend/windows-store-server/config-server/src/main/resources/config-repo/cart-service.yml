@@ -1,0 +1,104 @@
+# ============================================================================
+# Cart Service Configuration
+# ============================================================================
+# Manages shopping carts for customers. Stores configured items with price
+# snapshots, handles promo codes, and prepares cart for checkout.
+#
+# Links:
+#   - DevelopmentPlan.xml#DP-SVC-cart-service
+#   - RequirementsAnalysis.xml#UC-CART-MANAGE
+#   - RequirementsAnalysis.xml#UC-CART-APPLY-PROMO
+# ============================================================================
+
+server:
+  port: 8083
+
+grpc:
+  server:
+    port: 9083
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:cart}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    schemas: cart
+
+# -----------------------------------------------------------------------------
+# gRPC Clients
+# -----------------------------------------------------------------------------
+grpc:
+  client:
+    catalog-configuration-service:
+      address: ${CATALOG_SERVICE_GRPC_ADDRESS:static://localhost:9081}
+      negotiation-type: PLAINTEXT
+      enable-keep-alive: true
+    pricing-service:
+      address: ${PRICING_SERVICE_GRPC_ADDRESS:static://localhost:9082}
+      negotiation-type: PLAINTEXT
+      enable-keep-alive: true
+
+# -----------------------------------------------------------------------------
+# Cart Domain Configuration
+# -----------------------------------------------------------------------------
+cart:
+  # Anonymous cart session settings
+  session:
+    ttl-hours: 72  # Anonymous carts expire after 72 hours
+    cookie-name: KANOKNA_CART_SESSION
+
+  # Cart merge strategy on login
+  merge:
+    strategy: MERGE_ADD  # Options: MERGE_ADD, REPLACE, KEEP_AUTHENTICATED
+    notify-price-changes: true
+
+  # Item limits
+  limits:
+    max-items-per-cart: 50
+    max-quantity-per-item: 100
+
+  # Price refresh settings
+  price-refresh:
+    on-checkout: true
+    on-view: false  # Don't auto-refresh on cart view to avoid surprises
+    stale-threshold-minutes: 60
+
+# -----------------------------------------------------------------------------
+# Resilience4j
+# -----------------------------------------------------------------------------
+resilience4j:
+  circuitbreaker:
+    instances:
+      catalogService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+      pricingService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+  retry:
+    instances:
+      catalogService:
+        max-attempts: 3
+        wait-duration: 500ms
+      pricingService:
+        max-attempts: 3
+        wait-duration: 500ms
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
+logging:
+  level:
+    com.kanokna.cart_service.domain: DEBUG
+    com.kanokna.cart_service.application: DEBUG

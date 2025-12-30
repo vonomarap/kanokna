@@ -1,0 +1,74 @@
+# ============================================================================
+# Config Server - Test Configuration
+# ============================================================================
+# Note: @ActiveProfiles("test") activates this profile. Native backend is
+# configured here for test isolation.
+#
+# TECH-ASSUM-001: Spring Boot 4.0.0 is a placeholder version. Some Spring Cloud
+# auto-configurations are incompatible and need to be excluded for tests.
+
+server:
+  port: 0  # Random port for tests
+
+spring:
+  application:
+    name: config-server
+
+  # Note: Native profile is included via profile group in main application.yml
+
+  # Exclude Spring Cloud auto-configurations incompatible with Spring Boot 4.x
+  autoconfigure:
+    exclude:
+      - org.springframework.cloud.autoconfigure.LifecycleMvcEndpointAutoConfiguration
+      - org.springframework.cloud.autoconfigure.RefreshAutoConfiguration
+      - org.springframework.cloud.autoconfigure.RefreshEndpointAutoConfiguration
+      - org.springframework.cloud.client.discovery.simple.SimpleDiscoveryClientAutoConfiguration
+      - org.springframework.cloud.client.serviceregistry.AutoServiceRegistrationAutoConfiguration
+      - org.springframework.cloud.client.serviceregistry.ServiceRegistryAutoConfiguration
+
+  cloud:
+    # Disable service discovery for tests
+    discovery:
+      enabled: false
+    # Disable compatibility verifier - TECH-ASSUM-001: Spring Boot 4.0.0 is placeholder
+    compatibility-verifier:
+      enabled: false
+    config:
+      server:
+        # Native backend configuration for tests
+        native:
+          search-locations:
+            - classpath:/config-repo
+
+  security:
+    user:
+      name: configadmin
+      password: testpassword
+
+# Use a simple encryption key for tests
+encrypt:
+  key: test-encryption-key-for-unit-tests
+
+management:
+  # Disable separate management port - use same as main server
+  server:
+    port:  # Setting to null disables separate port
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+
+logging:
+  level:
+    root: WARN
+    org.springframework.cloud.config: INFO
+    com.kanokna: DEBUG

@@ -1,0 +1,113 @@
+# ============================================================================
+# Search Service Configuration
+# ============================================================================
+# Provides full-text and faceted search over product catalog using Elasticsearch.
+# Indexes products asynchronously via domain events.
+#
+# Links:
+#   - DevelopmentPlan.xml#DP-SVC-search-service
+#   - RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS
+#   - RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY
+#   - Technology.xml#TECH-elasticsearch
+# ============================================================================
+
+server:
+  port: 8089
+
+spring:
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+    connection-timeout: 5s
+    socket-timeout: 30s
+
+# -----------------------------------------------------------------------------
+# Search Domain Configuration
+# -----------------------------------------------------------------------------
+search:
+  # Index settings
+  index:
+    products:
+      name: kanokna-products
+      alias: products
+      shards: 1
+      replicas: 0  # Increase in production
+      refresh-interval: 1s
+
+  # Search settings
+  query:
+    default-page-size: 20
+    max-page-size: 100
+    highlight-enabled: true
+    fuzziness: AUTO
+    min-score: 0.1
+
+  # Facets configuration
+  facets:
+    enabled: true
+    definitions:
+      - field: category
+        type: terms
+        size: 20
+      - field: material
+        type: terms
+        size: 10
+      - field: priceRange
+        type: range
+        ranges:
+          - to: 10000
+          - from: 10000
+            to: 50000
+          - from: 50000
+            to: 100000
+          - from: 100000
+
+  # Autocomplete settings
+  autocomplete:
+    enabled: true
+    min-chars: 2
+    max-suggestions: 10
+    fields:
+      - name
+      - category
+      - tags
+
+  # Reindexing settings
+  reindex:
+    batch-size: 100
+    concurrent-requests: 2
+
+# -----------------------------------------------------------------------------
+# Kafka Consumer Configuration
+# -----------------------------------------------------------------------------
+kafka:
+  consumer:
+    group-id: search-service
+  topics:
+    product-published: catalog.product.published
+    catalog-version-published: catalog.version.published
+
+# -----------------------------------------------------------------------------
+# Resilience4j
+# -----------------------------------------------------------------------------
+resilience4j:
+  circuitbreaker:
+    instances:
+      elasticsearch:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+  timelimiter:
+    instances:
+      elasticsearch:
+        timeout-duration: 5s
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
+logging:
+  level:
+    com.kanokna.search_service.domain: DEBUG
+    com.kanokna.search_service.application: DEBUG
+    org.elasticsearch: INFO
