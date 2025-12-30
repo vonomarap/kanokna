@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+package kanokna.cart.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/dimensions.proto";
+import "kanokna/common/v1/money.proto";
+import "kanokna/catalog/v1/catalog_configuration_service.proto";
+
+option java_package = "com.kanokna.cart.v1";
+option java_outer_classname = "CartServiceProto";
+option java_multiple_files = true;
+
+// Service for managing shopping carts.
+service CartService {
+  // Get the current cart for a customer.
+  rpc GetCart(GetCartRequest) returns (GetCartResponse);
+
+  // Add an item to the cart.
+  rpc AddItem(AddItemRequest) returns (AddItemResponse);
+
+  // Update an existing cart item.
+  rpc UpdateItem(UpdateItemRequest) returns (UpdateItemResponse);
+
+  // Remove an item from the cart.
+  rpc RemoveItem(RemoveItemRequest) returns (RemoveItemResponse);
+
+  // Clear all items from the cart.
+  rpc ClearCart(ClearCartRequest) returns (ClearCartResponse);
+
+  // Create a cart snapshot for checkout.
+  rpc CreateSnapshot(CreateSnapshotRequest) returns (CreateSnapshotResponse);
+}
+
+// Request to get the current cart.
+message GetCartRequest {
+  // Customer identifier
+  string customer_id = 1;
+}
+
+// Response with cart contents.
+message GetCartResponse {
+  // Cart details
+  Cart cart = 1;
+}
+
+// Shopping cart with items.
+message Cart {
+  // Cart identifier
+  string cart_id = 1;
+
+  // Customer identifier
+  string customer_id = 2;
+
+  // Cart items
+  repeated CartItem items = 3;
+
+  // Subtotal before tax
+  kanokna.common.v1.Money subtotal = 4;
+
+  // Last modified timestamp
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+// An item in the shopping cart.
+message CartItem {
+  // Cart item identifier
+  string item_id = 1;
+
+  // Product template identifier
+  string product_template_id = 2;
+
+  // Product template name
+  string product_name = 3;
+
+  // Configured dimensions
+  kanokna.common.v1.Dimensions dimensions = 4;
+
+  // Selected options
+  repeated kanokna.catalog.v1.SelectedOption selected_options = 5;
+
+  // Resolved bill of materials
+  kanokna.catalog.v1.BillOfMaterials resolved_bom = 6;
+
+  // Quantity
+  int32 quantity = 7;
+
+  // Unit price
+  kanokna.common.v1.Money unit_price = 8;
+
+  // Line total
+  kanokna.common.v1.Money line_total = 9;
+
+  // Quote ID for price lock
+  string quote_id = 10;
+}
+
+// Request to add an item to the cart.
+message AddItemRequest {
+  // Customer identifier
+  string customer_id = 1;
+
+  // Product template identifier
+  string product_template_id = 2;
+
+  // Configured dimensions
+  kanokna.common.v1.Dimensions dimensions = 3;
+
+  // Selected options
+  repeated kanokna.catalog.v1.SelectedOption selected_options = 4;
+
+  // Quantity to add
+  int32 quantity = 5;
+
+  // Quote ID for price lock
+  string quote_id = 6;
+}
+
+// Response after adding an item.
+message AddItemResponse {
+  // Updated cart
+  Cart cart = 1;
+
+  // Added item identifier
+  string added_item_id = 2;
+}
+
+// Request to update a cart item.
+message UpdateItemRequest {
+  // Customer identifier
+  string customer_id = 1;
+
+  // Cart item identifier
+  string item_id = 2;
+
+  // New quantity
+  int32 quantity = 3;
+}
+
+// Response after updating an item.
+message UpdateItemResponse {
+  // Updated cart
+  Cart cart = 1;
+}
+
+// Request to remove a cart item.
+message RemoveItemRequest {
+  // Customer identifier
+  string customer_id = 1;
+
+  // Cart item identifier
+  string item_id = 2;
+}
+
+// Response after removing an item.
+message RemoveItemResponse {
+  // Updated cart
+  Cart cart = 1;
+}
+
+// Request to clear the cart.
+message ClearCartRequest {
+  // Customer identifier
+  string customer_id = 1;
+}
+
+// Response after clearing the cart.
+message ClearCartResponse {
+  // Empty cart
+  Cart cart = 1;
+}
+
+// Request to create a checkout snapshot.
+message CreateSnapshotRequest {
+  // Customer identifier
+  string customer_id = 1;
+}
+
+// Response with cart snapshot for checkout.
+message CreateSnapshotResponse {
+  // Snapshot identifier
+  string snapshot_id = 1;
+
+  // Snapshot of cart at time of checkout
+  Cart cart_snapshot = 2;
+
+  // Snapshot expiration
+  google.protobuf.Timestamp valid_until = 3;
+}

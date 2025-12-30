@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package kanokna.common.v1;
+
+option java_package = "com.kanokna.common.v1";
+option java_outer_classname = "DimensionsProto";
+option java_multiple_files = true;
+
+// Product dimensions in centimeters.
+// Valid range: 50-400cm for both width and height.
+message Dimensions {
+  // Width in centimeters (valid range: 50-400)
+  int32 width_cm = 1;
+
+  // Height in centimeters (valid range: 50-400)
+  int32 height_cm = 2;
+}

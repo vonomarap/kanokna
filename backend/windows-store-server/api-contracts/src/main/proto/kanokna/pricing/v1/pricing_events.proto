@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package kanokna.pricing.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/common.proto";
+import "kanokna/common/v1/money.proto";
+
+option java_package = "com.kanokna.pricing.v1";
+option java_outer_classname = "PricingEventsProto";
+option java_multiple_files = true;
+
+// Domain event: Quote was calculated.
+// Topic: pricing.quote.calculated
+message QuoteCalculatedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Quote identifier
+  string quote_id = 2;
+
+  // Customer identifier (if authenticated)
+  string customer_id = 3;
+
+  // Product template identifier
+  string product_template_id = 4;
+
+  // Base price
+  kanokna.common.v1.Money base_price = 5;
+
+  // Total with all options
+  kanokna.common.v1.Money total = 6;
+
+  // Currency used
+  string currency = 7;
+
+  // Applied promo code (if any)
+  string promo_code = 8;
+
+  // Discount amount
+  kanokna.common.v1.Money discount = 9;
+
+  // Quote validity period end
+  google.protobuf.Timestamp valid_until = 10;
+
+  // Calculation timestamp
+  google.protobuf.Timestamp calculated_at = 11;
+}
+
+// Domain event: Quote expired without use.
+// Topic: pricing.quote.expired
+message QuoteExpiredEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Quote identifier
+  string quote_id = 2;
+
+  // Original quote total
+  kanokna.common.v1.Money total = 3;
+
+  // Expiration timestamp
+  google.protobuf.Timestamp expired_at = 4;
+}
+
+// Domain event: Price book was updated.
+// Topic: pricing.pricebook.updated
+message PriceBookUpdatedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Price book identifier
+  string price_book_id = 2;
+
+  // Product template identifier
+  string product_template_id = 3;
+
+  // Currency
+  string currency = 4;
+
+  // Whether base price changed
+  bool base_price_changed = 5;
+
+  // Effective date
+  google.protobuf.Timestamp effective_at = 6;
+
+  // Update timestamp
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// Domain event: Promotional code was applied.
+// Topic: pricing.promo.applied
+message PromoCodeAppliedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Promo code
+  string promo_code = 2;
+
+  // Quote identifier
+  string quote_id = 3;
+
+  // Discount amount
+  kanokna.common.v1.Money discount_amount = 4;
+
+  // Customer identifier
+  string customer_id = 5;
+
+  // Application timestamp
+  google.protobuf.Timestamp applied_at = 6;
+}

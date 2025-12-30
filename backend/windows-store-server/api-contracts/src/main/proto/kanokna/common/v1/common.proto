@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package kanokna.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option java_package = "com.kanokna.common.v1";
+option java_outer_classname = "CommonProto";
+option java_multiple_files = true;
+
+// Pagination request parameters for list operations.
+message PaginationRequest {
+  // Maximum number of items to return (default: 20, max: 100)
+  int32 page_size = 1;
+
+  // Token for fetching the next page (from previous response)
+  string page_token = 2;
+}
+
+// Pagination response metadata.
+message PaginationResponse {
+  // Token for fetching the next page, empty if no more pages
+  string next_page_token = 1;
+
+  // Total count of items (if available)
+  int32 total_count = 2;
+}
+
+// Localized string with language code.
+message LocalizedString {
+  // BCP-47 language tag (e.g., "ru", "en", "de")
+  string language = 1;
+
+  // Localized text value
+  string value = 2;
+}
+
+// Multi-language text with translations.
+message LocalizedText {
+  // Default value (usually in Russian)
+  string default_value = 1;
+
+  // Translations keyed by language code
+  map<string, string> translations = 2;
+}
+
+// Common event metadata for all domain events.
+message EventMetadata {
+  // Unique event identifier (UUID)
+  string event_id = 1;
+
+  // When the event occurred
+  google.protobuf.Timestamp occurred_at = 2;
+
+  // Aggregate root ID that emitted this event
+  string aggregate_id = 3;
+
+  // Type of aggregate (e.g., "Order", "Cart", "Product")
+  string aggregate_type = 4;
+
+  // Aggregate version for optimistic locking
+  int64 version = 5;
+
+  // Correlation ID for request tracing
+  string correlation_id = 6;
+
+  // Causation ID (event ID that caused this event)
+  string causation_id = 7;
+}

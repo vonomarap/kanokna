@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package kanokna.catalog.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/common.proto";
+import "kanokna/common/v1/money.proto";
+
+option java_package = "com.kanokna.catalog.v1";
+option java_outer_classname = "CatalogEventsProto";
+option java_multiple_files = true;
+
+// Domain event: Product template was published and is now available.
+// Topic: catalog.product.published
+message ProductTemplatePublishedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Product template identifier
+  string product_template_id = 2;
+
+  // Product template name
+  string name = 3;
+
+  // Product family (e.g., "windows", "doors")
+  string product_family = 4;
+
+  // Base price in default currency
+  kanokna.common.v1.Money base_price = 5;
+
+  // Number of option groups available
+  int32 option_group_count = 6;
+
+  // Publication timestamp
+  google.protobuf.Timestamp published_at = 7;
+}
+
+// Domain event: Product template was unpublished.
+// Topic: catalog.product.unpublished
+message ProductTemplateUnpublishedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Product template identifier
+  string product_template_id = 2;
+
+  // Reason for unpublishing
+  string reason = 3;
+}
+
+// Domain event: Product template was updated.
+// Topic: catalog.product.updated
+message ProductTemplateUpdatedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Product template identifier
+  string product_template_id = 2;
+
+  // Fields that were updated
+  repeated string updated_fields = 3;
+
+  // Whether price changed
+  bool price_changed = 4;
+
+  // Whether options changed
+  bool options_changed = 5;
+}
+
+// Domain event: Option pricing was updated.
+// Topic: catalog.option.pricing.updated
+message OptionPricingUpdatedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Product template identifier
+  string product_template_id = 2;
+
+  // Option group identifier
+  string option_group_id = 3;
+
+  // Option identifier
+  string option_id = 4;
+
+  // Previous premium
+  kanokna.common.v1.Money previous_premium = 5;
+
+  // New premium
+  kanokna.common.v1.Money new_premium = 6;
+
+  // Effective date
+  google.protobuf.Timestamp effective_at = 7;
+}

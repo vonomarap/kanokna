@@ -1,0 +1,10 @@
+version: v1
+name: buf.build/kanokna/api-contracts
+lint:
+  use:
+    - DEFAULT
+  except:
+    - PACKAGE_VERSION_SUFFIX
+breaking:
+  use:
+    - FILE

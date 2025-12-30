@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package kanokna.common.v1;
+
+option java_package = "com.kanokna.common.v1";
+option java_outer_classname = "MoneyProto";
+option java_multiple_files = true;
+
+// Represents a monetary amount with currency.
+// Amount is stored in minor units (kopeks for RUB, cents for EUR/USD).
+message Money {
+  // Amount in minor units (kopeks for RUB, cents for EUR/USD)
+  int64 amount_minor = 1;
+
+  // ISO 4217 currency code
+  Currency currency = 2;
+}
+
+// Supported currencies for the Windows & Doors store.
+enum Currency {
+  // Unspecified currency - should not be used
+  CURRENCY_UNSPECIFIED = 0;
+  // Russian Ruble
+  CURRENCY_RUB = 1;
+  // Euro
+  CURRENCY_EUR = 2;
+  // US Dollar
+  CURRENCY_USD = 3;
+}

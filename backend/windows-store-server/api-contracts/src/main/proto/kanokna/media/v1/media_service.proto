@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package kanokna.media.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option java_package = "com.kanokna.media.v1";
+option java_outer_classname = "MediaServiceProto";
+option java_multiple_files = true;
+
+// Service for managing and retrieving media assets.
+service MediaService {
+  // Get metadata for a media asset.
+  rpc GetMedia(GetMediaRequest) returns (GetMediaResponse);
+
+  // List media assets with pagination.
+  rpc ListMedia(ListMediaRequest) returns (ListMediaResponse);
+
+  // Get a presigned upload URL.
+  rpc GetUploadUrl(GetUploadUrlRequest) returns (GetUploadUrlResponse);
+
+  // Confirm upload completion.
+  rpc ConfirmUpload(ConfirmUploadRequest) returns (ConfirmUploadResponse);
+
+  // Delete a media asset.
+  rpc DeleteMedia(DeleteMediaRequest) returns (DeleteMediaResponse);
+
+  // Get media assets for a product.
+  rpc GetProductMedia(GetProductMediaRequest) returns (GetProductMediaResponse);
+}
+
+// Request to get media metadata.
+message GetMediaRequest {
+  // Media asset identifier
+  string media_id = 1;
+}
+
+// Response with media metadata.
+message GetMediaResponse {
+  // Media asset details
+  MediaAsset asset = 1;
+}
+
+// Media asset metadata.
+message MediaAsset {
+  // Unique identifier
+  string media_id = 1;
+
+  // Original filename
+  string filename = 2;
+
+  // MIME type
+  string content_type = 3;
+
+  // File size in bytes
+  int64 size_bytes = 4;
+
+  // Public URL for the asset
+  string url = 5;
+
+  // Thumbnail URL (if available)
+  string thumbnail_url = 6;
+
+  // Media type (IMAGE, VIDEO, DOCUMENT)
+  MediaType media_type = 7;
+
+  // Associated entity type (PRODUCT, ORDER, etc.)
+  string entity_type = 8;
+
+  // Associated entity ID
+  string entity_id = 9;
+
+  // Upload timestamp
+  google.protobuf.Timestamp uploaded_at = 10;
+
+  // Metadata key-value pairs
+  map<string, string> metadata = 11;
+}
+
+// Type of media asset.
+enum MediaType {
+  // Unspecified type
+  MEDIA_TYPE_UNSPECIFIED = 0;
+  // Image (JPEG, PNG, WebP)
+  MEDIA_TYPE_IMAGE = 1;
+  // Video (MP4, WebM)
+  MEDIA_TYPE_VIDEO = 2;
+  // Document (PDF)
+  MEDIA_TYPE_DOCUMENT = 3;
+}
+
+// Request to list media assets.
+message ListMediaRequest {
+  // Filter by entity type
+  string entity_type = 1;
+
+  // Filter by entity ID
+  string entity_id = 2;
+
+  // Page size
+  int32 page_size = 3;
+
+  // Page token
+  string page_token = 4;
+}
+
+// Response with list of media assets.
+message ListMediaResponse {
+  // Media assets
+  repeated MediaAsset assets = 1;
+
+  // Next page token
+  string next_page_token = 2;
+}
+
+// Request to get a presigned upload URL.
+message GetUploadUrlRequest {
+  // Desired filename
+  string filename = 1;
+
+  // Content type
+  string content_type = 2;
+
+  // Entity type to associate with
+  string entity_type = 3;
+
+  // Entity ID to associate with
+  string entity_id = 4;
+}
+
+// Response with presigned upload URL.
+message GetUploadUrlResponse {
+  // Presigned URL for upload
+  string upload_url = 1;
+
+  // Assigned media ID
+  string media_id = 2;
+
+  // Upload expiration
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// Request to confirm upload completion.
+message ConfirmUploadRequest {
+  // Media ID from upload URL response
+  string media_id = 1;
+}
+
+// Response after confirming upload.
+message ConfirmUploadResponse {
+  // Confirmed media asset
+  MediaAsset asset = 1;
+}
+
+// Request to delete a media asset.
+message DeleteMediaRequest {
+  // Media asset identifier
+  string media_id = 1;
+}
+
+// Response after deleting media.
+message DeleteMediaResponse {
+  // Whether deletion was successful
+  bool success = 1;
+}
+
+// Request to get media for a product.
+message GetProductMediaRequest {
+  // Product template identifier
+  string product_template_id = 1;
+}
+
+// Response with product media.
+message GetProductMediaResponse {
+  // Primary product image
+  MediaAsset primary_image = 1;
+
+  // Gallery images
+  repeated MediaAsset gallery_images = 2;
+
+  // Product videos
+  repeated MediaAsset videos = 3;
+
+  // Product documents (specs, manuals)
+  repeated MediaAsset documents = 4;
+}

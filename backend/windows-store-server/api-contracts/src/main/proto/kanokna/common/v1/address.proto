@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package kanokna.common.v1;
+
+option java_package = "com.kanokna.common.v1";
+option java_outer_classname = "AddressProto";
+option java_multiple_files = true;
+
+// Postal address for shipping and billing.
+message Address {
+  // Country name or ISO code
+  string country = 1;
+
+  // City name
+  string city = 2;
+
+  // Postal/ZIP code
+  string postal_code = 3;
+
+  // Primary address line (street, building number)
+  string line1 = 4;
+
+  // Secondary address line (apartment, suite, etc.) - optional
+  string line2 = 5;
+}

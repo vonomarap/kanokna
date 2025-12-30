@@ -1,0 +1,229 @@
+syntax = "proto3";
+
+package kanokna.account.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/address.proto";
+
+option java_package = "com.kanokna.account.v1";
+option java_outer_classname = "AccountServiceProto";
+option java_multiple_files = true;
+
+// Service for managing user accounts and profiles.
+service AccountService {
+  // Get user profile by ID.
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+
+  // Update user profile.
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+
+  // Add a shipping address.
+  rpc AddAddress(AddAddressRequest) returns (AddAddressResponse);
+
+  // Update a shipping address.
+  rpc UpdateAddress(UpdateAddressRequest) returns (UpdateAddressResponse);
+
+  // Delete a shipping address.
+  rpc DeleteAddress(DeleteAddressRequest) returns (DeleteAddressResponse);
+
+  // List user's shipping addresses.
+  rpc ListAddresses(ListAddressesRequest) returns (ListAddressesResponse);
+
+  // Get user order history.
+  rpc GetOrderHistory(GetOrderHistoryRequest) returns (GetOrderHistoryResponse);
+}
+
+// Request to get user profile.
+message GetProfileRequest {
+  // User identifier
+  string user_id = 1;
+}
+
+// Response with user profile.
+message GetProfileResponse {
+  // User profile
+  UserProfile profile = 1;
+}
+
+// User profile information.
+message UserProfile {
+  // User identifier
+  string user_id = 1;
+
+  // Email address
+  string email = 2;
+
+  // First name
+  string first_name = 3;
+
+  // Last name
+  string last_name = 4;
+
+  // Phone number
+  string phone_number = 5;
+
+  // Preferred language (BCP-47 tag)
+  string preferred_language = 6;
+
+  // Preferred currency
+  string preferred_currency = 7;
+
+  // Account creation timestamp
+  google.protobuf.Timestamp created_at = 8;
+
+  // Last update timestamp
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// Request to update user profile.
+message UpdateProfileRequest {
+  // User identifier
+  string user_id = 1;
+
+  // First name (optional update)
+  string first_name = 2;
+
+  // Last name (optional update)
+  string last_name = 3;
+
+  // Phone number (optional update)
+  string phone_number = 4;
+
+  // Preferred language (optional update)
+  string preferred_language = 5;
+
+  // Preferred currency (optional update)
+  string preferred_currency = 6;
+}
+
+// Response after profile update.
+message UpdateProfileResponse {
+  // Updated profile
+  UserProfile profile = 1;
+}
+
+// Request to add a shipping address.
+message AddAddressRequest {
+  // User identifier
+  string user_id = 1;
+
+  // Address to add
+  kanokna.common.v1.Address address = 2;
+
+  // Label for the address (e.g., "Home", "Work")
+  string label = 3;
+
+  // Whether this should be the default address
+  bool set_as_default = 4;
+}
+
+// Response after adding an address.
+message AddAddressResponse {
+  // Added address with assigned ID
+  SavedAddress address = 1;
+}
+
+// A saved address with metadata.
+message SavedAddress {
+  // Address identifier
+  string address_id = 1;
+
+  // Address details
+  kanokna.common.v1.Address address = 2;
+
+  // Address label
+  string label = 3;
+
+  // Whether this is the default address
+  bool is_default = 4;
+}
+
+// Request to update an address.
+message UpdateAddressRequest {
+  // User identifier
+  string user_id = 1;
+
+  // Address identifier
+  string address_id = 2;
+
+  // Updated address
+  kanokna.common.v1.Address address = 3;
+
+  // Updated label
+  string label = 4;
+
+  // Whether to set as default
+  bool set_as_default = 5;
+}
+
+// Response after updating an address.
+message UpdateAddressResponse {
+  // Updated address
+  SavedAddress address = 1;
+}
+
+// Request to delete an address.
+message DeleteAddressRequest {
+  // User identifier
+  string user_id = 1;
+
+  // Address identifier
+  string address_id = 2;
+}
+
+// Response after deleting an address.
+message DeleteAddressResponse {
+  // Whether deletion was successful
+  bool success = 1;
+}
+
+// Request to list addresses.
+message ListAddressesRequest {
+  // User identifier
+  string user_id = 1;
+}
+
+// Response with list of addresses.
+message ListAddressesResponse {
+  // User's saved addresses
+  repeated SavedAddress addresses = 1;
+}
+
+// Request to get order history.
+message GetOrderHistoryRequest {
+  // User identifier
+  string user_id = 1;
+
+  // Page size
+  int32 page_size = 2;
+
+  // Page token
+  string page_token = 3;
+}
+
+// Response with order history.
+message GetOrderHistoryResponse {
+  // Order summaries
+  repeated OrderSummary orders = 1;
+
+  // Next page token
+  string next_page_token = 2;
+}
+
+// Order summary for history listing.
+message OrderSummary {
+  // Order identifier
+  string order_id = 1;
+
+  // Order status
+  string status = 2;
+
+  // Order total
+  string total_display = 3;
+
+  // Number of items
+  int32 item_count = 4;
+
+  // Order creation timestamp
+  google.protobuf.Timestamp created_at = 5;
+}

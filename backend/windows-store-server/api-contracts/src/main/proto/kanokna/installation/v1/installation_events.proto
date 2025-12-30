@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+package kanokna.installation.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/common.proto";
+import "kanokna/common/v1/address.proto";
+
+option java_package = "com.kanokna.installation.v1";
+option java_outer_classname = "InstallationEventsProto";
+option java_multiple_files = true;
+
+// Domain event: Installation was scheduled.
+// Topic: installation.scheduled
+message InstallationScheduledEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Installation identifier
+  string installation_id = 2;
+
+  // Order identifier
+  string order_id = 3;
+
+  // Customer identifier
+  string customer_id = 4;
+
+  // Installation address
+  kanokna.common.v1.Address address = 5;
+
+  // Scheduled date
+  google.protobuf.Timestamp scheduled_date = 6;
+
+  // Time slot (e.g., "09:00-12:00")
+  string time_slot = 7;
+
+  // Assigned technician identifier
+  string technician_id = 8;
+
+  // Scheduling timestamp
+  google.protobuf.Timestamp scheduled_at = 9;
+}
+
+// Domain event: Installation was rescheduled.
+// Topic: installation.rescheduled
+message InstallationRescheduledEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Installation identifier
+  string installation_id = 2;
+
+  // Previous scheduled date
+  google.protobuf.Timestamp previous_date = 3;
+
+  // New scheduled date
+  google.protobuf.Timestamp new_date = 4;
+
+  // New time slot
+  string new_time_slot = 5;
+
+  // Reason for rescheduling
+  string reason = 6;
+
+  // Rescheduling timestamp
+  google.protobuf.Timestamp rescheduled_at = 7;
+}
+
+// Domain event: Installation was started.
+// Topic: installation.started
+message InstallationStartedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Installation identifier
+  string installation_id = 2;
+
+  // Technician identifier
+  string technician_id = 3;
+
+  // Start timestamp
+  google.protobuf.Timestamp started_at = 4;
+}
+
+// Domain event: Installation was completed.
+// Topic: installation.completed
+message InstallationCompletedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Installation identifier
+  string installation_id = 2;
+
+  // Order identifier
+  string order_id = 3;
+
+  // Technician identifier
+  string technician_id = 4;
+
+  // Completion notes
+  string notes = 5;
+
+  // Customer signature reference (media ID)
+  string customer_signature_id = 6;
+
+  // Completion photos (media IDs)
+  repeated string completion_photo_ids = 7;
+
+  // Completion timestamp
+  google.protobuf.Timestamp completed_at = 8;
+}
+
+// Domain event: Installation had an issue.
+// Topic: installation.issue.reported
+message InstallationIssueReportedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Installation identifier
+  string installation_id = 2;
+
+  // Issue severity (LOW, MEDIUM, HIGH, CRITICAL)
+  string severity = 3;
+
+  // Issue type (e.g., "MEASUREMENT_MISMATCH", "DAMAGE", "ACCESS_ISSUE")
+  string issue_type = 4;
+
+  // Issue description
+  string description = 5;
+
+  // Photo evidence (media IDs)
+  repeated string photo_ids = 6;
+
+  // Report timestamp
+  google.protobuf.Timestamp reported_at = 7;
+}
+
+// Domain event: Installation was cancelled.
+// Topic: installation.cancelled
+message InstallationCancelledEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Installation identifier
+  string installation_id = 2;
+
+  // Cancellation reason
+  string reason = 3;
+
+  // Cancelled by (CUSTOMER, TECHNICIAN, SYSTEM)
+  string cancelled_by = 4;
+
+  // Cancellation timestamp
+  google.protobuf.Timestamp cancelled_at = 5;
+}

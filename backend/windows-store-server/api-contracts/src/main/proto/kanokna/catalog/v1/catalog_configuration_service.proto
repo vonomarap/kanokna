@@ -1,0 +1,209 @@
+syntax = "proto3";
+
+package kanokna.catalog.v1;
+
+import "kanokna/common/v1/dimensions.proto";
+import "kanokna/common/v1/money.proto";
+
+option java_package = "com.kanokna.catalog.v1";
+option java_outer_classname = "CatalogConfigurationServiceProto";
+option java_multiple_files = true;
+
+// <FUNCTION_CONTRACT id="FC-api-contracts-catalog-ValidateConfiguration"
+//    LAYER="grpc"
+//    INTENT="Validate a product configuration against business rules"
+//    INPUT="ValidateConfigurationRequest"
+//    OUTPUT="ValidateConfigurationResponse"
+//    LINKS="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM">
+//  <REQUEST_FIELDS>
+//    product_template_id: string (required)
+//    dimensions: Dimensions (required)
+//    selected_options: repeated SelectedOption (required)
+//  </REQUEST_FIELDS>
+//  <RESPONSE_FIELDS>
+//    valid: bool
+//    validation_errors: repeated ValidationError
+//    resolved_bom: BillOfMaterials (if valid)
+//  </RESPONSE_FIELDS>
+//  <ERROR_CODES>
+//    INVALID_ARGUMENT: Missing required fields
+//    NOT_FOUND: Product template not found
+//    FAILED_PRECONDITION: Configuration rules violated
+//  </ERROR_CODES>
+// </FUNCTION_CONTRACT>
+
+// Service for validating product configurations and retrieving product templates.
+service CatalogConfigurationService {
+  // Validate a product configuration against business rules.
+  // Returns validation errors if configuration is invalid,
+  // or resolved bill of materials if valid.
+  rpc ValidateConfiguration(ValidateConfigurationRequest) returns (ValidateConfigurationResponse);
+
+  // Get a single product template with all available options.
+  rpc GetProductTemplate(GetProductTemplateRequest) returns (GetProductTemplateResponse);
+
+  // List product templates with pagination and optional filtering.
+  rpc ListProductTemplates(ListProductTemplatesRequest) returns (ListProductTemplatesResponse);
+}
+
+// Request to validate a product configuration.
+message ValidateConfigurationRequest {
+  // Product template identifier
+  string product_template_id = 1;
+
+  // Requested dimensions
+  kanokna.common.v1.Dimensions dimensions = 2;
+
+  // Selected options from option groups
+  repeated SelectedOption selected_options = 3;
+}
+
+// A selected option from an option group.
+message SelectedOption {
+  // Option group identifier
+  string option_group_id = 1;
+
+  // Selected option identifier
+  string option_id = 2;
+}
+
+// Response from configuration validation.
+message ValidateConfigurationResponse {
+  // Whether the configuration is valid
+  bool valid = 1;
+
+  // Validation errors if configuration is invalid
+  repeated ValidationError errors = 2;
+
+  // Resolved bill of materials if configuration is valid
+  BillOfMaterials resolved_bom = 3;
+}
+
+// A validation error with code, message, and field reference.
+message ValidationError {
+  // Error code (e.g., "DIMENSION_OUT_OF_RANGE")
+  string code = 1;
+
+  // Human-readable error message
+  string message = 2;
+
+  // Field path that caused the error
+  string field = 3;
+}
+
+// Resolved bill of materials for a valid configuration.
+message BillOfMaterials {
+  // Bill of materials lines
+  repeated BomLine lines = 1;
+}
+
+// A single line in the bill of materials.
+message BomLine {
+  // Stock keeping unit
+  string sku = 1;
+
+  // Human-readable description
+  string description = 2;
+
+  // Quantity required
+  int32 quantity = 3;
+}
+
+// Request to get a product template.
+message GetProductTemplateRequest {
+  // Product template identifier
+  string product_template_id = 1;
+}
+
+// Response with product template details.
+message GetProductTemplateResponse {
+  // The requested product template
+  ProductTemplate template = 1;
+}
+
+// A product template with configuration options.
+message ProductTemplate {
+  // Unique identifier
+  string id = 1;
+
+  // Display name
+  string name = 2;
+
+  // Description
+  string description = 3;
+
+  // Product family (e.g., "windows", "doors")
+  string product_family = 4;
+
+  // Available option groups
+  repeated OptionGroup option_groups = 5;
+
+  // Dimension constraints
+  DimensionConstraints dimension_constraints = 6;
+}
+
+// A group of related options (e.g., "Glass Type", "Frame Material").
+message OptionGroup {
+  // Unique identifier
+  string id = 1;
+
+  // Display name
+  string name = 2;
+
+  // Whether selection is required
+  bool required = 3;
+
+  // Available options in this group
+  repeated Option options = 4;
+}
+
+// A single option within an option group.
+message Option {
+  // Unique identifier
+  string id = 1;
+
+  // Display name
+  string name = 2;
+
+  // Description
+  string description = 3;
+
+  // Price premium for this option
+  kanokna.common.v1.Money base_premium = 4;
+}
+
+// Dimension constraints for a product template.
+message DimensionConstraints {
+  // Minimum width in centimeters
+  int32 min_width_cm = 1;
+
+  // Maximum width in centimeters
+  int32 max_width_cm = 2;
+
+  // Minimum height in centimeters
+  int32 min_height_cm = 3;
+
+  // Maximum height in centimeters
+  int32 max_height_cm = 4;
+}
+
+// Request to list product templates.
+message ListProductTemplatesRequest {
+  // Maximum number of templates to return
+  int32 page_size = 1;
+
+  // Page token from previous response
+  string page_token = 2;
+
+  // Optional filter by product family
+  string product_family_filter = 3;
+}
+
+// Response with list of product templates.
+message ListProductTemplatesResponse {
+  // Product templates matching the request
+  repeated ProductTemplate templates = 1;
+
+  // Token for fetching the next page
+  string next_page_token = 2;
+}

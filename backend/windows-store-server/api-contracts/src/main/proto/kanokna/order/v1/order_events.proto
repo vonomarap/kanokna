@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package kanokna.order.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/common.proto";
+import "kanokna/common/v1/money.proto";
+import "kanokna/common/v1/address.proto";
+
+option java_package = "com.kanokna.order.v1";
+option java_outer_classname = "OrderEventsProto";
+option java_multiple_files = true;
+
+// Domain event: Order was created.
+// Topic: order.created
+message OrderCreatedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Order identifier
+  string order_id = 2;
+
+  // Customer identifier
+  string customer_id = 3;
+
+  // Order items
+  repeated OrderItem items = 4;
+
+  // Order total
+  kanokna.common.v1.Money total = 5;
+
+  // Shipping address
+  kanokna.common.v1.Address shipping_address = 6;
+
+  // Whether installation is required
+  bool requires_installation = 7;
+
+  // Creation timestamp
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// An item in the order.
+message OrderItem {
+  // Product template identifier
+  string product_template_id = 1;
+
+  // Configuration snapshot (JSON for flexibility)
+  string configuration_snapshot = 2;
+
+  // Quantity ordered
+  int32 quantity = 3;
+
+  // Unit price at time of order
+  kanokna.common.v1.Money unit_price = 4;
+
+  // Line total
+  kanokna.common.v1.Money line_total = 5;
+}
+
+// Domain event: Order status changed.
+// Topic: order.status.changed
+message OrderStatusChangedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Order identifier
+  string order_id = 2;
+
+  // Previous status
+  string previous_status = 3;
+
+  // New status
+  string new_status = 4;
+
+  // Reason for status change
+  string reason = 5;
+
+  // Timestamp of change
+  google.protobuf.Timestamp changed_at = 6;
+}
+
+// Domain event: Payment was captured successfully.
+// Topic: payment.captured
+message PaymentCapturedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Order identifier
+  string order_id = 2;
+
+  // Payment identifier
+  string payment_id = 3;
+
+  // Captured amount
+  kanokna.common.v1.Money amount = 4;
+
+  // Payment method used
+  string payment_method = 5;
+
+  // Payment provider reference
+  string provider_reference = 6;
+
+  // Capture timestamp
+  google.protobuf.Timestamp captured_at = 7;
+}
+
+// Domain event: Payment failed.
+// Topic: payment.failed
+message PaymentFailedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Order identifier
+  string order_id = 2;
+
+  // Payment identifier
+  string payment_id = 3;
+
+  // Attempted amount
+  kanokna.common.v1.Money amount = 4;
+
+  // Failure reason code
+  string failure_code = 5;
+
+  // Failure message
+  string failure_message = 6;
+
+  // Failure timestamp
+  google.protobuf.Timestamp failed_at = 7;
+}
+
+// Domain event: Order was cancelled.
+// Topic: order.cancelled
+message OrderCancelledEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Order identifier
+  string order_id = 2;
+
+  // Cancellation reason
+  string reason = 3;
+
+  // Whether refund was initiated
+  bool refund_initiated = 4;
+
+  // Refund amount if applicable
+  kanokna.common.v1.Money refund_amount = 5;
+
+  // Cancellation timestamp
+  google.protobuf.Timestamp cancelled_at = 6;
+}
+
+// Domain event: Order was shipped.
+// Topic: order.shipped
+message OrderShippedEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Order identifier
+  string order_id = 2;
+
+  // Shipping carrier
+  string carrier = 3;
+
+  // Tracking number
+  string tracking_number = 4;
+
+  // Estimated delivery date
+  google.protobuf.Timestamp estimated_delivery = 5;
+
+  // Shipped timestamp
+  google.protobuf.Timestamp shipped_at = 6;
+}
+
+// Domain event: Order was delivered.
+// Topic: order.delivered
+message OrderDeliveredEvent {
+  // Event metadata
+  kanokna.common.v1.EventMetadata metadata = 1;
+
+  // Order identifier
+  string order_id = 2;
+
+  // Delivery confirmation
+  string delivery_confirmation = 3;
+
+  // Delivered timestamp
+  google.protobuf.Timestamp delivered_at = 4;
+}

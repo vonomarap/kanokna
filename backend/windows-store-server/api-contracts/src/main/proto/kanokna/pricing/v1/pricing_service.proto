@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package kanokna.pricing.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/dimensions.proto";
+import "kanokna/common/v1/money.proto";
+import "kanokna/catalog/v1/catalog_configuration_service.proto";
+
+option java_package = "com.kanokna.pricing.v1";
+option java_outer_classname = "PricingServiceProto";
+option java_multiple_files = true;
+
+// <FUNCTION_CONTRACT id="FC-api-contracts-pricing-CalculateQuote"
+//    LAYER="grpc"
+//    INTENT="Calculate price quote for a validated configuration"
+//    INPUT="CalculateQuoteRequest"
+//    OUTPUT="CalculateQuoteResponse"
+//    LINKS="RequirementsAnalysis.xml#UC-PRICING-QUOTE">
+//  <REQUEST_FIELDS>
+//    product_template_id: string (required)
+//    dimensions: Dimensions (required)
+//    resolved_bom: BillOfMaterials (required)
+//    currency: Currency (required)
+//    promo_code: string (optional)
+//    region: string (for tax calculation)
+//  </REQUEST_FIELDS>
+//  <RESPONSE_FIELDS>
+//    quote_id: string
+//    base_price: Money
+//    option_premiums: repeated PremiumLine
+//    discount: Money
+//    tax: Money
+//    total: Money
+//    valid_until: Timestamp
+//    decision_trace: repeated PricingDecision (for audit)
+//  </RESPONSE_FIELDS>
+//  <ERROR_CODES>
+//    INVALID_ARGUMENT: Invalid configuration or currency
+//    NOT_FOUND: No price book for product
+//  </ERROR_CODES>
+// </FUNCTION_CONTRACT>
+
+// Service for calculating price quotes.
+service PricingService {
+  // Calculate a price quote for a validated configuration.
+  // Returns detailed price breakdown with optional audit trace.
+  rpc CalculateQuote(CalculateQuoteRequest) returns (CalculateQuoteResponse);
+
+  // Validate a promotional code for a given subtotal.
+  rpc ValidatePromoCode(ValidatePromoCodeRequest) returns (ValidatePromoCodeResponse);
+}
+
+// Request to calculate a price quote.
+message CalculateQuoteRequest {
+  // Product template identifier
+  string product_template_id = 1;
+
+  // Requested dimensions
+  kanokna.common.v1.Dimensions dimensions = 2;
+
+  // Resolved bill of materials from configuration validation
+  kanokna.catalog.v1.BillOfMaterials resolved_bom = 3;
+
+  // Requested currency for the quote
+  kanokna.common.v1.Currency currency = 4;
+
+  // Optional promotional code
+  string promo_code = 5;
+
+  // Region for tax calculation (e.g., "RU", "DE")
+  string region = 6;
+}
+
+// Response with calculated price quote.
+message CalculateQuoteResponse {
+  // Unique quote identifier
+  string quote_id = 1;
+
+  // Base price before options and discounts
+  kanokna.common.v1.Money base_price = 2;
+
+  // Price premiums for selected options
+  repeated PremiumLine option_premiums = 3;
+
+  // Discount amount (if promo code applied)
+  kanokna.common.v1.Money discount = 4;
+
+  // Subtotal before tax
+  kanokna.common.v1.Money subtotal = 5;
+
+  // Tax amount
+  kanokna.common.v1.Money tax = 6;
+
+  // Total amount including tax
+  kanokna.common.v1.Money total = 7;
+
+  // Quote expiration timestamp
+  google.protobuf.Timestamp valid_until = 8;
+
+  // Pricing decision trace for audit
+  repeated PricingDecision decision_trace = 9;
+}
+
+// A price premium line for an option.
+message PremiumLine {
+  // Option identifier
+  string option_id = 1;
+
+  // Option display name
+  string option_name = 2;
+
+  // Premium amount
+  kanokna.common.v1.Money amount = 3;
+}
+
+// A pricing decision for audit trail.
+message PricingDecision {
+  // Decision step (e.g., "base_price", "option_premium", "discount")
+  string step = 1;
+
+  // Rule that was applied
+  string rule_applied = 2;
+
+  // Result of the rule application
+  string result = 3;
+}
+
+// Request to validate a promotional code.
+message ValidatePromoCodeRequest {
+  // Promotional code to validate
+  string promo_code = 1;
+
+  // Current subtotal for validation
+  kanokna.common.v1.Money subtotal = 2;
+}
+
+// Response from promotional code validation.
+message ValidatePromoCodeResponse {
+  // Whether the promotional code is valid
+  bool valid = 1;
+
+  // Error message if code is invalid
+  string error_message = 2;
+
+  // Discount amount if code is valid
+  kanokna.common.v1.Money discount_amount = 3;
+}
