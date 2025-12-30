@@ -1,0 +1,6 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+ALLOWED_ORIGINS: http://localhost:3000

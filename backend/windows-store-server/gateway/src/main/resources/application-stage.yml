@@ -1,0 +1,6 @@
+spring:
+  config:
+    activate:
+      on-profile: stage
+
+ALLOWED_ORIGINS: https://stage.kanokna.com
