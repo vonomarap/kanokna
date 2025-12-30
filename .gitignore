@@ -15,6 +15,7 @@
 .kilocode
 .gemini
 .gemini/settings.json
+.claude
 node_modules
 frontend/windows-store-client/.vscode
 frontend/desktop.ini
