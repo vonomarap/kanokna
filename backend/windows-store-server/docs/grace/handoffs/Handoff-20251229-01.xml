@@ -3,11 +3,11 @@
   GRACE Handoff Envelope
   ID: Handoff-20251229-01
   Purpose: Bootstrap canonical artifacts for Windows & Doors E-Commerce Platform
-  Status: PROPOSED (approval in docs/grace/approvals.log)
+  Status: APPROVED (approval in docs/grace/approvals.log)
 -->
 <GRACE_HANDOFF
   id="Handoff-20251229-01"
-  status="PROPOSED"
+  status="APPROVED"
   schemaVersion="grace-markup-v2"
   created="2025-12-29T00:00:00+00:00"
   author="GRACE-ARCHITECT"

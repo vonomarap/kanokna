@@ -3,13 +3,13 @@
   GRACE Handoff Document: Shared Kernel Enhancement
   Handoff ID: Handoff-20251230-02
   Scope: W0-T1 (Enhance shared-kernel)
-  Status: PROPOSED
+  Status: APPROVED
   Created: 2025-12-30
   Author: GRACE-ARCHITECT
 -->
 <GRACE_HANDOFF
   id="Handoff-20251230-02"
-  status="PROPOSED"
+  status="APPROVED"
   schemaVersion="grace-markup-v2"
   created="2025-12-30T00:00:00+00:00"
   author="GRACE-ARCHITECT"

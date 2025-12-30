@@ -3,12 +3,12 @@
   GRACE Handoff Envelope
   ID: Handoff-20251229-02
   Purpose: Updated bootstrap with resolved decisions (YooKassa, Auth0, GitHub Actions, gRPC)
-  Status: PROPOSED (approval in docs/grace/approvals.log)
+  Status: APPROVED (approval in docs/grace/approvals.log)
   Supersedes: Handoff-20251229-01
 -->
 <GRACE_HANDOFF
   id="Handoff-20251229-02"
-  status="PROPOSED"
+  status="APPROVED"
   schemaVersion="grace-markup-v2"
   created="2025-12-29T00:00:00+00:00"
   author="GRACE-ARCHITECT"
