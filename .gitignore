@@ -14,6 +14,7 @@
 .vscode
 .kilocode
 .gemini
+.gemini/settings.json
 node_modules
 frontend/windows-store-client/.vscode
 frontend/desktop.ini
@@ -36,4 +37,19 @@ replay_pid*
 
 # OpenMemory - IDE/Assistant specific rules
 AGENTS.md
-AGENTS.md
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+dependency-reduced-pom.xml
+buildNumber
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
