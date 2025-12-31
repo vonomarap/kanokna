@@ -82,6 +82,10 @@
 		<lombok.version>1.18.40</lombok.version>
 		<spring-cloud.version>2024.0.0</spring-cloud.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <grpc-spring-boot-starter.version>3.1.0.RELEASE</grpc-spring-boot-starter.version>
+        <testcontainers.version>1.19.3</testcontainers.version>
+        <archunit.version>1.2.1</archunit.version>
+        <jib-maven-plugin.version>3.4.0</jib-maven-plugin.version>
 	</properties>
 
 	<dependencyManagement>
@@ -98,6 +102,39 @@
         <artifactId>shared-kernel</artifactId>
         <version>${project.version}</version>
       </dependency>
+      <dependency>
+        <groupId>com.kanokna</groupId>
+        <artifactId>api-contracts</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+            <!-- gRPC -->
+            <dependency>
+                <groupId>net.devh</groupId>
+                <artifactId>grpc-server-spring-boot-starter</artifactId>
+                <version>${grpc-spring-boot-starter.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.devh</groupId>
+                <artifactId>grpc-client-spring-boot-starter</artifactId>
+                <version>${grpc-spring-boot-starter.version}</version>
+            </dependency>
+
+            <!-- Testcontainers -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- ArchUnit -->
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+            </dependency>
 
             <!-- API Documentation -->
             <dependency>
@@ -145,6 +182,11 @@
             <plugins>
                 <plugin>
                     <artifactId>maven-compiler-plugin</artifactId>
+                </plugin>
+                <plugin>
+                    <groupId>com.google.cloud.tools</groupId>
+                    <artifactId>jib-maven-plugin</artifactId>
+                    <version>${jib-maven-plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
