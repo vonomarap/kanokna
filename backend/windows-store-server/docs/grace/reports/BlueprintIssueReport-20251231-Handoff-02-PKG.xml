@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BlueprintIssueReport
+  id="ISSUE-RPT-20251231-02-PKG"
+  handoffRef="Handoff-20251231-02"
+  gateStatus="BLOCKED"
+  created="2025-12-31T15:30:00+03:00"
+  validatedBy="GRACE-CODER"
+  escalatedTo="GRACE-COORDINATOR"
+>
+  <Summary>
+    Implementation of Handoff-20251231-02 (pricing-service) BLOCKED due to package
+    naming inconsistency between approved handoff (com.kanokna.pricing.*) and
+    DevelopmentPlan.xml canonical specification (com.kanokna.pricing_service.*).
+    GRACE-CODER correctly halted to avoid violating either artifact.
+  </Summary>
+
+  <Issue id="ISS-20251231-02-PKG-001">
+    <Severity>BLOCKING</Severity>
+    <Gate>Pre-Implementation Validation</Gate>
+    <Category>Package Layout Consistency</Category>
+    <Description>
+      DevelopmentPlan.xml (canonical blueprint) specifies pricing-service package
+      layout as com.kanokna.pricing_service.* (with underscore), while the approved
+      handoff uses com.kanokna.pricing.* (without underscore) in all file paths,
+      embedded contracts, and application configuration. GRACE-CODER cannot proceed
+      without violating one of these authoritative sources.
+    </Description>
+    <Evidence>
+      <DevelopmentPlanXml file="DevelopmentPlan.xml" version="1.3.0" lines="270-283">
+        <PackageLayout service="pricing-service">
+          <Package>com.kanokna.pricing_service.domain.model</Package>
+          <Package>com.kanokna.pricing_service.domain.service</Package>
+          <Package>com.kanokna.pricing_service.domain.event</Package>
+          <Package>com.kanokna.pricing_service.domain.exception</Package>
+          <Package>com.kanokna.pricing_service.application.port.in</Package>
+          <Package>com.kanokna.pricing_service.application.port.out</Package>
+          <Package>com.kanokna.pricing_service.application.service</Package>
+          <Package>com.kanokna.pricing_service.application.dto</Package>
+          <Package>com.kanokna.pricing_service.adapters.in.web</Package>
+          <Package>com.kanokna.pricing_service.adapters.in.grpc</Package>
+          <Package>com.kanokna.pricing_service.adapters.out.persistence</Package>
+          <Package>com.kanokna.pricing_service.adapters.out.redis</Package>
+          <Package>com.kanokna.pricing_service.adapters.config</Package>
+        </PackageLayout>
+      </DevelopmentPlanXml>
+      <HandoffFilePaths file="Handoff-20251231-02" lines="160-189, 224-237, 269-327, 353-447">
+        <FilePath>pricing-service/src/main/java/com/kanokna/pricing/domain/model/QuoteId.java</FilePath>
+        <FilePath>pricing-service/src/main/java/com/kanokna/pricing/domain/service/PriceCalculationService.java</FilePath>
+        <FilePath>pricing-service/src/main/java/com/kanokna/pricing/application/port/in/CalculateQuoteUseCase.java</FilePath>
+        <FilePath>pricing-service/src/main/java/com/kanokna/pricing/adapters/in/web/PricingController.java</FilePath>
+        <Pattern>All ~80 file paths use com/kanokna/pricing/* (no underscore)</Pattern>
+      </HandoffFilePaths>
+      <HandoffConfiguration file="Handoff-20251231-02" line="1059">
+        <LoggingConfig>
+          logging:
+            level:
+              com.kanokna.pricing: DEBUG
+        </LoggingConfig>
+      </HandoffConfiguration>
+      <ComparisonWithCatalog>
+        <Observation>
+          DevelopmentPlan.xml:205-219 shows catalog-configuration-service uses
+          com.kanokna.catalog_configuration_service.* (with underscores).
+          This suggests DevelopmentPlan.xml intended consistent pattern across services.
+          However, approved handoff deliberately uses shorter com.kanokna.pricing.*
+        </Observation>
+      </ComparisonWithCatalog>
+    </Evidence>
+    <Impact>
+      - GRACE-CODER cannot implement without choosing one pattern over the other
+      - Implementing with com.kanokna.pricing.* violates DevelopmentPlan.xml canonical specification
+      - Implementing with com.kanokna.pricing_service.* violates approved handoff (requires re-approval)
+      - Cross-service package pattern inconsistency if pricing uses different convention than catalog
+      - Affects all ~80 files, imports, package declarations, Spring component scanning, logging config
+    </Impact>
+    <ProposedFix>
+      <Option id="OPTION-A" recommended="true">
+        <Action>Update DevelopmentPlan.xml to match approved handoff</Action>
+        <Changes>
+          - Change DevelopmentPlan.xml lines 270-283 package layout from pricing_service to pricing
+          - Increment DevelopmentPlan.xml version from 1.3.0 to 1.3.1
+          - Document rationale: "Align with approved handoff; shorter package names preferred"
+        </Changes>
+        <Pros>
+          - Handoff already approved; no re-approval needed
+          - Shorter, cleaner package names (com.kanokna.pricing vs com.kanokna.pricing_service)
+          - Faster implementation (no handoff changes)
+        </Pros>
+        <Cons>
+          - Creates inconsistency with catalog-configuration-service pattern
+          - May require similar changes to other services later for uniformity
+        </Cons>
+      </Option>
+      <Option id="OPTION-B">
+        <Action>Update handoff to match DevelopmentPlan.xml</Action>
+        <Changes>
+          - Update all ~80 file paths in handoff from com/kanokna/pricing to com/kanokna/pricing_service
+          - Update application.yml logging config from com.kanokna.pricing to com.kanokna.pricing_service
+          - Update embedded contracts package references
+          - Increment handoff to new version (e.g., Handoff-20251231-02-v2)
+          - Re-run blueprint validation gates
+          - Re-approve handoff
+        </Changes>
+        <Pros>
+          - Maintains consistency with catalog-configuration-service pattern
+          - DevelopmentPlan.xml remains authoritative
+        </Pros>
+        <Cons>
+          - Requires re-approval (slower)
+          - More changes (all file paths, configs, contracts)
+          - Longer package names (more verbose)
+        </Cons>
+      </Option>
+    </ProposedFix>
+    <RequiredAgent>GRACE-ARCHITECT</RequiredAgent>
+    <BlocksImplementation>YES</BlocksImplementation>
+  </Issue>
+
+  <Recommendation>
+    Route to GRACE-ARCHITECT with AWO-20251231-04 to:
+    1. Make architectural decision on package naming convention (short vs. service-name)
+    2. Apply chosen convention to DevelopmentPlan.xml for pricing-service (OPTION-A recommended)
+    3. Document convention in DevelopmentPlan.xml for future services
+    4. Optionally: plan migration of catalog-configuration-service to shorter pattern (deferred, non-blocking)
+
+    Once DevelopmentPlan.xml is updated, GRACE-CODER can proceed without re-approval
+    (handoff remains valid; blueprint updated to match approved specification).
+  </Recommendation>
+</BlueprintIssueReport>

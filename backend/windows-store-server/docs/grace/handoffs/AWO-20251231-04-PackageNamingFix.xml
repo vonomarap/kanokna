@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Architect Work Order
+  ID: AWO-20251231-04
+  Purpose: Resolve package naming inconsistency for pricing-service
+  Blocking: YES (GRACE-CODER implementation blocked)
+  Created: 2025-12-31T15:35:00+03:00
+  Issued by: GRACE-COORDINATOR
+-->
+<ARCHITECT_WORK_ORDER id="AWO-20251231-04" status="PROPOSED">
+
+  <Task>
+    <WaveRef>W1</WaveRef>
+    <TaskRef>W1-T3,W1-T4</TaskRef>
+    <UserRequest>Resolve package naming inconsistency for pricing-service</UserRequest>
+    <PrimaryGoal>
+      Align DevelopmentPlan.xml package layout specification with approved
+      Handoff-20251231-02 to unblock GRACE-CODER implementation.
+    </PrimaryGoal>
+    <Urgency>BLOCKING</Urgency>
+    <Context>
+      GRACE-CODER detected package naming conflict during pre-implementation validation.
+      DevelopmentPlan.xml (canonical blueprint) specifies com.kanokna.pricing_service.*
+      while approved Handoff-20251231-02 uses com.kanokna.pricing.* throughout all
+      file paths, embedded contracts, and configuration. Implementation cannot proceed
+      without resolving this inconsistency.
+    </Context>
+  </Task>
+
+  <KnownArtifacts>
+    <Artifact name="RequirementsAnalysis.xml" provided="yes"/>
+    <Artifact name="Technology.xml" provided="yes" version="1.2.0"/>
+    <Artifact name="DevelopmentPlan.xml" provided="yes" version="1.3.0"/>
+    <Artifact name="Handoff-20251231-02-W1-T3-T4-PricingService.xml" provided="yes" status="APPROVED"/>
+    <Artifact name="approvals.log" provided="yes" entry="lines 77-82 (APPROVED 2025-12-31T15:00:00+03:00)"/>
+  </KnownArtifacts>
+
+  <BlockingIssues>
+    <Issue ref="ISS-20251231-02-PKG-001" severity="BLOCKING" reportedBy="GRACE-CODER">
+      <Summary>
+        Package naming mismatch: DevelopmentPlan.xml uses com.kanokna.pricing_service.*
+        (with underscore) while approved handoff uses com.kanokna.pricing.* (no underscore).
+      </Summary>
+      <Evidence>
+        <DevelopmentPlan file="DevelopmentPlan.xml" version="1.3.0" lines="270-283">
+          PackageLayout for pricing-service specifies:
+          - com.kanokna.pricing_service.domain.model
+          - com.kanokna.pricing_service.domain.service
+          - com.kanokna.pricing_service.application.port.in
+          - com.kanokna.pricing_service.adapters.in.web
+          ... (13 package declarations total, all with pricing_service)
+        </DevelopmentPlan>
+        <Handoff file="Handoff-20251231-02" lines="160-189, 224-237, 269-327, 353-447">
+          FilesToCreate section specifies ~80 file paths using:
+          - com/kanokna/pricing/domain/model/...
+          - com/kanokna/pricing/domain/service/...
+          - com/kanokna/pricing/application/port/in/...
+          - com/kanokna/pricing/adapters/in/web/...
+
+          application.yml (line 1059) specifies:
+          logging:
+            level:
+              com.kanokna.pricing: DEBUG
+        </Handoff>
+        <Comparison>
+          catalog-configuration-service in DevelopmentPlan.xml (lines 205-219) uses:
+          com.kanokna.catalog_configuration_service.* (with underscores)
+
+          This suggests DevelopmentPlan.xml originally intended consistent underscore pattern,
+          but approved handoff deliberately uses shorter com.kanokna.pricing.* convention.
+        </Comparison>
+      </Evidence>
+      <Impact>
+        - GRACE-CODER blocked: cannot implement without choosing one pattern
+        - Affects all ~80 files: package declarations, imports, configs
+        - Spring component scanning paths depend on package names
+        - Logging configuration bound to package hierarchy
+        - Implementing either pattern violates one authoritative source
+      </Impact>
+    </Issue>
+  </BlockingIssues>
+
+  <Scope>
+    <Services>
+      <ServiceRef ref="DP-SVC-pricing-service">
+        Update PackageLayout section ONLY (lines 270-283 in DevelopmentPlan.xml)
+      </ServiceRef>
+    </Services>
+    <OutOfScope>
+      <Item>catalog-configuration-service package layout (deferred, non-blocking)</Item>
+      <Item>Handoff changes (approved handoff is correct as-is)</Item>
+      <Item>Re-approval of Handoff-20251231-02 (not required)</Item>
+    </OutOfScope>
+  </Scope>
+
+  <RequiredOutputs>
+
+    <!-- Primary Deliverable -->
+    <DevelopmentPlanUpdates>
+      <Action>Update pricing-service PackageLayout section</Action>
+      <Location>DevelopmentPlan.xml lines 270-283</Location>
+      <ChangePattern>
+        Replace all instances of "pricing_service" with "pricing" in PackageLayout package names.
+
+        FROM: com.kanokna.pricing_service.domain.model
+        TO:   com.kanokna.pricing.domain.model
+
+        FROM: com.kanokna.pricing_service.adapters.in.web
+        TO:   com.kanokna.pricing.adapters.in.web
+
+        (Apply to all 13 package declarations)
+      </ChangePattern>
+      <VersionUpdate>
+        Increment DevelopmentPlan.xml version from 1.3.0 to 1.3.1
+      </VersionUpdate>
+      <ChangelogEntry>
+        Add to DevelopmentPlan.xml header comments:
+
+        v1.3.1 (2025-12-31): Aligned pricing-service package layout with approved
+        Handoff-20251231-02. Adopted shorter package naming convention
+        (com.kanokna.pricing.* vs. com.kanokna.pricing_service.*) for clarity
+        and consistency with handoff implementation specification.
+      </ChangelogEntry>
+    </DevelopmentPlanUpdates>
+
+    <!-- Architectural Decision (Recommended) -->
+    <ArchitecturalDecision>
+      <Decision id="DEC-PACKAGE-NAMING-CONVENTION" status="PROPOSED">
+        <Title>Service Package Naming Convention</Title>
+        <Question>
+          Should microservice packages use full service name with underscores
+          (e.g., com.kanokna.pricing_service.*) or shortened service names
+          (e.g., com.kanokna.pricing.*)?
+        </Question>
+        <Options>
+          <Option id="SHORT" recommended="true">
+            <Name>Shortened service names</Name>
+            <Pattern>com.kanokna.{short-name}.*</Pattern>
+            <Examples>
+              <Example service="pricing-service">com.kanokna.pricing.*</Example>
+              <Example service="catalog-configuration-service">com.kanokna.catalog.* OR com.kanokna.catalog_config.*</Example>
+              <Example service="cart-service">com.kanokna.cart.*</Example>
+              <Example service="order-service">com.kanokna.order.*</Example>
+            </Examples>
+            <Pros>
+              <Item>Shorter, cleaner package names</Item>
+              <Item>Less verbose in imports and fully-qualified names</Item>
+              <Item>Matches approved handoff for pricing-service</Item>
+              <Item>Standard industry practice (service name != package name)</Item>
+            </Pros>
+            <Cons>
+              <Item>Requires migration plan for catalog-configuration-service (already uses underscores)</Item>
+              <Item>Need to define mapping rules for multi-word services</Item>
+            </Cons>
+          </Option>
+          <Option id="FULL">
+            <Name>Full service names with underscores</Name>
+            <Pattern>com.kanokna.{service-name-with-underscores}.*</Pattern>
+            <Examples>
+              <Example service="pricing-service">com.kanokna.pricing_service.*</Example>
+              <Example service="catalog-configuration-service">com.kanokna.catalog_configuration_service.*</Example>
+              <Example service="cart-service">com.kanokna.cart_service.*</Example>
+            </Examples>
+            <Pros>
+              <Item>Direct mapping from service name to package</Item>
+              <Item>Consistent with existing catalog-configuration-service pattern</Item>
+              <Item>No ambiguity in naming</Item>
+            </Pros>
+            <Cons>
+              <Item>Very verbose for multi-word services</Item>
+              <Item>Conflicts with approved pricing-service handoff (requires re-approval)</Item>
+              <Item>Less common in industry (service names and package names typically differ)</Item>
+            </Cons>
+          </Option>
+        </Options>
+        <Recommendation>
+          Select OPTION-SHORT (shortened names). Rationale:
+          - Handoff-20251231-02 already approved with com.kanokna.pricing.*
+          - Shorter names reduce verbosity and improve readability
+          - Aligns with industry standards (Spring Boot examples, common Java conventions)
+          - Faster resolution (DevelopmentPlan update only, no handoff re-approval)
+        </Recommendation>
+        <ProposedDestination>
+          Add to Technology.xml Decisions section OR document in DevelopmentPlan.xml
+          Assumptions for future service consistency.
+        </ProposedDestination>
+      </Decision>
+    </ArchitecturalDecision>
+
+    <!-- Documentation Updates (Optional but Recommended) -->
+    <Documentation>
+      <Item>
+        Add assumption to DevelopmentPlan.xml Assumptions section:
+
+        &lt;Assumption id="DP-ASSUM-005"&gt;
+          Package naming convention: services use shortened names (com.kanokna.pricing.*)
+          rather than full service names with underscores (com.kanokna.pricing_service.*).
+          Approved in Handoff-20251231-02; may require migration of catalog-configuration-service
+          for consistency (deferred to future wave).
+        &lt;/Assumption&gt;
+      </Item>
+      <Item>
+        (Optional) Add DEC-PACKAGE-NAMING-CONVENTION to Technology.xml if this becomes
+        a cross-cutting architectural decision for all future services.
+      </Item>
+    </Documentation>
+
+  </RequiredOutputs>
+
+  <AcceptanceCriteria>
+    <Item>DevelopmentPlan.xml version incremented to 1.3.1</Item>
+    <Item>DevelopmentPlan.xml lines 270-283 pricing-service PackageLayout updated to com.kanokna.pricing.*</Item>
+    <Item>All 13 package declarations updated consistently (no pricing_service remains)</Item>
+    <Item>Changelog entry added to DevelopmentPlan.xml header explaining v1.3.1 change</Item>
+    <Item>Handoff-20251231-02 remains unchanged and valid (already approved)</Item>
+    <Item>Decision on package naming convention recorded in Technology.xml OR DevelopmentPlan.xml</Item>
+    <Item>GRACE-COORDINATOR can re-issue CODER_WORK_ORDER without further blocking issues</Item>
+  </AcceptanceCriteria>
+
+  <NonGoals>
+    <Item>Do NOT update catalog-configuration-service package layout (out of scope for this work order)</Item>
+    <Item>Do NOT modify Handoff-20251231-02 (handoff is correct; blueprint must align to it)</Item>
+    <Item>Do NOT require re-approval of Handoff-20251231-02 (approval remains valid)</Item>
+    <Item>Do NOT implement pricing-service code (GRACE-CODER task, unblocked after this fix)</Item>
+  </NonGoals>
+
+  <DeliveryInstructions>
+    1. Read DevelopmentPlan.xml v1.3.0 (focus on lines 270-283)
+    2. Make architectural decision on DEC-PACKAGE-NAMING-CONVENTION (recommend OPTION-SHORT)
+    3. Update DevelopmentPlan.xml:
+       - Replace "pricing_service" with "pricing" in PackageLayout (13 occurrences)
+       - Update version to 1.3.1
+       - Add changelog entry in header comments
+       - Add DP-ASSUM-005 to Assumptions section
+    4. (Optional) Add DEC-PACKAGE-NAMING-CONVENTION to Technology.xml if deemed cross-cutting
+    5. Return updated DevelopmentPlan.xml to human for review
+    6. Human will inform GRACE-COORDINATOR of completion
+    7. GRACE-COORDINATOR will re-issue CODER_WORK_ORDER with corrected references
+  </DeliveryInstructions>
+
+  <EstimatedComplexity>LOW (simple find-replace in single artifact section)</EstimatedComplexity>
+
+  <References>
+    <IssueReport>docs/grace/reports/BlueprintIssueReport-20251231-Handoff-02-PKG.xml</IssueReport>
+    <Handoff>docs/grace/handoffs/Handoff-20251231-02-W1-T3-T4-PricingService.xml</Handoff>
+    <DevelopmentPlan>docs/grace/DevelopmentPlan.xml (current v1.3.0)</DevelopmentPlan>
+    <Approval>docs/grace/approvals.log lines 77-82</Approval>
+  </References>
+
+</ARCHITECT_WORK_ORDER>
