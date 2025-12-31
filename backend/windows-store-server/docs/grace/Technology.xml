@@ -2,12 +2,13 @@
 <!--
   GRACE Canonical Artifact: Technology.xml
   Purpose: Define approved technology stack, versions, and cross-cutting technical decisions
-  Version: 1.1.0
-  Last Updated: 2025-12-31T12:00:00+03:00
-  Changes: Promoted DEC-CATALOG-RULE-ENGINE and DEC-CATALOG-VERSIONING from Handoff-20251230-07
+  Version: 1.2.0
+  Last Updated: 2025-12-31T15:00:00+03:00
+  Changes: v1.2.0 - Added DEC-PRICING-* decisions from Handoff-20251231-02
+           v1.1.0 - Promoted DEC-CATALOG-RULE-ENGINE and DEC-CATALOG-VERSIONING from Handoff-20251230-07
            as architectural patterns DEC-ARCH-RULE-ENGINE-STRATEGY and DEC-ARCH-ENTITY-VERSIONING
 -->
-<Technology version="1.1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<Technology version="1.2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
        LANGUAGES
@@ -796,6 +797,153 @@
       <Links>
         <Link ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
         <Link ref="RequirementsAnalysis.xml#UC-PRICING-ADMIN-MANAGE"/>
+      </Links>
+    </Decision>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         PRICING SERVICE DECISIONS (Promoted from Handoff-20251231-02)
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <Decision id="DEC-PRICING-BASE-PRICE-FORMULA" status="APPROVED">
+      <Title>Base Price Calculation Formula</Title>
+      <Selected>Area-based pricing: base_price = area_m2 * price_per_m2</Selected>
+      <Alternatives>
+        <Alternative>Per-unit fixed pricing</Alternative>
+        <Alternative>Linear dimension pricing (perimeter-based)</Alternative>
+        <Alternative>Component-based pricing</Alternative>
+      </Alternatives>
+      <Rationale>
+        Windows and doors are priced by area (m²). Price books define price_per_m2
+        for each product family. This approach reflects manufacturing cost proportional
+        to material usage. Minimum area thresholds ensure profitability on small items.
+      </Rationale>
+      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-PRICING-PREMIUM-TYPES" status="APPROVED">
+      <Title>Option Premium Types</Title>
+      <Selected>Two premium types: ABSOLUTE (fixed amount) and PERCENTAGE (of base price)</Selected>
+      <Alternatives>
+        <Alternative>Single premium type (absolute only)</Alternative>
+        <Alternative>Tiered pricing by quantity</Alternative>
+        <Alternative>Complex formula-based premiums</Alternative>
+      </Alternatives>
+      <Rationale>
+        Some options (handles, locks) have fixed costs regardless of product size.
+        Others (premium glazing, special lamination) scale with product area.
+        Percentage premiums are calculated on base price, not running total,
+        ensuring predictable pricing and avoiding compound effects.
+      </Rationale>
+      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-PRICING-DISCOUNT-PRECEDENCE" status="APPROVED">
+      <Title>Discount Precedence and Stacking</Title>
+      <Selected>Campaign discounts apply first, then promo codes. Max combined discount: 30%</Selected>
+      <Alternatives>
+        <Alternative>No stacking (best single discount wins)</Alternative>
+        <Alternative>Unlimited stacking</Alternative>
+        <Alternative>Customer-type based discount priority</Alternative>
+      </Alternatives>
+      <Rationale>
+        Campaign discounts are business-driven (seasonal sales, clearance).
+        Promo codes are customer-acquired (marketing, loyalty). Stacking allowed
+        but capped at 30% to protect margins. Best discount wins within each category.
+        Order of application (campaign first) ensures consistent behavior.
+      </Rationale>
+      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-PRICING-CURRENCY" status="APPROVED">
+      <Title>Currency Support Strategy</Title>
+      <Selected>Single currency (RUB) initially; multi-currency deferred to Wave 5</Selected>
+      <Alternatives>
+        <Alternative>Multi-currency from day one</Alternative>
+        <Alternative>USD as base with conversion</Alternative>
+        <Alternative>Dual currency (RUB + USD)</Alternative>
+      </Alternatives>
+      <Rationale>
+        Per RequirementsAnalysis.xml#ASSUM-003, initial launch targets single market (Russia).
+        Price books are currency-specific. Multi-currency adds exchange rate management
+        complexity that can be deferred. Money value object supports currency for
+        future expansion without schema changes.
+      </Rationale>
+      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#ASSUM-003"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-PRICING-TAX-STRATEGY" status="APPROVED">
+      <Title>Tax Calculation Strategy</Title>
+      <Selected>Region-based VAT with Russia (20%) as default</Selected>
+      <Alternatives>
+        <Alternative>Flat tax rate for all regions</Alternative>
+        <Alternative>External tax service integration</Alternative>
+        <Alternative>No tax calculation (defer to invoicing)</Alternative>
+      </Alternatives>
+      <Rationale>
+        Russian VAT is 20% on most goods and must be shown in quotes for transparency
+        and 54-FZ compliance. Tax rules stored per region allow future expansion to
+        other markets. Tax is calculated on subtotal (after discounts, before rounding).
+      </Rationale>
+      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+        <Link ref="Technology.xml#TECH-yookassa"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-PRICING-ROUNDING" status="APPROVED">
+      <Title>Price Rounding Policy</Title>
+      <Selected>HALF_UP rounding to 2 decimal places for RUB</Selected>
+      <Alternatives>
+        <Alternative>Truncation (floor)</Alternative>
+        <Alternative>HALF_EVEN (banker's rounding)</Alternative>
+        <Alternative>Ceiling (always round up)</Alternative>
+      </Alternatives>
+      <Rationale>
+        Standard commercial rounding (HALF_UP) is customer-expected behavior.
+        Applied as final step after all calculations to avoid cumulative errors.
+        Different currencies may have different precision (e.g., JPY has 0 decimals)
+        and the rounding service supports currency-specific configuration.
+      </Rationale>
+      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-PRICING-QUOTE-TTL" status="APPROVED">
+      <Title>Quote Cache TTL</Title>
+      <Selected>5 minutes TTL in Redis</Selected>
+      <Alternatives>
+        <Alternative>No caching (recalculate every time)</Alternative>
+        <Alternative>Longer TTL (15-30 minutes)</Alternative>
+        <Alternative>Session-based caching only</Alternative>
+      </Alternatives>
+      <Rationale>
+        Quotes are expensive to calculate (DB lookups, rule evaluation). 5-minute TTL
+        balances freshness with performance. Quote ID + hash of inputs used as cache
+        key for idempotency. Cache is invalidated on price book updates to ensure
+        customers see current prices.
+      </Rationale>
+      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <Links>
+        <Link ref="Technology.xml#TECH-redis"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
       </Links>
     </Decision>
   </Decisions>

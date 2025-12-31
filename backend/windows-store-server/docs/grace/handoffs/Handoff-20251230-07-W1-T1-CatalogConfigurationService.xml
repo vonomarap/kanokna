@@ -3,12 +3,12 @@
   GRACE Handoff Document: Catalog Configuration Service
   Handoff ID: Handoff-20251230-07
   Scope: W1-T1 + W1-T2 (Skeleton + Domain Logic)
-  Status: PROPOSED (approval in docs/grace/approvals.log)
+  Status: APPROVED (approval in docs/grace/approvals.log)
   Author: GRACE-ARCHITECT
 -->
 <GRACE_HANDOFF
   id="Handoff-20251230-07"
-  status="PROPOSED"
+  status="APPROVED"
   schemaVersion="grace-markup-v2"
   created="2025-12-30T00:00:00+00:00"
   author="GRACE-ARCHITECT"

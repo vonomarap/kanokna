@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BlueprintIssueReport
+  id="ISSUE-RPT-20251231-02"
+  handoffRef="Handoff-20251231-02"
+  gateStatus="FAIL"
+  created="2025-12-31T15:00:00+03:00"
+  validatedBy="GRACE-COORDINATOR"
+>
+  <Summary>
+    Handoff-20251231-02 (pricing-service W1-T3/T4) FAILED Consistency Gate due to
+    missing DEC-PRICING-* decisions in Technology.xml (canonical source of truth).
+    All service-specific pricing decisions declared in the handoff DecisionsSnapshot
+    must be promoted to Technology.xml before approval can proceed.
+  </Summary>
+
+  <Issue id="ISS-20251231-02-001">
+    <Severity>BLOCKING</Severity>
+    <Gate>Consistency Gate</Gate>
+    <Category>Decision Identity Consistency</Category>
+    <Description>
+      Seven service-specific pricing decisions (DEC-PRICING-*) are declared in the
+      handoff DecisionsSnapshot but DO NOT exist in Technology.xml. Per GRACE governance
+      (Section B4), Technology.xml is the source of truth for all DEC-* entries. The
+      handoff DecisionsSnapshot must reference decisions that already exist in Technology.xml,
+      not introduce new decisions without canonical registration.
+    </Description>
+    <Evidence>
+      <HandoffDecisions file="Handoff-20251231-02-W1-T3-T4-PricingService.xml" lines="71-138">
+        <Decision id="DEC-PRICING-BASE-PRICE-FORMULA" status="APPROVED"/>
+        <Decision id="DEC-PRICING-PREMIUM-TYPES" status="APPROVED"/>
+        <Decision id="DEC-PRICING-DISCOUNT-PRECEDENCE" status="APPROVED"/>
+        <Decision id="DEC-PRICING-CURRENCY" status="APPROVED"/>
+        <Decision id="DEC-PRICING-TAX-STRATEGY" status="APPROVED"/>
+        <Decision id="DEC-PRICING-ROUNDING" status="APPROVED"/>
+        <Decision id="DEC-PRICING-QUOTE-TTL" status="APPROVED"/>
+      </HandoffDecisions>
+      <TechnologyXmlState file="Technology.xml" version="1.1.0">
+        <Observation>Technology.xml Decisions section (lines 601-801) contains only:
+          - DEC-DB-ENGINE
+          - DEC-SEARCH-ENGINE
+          - DEC-EVENT-SERIALIZATION
+          - DEC-IDENTITY-PROVIDER
+          - DEC-PAYMENT-GATEWAY
+          - DEC-INTER-SERVICE-COMM
+          - DEC-CI-CD-PLATFORM
+          - DEC-FEATURE-FLAGS
+          - DEC-ARCH-RULE-ENGINE-STRATEGY
+          - DEC-ARCH-ENTITY-VERSIONING
+        </Observation>
+        <MissingDecisions>
+          None of the DEC-PRICING-* decisions (DEC-PRICING-BASE-PRICE-FORMULA,
+          DEC-PRICING-PREMIUM-TYPES, DEC-PRICING-DISCOUNT-PRECEDENCE,
+          DEC-PRICING-CURRENCY, DEC-PRICING-TAX-STRATEGY, DEC-PRICING-ROUNDING,
+          DEC-PRICING-QUOTE-TTL) are present.
+        </MissingDecisions>
+      </TechnologyXmlState>
+    </Evidence>
+    <Impact>
+      - Violates GRACE decision governance (Technology.xml as single source of truth)
+      - Prevents deterministic RAG navigation (decisions not indexed in canonical artifact)
+      - Blocks approval gate (cannot approve without decision consistency)
+      - Risk of decision drift if changes occur only in handoff
+    </Impact>
+    <ProposedFix>
+      GRACE-ARCHITECT must add all seven DEC-PRICING-* decisions to Technology.xml
+      in the &lt;Decisions&gt; section following the existing pattern. Each decision
+      should include:
+      - id (DEC-PRICING-*)
+      - status="APPROVED"
+      - Title
+      - Selected value
+      - Alternatives (if any were considered)
+      - Rationale
+      - Links to relevant use cases or services
+
+      After Technology.xml is updated, the handoff DecisionsSnapshot should reference
+      these decisions using the same pattern as inherited decisions (e.g.,
+      &lt;Decision ref="Technology.xml#DEC-PRICING-BASE-PRICE-FORMULA"&gt;...&lt;/Decision&gt;).
+    </ProposedFix>
+    <RequiredAgent>GRACE-ARCHITECT</RequiredAgent>
+    <BlocksApproval>YES</BlocksApproval>
+  </Issue>
+
+  <Issue id="ISS-20251231-02-002">
+    <Severity>NONBLOCKING</Severity>
+    <Gate>Traceability Gate</Gate>
+    <Category>Artifact Version Alignment</Category>
+    <Description>
+      Handoff references DevelopmentPlan.xml version 1.2.0 (line 1325), but the
+      actual file is version 1.3.0 (updated 2025-12-31T14:30:00+03:00 per header).
+      This is likely due to the handoff being created before the recent DevelopmentPlan
+      update that added pricing-service contracts.
+    </Description>
+    <Evidence>
+      <HandoffReference file="Handoff-20251231-02" line="1325">
+        &lt;Artifact ref="DevelopmentPlan.xml" version="1.2.0"/&gt;
+      </HandoffReference>
+      <ActualArtifact file="DevelopmentPlan.xml" line="14">
+        version="1.3.0"
+      </ActualArtifact>
+    </Evidence>
+    <Impact>
+      Minimal. Version mismatch indicates handoff may have been created before
+      DevelopmentPlan was updated to v1.3.0 (which added FC-pricing-* and BA-PRC-* entries).
+      Since all referenced contracts (MC-pricing-service-domain-PriceCalculation,
+      FC-pricing-*, BA-PRC-*) now exist in DevelopmentPlan v1.3.0, this is acceptable
+      as long as the handoff content aligns with current blueprint.
+    </Impact>
+    <ProposedFix>
+      Update handoff line 1325 to reference DevelopmentPlan.xml version="1.3.0".
+      This is a cosmetic fix and does not block approval (can be fixed in next
+      handoff version if any).
+    </ProposedFix>
+    <RequiredAgent>GRACE-ARCHITECT (optional cosmetic fix)</RequiredAgent>
+    <BlocksApproval>NO</BlocksApproval>
+  </Issue>
+
+  <GateResults>
+    <ConsistencyGate status="FAIL" blocking="YES">
+      Decision identity consistency violation (ISS-20251231-02-001)
+    </ConsistencyGate>
+    <TraceabilityGate status="PASS_WITH_WARNINGS" blocking="NO">
+      All DevelopmentPlan.xml and Technology.xml links verified.
+      RequirementsAnalysis.xml links assumed valid (not loaded).
+      Minor version mismatch flagged (ISS-20251231-02-002).
+    </TraceabilityGate>
+    <CompletenessGate status="PASS" blocking="NO">
+      All critical use cases have complete FC → BA → TC coverage.
+      ContractEvolutionPolicy exists in DevelopmentPlan.xml.
+    </CompletenessGate>
+  </GateResults>
+
+  <Recommendation>
+    Return to GRACE-ARCHITECT with ARCHITECT_WORK_ORDER to:
+    1. Add seven DEC-PRICING-* decisions to Technology.xml (BLOCKING)
+    2. Optionally update handoff artifact version reference (cosmetic)
+
+    Once Technology.xml is updated and handoff is revised (if needed), re-submit
+    for blueprint validation. If Consistency Gate passes, approval can proceed.
+  </Recommendation>
+</BlueprintIssueReport>

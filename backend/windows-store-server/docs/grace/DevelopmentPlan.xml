@@ -2,14 +2,16 @@
 <!--
   GRACE Canonical Artifact: DevelopmentPlan.xml
   Purpose: Blueprint for implementation - services, flows, contracts, testing, deployment
-  Version: 1.2.0
-  Last Updated: 2025-12-31T12:00:00+03:00
+  Version: 1.3.0
+  Last Updated: 2025-12-31T14:30:00+03:00
   Changes:
+    - v1.3.0: Expanded pricing-service contracts (FC-pricing-*) and block anchors (BA-PRC-*, BA-PROMO-*, BA-PB-*)
+              for W1-T3/T4 implementation
     - v1.2.0: Added admin operation contracts (FC-*-ADMIN-MANAGE-*) and block anchors (BA-CAT-*)
               for W1-T1/T2 feature completeness
     - v1.1.1: Fixed DP-ASSUM-002 to align with DEC-INTER-SERVICE-COMM (gRPC required)
 -->
-<DevelopmentPlan version="1.2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<DevelopmentPlan version="1.3.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
        SERVICES & MODULES
@@ -961,8 +963,10 @@
         <Service>pricing-service</Service>
         <Layer>domain.service</Layer>
         <Description>Price calculation domain service</Description>
+        <Criticality>HIGH</Criticality>
         <Links>
           <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+          <Link ref="Technology.xml#DEC-ARCH-RULE-ENGINE-STRATEGY"/>
         </Links>
       </ModuleContract>
 
@@ -973,6 +977,38 @@
         <Criticality>HIGH</Criticality>
         <Links>
           <Link ref="MC-pricing-service-domain-PriceCalculation"/>
+        </Links>
+      </FunctionContract>
+
+      <FunctionContract id="FC-pricing-service-UC-PRICING-QUOTE-validatePromoCode">
+        <Service>pricing-service</Service>
+        <UseCase>UC-PRICING-QUOTE</UseCase>
+        <Method>validatePromoCode</Method>
+        <Criticality>MEDIUM</Criticality>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+        </Links>
+      </FunctionContract>
+
+      <FunctionContract id="FC-pricing-service-UC-PRICING-ADMIN-MANAGE-createPriceBook">
+        <Service>pricing-service</Service>
+        <UseCase>UC-PRICING-ADMIN-MANAGE</UseCase>
+        <Method>createPriceBook</Method>
+        <Criticality>HIGH</Criticality>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#UC-PRICING-ADMIN-MANAGE"/>
+          <Link ref="Technology.xml#DEC-ARCH-ENTITY-VERSIONING"/>
+        </Links>
+      </FunctionContract>
+
+      <FunctionContract id="FC-pricing-service-UC-PRICING-ADMIN-MANAGE-publishPriceBook">
+        <Service>pricing-service</Service>
+        <UseCase>UC-PRICING-ADMIN-MANAGE</UseCase>
+        <Method>publishPriceBook</Method>
+        <Criticality>HIGH</Criticality>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#UC-PRICING-ADMIN-MANAGE"/>
+          <Link ref="Technology.xml#DEC-ARCH-ENTITY-VERSIONING"/>
         </Links>
       </FunctionContract>
 
@@ -1066,13 +1102,35 @@
       <BlockAnchor id="BA-CFG-VAL-03" service="catalog-configuration-service" purpose="Check option dependencies"/>
       <BlockAnchor id="BA-CFG-VAL-99" service="catalog-configuration-service" purpose="Final validation result"/>
 
-      <!-- Pricing anchors -->
-      <BlockAnchor id="BA-PRC-CALC-01" service="pricing-service" purpose="Load price book"/>
+      <!-- Pricing calculation anchors -->
+      <BlockAnchor id="BA-PRC-CALC-01" service="pricing-service" purpose="Load price book for product"/>
       <BlockAnchor id="BA-PRC-CALC-02" service="pricing-service" purpose="Calculate base price from dimensions"/>
       <BlockAnchor id="BA-PRC-CALC-03" service="pricing-service" purpose="Apply option premiums"/>
       <BlockAnchor id="BA-PRC-CALC-04" service="pricing-service" purpose="Apply campaign discounts"/>
-      <BlockAnchor id="BA-PRC-CALC-05" service="pricing-service" purpose="Calculate taxes"/>
+      <BlockAnchor id="BA-PRC-CALC-05" service="pricing-service" purpose="Apply promo code discount"/>
+      <BlockAnchor id="BA-PRC-CALC-06" service="pricing-service" purpose="Calculate subtotal"/>
+      <BlockAnchor id="BA-PRC-CALC-07" service="pricing-service" purpose="Calculate tax"/>
+      <BlockAnchor id="BA-PRC-CALC-08" service="pricing-service" purpose="Apply rounding"/>
       <BlockAnchor id="BA-PRC-CALC-99" service="pricing-service" purpose="Final quote result"/>
+
+      <!-- Promo code validation anchors -->
+      <BlockAnchor id="BA-PROMO-VAL-01" service="pricing-service" purpose="Load promo code"/>
+      <BlockAnchor id="BA-PROMO-VAL-02" service="pricing-service" purpose="Check expiry"/>
+      <BlockAnchor id="BA-PROMO-VAL-03" service="pricing-service" purpose="Check usage limits"/>
+      <BlockAnchor id="BA-PROMO-VAL-04" service="pricing-service" purpose="Calculate discount amount"/>
+
+      <!-- Price book admin anchors -->
+      <BlockAnchor id="BA-PB-CREATE-01" service="pricing-service" purpose="Validate admin authorization for create"/>
+      <BlockAnchor id="BA-PB-CREATE-02" service="pricing-service" purpose="Validate price book data"/>
+      <BlockAnchor id="BA-PB-CREATE-03" service="pricing-service" purpose="Build PriceBook aggregate"/>
+      <BlockAnchor id="BA-PB-CREATE-04" service="pricing-service" purpose="Persist and return ID"/>
+
+      <BlockAnchor id="BA-PB-PUBLISH-01" service="pricing-service" purpose="Validate admin authorization for publish"/>
+      <BlockAnchor id="BA-PB-PUBLISH-02" service="pricing-service" purpose="Load price book"/>
+      <BlockAnchor id="BA-PB-PUBLISH-03" service="pricing-service" purpose="Create version snapshot"/>
+      <BlockAnchor id="BA-PB-PUBLISH-04" service="pricing-service" purpose="Archive previous active"/>
+      <BlockAnchor id="BA-PB-PUBLISH-05" service="pricing-service" purpose="Invalidate cache"/>
+      <BlockAnchor id="BA-PB-PUBLISH-06" service="pricing-service" purpose="Emit event"/>
 
       <!-- Order placement anchors -->
       <BlockAnchor id="BA-ORD-PLACE-01" service="order-service" purpose="Validate cart snapshot"/>
