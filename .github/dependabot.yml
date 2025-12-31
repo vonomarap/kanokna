@@ -1,0 +1,163 @@
+# ============================================================================
+# Dependabot Configuration
+# ============================================================================
+# MODULE_CONTRACT: MC-ci-github-actions
+# Configures automated dependency updates for the project.
+#
+# Update schedules:
+#   - Maven dependencies: Weekly on Monday
+#   - GitHub Actions: Weekly on Monday
+#   - Docker base images: Weekly on Monday
+#
+# Links:
+#   - DevelopmentPlan.xml#DP-INFRA-ci-cd
+#   - Technology.xml#TECH-DEPS-001
+# ============================================================================
+
+version: 2
+
+registries:
+  maven-central:
+    type: maven-repository
+    url: https://repo.maven.apache.org/maven2
+
+updates:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Maven Dependencies (Backend)
+  # ─────────────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "maven"
+    directory: "/backend/windows-store-server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "vonomarap"
+    labels:
+      - "dependencies"
+      - "maven"
+      - "backend"
+    commit-message:
+      prefix: "deps(maven)"
+    groups:
+      spring-boot:
+        patterns:
+          - "org.springframework.boot*"
+          - "org.springframework:*"
+        update-types:
+          - "minor"
+          - "patch"
+      spring-cloud:
+        patterns:
+          - "org.springframework.cloud*"
+        update-types:
+          - "minor"
+          - "patch"
+      testing:
+        patterns:
+          - "org.junit*"
+          - "org.assertj*"
+          - "org.mockito*"
+          - "org.testcontainers*"
+      observability:
+        patterns:
+          - "io.micrometer*"
+          - "io.opentelemetry*"
+          - "net.logstash*"
+    ignore:
+      # Ignore major Spring Boot updates (need manual review)
+      - dependency-name: "org.springframework.boot*"
+        update-types: ["version-update:semver-major"]
+      # Ignore major Spring Cloud updates
+      - dependency-name: "org.springframework.cloud*"
+        update-types: ["version-update:semver-major"]
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # GitHub Actions
+  # ─────────────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "vonomarap"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ci-cd"
+    commit-message:
+      prefix: "ci(actions)"
+    groups:
+      github-actions:
+        patterns:
+          - "actions/*"
+          - "github/*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Docker Base Images
+  # ─────────────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "vonomarap"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+    commit-message:
+      prefix: "deps(docker)"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # npm Dependencies (if frontend exists)
+  # ─────────────────────────────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "vonomarap"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "frontend"
+    commit-message:
+      prefix: "deps(npm)"
+    groups:
+      react:
+        patterns:
+          - "react*"
+          - "@types/react*"
+      testing:
+        patterns:
+          - "jest*"
+          - "@testing-library/*"
+          - "vitest*"
+      build-tools:
+        patterns:
+          - "vite*"
+          - "typescript*"
+          - "eslint*"
+          - "prettier*"
+    ignore:
+      # Ignore major React updates (need manual review)
+      - dependency-name: "react*"
+        update-types: ["version-update:semver-major"]

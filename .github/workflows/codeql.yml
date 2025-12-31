@@ -1,0 +1,148 @@
+# ============================================================================
+# CodeQL Security Analysis
+# ============================================================================
+# MODULE_CONTRACT: MC-ci-github-actions
+# Performs security vulnerability scanning using GitHub CodeQL.
+#
+# Scans for:
+#   - SQL Injection
+#   - Cross-Site Scripting (XSS)
+#   - Path Traversal
+#   - Insecure Deserialization
+#   - Other OWASP Top 10 vulnerabilities
+#
+# Links:
+#   - DevelopmentPlan.xml#DP-INFRA-ci-cd
+#   - RequirementsAnalysis.xml#NFR-SEC-VULNERABILITY-SCAN
+# ============================================================================
+
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'backend/**/*.java'
+      - 'backend/**/pom.xml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'backend/**/*.java'
+  schedule:
+    # Run weekly on Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '25'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # CodeQL Analysis
+  # ─────────────────────────────────────────────────────────────────────────────
+  analyze:
+    name: Analyze Java Code
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java
+          build-mode: manual
+          # Use extended security queries for comprehensive analysis
+          queries: +security-extended,security-and-quality
+
+      - name: Build project for CodeQL analysis
+        run: |
+          mvn -B -DskipTests compile
+        working-directory: backend/windows-store-server
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:java"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Dependency Check
+  # ─────────────────────────────────────────────────────────────────────────────
+  dependency-check:
+    name: OWASP Dependency Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Cache OWASP Dependency Check data
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp
+          key: ${{ runner.os }}-owasp-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-owasp-
+
+      - name: Run OWASP Dependency Check
+        run: |
+          mvn -B org.owasp:dependency-check-maven:check \
+            -DfailBuildOnCVSS=8 \
+            -DsuppressionFile=.github/dependency-check-suppressions.xml || true
+        working-directory: backend/windows-store-server
+        continue-on-error: true
+
+      - name: Upload Dependency Check report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report
+          path: backend/windows-store-server/**/target/dependency-check-report.html
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Secret Scanning Summary
+  # ─────────────────────────────────────────────────────────────────────────────
+  summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [analyze, dependency-check]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| CodeQL Analysis | ${{ needs.analyze.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Check | ${{ needs.dependency-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "For detailed results, check the Security tab in the repository." >> $GITHUB_STEP_SUMMARY

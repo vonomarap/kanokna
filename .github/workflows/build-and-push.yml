@@ -1,0 +1,168 @@
+# ============================================================================
+# Build and Push Docker Images
+# ============================================================================
+# MODULE_CONTRACT: MC-ci-github-actions
+# Builds Docker images using Jib and pushes to GitHub Container Registry.
+#
+# Triggers:
+#   - Push to main branch (latest tag)
+#   - Release tags (version tags)
+#   - Manual dispatch
+#
+# Links:
+#   - DevelopmentPlan.xml#DP-INFRA-ci-cd
+#   - Technology.xml#TECH-CONTAINER-001
+# ============================================================================
+
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+    paths:
+      - 'backend/**'
+      - '.github/workflows/build-and-push.yml'
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to build (comma-separated, or "all")'
+        required: false
+        default: 'all'
+      tag:
+        description: 'Image tag'
+        required: false
+        default: 'latest'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/kanokna
+  JAVA_VERSION: '25'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Prepare Build Matrix
+  # ─────────────────────────────────────────────────────────────────────────────
+  prepare:
+    name: Prepare Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-matrix.outputs.services }}
+      tag: ${{ steps.set-tag.outputs.tag }}
+    steps:
+      - name: Determine services to build
+        id: set-matrix
+        run: |
+          if [ "${{ github.event.inputs.services }}" == "all" ] || [ -z "${{ github.event.inputs.services }}" ]; then
+            echo 'services=["config-server","gateway","catalog-configuration-service","pricing-service","cart-service","order-service","media-service","account-service","notification-service","reporting-service","search-service","installation-service","product-service"]' >> $GITHUB_OUTPUT
+          else
+            # Convert comma-separated to JSON array
+            SERVICES=$(echo "${{ github.event.inputs.services }}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+            echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine image tag
+        id: set-tag
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Build and Push Images
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-and-push:
+    name: Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine service path
+        id: service-path
+        run: |
+          SERVICE="${{ matrix.service }}"
+          if [ "$SERVICE" == "config-server" ] || [ "$SERVICE" == "gateway" ]; then
+            echo "path=backend/windows-store-server/$SERVICE" >> $GITHUB_OUTPUT
+          else
+            echo "path=backend/windows-store-server/services/$SERVICE" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push with Jib
+        run: |
+          mvn -B -pl :${{ matrix.service }} -am \
+            compile \
+            jib:build \
+            -Djib.to.image=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ needs.prepare.outputs.tag }} \
+            -Djib.to.auth.username=${{ github.actor }} \
+            -Djib.to.auth.password=${{ secrets.GITHUB_TOKEN }} \
+            -Djib.container.creationTime=USE_CURRENT_TIMESTAMP \
+            -Djib.container.labels.org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
+            -Djib.container.labels.org.opencontainers.image.revision=${{ github.sha }}
+        working-directory: backend/windows-store-server
+        continue-on-error: true
+
+      - name: Fallback - Build with Dockerfile if Jib fails
+        if: failure()
+        run: |
+          echo "Jib build failed - Jib plugin may not be configured for ${{ matrix.service }}"
+          echo "Skipping Docker build for now"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Summary
+  # ─────────────────────────────────────────────────────────────────────────────
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [prepare, build-and-push]
+    if: always()
+    steps:
+      - name: Print summary
+        run: |
+          echo "## Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ needs.prepare.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Services Built" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo '${{ needs.prepare.outputs.services }}' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

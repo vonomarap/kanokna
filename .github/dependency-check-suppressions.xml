@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OWASP Dependency Check Suppressions
+  ============================================================================
+  MODULE_CONTRACT: MC-ci-github-actions
+
+  This file contains false positive suppressions for the OWASP Dependency Check.
+  Each suppression must be documented with a justification.
+
+  Links:
+    - DevelopmentPlan.xml#DP-INFRA-ci-cd
+    - RequirementsAnalysis.xml#NFR-SEC-VULNERABILITY-SCAN
+  ============================================================================
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+
+    <!--
+      Example Suppression Template:
+
+      <suppress>
+        <notes>
+          Justification: [Explain why this is a false positive or accepted risk]
+          CVE: CVE-XXXX-XXXXX
+          Reviewed By: [Name]
+          Review Date: [YYYY-MM-DD]
+          Ticket: [JIRA/GitHub issue reference if applicable]
+        </notes>
+        <packageUrl regex="true">^pkg:maven/com\.example/library@.*$</packageUrl>
+        <cve>CVE-XXXX-XXXXX</cve>
+      </suppress>
+    -->
+
+    <!-- Spring Boot 4.x Placeholder Suppressions -->
+    <!-- These may be needed as Spring Boot 4.x is not yet released -->
+
+    <!--
+    <suppress>
+        <notes>
+            Justification: Spring Boot 4.x is a placeholder version (TECH-ASSUM-001)
+            False positive due to unreleased version.
+            Reviewed By: GRACE-CODER
+            Review Date: 2024-12-30
+        </notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/.*@4\.0\.0$</packageUrl>
+        <vulnerabilityName regex="true">.*</vulnerabilityName>
+    </suppress>
+    -->
+
+</suppressions>

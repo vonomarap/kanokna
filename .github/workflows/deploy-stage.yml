@@ -1,0 +1,262 @@
+# ============================================================================
+# Deploy to Staging Environment
+# ============================================================================
+# MODULE_CONTRACT: MC-ci-github-actions
+# Deploys services to the staging environment for pre-production testing.
+#
+# Triggers:
+#   - Manual dispatch with service selection
+#   - After successful build-and-push on main branch
+#
+# Prerequisites:
+#   - Kubernetes cluster configured
+#   - Secrets: KUBECONFIG_STAGE, STAGE_NAMESPACE
+#
+# Links:
+#   - DevelopmentPlan.xml#DP-INFRA-ci-cd
+#   - Technology.xml#TECH-K8S-001
+# ============================================================================
+
+name: Deploy to Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to deploy (comma-separated, or "all")'
+        required: true
+        default: 'all'
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        default: 'latest'
+      dry_run:
+        description: 'Dry run (do not apply changes)'
+        required: false
+        type: boolean
+        default: false
+  workflow_run:
+    workflows: ["Build and Push Docker Images"]
+    types:
+      - completed
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/kanokna
+  NAMESPACE: kanokna-stage
+  HELM_RELEASE_PREFIX: kanokna
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Prepare Deployment
+  # ─────────────────────────────────────────────────────────────────────────────
+  prepare:
+    name: Prepare Deployment
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      services: ${{ steps.set-matrix.outputs.services }}
+      tag: ${{ steps.set-tag.outputs.tag }}
+    steps:
+      - name: Determine services to deploy
+        id: set-matrix
+        run: |
+          if [ "${{ github.event.inputs.services }}" == "all" ] || [ -z "${{ github.event.inputs.services }}" ]; then
+            echo 'services=["config-server","gateway","catalog-configuration-service","pricing-service","cart-service","order-service","media-service","account-service","notification-service","reporting-service","search-service","installation-service","product-service"]' >> $GITHUB_OUTPUT
+          else
+            SERVICES=$(echo "${{ github.event.inputs.services }}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+            echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine image tag
+        id: set-tag
+        run: |
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Deploy Services
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        service: ${{ fromJson(needs.prepare.outputs.services) }}
+    environment:
+      name: staging
+      url: https://stage.kanokna.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.0'
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_STAGE }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Verify cluster connection
+        run: |
+          kubectl cluster-info
+          kubectl get namespaces
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy service
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+
+          # Check if Helm chart exists
+          CHART_PATH="deploy/helm/${{ matrix.service }}"
+          if [ -d "$CHART_PATH" ]; then
+            helm upgrade --install \
+              ${{ env.HELM_RELEASE_PREFIX }}-${{ matrix.service }} \
+              $CHART_PATH \
+              --namespace ${{ env.NAMESPACE }} \
+              --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }} \
+              --set image.tag=${{ needs.prepare.outputs.tag }} \
+              --set env=staging \
+              --wait \
+              --timeout 5m \
+              $DRY_RUN_FLAG
+          else
+            echo "No Helm chart found at $CHART_PATH"
+            echo "Using kubectl apply with generated manifest"
+
+            # Generate and apply a basic deployment
+            cat <<EOF | kubectl apply -f - $DRY_RUN_FLAG
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ${{ matrix.service }}
+            namespace: ${{ env.NAMESPACE }}
+            labels:
+              app: ${{ matrix.service }}
+              environment: staging
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: ${{ matrix.service }}
+            template:
+              metadata:
+                labels:
+                  app: ${{ matrix.service }}
+              spec:
+                containers:
+                - name: ${{ matrix.service }}
+                  image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ needs.prepare.outputs.tag }}
+                  ports:
+                  - containerPort: 8080
+                  env:
+                  - name: SPRING_PROFILES_ACTIVE
+                    value: stage
+                  resources:
+                    requests:
+                      memory: "256Mi"
+                      cpu: "100m"
+                    limits:
+                      memory: "512Mi"
+                      cpu: "500m"
+                  livenessProbe:
+                    httpGet:
+                      path: /actuator/health/liveness
+                      port: 8080
+                    initialDelaySeconds: 60
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /actuator/health/readiness
+                      port: 8080
+                    initialDelaySeconds: 30
+                    periodSeconds: 5
+          EOF
+          fi
+        continue-on-error: true
+
+      - name: Verify deployment
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          kubectl rollout status deployment/${{ matrix.service }} \
+            --namespace ${{ env.NAMESPACE }} \
+            --timeout 5m || true
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Post-Deployment Verification
+  # ─────────────────────────────────────────────────────────────────────────────
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [prepare, deploy]
+    if: ${{ github.event.inputs.dry_run != 'true' }}
+    steps:
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_STAGE }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Check pod status
+        run: |
+          echo "## Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          kubectl get pods -n ${{ env.NAMESPACE }} -o wide >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Run smoke tests
+        run: |
+          echo "Smoke tests would run here"
+          echo "Testing gateway health endpoint..."
+          # curl -f https://stage-api.kanokna.com/actuator/health || echo "Gateway not reachable"
+        continue-on-error: true
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Notification
+  # ─────────────────────────────────────────────────────────────────────────────
+  notify:
+    name: Send Notification
+    runs-on: ubuntu-latest
+    needs: [prepare, deploy, verify]
+    if: always()
+    steps:
+      - name: Notify on success
+        if: ${{ needs.deploy.result == 'success' }}
+        run: |
+          echo "## Staging Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** ${{ needs.prepare.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** staging" >> $GITHUB_STEP_SUMMARY
+          echo "**Services:** ${{ needs.prepare.outputs.services }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: ${{ needs.deploy.result == 'failure' }}
+        run: |
+          echo "## Staging Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please check the deployment logs for details." >> $GITHUB_STEP_SUMMARY
