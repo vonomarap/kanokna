@@ -2,10 +2,12 @@
 <!--
   GRACE Canonical Artifact: Technology.xml
   Purpose: Define approved technology stack, versions, and cross-cutting technical decisions
-  Version: 1.0.0
-  Last Updated: 2025-12-29T00:00:00+00:00
+  Version: 1.1.0
+  Last Updated: 2025-12-31T12:00:00+03:00
+  Changes: Promoted DEC-CATALOG-RULE-ENGINE and DEC-CATALOG-VERSIONING from Handoff-20251230-07
+           as architectural patterns DEC-ARCH-RULE-ENGINE-STRATEGY and DEC-ARCH-ENTITY-VERSIONING
 -->
-<Technology version="1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<Technology version="1.1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
        LANGUAGES
@@ -734,6 +736,67 @@
         Unleash is open-source and self-hostable. Sufficient for initial needs;
         may migrate to managed service if scale demands.
       </Rationale>
+    </Decision>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         ARCHITECTURAL PATTERN DECISIONS (Promoted from Service Handoffs)
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <Decision id="DEC-ARCH-RULE-ENGINE-STRATEGY" status="APPROVED">
+      <Title>Domain Rule Engine Strategy</Title>
+      <Selected>Domain-native rule evaluation with aggregate-owned RuleSet</Selected>
+      <Alternatives>
+        <Alternative>External rule engine (Drools, Easy Rules)</Alternative>
+        <Alternative>Configuration-driven rules in database with generic evaluator</Alternative>
+      </Alternatives>
+      <Rationale>
+        Rules are core domain logic and should be explicit, testable, and version-controlled
+        with the domain model. External engines add complexity and make rules opaque to
+        domain experts. A domain-native approach keeps business rules in domain services
+        without external dependencies. Complex engines (Drools) can be introduced later
+        for specific high-volume rule scenarios if needed.
+      </Rationale>
+      <ApplicableServices>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service">Configuration validation rules</ServiceRef>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-pricing-service">Campaign and discount rules</ServiceRef>
+      </ApplicableServices>
+      <PromotedFrom handoff="Handoff-20251230-07" originalId="DEC-CATALOG-RULE-ENGINE"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-ARCH-ENTITY-VERSIONING" status="APPROVED">
+      <Title>Domain Entity Versioning Strategy</Title>
+      <Selected>Soft-delete with versioned snapshots (Version aggregate pattern)</Selected>
+      <Alternatives>
+        <Alternative>Event sourcing for full history</Alternative>
+        <Alternative>Temporal tables (database-level)</Alternative>
+        <Alternative>No versioning (overwrite in place)</Alternative>
+      </Alternatives>
+      <Rationale>
+        Versioned snapshots support audit trail, rollback capability, and time-travel queries
+        for historical data (e.g., orders referencing catalog state at order time, pricing
+        at quote time). Simpler than full event sourcing while providing sufficient history.
+        Implemented via Version aggregate (CatalogVersion, PriceBookVersion) that captures
+        snapshots on publish. Soft-delete prevents accidental data loss while keeping
+        referential integrity for historical records.
+      </Rationale>
+      <ApplicableServices>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service">CatalogVersion for product templates</ServiceRef>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-pricing-service">PriceBookVersion for pricing history</ServiceRef>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-order-service">Order snapshots (implicit, stored per order)</ServiceRef>
+      </ApplicableServices>
+      <Implementation>
+        <Pattern>Version aggregate with JSONB snapshot column</Pattern>
+        <SoftDelete>status column with DRAFT/ACTIVE/ARCHIVED states</SoftDelete>
+        <Audit>version_number, published_at, published_by columns</Audit>
+      </Implementation>
+      <PromotedFrom handoff="Handoff-20251230-07" originalId="DEC-CATALOG-VERSIONING"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-ADMIN-MANAGE"/>
+      </Links>
     </Decision>
   </Decisions>
 

@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff Document: Catalog Admin Operation Contracts
+  Handoff ID: Handoff-20251231-01
+  Scope: Supplementary contracts for W1-T1/T2 admin operations
+  Status: PROPOSED (approval in docs/grace/approvals.log)
+  Author: GRACE-ARCHITECT
+  Supplements: Handoff-20251230-07
+-->
+<GRACE_HANDOFF
+  id="Handoff-20251231-01"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2025-12-31T12:30:00+03:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W1-T1,W1-T2"
+  planRef="DevelopmentExecutionPlan.xml#W1-T1,DevelopmentExecutionPlan.xml#W1-T2"
+  blueprintRef="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"
+  techRef="Technology.xml#DEC-ARCH-RULE-ENGINE-STRATEGY,Technology.xml#DEC-ARCH-ENTITY-VERSIONING"
+  requirementsRef="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"
+  supplements="Handoff-20251230-07"
+>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       1. INTENT SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <IntentSummary>
+    <BusinessIntent>
+      Complete the admin operations for catalog-configuration-service to enable
+      back-office users (CATALOG_ADMIN, ADMIN roles) to create, update, and publish
+      product templates and catalog versions. This is essential for maintaining the
+      product catalog that customers browse and configure.
+    </BusinessIntent>
+    <TechnicalIntent>
+      Supplement Handoff-20251230-07 with detailed FUNCTION_CONTRACTs for admin
+      operations that were referenced but not fully specified:
+      - createProductTemplate: Create new product templates in DRAFT status
+      - updateProductTemplate: Modify existing templates with versioning support
+      - publishCatalogVersion: Activate drafts and create versioned snapshots
+
+      Also promotes DEC-CATALOG-* decisions to Technology.xml as reusable patterns.
+    </TechnicalIntent>
+    <Scope>
+      <Task ref="DevelopmentExecutionPlan.xml#W1-T1">Skeleton includes admin ports</Task>
+      <Task ref="DevelopmentExecutionPlan.xml#W1-T2">Domain logic includes admin operations</Task>
+      <Service ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+      <Supplements ref="Handoff-20251230-07">Original W1-T1/T2 handoff</Supplements>
+    </Scope>
+  </IntentSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       2. BLUEPRINT UPDATES MADE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <BlueprintUpdates>
+    <Update artifact="Technology.xml" version="1.1.0">
+      <Item>Added DEC-ARCH-RULE-ENGINE-STRATEGY (promoted from DEC-CATALOG-RULE-ENGINE)</Item>
+      <Item>Added DEC-ARCH-ENTITY-VERSIONING (promoted from DEC-CATALOG-VERSIONING)</Item>
+    </Update>
+    <Update artifact="DevelopmentPlan.xml" version="1.2.0">
+      <Item>Added FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-createProductTemplate</Item>
+      <Item>Added FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-updateProductTemplate</Item>
+      <Item>Added FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-publishCatalogVersion</Item>
+      <Item>Added block anchors BA-CAT-CREATE-*, BA-CAT-UPDATE-*, BA-CAT-PUBLISH-*</Item>
+    </Update>
+  </BlueprintUpdates>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       3. SEMANTIC CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <SemanticContractsAndAnchors>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: createProductTemplate
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-createProductTemplate">
+      <EmbedInFile>catalog-configuration-service/src/main/java/com/kanokna/catalog/application/service/ProductTemplateCommandService.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-createProductTemplate"
+     LAYER="application.service"
+     INTENT="Create a new product template with option groups and constraints"
+     INPUT="CreateProductTemplateCommand"
+     OUTPUT="ProductTemplateId"
+     SIDE_EFFECTS="Persists new ProductTemplate aggregate"
+     LINKS="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE">
+  <PRECONDITIONS>
+    <Item>Caller has CATALOG_ADMIN or ADMIN role</Item>
+    <Item>command.name is unique within product family</Item>
+    <Item>command.dimensionConstraints.min >= 50 and max <= 400</Item>
+    <Item>command.optionGroups have valid structure</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>ProductTemplate is persisted with DRAFT status</Item>
+    <Item>ProductTemplateId is returned</Item>
+    <Item>Audit fields (createdAt, createdBy) are populated</Item>
+  </POSTCONDITIONS>
+
+  <INVARIANTS>
+    <Item>New templates start in DRAFT status (not visible to customers)</Item>
+    <Item>Version starts at 0 (incremented on publish)</Item>
+  </INVARIANTS>
+
+  <ERROR_HANDLING>
+    <Item type="SECURITY" code="ERR-AUTH-FORBIDDEN">Caller lacks required role</Item>
+    <Item type="BUSINESS" code="ERR-CATALOG-DUPLICATE-NAME">Product name already exists in family</Item>
+    <Item type="BUSINESS" code="ERR-CATALOG-INVALID-DIMENSIONS">Dimension constraints out of allowed range</Item>
+    <Item type="BUSINESS" code="ERR-CATALOG-INVALID-OPTIONS">Option group structure is invalid</Item>
+  </ERROR_HANDLING>
+
+  <BLOCK_ANCHORS>
+    <Item id="BA-CAT-CREATE-01">Validate admin authorization</Item>
+    <Item id="BA-CAT-CREATE-02">Validate uniqueness constraints</Item>
+    <Item id="BA-CAT-CREATE-03">Build ProductTemplate aggregate</Item>
+    <Item id="BA-CAT-CREATE-04">Persist and return ID</Item>
+  </BLOCK_ANCHORS>
+
+  <LOGGING>
+    <Item>[SVC=catalog-configuration-service][UC=UC-CATALOG-ADMIN-MANAGE][BLOCK=BA-CAT-CREATE-01][STATE=AUTH_CHECK] eventType=ADMIN_ACTION decision=AUTHORIZE|DENY keyValues=userId,role,action=CREATE_PRODUCT</Item>
+    <Item>[SVC=catalog-configuration-service][UC=UC-CATALOG-ADMIN-MANAGE][BLOCK=BA-CAT-CREATE-04][STATE=PERSISTED] eventType=PRODUCT_CREATED decision=SUCCESS keyValues=productTemplateId,productFamily,name</Item>
+  </LOGGING>
+
+  <TESTS>
+    <Case id="TC-ADMIN-CREATE-001">Valid command creates template in DRAFT status</Case>
+    <Case id="TC-ADMIN-CREATE-002">Duplicate name returns ERR-CATALOG-DUPLICATE-NAME</Case>
+    <Case id="TC-ADMIN-CREATE-003">Invalid dimensions returns ERR-CATALOG-INVALID-DIMENSIONS</Case>
+    <Case id="TC-ADMIN-CREATE-004">Non-admin user returns ERR-AUTH-FORBIDDEN</Case>
+  </TESTS>
+</FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: updateProductTemplate
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-updateProductTemplate">
+      <EmbedInFile>catalog-configuration-service/src/main/java/com/kanokna/catalog/application/service/ProductTemplateCommandService.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-updateProductTemplate"
+     LAYER="application.service"
+     INTENT="Update an existing product template (only DRAFT templates directly)"
+     INPUT="UpdateProductTemplateCommand"
+     OUTPUT="void"
+     SIDE_EFFECTS="Updates ProductTemplate aggregate; may clone if ACTIVE"
+     LINKS="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE;Technology.xml#DEC-ARCH-ENTITY-VERSIONING">
+  <PRECONDITIONS>
+    <Item>Caller has CATALOG_ADMIN or ADMIN role</Item>
+    <Item>ProductTemplate exists with given ID</Item>
+    <Item>ProductTemplate is in DRAFT or ACTIVE status</Item>
+    <Item>If ACTIVE, update creates a new version (clone)</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>Template is updated (or new version created if was ACTIVE)</Item>
+    <Item>updatedAt and updatedBy fields are set</Item>
+    <Item>If was ACTIVE and cloned, new template is DRAFT</Item>
+  </POSTCONDITIONS>
+
+  <INVARIANTS>
+    <Item>ACTIVE templates are never mutated in-place; updates create new DRAFT version</Item>
+    <Item>ARCHIVED templates cannot be updated</Item>
+  </INVARIANTS>
+
+  <ERROR_HANDLING>
+    <Item type="SECURITY" code="ERR-AUTH-FORBIDDEN">Caller lacks required role</Item>
+    <Item type="BUSINESS" code="ERR-CATALOG-NOT-FOUND">Product template not found</Item>
+    <Item type="BUSINESS" code="ERR-CATALOG-ARCHIVED">Cannot update archived template</Item>
+    <Item type="BUSINESS" code="ERR-CATALOG-OPTIMISTIC-LOCK">Concurrent modification detected</Item>
+  </ERROR_HANDLING>
+
+  <BLOCK_ANCHORS>
+    <Item id="BA-CAT-UPDATE-01">Validate admin authorization</Item>
+    <Item id="BA-CAT-UPDATE-02">Load existing template</Item>
+    <Item id="BA-CAT-UPDATE-03">Apply updates (or clone if ACTIVE)</Item>
+    <Item id="BA-CAT-UPDATE-04">Persist changes</Item>
+  </BLOCK_ANCHORS>
+
+  <LOGGING>
+    <Item>[SVC=catalog-configuration-service][UC=UC-CATALOG-ADMIN-MANAGE][BLOCK=BA-CAT-UPDATE-03][STATE=UPDATE] eventType=PRODUCT_UPDATED decision=SUCCESS keyValues=productTemplateId,wasCloned,previousStatus</Item>
+  </LOGGING>
+
+  <TESTS>
+    <Case id="TC-ADMIN-UPDATE-001">Update DRAFT template succeeds in-place</Case>
+    <Case id="TC-ADMIN-UPDATE-002">Update ACTIVE template creates new DRAFT version</Case>
+    <Case id="TC-ADMIN-UPDATE-003">Update ARCHIVED template returns ERR-CATALOG-ARCHIVED</Case>
+    <Case id="TC-ADMIN-UPDATE-004">Concurrent update returns ERR-CATALOG-OPTIMISTIC-LOCK</Case>
+  </TESTS>
+</FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         FUNCTION CONTRACT: publishCatalogVersion
+         ───────────────────────────────────────────────────────────────────────── -->
+    <FunctionContract id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-publishCatalogVersion">
+      <EmbedInFile>catalog-configuration-service/src/main/java/com/kanokna/catalog/application/service/ProductTemplateCommandService.java</EmbedInFile>
+      <Contract><![CDATA[
+/* <FUNCTION_CONTRACT id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-publishCatalogVersion"
+     LAYER="application.service"
+     INTENT="Publish a catalog version making templates visible to customers"
+     INPUT="PublishCatalogVersionCommand"
+     OUTPUT="CatalogVersionId"
+     SIDE_EFFECTS="Creates CatalogVersion snapshot, updates template statuses, emits events"
+     LINKS="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE;Technology.xml#DEC-ARCH-ENTITY-VERSIONING">
+  <PRECONDITIONS>
+    <Item>Caller has CATALOG_ADMIN or ADMIN role</Item>
+    <Item>At least one DRAFT template is included OR explicit template IDs provided</Item>
+    <Item>All included templates pass validation</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>CatalogVersion snapshot is created with incremented version_number</Item>
+    <Item>Included templates are transitioned DRAFT -> ACTIVE</Item>
+    <Item>Previous ACTIVE versions of same templates are ARCHIVED</Item>
+    <Item>CatalogVersionPublishedEvent is emitted</Item>
+    <Item>ProductTemplatePublishedEvent is emitted for each new ACTIVE template</Item>
+  </POSTCONDITIONS>
+
+  <INVARIANTS>
+    <Item>Version numbers are monotonically increasing</Item>
+    <Item>Only one ACTIVE version of a template at a time</Item>
+    <Item>Snapshot contains full JSON representation for time-travel queries</Item>
+  </INVARIANTS>
+
+  <ERROR_HANDLING>
+    <Item type="SECURITY" code="ERR-AUTH-FORBIDDEN">Caller lacks required role</Item>
+    <Item type="BUSINESS" code="ERR-CATALOG-NOTHING-TO-PUBLISH">No DRAFT templates available</Item>
+    <Item type="BUSINESS" code="ERR-CATALOG-VALIDATION-FAILED">Template failed consistency validation</Item>
+    <Item type="TECHNICAL" code="ERR-EVENT-PUBLISH-FAILED">Failed to publish events (transaction rolled back)</Item>
+  </ERROR_HANDLING>
+
+  <BLOCK_ANCHORS>
+    <Item id="BA-CAT-PUBLISH-01">Validate admin authorization</Item>
+    <Item id="BA-CAT-PUBLISH-02">Load DRAFT templates to publish</Item>
+    <Item id="BA-CAT-PUBLISH-03">Validate all templates</Item>
+    <Item id="BA-CAT-PUBLISH-04">Create CatalogVersion snapshot</Item>
+    <Item id="BA-CAT-PUBLISH-05">Transition statuses (DRAFT->ACTIVE, old ACTIVE->ARCHIVED)</Item>
+    <Item id="BA-CAT-PUBLISH-06">Emit domain events</Item>
+  </BLOCK_ANCHORS>
+
+  <LOGGING>
+    <Item>[SVC=catalog-configuration-service][UC=UC-CATALOG-ADMIN-MANAGE][BLOCK=BA-CAT-PUBLISH-04][STATE=SNAPSHOT] eventType=CATALOG_VERSION_CREATED decision=SUCCESS keyValues=versionNumber,templateCount</Item>
+    <Item>[SVC=catalog-configuration-service][UC=UC-CATALOG-ADMIN-MANAGE][BLOCK=BA-CAT-PUBLISH-06][STATE=EVENTS] eventType=EVENTS_PUBLISHED decision=SUCCESS keyValues=eventTypes,count</Item>
+  </LOGGING>
+
+  <TESTS>
+    <Case id="TC-ADMIN-PUBLISH-001">Publish DRAFT templates creates new CatalogVersion</Case>
+    <Case id="TC-ADMIN-PUBLISH-002">Previous ACTIVE templates are archived</Case>
+    <Case id="TC-ADMIN-PUBLISH-003">CatalogVersionPublishedEvent is emitted</Case>
+    <Case id="TC-ADMIN-PUBLISH-004">ProductTemplatePublishedEvent emitted per template</Case>
+    <Case id="TC-ADMIN-PUBLISH-005">No DRAFT templates returns ERR-CATALOG-NOTHING-TO-PUBLISH</Case>
+    <Case id="TC-ADMIN-PUBLISH-006">Invalid template blocks entire publish</Case>
+  </TESTS>
+</FUNCTION_CONTRACT> */
+      ]]></Contract>
+    </FunctionContract>
+
+    <!-- Block Anchor Registry -->
+    <BlockAnchorRegistry>
+      <BlockAnchor id="BA-CAT-CREATE-01" service="catalog-configuration-service" purpose="Validate admin authorization for create"/>
+      <BlockAnchor id="BA-CAT-CREATE-02" service="catalog-configuration-service" purpose="Validate uniqueness constraints"/>
+      <BlockAnchor id="BA-CAT-CREATE-03" service="catalog-configuration-service" purpose="Build ProductTemplate aggregate"/>
+      <BlockAnchor id="BA-CAT-CREATE-04" service="catalog-configuration-service" purpose="Persist and return ID"/>
+
+      <BlockAnchor id="BA-CAT-UPDATE-01" service="catalog-configuration-service" purpose="Validate admin authorization for update"/>
+      <BlockAnchor id="BA-CAT-UPDATE-02" service="catalog-configuration-service" purpose="Load existing template"/>
+      <BlockAnchor id="BA-CAT-UPDATE-03" service="catalog-configuration-service" purpose="Apply updates or clone"/>
+      <BlockAnchor id="BA-CAT-UPDATE-04" service="catalog-configuration-service" purpose="Persist changes"/>
+
+      <BlockAnchor id="BA-CAT-PUBLISH-01" service="catalog-configuration-service" purpose="Validate admin authorization for publish"/>
+      <BlockAnchor id="BA-CAT-PUBLISH-02" service="catalog-configuration-service" purpose="Load DRAFT templates"/>
+      <BlockAnchor id="BA-CAT-PUBLISH-03" service="catalog-configuration-service" purpose="Validate all templates"/>
+      <BlockAnchor id="BA-CAT-PUBLISH-04" service="catalog-configuration-service" purpose="Create CatalogVersion snapshot"/>
+      <BlockAnchor id="BA-CAT-PUBLISH-05" service="catalog-configuration-service" purpose="Transition statuses"/>
+      <BlockAnchor id="BA-CAT-PUBLISH-06" service="catalog-configuration-service" purpose="Emit domain events"/>
+    </BlockAnchorRegistry>
+
+  </SemanticContractsAndAnchors>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       4. ADDITIONAL FILES TO CREATE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FilesToCreate>
+    <FileGroup name="Application DTOs for Admin">
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/dto/CreateProductTemplateCommand.java" action="CREATE">
+        Command DTO for creating product template
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/dto/UpdateProductTemplateCommand.java" action="CREATE">
+        Command DTO for updating product template
+      </File>
+      <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/application/dto/PublishCatalogVersionCommand.java" action="CREATE">
+        Command DTO for publishing catalog version
+      </File>
+    </FileGroup>
+
+    <FileGroup name="Additional Unit Tests for Admin">
+      <File path="catalog-configuration-service/src/test/java/com/kanokna/catalog/application/service/ProductTemplateCommandServiceTest.java" action="CREATE">
+        Unit tests for admin operations (TC-ADMIN-*)
+      </File>
+    </FileGroup>
+  </FilesToCreate>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       5. ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria ref="DevelopmentExecutionPlan.xml#W1-T1,W1-T2">
+    <!-- Admin-specific criteria -->
+    <Criterion id="AC-ADMIN-001">CreateProductTemplate requires CATALOG_ADMIN or ADMIN role</Criterion>
+    <Criterion id="AC-ADMIN-002">New templates start in DRAFT status</Criterion>
+    <Criterion id="AC-ADMIN-003">ACTIVE templates cannot be modified in-place; updates clone</Criterion>
+    <Criterion id="AC-ADMIN-004">PublishCatalogVersion transitions DRAFT to ACTIVE</Criterion>
+    <Criterion id="AC-ADMIN-005">Previous ACTIVE versions are archived on publish</Criterion>
+    <Criterion id="AC-ADMIN-006">CatalogVersionPublishedEvent emitted on publish</Criterion>
+    <Criterion id="AC-ADMIN-007">ProductTemplatePublishedEvent emitted per template</Criterion>
+    <Criterion id="AC-ADMIN-008">Admin logs contain block anchor IDs (BA-CAT-*)</Criterion>
+    <Criterion id="AC-ADMIN-009">All admin test cases pass (TC-ADMIN-*)</Criterion>
+  </AcceptanceCriteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       6. CONSISTENCY CHECKLIST
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ConsistencyChecklist>
+    <Check status="PASS">All FC IDs follow FC-{service}-UC-{usecase}-{method} convention</Check>
+    <Check status="PASS">All BA IDs follow BA-{domain}-{operation}-## convention</Check>
+    <Check status="PASS">All Link refs target existing IDs in canonical artifacts</Check>
+    <Check status="PASS">Error codes are unique and follow ERR-{domain}-{type} pattern</Check>
+    <Check status="PASS">Test case IDs follow TC-{category}-### convention</Check>
+    <Check status="PASS">Promoted decisions reference original handoff (PromotedFrom)</Check>
+  </ConsistencyChecklist>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       7. SCOPE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Scope>
+    <Services>
+      <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+    </Services>
+    <UseCases>
+      <UseCaseRef ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
+    </UseCases>
+    <Tasks>
+      <TaskRef ref="DevelopmentExecutionPlan.xml#W1-T1"/>
+      <TaskRef ref="DevelopmentExecutionPlan.xml#W1-T2"/>
+    </Tasks>
+  </Scope>
+
+  <Artifacts>
+    <Artifact ref="RequirementsAnalysis.xml" version="1.0.0"/>
+    <Artifact ref="Technology.xml" version="1.1.0"/>
+    <Artifact ref="DevelopmentPlan.xml" version="1.2.0"/>
+  </Artifacts>
+
+  <Contracts>
+    <FunctionContractRef id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-createProductTemplate"/>
+    <FunctionContractRef id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-updateProductTemplate"/>
+    <FunctionContractRef id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-publishCatalogVersion"/>
+    <BlockAnchorRef id="BA-CAT-CREATE-01"/>
+    <BlockAnchorRef id="BA-CAT-CREATE-02"/>
+    <BlockAnchorRef id="BA-CAT-CREATE-03"/>
+    <BlockAnchorRef id="BA-CAT-CREATE-04"/>
+    <BlockAnchorRef id="BA-CAT-UPDATE-01"/>
+    <BlockAnchorRef id="BA-CAT-UPDATE-02"/>
+    <BlockAnchorRef id="BA-CAT-UPDATE-03"/>
+    <BlockAnchorRef id="BA-CAT-UPDATE-04"/>
+    <BlockAnchorRef id="BA-CAT-PUBLISH-01"/>
+    <BlockAnchorRef id="BA-CAT-PUBLISH-02"/>
+    <BlockAnchorRef id="BA-CAT-PUBLISH-03"/>
+    <BlockAnchorRef id="BA-CAT-PUBLISH-04"/>
+    <BlockAnchorRef id="BA-CAT-PUBLISH-05"/>
+    <BlockAnchorRef id="BA-CAT-PUBLISH-06"/>
+  </Contracts>
+
+  <!-- Approval recorded in docs/grace/approvals.log per approvals.log-only policy -->
+
+</GRACE_HANDOFF>

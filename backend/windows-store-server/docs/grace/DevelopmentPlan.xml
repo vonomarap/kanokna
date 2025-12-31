@@ -2,11 +2,14 @@
 <!--
   GRACE Canonical Artifact: DevelopmentPlan.xml
   Purpose: Blueprint for implementation - services, flows, contracts, testing, deployment
-  Version: 1.1.1
-  Last Updated: 2025-12-30T00:00:00+00:00
-  Changes: Fixed DP-ASSUM-002 to align with DEC-INTER-SERVICE-COMM (gRPC required)
+  Version: 1.2.0
+  Last Updated: 2025-12-31T12:00:00+03:00
+  Changes:
+    - v1.2.0: Added admin operation contracts (FC-*-ADMIN-MANAGE-*) and block anchors (BA-CAT-*)
+              for W1-T1/T2 feature completeness
+    - v1.1.1: Fixed DP-ASSUM-002 to align with DEC-INTER-SERVICE-COMM (gRPC required)
 -->
-<DevelopmentPlan version="1.1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<DevelopmentPlan version="1.2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
        SERVICES & MODULES
@@ -1016,6 +1019,39 @@
         <Method>handlePaymentCallback</Method>
         <Criticality>HIGH</Criticality>
       </FunctionContract>
+
+      <!-- catalog-configuration-service admin operations -->
+      <FunctionContract id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-createProductTemplate">
+        <Service>catalog-configuration-service</Service>
+        <UseCase>UC-CATALOG-ADMIN-MANAGE</UseCase>
+        <Method>createProductTemplate</Method>
+        <Criticality>HIGH</Criticality>
+        <Links>
+          <Link ref="MC-catalog-configuration-service-domain-ConfigurationValidation"/>
+          <Link ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
+        </Links>
+      </FunctionContract>
+
+      <FunctionContract id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-updateProductTemplate">
+        <Service>catalog-configuration-service</Service>
+        <UseCase>UC-CATALOG-ADMIN-MANAGE</UseCase>
+        <Method>updateProductTemplate</Method>
+        <Criticality>HIGH</Criticality>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
+        </Links>
+      </FunctionContract>
+
+      <FunctionContract id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-publishCatalogVersion">
+        <Service>catalog-configuration-service</Service>
+        <UseCase>UC-CATALOG-ADMIN-MANAGE</UseCase>
+        <Method>publishCatalogVersion</Method>
+        <Criticality>HIGH</Criticality>
+        <Links>
+          <Link ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
+          <Link ref="Technology.xml#DEC-ARCH-ENTITY-VERSIONING"/>
+        </Links>
+      </FunctionContract>
     </ContractRegistry>
 
     <BlockAnchorRegistry>
@@ -1051,6 +1087,24 @@
       <BlockAnchor id="BA-PAY-CB-02" service="order-service" purpose="Load order by payment reference"/>
       <BlockAnchor id="BA-PAY-CB-03" service="order-service" purpose="Apply payment status transition"/>
       <BlockAnchor id="BA-PAY-CB-04" service="order-service" purpose="Publish OrderConfirmedEvent"/>
+
+      <!-- Catalog admin operation anchors -->
+      <BlockAnchor id="BA-CAT-CREATE-01" service="catalog-configuration-service" purpose="Validate admin authorization for create"/>
+      <BlockAnchor id="BA-CAT-CREATE-02" service="catalog-configuration-service" purpose="Validate uniqueness constraints"/>
+      <BlockAnchor id="BA-CAT-CREATE-03" service="catalog-configuration-service" purpose="Build ProductTemplate aggregate"/>
+      <BlockAnchor id="BA-CAT-CREATE-04" service="catalog-configuration-service" purpose="Persist and return ID"/>
+
+      <BlockAnchor id="BA-CAT-UPDATE-01" service="catalog-configuration-service" purpose="Validate admin authorization for update"/>
+      <BlockAnchor id="BA-CAT-UPDATE-02" service="catalog-configuration-service" purpose="Load existing template"/>
+      <BlockAnchor id="BA-CAT-UPDATE-03" service="catalog-configuration-service" purpose="Apply updates or clone"/>
+      <BlockAnchor id="BA-CAT-UPDATE-04" service="catalog-configuration-service" purpose="Persist changes"/>
+
+      <BlockAnchor id="BA-CAT-PUBLISH-01" service="catalog-configuration-service" purpose="Validate admin authorization for publish"/>
+      <BlockAnchor id="BA-CAT-PUBLISH-02" service="catalog-configuration-service" purpose="Load DRAFT templates"/>
+      <BlockAnchor id="BA-CAT-PUBLISH-03" service="catalog-configuration-service" purpose="Validate all templates"/>
+      <BlockAnchor id="BA-CAT-PUBLISH-04" service="catalog-configuration-service" purpose="Create CatalogVersion snapshot"/>
+      <BlockAnchor id="BA-CAT-PUBLISH-05" service="catalog-configuration-service" purpose="Transition statuses"/>
+      <BlockAnchor id="BA-CAT-PUBLISH-06" service="catalog-configuration-service" purpose="Emit domain events"/>
     </BlockAnchorRegistry>
   </Contracts>
 
