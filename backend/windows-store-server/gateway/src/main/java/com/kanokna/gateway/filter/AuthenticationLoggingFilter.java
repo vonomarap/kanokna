@@ -8,10 +8,9 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 import org.springframework.core.Ordered;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.web.server.SecurityWebFiltersOrder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
@@ -41,7 +40,7 @@ public class AuthenticationLoggingFilter implements WebFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return SecurityWebFiltersOrder.AUTHORIZATION.getOrder() + 1;
+        return Ordered.LOWEST_PRECEDENCE - 1;
     }
 
     private void logAuth(ServerWebExchange exchange, Authentication auth) {
@@ -55,8 +54,8 @@ public class AuthenticationLoggingFilter implements WebFilter, Ordered {
             : auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList());
         String userId = auth == null ? "anonymous" : auth.getName();
 
-        HttpStatus status = exchange.getResponse().getStatusCode();
-        String decision = (status == HttpStatus.UNAUTHORIZED || status == HttpStatus.FORBIDDEN) ? "DENY" : "ALLOW";
+        HttpStatusCode status = exchange.getResponse().getStatusCode();
+        String decision = (status != null && (status.value() == 401 || status.value() == 403)) ? "DENY" : "ALLOW";
 
         logger.info(
             "[SVC=gateway][UC=AUTH][BLOCK=BA-GW-AUTH-01][STATE=TOKEN_VALIDATED] " +

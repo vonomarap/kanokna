@@ -151,7 +151,8 @@ public class RateLimitConfig {
                         : Mono.just(Boolean.TRUE);
                     return expireMono.thenReturn(count);
                 })
-                .flatMap(count -> redisTemplate.getExpire(redisKey, TimeUnit.SECONDS)
+                .flatMap(count -> redisTemplate.getExpire(redisKey)
+                    .map(Duration::getSeconds)
                     .defaultIfEmpty(WINDOW_SECONDS)
                     .map(ttl -> buildResponse(key, count, ttl))
                 );

@@ -2,7 +2,6 @@ package com.kanokna.gateway.config;
 
 import java.time.Duration;
 
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import org.springframework.cloud.circuitbreaker.resilience4j.ReactiveResilience4JCircuitBreakerFactory;
 import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JConfigBuilder;
@@ -14,7 +13,8 @@ import org.springframework.cloud.client.circuitbreaker.Customizer;
 public class CircuitBreakerConfig {
     @Bean
     public Customizer<ReactiveResilience4JCircuitBreakerFactory> gatewayCircuitBreakerCustomizer() {
-        CircuitBreakerConfig circuitBreakerConfig = CircuitBreakerConfig.custom()
+        io.github.resilience4j.circuitbreaker.CircuitBreakerConfig circuitBreakerConfig = 
+            io.github.resilience4j.circuitbreaker.CircuitBreakerConfig.custom()
             .slidingWindowSize(10)
             .failureRateThreshold(50)
             .waitDurationInOpenState(Duration.ofSeconds(10))

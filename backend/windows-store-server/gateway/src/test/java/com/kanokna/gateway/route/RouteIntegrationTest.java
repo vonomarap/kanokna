@@ -15,7 +15,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.MockServerHttpRequest;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
@@ -81,7 +81,7 @@ class RouteIntegrationTest {
 
     private boolean matchesPath(Route route, String path) {
         MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get(path).build());
-        return route.getPredicate().test(exchange);
+        return Boolean.TRUE.equals(Mono.from(route.getPredicate().apply(exchange)).block());
     }
 
     @TestConfiguration
@@ -97,3 +97,4 @@ class RouteIntegrationTest {
         }
     }
 }
+

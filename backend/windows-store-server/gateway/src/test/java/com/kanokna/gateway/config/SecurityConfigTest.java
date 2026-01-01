@@ -5,7 +5,9 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 
-import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -18,15 +20,16 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockJwt;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-@WebFluxTest(controllers = SecurityConfigTest.TestController.class)
+@SpringBootTest(properties = {
+    "spring.cloud.config.enabled=false"
+})
+@AutoConfigureWebTestClient
 @Import({SecurityConfig.class, SecurityConfigTest.TestJwtDecoderConfig.class})
 class SecurityConfigTest {
-    private final WebTestClient webTestClient;
-
-    SecurityConfigTest(WebTestClient webTestClient) {
-        this.webTestClient = webTestClient;
-    }
+    @Autowired
+    private WebTestClient webTestClient;
 
     @Test
     void publicPathWithoutTokenSucceeds() {
@@ -64,18 +67,18 @@ class SecurityConfigTest {
 
     @Test
     void adminPathWithCustomerRoleReturns403() {
-        webTestClient.get()
+        webTestClient.mutateWith(mockJwt().authorities(new SimpleGrantedAuthority("ROLE_CUSTOMER")))
+            .get()
             .uri("/api/reports/summary")
-            .mutateWith(mockJwt().authorities(() -> "ROLE_CUSTOMER"))
             .exchange()
             .expectStatus().isForbidden();
     }
 
     @Test
     void adminPathWithAdminRoleSucceeds() {
-        webTestClient.get()
+        webTestClient.mutateWith(mockJwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
+            .get()
             .uri("/api/reports/summary")
-            .mutateWith(mockJwt().authorities(() -> "ROLE_ADMIN"))
             .exchange()
             .expectStatus().isOk();
     }

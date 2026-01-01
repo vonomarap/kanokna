@@ -13,7 +13,7 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.Ordered;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 
@@ -25,7 +25,7 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         long start = System.nanoTime();
         String path = exchange.getRequest().getURI().getPath();
-        String method = exchange.getRequest().getMethodValue();
+        String method = exchange.getRequest().getMethod().name();
 
         Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
         String routeId = route != null ? route.getId() : "unknown";
@@ -45,7 +45,7 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
         return chain.filter(exchange)
             .doFinally(signal -> {
                 long latencyMs = (System.nanoTime() - start) / 1_000_000L;
-                HttpStatus status = exchange.getResponse().getStatusCode();
+                HttpStatusCode status = exchange.getResponse().getStatusCode();
                 String statusValue = status != null ? String.valueOf(status.value()) : "unknown";
 
                 MDC.put("status", statusValue);

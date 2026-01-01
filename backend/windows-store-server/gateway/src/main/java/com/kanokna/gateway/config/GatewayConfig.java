@@ -1,3 +1,5 @@
+package com.kanokna.gateway.config;
+
 /* <FUNCTION_CONTRACT id="FC-gateway-config-GatewayConfig-routeLocator"
      LAYER="config"
      INTENT="Define route mappings from gateway paths to backend services"
@@ -53,16 +55,15 @@
     <Case id="TC-ROUTE-005">Circuit breaker opens after failures</Case>
   </TESTS>
 </FUNCTION_CONTRACT> */
-package com.kanokna.gateway.config;
-
-import java.time.Duration;
 
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter;
 import org.springframework.cloud.gateway.route.RouteLocator;
-import org.springframework.cloud.gateway.route.RouteLocatorBuilder;
+import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import static org.springframework.cloud.gateway.support.RouteMetadataUtils.RESPONSE_TIMEOUT_ATTR;
 
 @Configuration
 public class GatewayConfig {
@@ -84,8 +85,8 @@ public class GatewayConfig {
                     // <BLOCK_ANCHOR id="BA-GW-ROUTE-02">Apply route filters (rewrite, headers)</BLOCK_ANCHOR>
                     .stripPrefix(1)
                     .requestRateLimiter(config -> config.setKeyResolver(keyResolver).setRateLimiter(rateLimiter))
-                    .setResponseTimeout(Duration.ofSeconds(10))
                 )
+                .metadata(RESPONSE_TIMEOUT_ATTR, 10000)
                 // <BLOCK_ANCHOR id="BA-GW-ROUTE-03">Forward to backend service</BLOCK_ANCHOR>
                 .uri("lb://catalog-configuration-service"))
             .route("pricing-route", r -> r
@@ -93,64 +94,64 @@ public class GatewayConfig {
                 .filters(f -> f
                     .stripPrefix(1)
                     .requestRateLimiter(config -> config.setKeyResolver(keyResolver).setRateLimiter(rateLimiter))
-                    .setResponseTimeout(Duration.ofSeconds(10))
                 )
+                .metadata(RESPONSE_TIMEOUT_ATTR, 10000)
                 .uri("lb://pricing-service"))
             .route("cart-route", r -> r
                 .path("/api/cart/**")
                 .filters(f -> f
                     .stripPrefix(1)
                     .requestRateLimiter(config -> config.setKeyResolver(keyResolver).setRateLimiter(rateLimiter))
-                    .setResponseTimeout(Duration.ofSeconds(10))
                 )
+                .metadata(RESPONSE_TIMEOUT_ATTR, 10000)
                 .uri("lb://cart-service"))
             .route("orders-route", r -> r
                 .path("/api/orders/**")
                 .filters(f -> f
                     .stripPrefix(1)
                     .requestRateLimiter(config -> config.setKeyResolver(keyResolver).setRateLimiter(rateLimiter))
-                    .setResponseTimeout(Duration.ofSeconds(10))
                 )
+                .metadata(RESPONSE_TIMEOUT_ATTR, 10000)
                 .uri("lb://order-service"))
             .route("accounts-route", r -> r
                 .path("/api/accounts/**")
                 .filters(f -> f
                     .stripPrefix(1)
                     .requestRateLimiter(config -> config.setKeyResolver(keyResolver).setRateLimiter(rateLimiter))
-                    .setResponseTimeout(Duration.ofSeconds(10))
                 )
+                .metadata(RESPONSE_TIMEOUT_ATTR, 10000)
                 .uri("lb://account-service"))
             .route("media-route", r -> r
                 .path("/api/media/**")
                 .filters(f -> f
                     .stripPrefix(1)
                     .requestRateLimiter(config -> config.setKeyResolver(keyResolver).setRateLimiter(rateLimiter))
-                    .setResponseTimeout(Duration.ofSeconds(10))
                 )
+                .metadata(RESPONSE_TIMEOUT_ATTR, 10000)
                 .uri("lb://media-service"))
             .route("search-route", r -> r
                 .path("/api/search/**")
                 .filters(f -> f
                     .stripPrefix(1)
                     .requestRateLimiter(config -> config.setKeyResolver(keyResolver).setRateLimiter(rateLimiter))
-                    .setResponseTimeout(Duration.ofSeconds(10))
                 )
+                .metadata(RESPONSE_TIMEOUT_ATTR, 10000)
                 .uri("lb://search-service"))
             .route("installations-route", r -> r
                 .path("/api/installations/**")
                 .filters(f -> f
                     .stripPrefix(1)
                     .requestRateLimiter(config -> config.setKeyResolver(keyResolver).setRateLimiter(rateLimiter))
-                    .setResponseTimeout(Duration.ofSeconds(10))
                 )
+                .metadata(RESPONSE_TIMEOUT_ATTR, 10000)
                 .uri("lb://installation-service"))
             .route("reports-route", r -> r
                 .path("/api/reports/**")
                 .filters(f -> f
                     .stripPrefix(1)
                     .requestRateLimiter(config -> config.setKeyResolver(keyResolver).setRateLimiter(rateLimiter))
-                    .setResponseTimeout(Duration.ofSeconds(10))
                 )
+                .metadata(RESPONSE_TIMEOUT_ATTR, 10000)
                 .uri("lb://reporting-service"))
             .build();
     }
