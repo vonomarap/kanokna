@@ -80,6 +80,7 @@ public class SecurityConfig {
         return http
             // <BLOCK_ANCHOR id="BA-GW-AUTH-01">Validate JWT token</BLOCK_ANCHOR>
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
+            .cors(org.springframework.security.config.Customizer.withDefaults())
             .authorizeExchange(exchanges -> exchanges
                 // <BLOCK_ANCHOR id="BA-GW-AUTH-03">Authorize request based on path and roles</BLOCK_ANCHOR>
                 .pathMatchers(

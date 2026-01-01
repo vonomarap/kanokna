@@ -6,12 +6,11 @@ import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient;
+import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
@@ -26,7 +25,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
     "spring.cloud.config.enabled=false"
 })
 @AutoConfigureWebTestClient
-@Import({SecurityConfig.class, SecurityConfigTest.TestJwtDecoderConfig.class})
+@Import({SecurityConfig.class, SecurityConfigTest.TestJwtDecoderConfig.class, SecurityConfigTest.TestController.class})
 class SecurityConfigTest {
     @Autowired
     private WebTestClient webTestClient;
@@ -95,17 +94,17 @@ class SecurityConfigTest {
     @RestController
     static class TestController {
         @GetMapping("/api/orders/test")
-        Mono<String> protectedEndpoint() {
+        public Mono<String> protectedEndpoint() {
             return Mono.just("ok");
         }
 
         @GetMapping("/api/catalog/products")
-        Mono<String> publicCatalog() {
+        public Mono<String> publicCatalog() {
             return Mono.just("ok");
         }
 
         @GetMapping("/api/reports/summary")
-        Mono<String> adminEndpoint() {
+        public Mono<String> adminEndpoint() {
             return Mono.just("ok");
         }
     }
