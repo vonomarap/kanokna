@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -21,7 +21,7 @@ public class BasePriceEntry {
         this.minimumCharge = minimumCharge;
 
         if (pricePerM2.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Price per mВІ must be positive");
+            throw new IllegalArgumentException("Price per m2 must be positive");
         }
     }
 
@@ -32,7 +32,12 @@ public class BasePriceEntry {
 
     public Money calculateBasePrice(BigDecimal areaM2, String currency) {
         BigDecimal chargeableArea = areaM2.max(minimumAreaM2);
-        return Money.of(chargeableArea.multiply(pricePerM2), currency);
+        Money calculatedPrice = Money.of(chargeableArea.multiply(pricePerM2), currency);
+
+        if (minimumCharge != null && calculatedPrice.compareTo(minimumCharge) < 0) {
+            return minimumCharge;
+        }
+        return calculatedPrice;
     }
 
     public String getProductTemplateId() {
@@ -64,4 +69,3 @@ public class BasePriceEntry {
         return Objects.hash(productTemplateId);
     }
 }
-

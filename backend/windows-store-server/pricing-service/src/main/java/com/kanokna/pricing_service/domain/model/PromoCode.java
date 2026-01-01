@@ -1,6 +1,7 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -88,7 +89,7 @@ public class PromoCode {
     public Money calculateDiscount(Money subtotal) {
         Money discount;
         if (discountType == DiscountType.PERCENTAGE) {
-            discount = subtotal.multiply(discountValue.divide(new BigDecimal("100")));
+            discount = subtotal.multiply(discountValue.divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP));
         } else {
             discount = Money.of(discountValue, subtotal.getCurrency());
         }

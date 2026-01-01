@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.adapters.in.web;
+package com.kanokna.pricing_service.adapters.in.web;
 
 import com.kanokna.pricing_service.application.dto.*;
 import com.kanokna.pricing_service.application.port.in.CalculateQuoteUseCase;
@@ -102,4 +102,3 @@ public class PricingController {
         return ResponseEntity.ok(response);
     }
 }
-

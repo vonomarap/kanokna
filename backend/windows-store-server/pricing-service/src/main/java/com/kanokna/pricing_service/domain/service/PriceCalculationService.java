@@ -2,11 +2,13 @@ package com.kanokna.pricing_service.domain.service;
 
 import com.kanokna.pricing_service.domain.model.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /* <MODULE_CONTRACT id="MC-pricing-service-domain-PriceCalculation"
      ROLE="DomainService"
@@ -193,17 +195,17 @@ public class PriceCalculationService {
     public PriceCalculationService(DiscountService discountService,
                                   TaxCalculationService taxCalculationService,
                                   RoundingService roundingService) {
-        this.discountService = java.util.Objects.requireNonNull(discountService);
-        this.taxCalculationService = java.util.Objects.requireNonNull(taxCalculationService);
-        this.roundingService = java.util.Objects.requireNonNull(roundingService);
+        this.discountService = Objects.requireNonNull(discountService);
+        this.taxCalculationService = Objects.requireNonNull(taxCalculationService);
+        this.roundingService = Objects.requireNonNull(roundingService);
     }
 
-        public Quote calculateQuote(PriceBook priceBook, java.util.List<String> selectedOptionIds,
-                               java.math.BigDecimal widthCm, java.math.BigDecimal heightCm,
-                               java.util.List<Campaign> activeCampaigns, PromoCode promoCode,
+    public Quote calculateQuote(PriceBook priceBook, List<String> selectedOptionIds,
+                               BigDecimal widthCm, BigDecimal heightCm,
+                               List<Campaign> activeCampaigns, PromoCode promoCode,
                                TaxRule taxRule, int quoteTtlMinutes) {
 
-        java.util.List<PricingDecision> decisionTrace = new java.util.ArrayList<>();
+        List<PricingDecision> decisionTrace = new ArrayList<>();
         String currency = priceBook.getCurrency();
 
         decisionTrace.add(PricingDecision.of(
@@ -213,11 +215,11 @@ public class PriceCalculationService {
                 priceBook.getProductTemplateId(), priceBook.getId())
         ));
 
-        java.util.List<String> optionIds = selectedOptionIds != null ? selectedOptionIds : java.util.List.of();
+        List<String> optionIds = selectedOptionIds != null ? selectedOptionIds : List.of();
 
         // BA-PRC-CALC-02: Calculate base price from dimensions
-        java.math.BigDecimal areaM2 = widthCm.multiply(heightCm)
-            .divide(new java.math.BigDecimal("10000"), 4, java.math.RoundingMode.HALF_UP);
+        BigDecimal areaM2 = widthCm.multiply(heightCm)
+            .divide(new BigDecimal("10000"), 4, RoundingMode.HALF_UP);
         Money basePrice = priceBook.getBasePriceEntry().calculateBasePrice(areaM2, currency);
         decisionTrace.add(PricingDecision.of(
             "BA-PRC-CALC-02",
@@ -229,10 +231,10 @@ public class PriceCalculationService {
         ));
 
         // BA-PRC-CALC-03: Apply option premiums
-        java.util.List<PremiumLine> premiumLines = new java.util.ArrayList<>();
+        List<PremiumLine> premiumLines = new ArrayList<>();
         Money totalPremiums = Money.zero(currency);
         for (String optionId : optionIds) {
-            java.util.Optional<OptionPremium> premium = priceBook.findPremiumForOption(optionId);
+            Optional<OptionPremium> premium = priceBook.findPremiumForOption(optionId);
             if (premium.isPresent()) {
                 Money premiumAmount = premium.get().calculatePremium(basePrice);
                 premiumLines.add(PremiumLine.of(optionId, premium.get().getOptionName(), premiumAmount));
@@ -268,7 +270,7 @@ public class PriceCalculationService {
         Money total = roundingService.round(discountedSubtotal.add(tax), currency, decisionTrace);
 
         QuoteId quoteId = QuoteId.generate();
-        java.time.Instant validUntil = java.time.Instant.now().plus(java.time.Duration.ofMinutes(quoteTtlMinutes));
+        Instant validUntil = Instant.now().plus(Duration.ofMinutes(quoteTtlMinutes));
         decisionTrace.add(PricingDecision.of(
             "BA-PRC-CALC-99",
             "FINAL",

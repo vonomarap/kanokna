@@ -1,8 +1,12 @@
-﻿package com.kanokna.pricing_service.domain.service;
+package com.kanokna.pricing_service.domain.service;
 
 import com.kanokna.pricing_service.domain.exception.InvalidPromoCodeException;
-import com.kanokna.pricing_service.domain.model.*;
+import com.kanokna.pricing_service.domain.model.Campaign;
+import com.kanokna.pricing_service.domain.model.Money;
+import com.kanokna.pricing_service.domain.model.PricingDecision;
+import com.kanokna.pricing_service.domain.model.PromoCode;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -13,6 +17,7 @@ import java.util.List;
  */
 public class DiscountService {
     private static final BigDecimal MAX_DISCOUNT_PERCENT = new BigDecimal("30");
+    private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
 
     public Money calculateTotalDiscount(Money subtotal, List<Campaign> campaigns,
                                        PromoCode promoCode, List<PricingDecision> decisionTrace) {
@@ -21,7 +26,7 @@ public class DiscountService {
 
         Money totalDiscount = campaignDiscount.add(promoDiscount);
 
-        Money maxAllowedDiscount = subtotal.multiply(MAX_DISCOUNT_PERCENT.divide(new BigDecimal("100")));
+        Money maxAllowedDiscount = subtotal.multiply(MAX_DISCOUNT_PERCENT.divide(ONE_HUNDRED, 4, RoundingMode.HALF_UP));
         if (totalDiscount.isGreaterThan(maxAllowedDiscount)) {
             return maxAllowedDiscount;
         }

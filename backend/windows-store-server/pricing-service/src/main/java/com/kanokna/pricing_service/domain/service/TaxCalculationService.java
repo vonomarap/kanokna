@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.service;
+package com.kanokna.pricing_service.domain.service;
 
 import com.kanokna.pricing_service.domain.model.Money;
 import com.kanokna.pricing_service.domain.model.PricingDecision;

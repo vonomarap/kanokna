@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.service;
+package com.kanokna.pricing_service.domain.service;
 
 import com.kanokna.pricing_service.domain.model.Money;
 import com.kanokna.pricing_service.domain.model.PricingDecision;
@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * Domain service for currency-specific rounding.
- * Per DEC-PRICING-ROUNDING (HALF_UP, 2 decimals for RUB).
+ * Per DEC-PRICING-ROUNDING (HALF_UP, 2 decimals for RUB)
  */
 public class RoundingService {
     private static final int RUB_SCALE = 2;

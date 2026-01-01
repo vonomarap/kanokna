@@ -46,4 +46,3 @@ public class PersistenceConfig {
         return new PriceCalculationService(discountService, taxCalculationService, roundingService);
     }
 }
-
