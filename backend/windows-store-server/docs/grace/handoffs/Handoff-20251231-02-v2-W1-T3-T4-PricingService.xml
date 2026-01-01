@@ -5,12 +5,15 @@
   Scope: W1-T3 + W1-T4 (Skeleton + Domain Logic)
   Status: PROPOSED (requires approval)
   Author: GRACE-ARCHITECT
-  Supersedes: Handoff-20251231-02 (package naming alignment)
+  Supersedes: Handoff-20251231-02 (package naming alignment + issue fixes)
   Changes from v1:
     - All file paths updated from com/kanokna/pricing/* to com/kanokna/pricing_service/*
     - All EmbedInFile paths updated to com/kanokna/pricing_service/*
     - Logging config updated to com.kanokna.pricing_service
     - Aligns with DevelopmentPlan.xml#DP-SVC-pricing-service PackageLayout specification
+  Changes from v1.1 (ISS-PRC-001/002 fixes):
+    - BR-PRC-001: Clarified minimum_area_m2 is configurable (default 0.25m²), not hardcoded 1m²
+    - Module contract: Updated standalone contract file to match handoff embedded contract
 -->
 <GRACE_HANDOFF
   id="Handoff-20251231-02-v2"
@@ -542,7 +545,7 @@
   </PUBLIC_API>
 
   <BUSINESS_RULES>
-    <Rule id="BR-PRC-001">Base price = area_m2 * price_per_m2 (minimum 1m² charge)</Rule>
+    <Rule id="BR-PRC-001">Base price = max(area_m2, minimum_area_m2) * price_per_m2 (minimum_area_m2 default: 0.25m²)</Rule>
     <Rule id="BR-PRC-002">ABSOLUTE premiums add fixed amount</Rule>
     <Rule id="BR-PRC-003">PERCENTAGE premiums add (base_price * percentage / 100)</Rule>
     <Rule id="BR-PRC-004">Campaign discounts apply to subtotal before promo codes</Rule>
