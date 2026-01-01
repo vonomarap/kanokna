@@ -1,4 +1,4 @@
-server:
+﻿server:
   port: 8082
 
 spring:
@@ -58,4 +58,5 @@ management:
 
 logging:
   level:
-    com.kanokna.pricing: DEBUG
+    com.kanokna.pricing_service: DEBUG
+
