@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.exception;
+package com.kanokna.pricing_service.domain.exception;
 
 /**
  * Exception thrown when no tax rule is found for a region.

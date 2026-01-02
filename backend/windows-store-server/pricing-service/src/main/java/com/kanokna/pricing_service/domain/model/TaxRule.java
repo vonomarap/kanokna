@@ -1,6 +1,7 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -55,7 +56,7 @@ public class TaxRule {
             return Money.zero(subtotal.getCurrency());
         }
 
-        return subtotal.multiply(taxRatePercent.divide(new BigDecimal("100")));
+        return subtotal.multiply(taxRatePercent.divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP));
     }
 
     public void deactivate() {

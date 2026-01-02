@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.exception;
+package com.kanokna.pricing_service.domain.exception;
 
 /**
  * Exception thrown when combined discounts exceed the 30% cap.

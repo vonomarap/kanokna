@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -47,4 +47,3 @@ public final class CampaignId {
         return value.toString();
     }
 }
-

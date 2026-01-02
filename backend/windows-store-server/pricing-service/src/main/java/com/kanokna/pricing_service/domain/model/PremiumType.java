@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 /**
  * Type of option premium per DEC-PRICING-PREMIUM-TYPES.
@@ -10,4 +10,3 @@ public enum PremiumType {
     /** Percentage of base price */
     PERCENTAGE
 }
-

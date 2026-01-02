@@ -1,6 +1,7 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Objects;
 
 /**
@@ -37,7 +38,7 @@ public class OptionPremium {
         if (premiumType == PremiumType.ABSOLUTE) {
             return Money.of(amount, basePrice.getCurrency());
         } else { // PERCENTAGE
-            return basePrice.multiply(amount.divide(new BigDecimal("100")));
+            return basePrice.multiply(amount.divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP));
         }
     }
 
@@ -70,4 +71,3 @@ public class OptionPremium {
         return Objects.hash(optionId);
     }
 }
-

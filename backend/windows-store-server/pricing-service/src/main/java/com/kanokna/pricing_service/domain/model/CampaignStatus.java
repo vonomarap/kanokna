@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 /**
  * Status of a promotional campaign.
@@ -16,4 +16,3 @@ public enum CampaignStatus {
     /** Campaign was manually cancelled */
     CANCELLED
 }
-

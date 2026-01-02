@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.event;
+package com.kanokna.pricing_service.domain.event;
 
 import com.kanokna.pricing_service.domain.model.PriceBookId;
 

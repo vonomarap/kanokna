@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.application.dto;
+package com.kanokna.pricing_service.application.dto;
 
 import com.kanokna.pricing_service.domain.model.PremiumLine;
 import com.kanokna.pricing_service.domain.model.PricingDecision;

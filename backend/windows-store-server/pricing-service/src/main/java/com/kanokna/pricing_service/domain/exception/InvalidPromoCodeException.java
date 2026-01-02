@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.exception;
+package com.kanokna.pricing_service.domain.exception;
 
 /**
  * Exception thrown when a promo code is invalid, expired, or exhausted.

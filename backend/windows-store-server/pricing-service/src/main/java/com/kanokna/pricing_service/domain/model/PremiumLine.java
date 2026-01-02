@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 import java.util.Objects;
 
@@ -53,4 +53,3 @@ public final class PremiumLine {
         return optionName + ": " + amount;
     }
 }
-

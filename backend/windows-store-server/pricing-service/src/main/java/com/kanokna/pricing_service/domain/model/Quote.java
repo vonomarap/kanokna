@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -173,4 +173,3 @@ public final class Quote {
         }
     }
 }
-

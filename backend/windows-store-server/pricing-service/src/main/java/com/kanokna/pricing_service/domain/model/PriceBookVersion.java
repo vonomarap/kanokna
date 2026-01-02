@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -73,4 +73,3 @@ public class PriceBookVersion {
         return Objects.hash(id);
     }
 }
-
