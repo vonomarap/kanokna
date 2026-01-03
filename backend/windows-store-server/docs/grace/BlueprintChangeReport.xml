@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Canonical Artifact: BlueprintChangeReport
+  Purpose: Document open decisions, blueprint issues, and change tracking for requirements update
+  Version: 1.0.0
+  Date: 2026-01-02
+  Related Change Request: new-business-requirements.txt
+-->
+<BlueprintChangeReport version="1.0.0">
+  <Metadata>
+    <CreatedDate>2026-01-02</CreatedDate>
+    <Author>GRACE-ARCHITECT</Author>
+    <SourceDocument>new-business-requirements.txt</SourceDocument>
+    <AffectedArtifacts>
+      <Artifact id="RA" version="1.0.0 → 1.1.0">RequirementsAnalysis.xml</Artifact>
+      <Artifact id="DP" version="1.3.0 → 1.4.0">DevelopmentPlan.xml</Artifact>
+    </AffectedArtifacts>
+  </Metadata>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 1: CHANGE SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ChangeSummary>
+    <Overview>
+      Business requirements update introducing B2C/B2B customer journeys, field operations,
+      status model with audit trail, and phased development plan with acceptance gates.
+    </Overview>
+
+    <RequirementsAnalysisChanges>
+      <Change type="ADD" category="Actors">
+        10 new actors: B2C Customer, B2B Dealer, Sales Manager, Measurement Technician,
+        Installer, Logistics Coordinator, Warehouse Staff, CRM/ERP System, CAD System, Logistics System
+      </Change>
+      <Change type="ADD" category="UseCases">
+        15 new use cases across MUST/SHOULD/LATER priorities covering CPQ, measurement,
+        ordering, tracking, B2B workflows, field operations, and support
+      </Change>
+      <Change type="ADD" category="StatusModel">
+        Comprehensive status model with Lead/Deal, Order, and Service domains;
+        immutable audit trail requirement for all status transitions
+      </Change>
+      <Change type="ADD" category="DomainGlossary">
+        17 domain entities defined with bounded context ownership
+      </Change>
+      <Change type="ADD" category="Integrations">
+        5 integration requirements: CRM, CAD/CPQ, ERP, Logistics, Payments
+      </Change>
+      <Change type="ADD" category="NFRs">
+        Extended NFRs for audit trail, status tracking, B2B scalability
+      </Change>
+    </RequirementsAnalysisChanges>
+
+    <DevelopmentPlanChanges>
+      <Change type="ADD" category="Phases">
+        5 development phases (0-4) with deliverables and acceptance gates
+      </Change>
+      <Change type="ADD" category="Services">
+        5 new services: workflow-service, field-ops-service, document-service,
+        billing-service, support-service
+      </Change>
+      <Change type="ADD" category="Flows">
+        6 new flows: B2C-CPQ, Measurement-Visit, Checkout-Payment, Order-Fulfillment,
+        B2B-Project-Order, Service-Request
+      </Change>
+      <Change type="ADD" category="StateMachine">
+        Extended order state machine with PAID lock and fulfillment states
+      </Change>
+      <Change type="ADD" category="Integrations">
+        5 integration contracts with external systems
+      </Change>
+      <Change type="ADD" category="BlockAnchors">
+        New block anchors for order locking, audit trail, measurement, installation
+      </Change>
+    </DevelopmentPlanChanges>
+  </ChangeSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 2: OPEN DECISIONS (Requiring Resolution)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <OpenDecisions>
+
+    <!-- BLOCKING DECISION - Must resolve before Phase 2 -->
+    <Decision id="DEC-OPEN-STATUS-SOT" priority="BLOCKING" phase="PHASE-2">
+      <Title>Status Source of Truth</Title>
+      <Description>
+        Determine which system is the source of truth for production and logistics statuses.
+        Options: (A) ERP/Logistics systems push status updates to our platform,
+        (B) Our platform is the master and syncs to ERP/Logistics,
+        (C) Hybrid with defined field ownership per status domain.
+      </Description>
+      <Impact>
+        Affects Order-Fulfillment flow, INT-ERP and INT-LOGISTICS contracts,
+        audit trail implementation, and conflict resolution strategy.
+      </Impact>
+      <Options>
+        <Option id="A" label="External Systems Master">
+          ERP/Logistics are authoritative; platform receives webhooks/events.
+          Simpler but requires robust event handling and idempotency.
+        </Option>
+        <Option id="B" label="Platform Master">
+          Platform is authoritative; syncs to external systems.
+          More control but higher integration complexity.
+        </Option>
+        <Option id="C" label="Hybrid Ownership">
+          Define field-level ownership: platform owns customer-facing status,
+          ERP owns manufacturing status, logistics owns delivery status.
+          Most flexible but requires clear boundaries and reconciliation.
+        </Option>
+      </Options>
+      <Recommendation>Option C with clear domain boundaries</Recommendation>
+      <Stakeholders>
+        <Stakeholder role="Product Owner">Decision authority</Stakeholder>
+        <Stakeholder role="Integration Lead">Technical assessment</Stakeholder>
+        <Stakeholder role="ERP Team">ERP capabilities</Stakeholder>
+      </Stakeholders>
+      <DueDate>Before PHASE-2 kickoff</DueDate>
+      <EscalationPath>Architecture Review Board if unresolved by due date</EscalationPath>
+    </Decision>
+
+    <!-- HIGH PRIORITY DECISIONS -->
+    <Decision id="DEC-OPEN-CAD-FORMAT" priority="HIGH" phase="PHASE-1">
+      <Title>CAD Integration API Format and SLA</Title>
+      <Description>
+        Define the API format, data exchange format, and SLA for CAD system integration
+        used in configuration validation and drawing generation.
+      </Description>
+      <Impact>
+        Affects UC-B2C-CPQ-01, UC-B2B-CPQ-01, and INT-CAD contract implementation.
+      </Impact>
+      <Options>
+        <Option id="A" label="REST + JSON">Standard REST API with JSON payloads</Option>
+        <Option id="B" label="gRPC + Protobuf">High-performance binary protocol</Option>
+        <Option id="C" label="File-based + Events">Upload files, receive async events</Option>
+      </Options>
+      <Recommendation>Option A for MVP, migrate to B if latency becomes issue</Recommendation>
+      <Stakeholders>
+        <Stakeholder role="CAD Team">Integration capabilities</Stakeholder>
+        <Stakeholder role="Backend Lead">Implementation</Stakeholder>
+      </Stakeholders>
+      <DueDate>Before PHASE-1 CAD integration task</DueDate>
+    </Decision>
+
+    <Decision id="DEC-OPEN-ESIGN" priority="HIGH" phase="PHASE-3">
+      <Title>E-Signing Legal Level</Title>
+      <Description>
+        Determine the legal level of electronic signatures required for contract acceptance
+        in UC-B2C-ORDER-01 and UC-B2B-CPQ-01.
+      </Description>
+      <Impact>
+        Affects contract acceptance flow, document-service implementation,
+        and choice of e-signature provider integration.
+      </Impact>
+      <Options>
+        <Option id="A" label="Simple E-Signature">
+          Click-to-accept with audit trail. Sufficient for most B2C.
+        </Option>
+        <Option id="B" label="Advanced E-Signature (AES)">
+          Uniquely linked to signatory, capable of identifying signatory.
+          Required for higher-value contracts.
+        </Option>
+        <Option id="C" label="Qualified E-Signature (QES)">
+          Highest legal standing, equivalent to handwritten.
+          Required for specific regulated transactions.
+        </Option>
+      </Options>
+      <Recommendation>Option A for B2C, Option B for B2B high-value orders</Recommendation>
+      <Stakeholders>
+        <Stakeholder role="Legal">Compliance requirements</Stakeholder>
+        <Stakeholder role="Product Owner">Business requirements</Stakeholder>
+      </Stakeholders>
+      <DueDate>Before PHASE-3 contract implementation</DueDate>
+    </Decision>
+
+    <!-- MEDIUM PRIORITY DECISIONS -->
+    <Decision id="DEC-OPEN-CPQ-RULES" priority="MEDIUM" phase="PHASE-1">
+      <Title>CPQ Rules and Options Governance</Title>
+      <Description>
+        Define governance model for CPQ configuration rules, pricing rules,
+        and product option management.
+      </Description>
+      <Impact>
+        Affects pricing-service, catalog-service, and admin interfaces.
+      </Impact>
+      <Options>
+        <Option id="A" label="Code-Driven">
+          Rules defined in code, versioned with releases.
+          Stable but requires deployment for changes.
+        </Option>
+        <Option id="B" label="Database-Driven">
+          Rules stored in database, managed via admin UI.
+          Flexible but requires validation and versioning.
+        </Option>
+        <Option id="C" label="External Rules Engine">
+          Use Drools or similar for rule management.
+          Most flexible but adds complexity.
+        </Option>
+      </Options>
+      <Recommendation>Option B with versioning and approval workflow</Recommendation>
+      <Stakeholders>
+        <Stakeholder role="Product Manager">Rule management needs</Stakeholder>
+        <Stakeholder role="Backend Lead">Implementation complexity</Stakeholder>
+      </Stakeholders>
+      <DueDate>Before PHASE-1 pricing rules implementation</DueDate>
+    </Decision>
+
+    <Decision id="DEC-OPEN-NOTIF-CHANNELS" priority="MEDIUM" phase="PHASE-2">
+      <Title>Notification Channels, Templates, and Events</Title>
+      <Description>
+        Define supported notification channels (email, SMS, push, in-app),
+        template management approach, and triggering event catalog.
+      </Description>
+      <Impact>
+        Affects UC-B2C-TRACK-01, notification-service design, and user preferences.
+      </Impact>
+      <Options>
+        <Option id="A" label="Email Only MVP">
+          Start with email only, add channels later.
+          Simplest but limited reach.
+        </Option>
+        <Option id="B" label="Multi-Channel MVP">
+          Email + SMS from start with channel preferences.
+          More complex but better UX.
+        </Option>
+        <Option id="C" label="Full Omnichannel">
+          All channels including push and in-app from start.
+          Best UX but highest implementation cost.
+        </Option>
+      </Options>
+      <Recommendation>Option B for MVP (email + SMS for critical events)</Recommendation>
+      <Stakeholders>
+        <Stakeholder role="Product Owner">Channel priorities</Stakeholder>
+        <Stakeholder role="Marketing">Template ownership</Stakeholder>
+        <Stakeholder role="Backend Lead">Implementation</Stakeholder>
+      </Stakeholders>
+      <DueDate>Before PHASE-2 notification implementation</DueDate>
+    </Decision>
+
+  </OpenDecisions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 3: BLUEPRINT ISSUES (Requiring Clarification)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <BlueprintIssues>
+
+    <Issue id="BP-ISSUE-001" severity="HIGH" status="OPEN">
+      <Title>Field Operations Offline Capability</Title>
+      <Description>
+        UC-FIELD-MEASURE-01 and UC-FIELD-INSTALL-01 may require offline capability
+        for field technicians in areas with poor connectivity. This affects
+        field-ops-service architecture significantly.
+      </Description>
+      <Question>
+        Is offline-first capability required for field operations?
+        If yes, what is the sync conflict resolution strategy?
+      </Question>
+      <AffectedArtifacts>
+        <Artifact>DevelopmentPlan.xml - field-ops-service</Artifact>
+        <Artifact>RequirementsAnalysis.xml - UC-FIELD-*</Artifact>
+      </AffectedArtifacts>
+      <ProposedResolution>
+        Add NFR for offline capability with optimistic locking and
+        conflict resolution via timestamp + manual review for conflicts.
+      </ProposedResolution>
+    </Issue>
+
+    <Issue id="BP-ISSUE-002" severity="MEDIUM" status="OPEN">
+      <Title>B2B Dealer Pricing Visibility</Title>
+      <Description>
+        UC-B2B-CPQ-01 mentions "dealer rules" but does not specify whether
+        dealers see their margin or only final customer price.
+      </Description>
+      <Question>
+        Should B2B dealers see cost price + margin breakdown, or only
+        the final price they charge customers?
+      </Question>
+      <AffectedArtifacts>
+        <Artifact>RequirementsAnalysis.xml - UC-B2B-CPQ-01</Artifact>
+        <Artifact>DevelopmentPlan.xml - pricing-service</Artifact>
+      </AffectedArtifacts>
+      <ProposedResolution>
+        Define dealer pricing model in domain glossary and
+        add acceptance criteria to UC-B2B-CPQ-01.
+      </ProposedResolution>
+    </Issue>
+
+    <Issue id="BP-ISSUE-003" severity="MEDIUM" status="OPEN">
+      <Title>Measurement Update Impact on Quote</Title>
+      <Description>
+        UC-B2C-ORDER-01 mentions "confirm configuration (after measurement update)"
+        but doesn't specify what happens if actual measurements differ significantly
+        from customer-provided estimates.
+      </Description>
+      <Question>
+        If actual measurements change the price significantly (e.g., >10%),
+        what is the flow? Re-quote? Automatic acceptance? Customer approval?
+      </Question>
+      <AffectedArtifacts>
+        <Artifact>RequirementsAnalysis.xml - UC-B2C-ORDER-01</Artifact>
+        <Artifact>DevelopmentPlan.xml - Flow-Measurement-Visit</Artifact>
+      </AffectedArtifacts>
+      <ProposedResolution>
+        Add measurement variance handling to UC-B2C-ORDER-01 with
+        threshold-based re-approval flow.
+      </ProposedResolution>
+    </Issue>
+
+    <Issue id="BP-ISSUE-004" severity="LOW" status="OPEN">
+      <Title>Proof of Delivery Document Type</Title>
+      <Description>
+        UC-DELIVERY-TRACK-01 mentions "proof of delivery" but doesn't specify
+        the acceptable formats (photo, signature, both).
+      </Description>
+      <Question>
+        What constitutes valid proof of delivery? Photo only? Signature only?
+        Both required? Customer confirmation via app?
+      </Question>
+      <AffectedArtifacts>
+        <Artifact>RequirementsAnalysis.xml - UC-DELIVERY-TRACK-01</Artifact>
+        <Artifact>DevelopmentPlan.xml - INT-LOGISTICS</Artifact>
+      </AffectedArtifacts>
+      <ProposedResolution>
+        Define proof of delivery as photo + digital signature capture,
+        with optional customer confirmation notification.
+      </ProposedResolution>
+    </Issue>
+
+  </BlueprintIssues>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 4: ASSUMPTIONS AND CONSTRAINTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AssumptionsAndConstraints>
+
+    <Assumption id="ASSUM-001" status="ACTIVE">
+      <Description>
+        Existing architecture (Technology.xml) remains unchanged.
+        New services follow established patterns (DDD, Hexagonal, gRPC, Kafka).
+      </Description>
+      <Validation>Confirmed in change request: "Do NOT introduce new architecture/tech"</Validation>
+    </Assumption>
+
+    <Assumption id="ASSUM-002" status="ACTIVE">
+      <Description>
+        Payment processing uses external gateway with PCI compliance on provider side.
+        Platform handles tokenized payment references only.
+      </Description>
+      <Validation>Stated in requirements: "PCI on provider side; secure token/webhook handling"</Validation>
+    </Assumption>
+
+    <Assumption id="ASSUM-003" status="ACTIVE">
+      <Description>
+        Status model naming is consistent between customer portal and CRM interfaces.
+        Single source of status definitions managed in platform.
+      </Description>
+      <Validation>Required by: "naming matches customer portal + CRM"</Validation>
+    </Assumption>
+
+    <Assumption id="ASSUM-004" status="PENDING_VALIDATION">
+      <Description>
+        ERP and Logistics systems support webhook-based event notifications
+        for status updates (production complete, shipped, delivered).
+      </Description>
+      <Validation>Requires confirmation from ERP/Logistics teams</Validation>
+    </Assumption>
+
+    <Constraint id="CONST-001">
+      <Description>
+        All status changes must be audited with: timestamp, actor/system,
+        source (manual/integration), correlation/order ID.
+      </Description>
+      <Source>Explicit requirement in change request</Source>
+    </Constraint>
+
+    <Constraint id="CONST-002">
+      <Description>
+        Orders in PAID status cannot be modified (immutable lock).
+        Changes require new order or formal amendment process.
+      </Description>
+      <Source>Implied by "post-payment order locked" in UC-B2C-ORDER-01</Source>
+    </Constraint>
+
+  </AssumptionsAndConstraints>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 5: NEXT STEPS AND ACTION ITEMS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <NextSteps>
+
+    <ActionItem id="ACTION-001" priority="CRITICAL" owner="Architecture Lead">
+      <Description>
+        Schedule decision meeting for DEC-OPEN-STATUS-SOT (Status Source of Truth).
+        This is BLOCKING for Phase 2 development.
+      </Description>
+      <DueDate>Before PHASE-1 completion</DueDate>
+    </ActionItem>
+
+    <ActionItem id="ACTION-002" priority="HIGH" owner="Integration Lead">
+      <Description>
+        Confirm CAD system integration capabilities and preferred API format
+        to resolve DEC-OPEN-CAD-FORMAT.
+      </Description>
+      <DueDate>PHASE-1 Week 2</DueDate>
+    </ActionItem>
+
+    <ActionItem id="ACTION-003" priority="HIGH" owner="Product Owner">
+      <Description>
+        Review and approve open decisions DEC-OPEN-CPQ-RULES and DEC-OPEN-NOTIF-CHANNELS.
+      </Description>
+      <DueDate>PHASE-1 completion</DueDate>
+    </ActionItem>
+
+    <ActionItem id="ACTION-004" priority="MEDIUM" owner="Legal">
+      <Description>
+        Provide guidance on e-signature requirements to resolve DEC-OPEN-ESIGN.
+      </Description>
+      <DueDate>Before PHASE-3 kickoff</DueDate>
+    </ActionItem>
+
+    <ActionItem id="ACTION-005" priority="MEDIUM" owner="Product Owner">
+      <Description>
+        Review and respond to Blueprint Issues BP-ISSUE-001 through BP-ISSUE-004.
+      </Description>
+      <DueDate>Before affected phase kickoff</DueDate>
+    </ActionItem>
+
+    <ActionItem id="ACTION-006" priority="MEDIUM" owner="Backend Lead">
+      <Description>
+        Validate ASSUM-004 (ERP/Logistics webhook support) with respective teams.
+      </Description>
+      <DueDate>PHASE-2 kickoff</DueDate>
+    </ActionItem>
+
+  </NextSteps>
+
+</BlueprintChangeReport>

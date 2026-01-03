@@ -23,7 +23,7 @@
         Preview features enabled selectively in dev profile only.
       </Notes>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-shared-kernel"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-shared-kernel" />
       </Links>
     </Language>
   </Languages>
@@ -37,12 +37,11 @@
       <Version status="TBD">4.0.0</Version>
       <Usage>Foundation for all microservices</Usage>
       <Notes>
-        Spring Boot 4.0.0 is declared in parent POM. As of knowledge cutoff,
-        Spring Boot 4.x is not yet released; version placeholder retained from project POM.
+        Spring Boot 4.0.0 is declared in parent POM. version placeholder retained from project POM.
         Implementation should verify API compatibility when actual release is available.
       </Notes>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY" />
       </Links>
     </Framework>
 
@@ -56,8 +55,8 @@
         <Component name="spring-cloud-circuitbreaker">Circuit breaker abstraction</Component>
       </Components>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-config-server"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-gateway"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-config-server" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-gateway" />
       </Links>
     </Framework>
 
@@ -78,8 +77,8 @@
         <Item>Health checks via gRPC Health Checking Protocol</Item>
       </Configuration>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-api-contracts"/>
-        <Link ref="Technology.xml#TECH-protobuf"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-api-contracts" />
+        <Link ref="Technology.xml#TECH-protobuf" />
       </Links>
     </Framework>
 
@@ -93,8 +92,8 @@
         <Item>Method-level security with @PreAuthorize for role-based access</Item>
       </Configuration>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION"/>
-        <Link ref="RequirementsAnalysis.xml#NFR-SEC-RBAC"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION" />
+        <Link ref="RequirementsAnalysis.xml#NFR-SEC-RBAC" />
       </Links>
     </Framework>
 
@@ -108,7 +107,7 @@
         <Item>Auditing enabled for created/modified timestamps</Item>
       </Configuration>
       <Links>
-        <Link ref="Technology.xml#TECH-hibernate-jpa"/>
+        <Link ref="Technology.xml#TECH-hibernate-jpa" />
       </Links>
     </Framework>
 
@@ -129,7 +128,7 @@
         <Item>Avoid N+1: use @EntityGraph, JOIN FETCH, or batch fetching</Item>
       </Guidelines>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY" />
       </Links>
     </Framework>
 
@@ -143,7 +142,7 @@
         <Item>Domain invariants enforced in domain layer (not via annotations)</Item>
       </Configuration>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#NFR-SEC-INPUT-VALIDATION"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-SEC-INPUT-VALIDATION" />
       </Links>
     </Framework>
 
@@ -173,7 +172,7 @@
         <Item>Schema migrations via Flyway</Item>
       </Configuration>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#NFR-SCALE-DB-PER-SERVICE"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-SCALE-DB-PER-SERVICE" />
       </Links>
     </Database>
 
@@ -200,8 +199,8 @@
         <Item>Index aliases for zero-downtime reindexing</Item>
       </Configuration>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service"/>
-        <Link ref="RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
+        <Link ref="RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY" />
       </Links>
     </SearchEngine>
 
@@ -225,7 +224,7 @@
         <Topic name="installation.scheduled">Installation appointment events</Topic>
       </Topics>
       <Links>
-        <Link ref="DevelopmentPlan.xml#Flow-Event-Driven"/>
+        <Link ref="DevelopmentPlan.xml#Flow-Event-Driven" />
       </Links>
     </MessageBroker>
 
@@ -241,7 +240,7 @@
         <Item>Jackson serializer for cache values</Item>
       </Configuration>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
       </Links>
     </Cache>
 
@@ -257,8 +256,8 @@
         <Item>CDN (CloudFront) in front for production</Item>
       </Configuration>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-media-service"/>
-        <Link ref="RequirementsAnalysis.xml#UC-MEDIA-SERVE"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-media-service" />
+        <Link ref="RequirementsAnalysis.xml#UC-MEDIA-SERVE" />
       </Links>
     </ObjectStorage>
   </Infrastructure>
@@ -279,7 +278,8 @@
             <Configuration>
               <Item>Realm: kanokna</Item>
               <Item>Clients: web-frontend, mobile-app, admin-console</Item>
-              <Item>Roles: CUSTOMER, INSTALLER, ADMIN, PRICING_ADMIN, CATALOG_ADMIN, REPORTING_VIEWER</Item>
+              <Item>Roles: CUSTOMER, INSTALLER, ADMIN, PRICING_ADMIN, CATALOG_ADMIN,
+                REPORTING_VIEWER</Item>
               <Item>JWT tokens with RS256 signing</Item>
               <Item>Deployed via Docker Compose (dev) or Helm (stage)</Item>
             </Configuration>
@@ -304,8 +304,8 @@
           <Item>Standard claims: sub, email, roles, permissions</Item>
         </CommonConfiguration>
         <Links>
-          <Link ref="RequirementsAnalysis.xml#ACT-IDENTITY-PROVIDER"/>
-          <Link ref="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION"/>
+          <Link ref="RequirementsAnalysis.xml#ACT-IDENTITY-PROVIDER" />
+          <Link ref="RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION" />
         </Links>
       </IdentityProvider>
 
@@ -317,7 +317,8 @@
           <Item>Support for bank cards (Visa, Mastercard, Mir)</Item>
           <Item>Support for YooMoney wallet payments</Item>
           <Item>Support for SberPay, Tinkoff Pay, and other Russian payment methods</Item>
-          <Item>Webhooks for async payment status updates (payment.succeeded, payment.canceled, refund.succeeded)</Item>
+          <Item>Webhooks for async payment status updates (payment.succeeded, payment.canceled,
+            refund.succeeded)</Item>
           <Item>Two-stage payments: authorize then capture (for orders with production lead time)</Item>
           <Item>Receipts generation for Russian Federal Tax Service (54-FZ compliance)</Item>
           <Item>PCI-DSS compliance via tokenization (no card data stored)</Item>
@@ -328,8 +329,8 @@
           <Item>Separate credentials per environment (test/prod)</Item>
         </Credentials>
         <Links>
-          <Link ref="RequirementsAnalysis.xml#ACT-PAYMENT-GATEWAY"/>
-          <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+          <Link ref="RequirementsAnalysis.xml#ACT-PAYMENT-GATEWAY" />
+          <Link ref="DevelopmentPlan.xml#DP-SVC-order-service" />
         </Links>
       </PaymentIntegration>
 
@@ -350,7 +351,7 @@
           <Item>Log aggregation: ELK stack or Grafana Loki</Item>
         </Configuration>
         <Links>
-          <Link ref="RequirementsAnalysis.xml#NFR-OBS-LOGGING"/>
+          <Link ref="RequirementsAnalysis.xml#NFR-OBS-LOGGING" />
         </Links>
       </Logging>
 
@@ -371,7 +372,7 @@
           <Item>Grafana dashboards for service health, latency, throughput</Item>
         </Configuration>
         <Links>
-          <Link ref="RequirementsAnalysis.xml#NFR-OBS-METRICS"/>
+          <Link ref="RequirementsAnalysis.xml#NFR-OBS-METRICS" />
         </Links>
       </Metrics>
 
@@ -384,7 +385,7 @@
           <Item>Export to Jaeger or Tempo</Item>
         </Configuration>
         <Links>
-          <Link ref="RequirementsAnalysis.xml#NFR-OBS-TRACING"/>
+          <Link ref="RequirementsAnalysis.xml#NFR-OBS-TRACING" />
         </Links>
       </Tracing>
     </Observability>
@@ -401,7 +402,7 @@
         <Item>Bulkhead isolation for critical paths</Item>
       </Configuration>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#NFR-AVAIL-GRACEFUL-DEGRADATION"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-AVAIL-GRACEFUL-DEGRADATION" />
       </Links>
     </Resilience>
 
@@ -461,8 +462,8 @@
         <Package pattern="com.kanokna.{service}.event">Domain event schemas</Package>
       </ProtoStructure>
       <Links>
-        <Link ref="DevelopmentPlan.xml#ContractEvolutionPolicy"/>
-        <Link ref="Technology.xml#TECH-grpc"/>
+        <Link ref="DevelopmentPlan.xml#ContractEvolutionPolicy" />
+        <Link ref="Technology.xml#TECH-grpc" />
       </Links>
     </Format>
   </Serialization>
@@ -542,8 +543,8 @@
         <Item>Environment protection rules for prod</Item>
       </Configuration>
       <Links>
-        <Link ref="Technology.xml#TECH-jib"/>
-        <Link ref="Technology.xml#TECH-kubernetes"/>
+        <Link ref="Technology.xml#TECH-jib" />
+        <Link ref="Technology.xml#TECH-kubernetes" />
       </Links>
     </CI>
   </BuildAndDeployment>
@@ -567,7 +568,7 @@
       <Version>1.19.x</Version>
       <Usage>Integration tests with real dependencies (PostgreSQL, Kafka, Redis, Elasticsearch)</Usage>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-TESTABILITY"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-TESTABILITY" />
       </Links>
     </Framework>
 
@@ -582,7 +583,7 @@
         <Rule>No JPA annotations in domain layer</Rule>
       </Rules>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY" />
       </Links>
     </Framework>
 
@@ -612,7 +613,7 @@
         and advanced data types. Strong community and cloud provider support.
       </Rationale>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#NFR-SCALE-DB-PER-SERVICE"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-SCALE-DB-PER-SERVICE" />
       </Links>
     </Decision>
 
@@ -629,7 +630,7 @@
         Mature ecosystem, excellent Spring Data integration.
       </Rationale>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS"/>
+        <Link ref="RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS" />
       </Links>
     </Decision>
 
@@ -645,7 +646,7 @@
         Schema Registry integration ensures compatibility.
       </Rationale>
       <Links>
-        <Link ref="DevelopmentPlan.xml#ContractEvolutionPolicy"/>
+        <Link ref="DevelopmentPlan.xml#ContractEvolutionPolicy" />
       </Links>
     </Decision>
 
@@ -663,9 +664,9 @@
         automatic security updates, and enterprise-grade SLAs.
       </Rationale>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#ACT-IDENTITY-PROVIDER"/>
-        <Link ref="Technology.xml#TECH-keycloak"/>
-        <Link ref="Technology.xml#TECH-auth0"/>
+        <Link ref="RequirementsAnalysis.xml#ACT-IDENTITY-PROVIDER" />
+        <Link ref="Technology.xml#TECH-keycloak" />
+        <Link ref="Technology.xml#TECH-auth0" />
       </Links>
     </Decision>
 
@@ -684,8 +685,8 @@
         Stripe is not optimal for Russia-focused MVP.
       </Rationale>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#ACT-PAYMENT-GATEWAY"/>
-        <Link ref="Technology.xml#TECH-yookassa"/>
+        <Link ref="RequirementsAnalysis.xml#ACT-PAYMENT-GATEWAY" />
+        <Link ref="Technology.xml#TECH-yookassa" />
       </Links>
     </Decision>
 
@@ -703,8 +704,8 @@
         GRACE methodology. REST retained for external/public APIs.
       </Rationale>
       <Links>
-        <Link ref="Technology.xml#TECH-grpc"/>
-        <Link ref="Technology.xml#TECH-protobuf"/>
+        <Link ref="Technology.xml#TECH-grpc" />
+        <Link ref="Technology.xml#TECH-protobuf" />
       </Links>
     </Decision>
 
@@ -722,7 +723,7 @@
         Large marketplace of actions for common tasks.
       </Rationale>
       <Links>
-        <Link ref="Technology.xml#TECH-github-actions"/>
+        <Link ref="Technology.xml#TECH-github-actions" />
       </Links>
     </Decision>
 
@@ -757,13 +758,14 @@
         for specific high-volume rule scenarios if needed.
       </Rationale>
       <ApplicableServices>
-        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service">Configuration validation rules</ServiceRef>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service">Configuration
+          validation rules</ServiceRef>
         <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-pricing-service">Campaign and discount rules</ServiceRef>
       </ApplicableServices>
-      <PromotedFrom handoff="Handoff-20251230-07" originalId="DEC-CATALOG-RULE-ENGINE"/>
+      <PromotedFrom handoff="Handoff-20251230-07" originalId="DEC-CATALOG-RULE-ENGINE" />
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
-        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM" />
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE" />
       </Links>
     </Decision>
 
@@ -784,19 +786,22 @@
         referential integrity for historical records.
       </Rationale>
       <ApplicableServices>
-        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service">CatalogVersion for product templates</ServiceRef>
-        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-pricing-service">PriceBookVersion for pricing history</ServiceRef>
-        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-order-service">Order snapshots (implicit, stored per order)</ServiceRef>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service">CatalogVersion
+          for product templates</ServiceRef>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-pricing-service">PriceBookVersion for pricing
+          history</ServiceRef>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-order-service">Order snapshots (implicit, stored
+          per order)</ServiceRef>
       </ApplicableServices>
       <Implementation>
         <Pattern>Version aggregate with JSONB snapshot column</Pattern>
         <SoftDelete>status column with DRAFT/ACTIVE/ARCHIVED states</SoftDelete>
         <Audit>version_number, published_at, published_by columns</Audit>
       </Implementation>
-      <PromotedFrom handoff="Handoff-20251230-07" originalId="DEC-CATALOG-VERSIONING"/>
+      <PromotedFrom handoff="Handoff-20251230-07" originalId="DEC-CATALOG-VERSIONING" />
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
-        <Link ref="RequirementsAnalysis.xml#UC-PRICING-ADMIN-MANAGE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE" />
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-ADMIN-MANAGE" />
       </Links>
     </Decision>
 
@@ -816,10 +821,10 @@
         for each product family. This approach reflects manufacturing cost proportional
         to material usage. Minimum area thresholds ensure profitability on small items.
       </Rationale>
-      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <PromotedFrom handoff="Handoff-20251231-02" />
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
       </Links>
     </Decision>
 
@@ -837,10 +842,10 @@
         Percentage premiums are calculated on base price, not running total,
         ensuring predictable pricing and avoiding compound effects.
       </Rationale>
-      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <PromotedFrom handoff="Handoff-20251231-02" />
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
       </Links>
     </Decision>
 
@@ -858,10 +863,10 @@
         but capped at 30% to protect margins. Best discount wins within each category.
         Order of application (campaign first) ensures consistent behavior.
       </Rationale>
-      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <PromotedFrom handoff="Handoff-20251231-02" />
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
       </Links>
     </Decision>
 
@@ -879,10 +884,10 @@
         complexity that can be deferred. Money value object supports currency for
         future expansion without schema changes.
       </Rationale>
-      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <PromotedFrom handoff="Handoff-20251231-02" />
       <Links>
-        <Link ref="RequirementsAnalysis.xml#ASSUM-003"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="RequirementsAnalysis.xml#ASSUM-003" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
       </Links>
     </Decision>
 
@@ -899,10 +904,10 @@
         and 54-FZ compliance. Tax rules stored per region allow future expansion to
         other markets. Tax is calculated on subtotal (after discounts, before rounding).
       </Rationale>
-      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <PromotedFrom handoff="Handoff-20251231-02" />
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
-        <Link ref="Technology.xml#TECH-yookassa"/>
+        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE" />
+        <Link ref="Technology.xml#TECH-yookassa" />
       </Links>
     </Decision>
 
@@ -920,9 +925,9 @@
         Different currencies may have different precision (e.g., JPY has 0 decimals)
         and the rounding service supports currency-specific configuration.
       </Rationale>
-      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <PromotedFrom handoff="Handoff-20251231-02" />
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
       </Links>
     </Decision>
 
@@ -940,10 +945,10 @@
         key for idempotency. Cache is invalidated on price book updates to ensure
         customers see current prices.
       </Rationale>
-      <PromotedFrom handoff="Handoff-20251231-02"/>
+      <PromotedFrom handoff="Handoff-20251231-02" />
       <Links>
-        <Link ref="Technology.xml#TECH-redis"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="Technology.xml#TECH-redis" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
       </Links>
     </Decision>
   </Decisions>

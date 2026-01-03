@@ -2,24 +2,184 @@
 <!--
   GRACE Canonical Artifact: DevelopmentPlan.xml
   Purpose: Blueprint for implementation - services, flows, contracts, testing, deployment
-  Version: 1.3.0
-  Last Updated: 2025-12-31T14:30:00+03:00
+  Version: 1.4.0
+  Last Updated: 2026-01-02T00:00:00+00:00
   Changes:
-    - v1.3.0: Expanded pricing-service contracts (FC-pricing-*) and block anchors (BA-PRC-*, BA-PROMO-*, BA-PB-*)
-              for W1-T3/T4 implementation
-    - v1.2.0: Added admin operation contracts (FC-*-ADMIN-MANAGE-*) and block anchors (BA-CAT-*)
-              for W1-T1/T2 feature completeness
-    - v1.1.1: Fixed DP-ASSUM-002 to align with DEC-INTER-SERVICE-COMM (gRPC required)
+    - v1.4.0: Added new services (workflow-service, field-ops-service, document-service, billing-service, support-service)
+              Added development phases (0-4) with milestones and acceptance gates
+              Added new flows (B2C-CPQ, Measurement-Visit, B2B-Project, Installation)
+              Added integration contracts (CRM, CAD, ERP, Logistics, Payments)
+              Updated order state machine with PAID and extended fulfillment states
+              Added StatusModel anchor and audit trail block anchors
+    - v1.3.0: Expanded pricing-service contracts (FC-pricing-*) and block anchors
+    - v1.2.0: Added admin operation contracts
 -->
-<DevelopmentPlan version="1.3.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<DevelopmentPlan version="1.4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
-  <!-- ═══════════════════════════════════════════════════════════════════════════
+  <!-- ===============================================================================
+       DEVELOPMENT PHASES
+       =============================================================================== -->
+  <Phases id="DevelopmentPhases">
+    <Description>
+      Phased delivery plan with acceptance gates. MUST/SHOULD/LATER priorities from
+      RequirementsAnalysis.xml drive phase scope.
+    </Description>
+
+    <Phase id="PHASE-0" name="Foundation">
+      <Description>Infrastructure, shared modules, and core plumbing</Description>
+      <Priority>MUST</Priority>
+      <Deliverables>
+        <Deliverable id="PHASE-0-D1">shared-kernel module with domain primitives</Deliverable>
+        <Deliverable id="PHASE-0-D2">api-contracts module with Protobuf schemas</Deliverable>
+        <Deliverable id="PHASE-0-D3">config-server with profiles (dev/stage/prod)</Deliverable>
+        <Deliverable id="PHASE-0-D4">gateway with JWT validation, routing, CORS</Deliverable>
+        <Deliverable id="PHASE-0-D5">Docker Compose for local dev environment</Deliverable>
+        <Deliverable id="PHASE-0-D6">CI/CD pipeline (GitHub Actions)</Deliverable>
+      </Deliverables>
+      <AcceptanceGates>
+        <Gate id="PHASE-0-G1">All modules build successfully</Gate>
+        <Gate id="PHASE-0-G2">Gateway routes to placeholder services</Gate>
+        <Gate id="PHASE-0-G3">Config-server serves configuration</Gate>
+        <Gate id="PHASE-0-G4">Docker Compose starts all infrastructure</Gate>
+        <Gate id="PHASE-0-G5">CI pipeline runs tests and builds</Gate>
+      </AcceptanceGates>
+      <Links>
+        <Link ref="DP-SVC-shared-kernel"/>
+        <Link ref="DP-SVC-api-contracts"/>
+        <Link ref="DP-SVC-gateway"/>
+        <Link ref="DP-SVC-config-server"/>
+      </Links>
+    </Phase>
+
+    <Phase id="PHASE-1" name="CPQ Core">
+      <Description>B2C CPQ: Configure + Instant Pricing + Save Draft</Description>
+      <Priority>MUST</Priority>
+      <DependsOn>
+        <PhaseRef ref="PHASE-0"/>
+      </DependsOn>
+      <Deliverables>
+        <Deliverable id="PHASE-1-D1">catalog-configuration-service with product templates and validation rules</Deliverable>
+        <Deliverable id="PHASE-1-D2">pricing-service with price books, campaigns, and quote calculation</Deliverable>
+        <Deliverable id="PHASE-1-D3">account-service with user profiles and saved configurations</Deliverable>
+        <Deliverable id="PHASE-1-D4">search-service with Elasticsearch indexing</Deliverable>
+        <Deliverable id="PHASE-1-D5">gRPC contracts for catalog-pricing integration</Deliverable>
+        <Deliverable id="PHASE-1-D6">Real-time configuration validation and pricing</Deliverable>
+      </Deliverables>
+      <AcceptanceGates>
+        <Gate id="PHASE-1-G1">UC-B2C-CPQ-01 acceptance criteria met (AC-CPQ-01, AC-CPQ-02, AC-CPQ-03)</Gate>
+        <Gate id="PHASE-1-G2">Configuration changes trigger price recalculation within 300ms</Gate>
+        <Gate id="PHASE-1-G3">Drafts saved and resumed from authenticated account</Gate>
+        <Gate id="PHASE-1-G4">Search returns products within 200ms P95</Gate>
+        <Gate id="PHASE-1-G5">80% test coverage on domain layer</Gate>
+      </AcceptanceGates>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01"/>
+        <Link ref="DP-SVC-catalog-configuration-service"/>
+        <Link ref="DP-SVC-pricing-service"/>
+      </Links>
+    </Phase>
+
+    <Phase id="PHASE-2" name="Measurement and Workflow">
+      <Description>Measurement scheduling, workflow/CRM, and field operations</Description>
+      <Priority>MUST</Priority>
+      <DependsOn>
+        <PhaseRef ref="PHASE-1"/>
+      </DependsOn>
+      <Deliverables>
+        <Deliverable id="PHASE-2-D1">workflow-service with lead/deal pipeline and task management</Deliverable>
+        <Deliverable id="PHASE-2-D2">field-ops-service with measurement task lifecycle</Deliverable>
+        <Deliverable id="PHASE-2-D3">Measurement request scheduling from frontend</Deliverable>
+        <Deliverable id="PHASE-2-D4">Mobile-friendly field task APIs</Deliverable>
+        <Deliverable id="PHASE-2-D5">Measurement results trigger repricing</Deliverable>
+        <Deliverable id="PHASE-2-D6">notification-service baseline (email/SMS for confirmations)</Deliverable>
+        <Deliverable id="PHASE-2-D7">Status audit trail infrastructure</Deliverable>
+      </Deliverables>
+      <AcceptanceGates>
+        <Gate id="PHASE-2-G1">UC-B2C-MEASURE-01 acceptance criteria met</Gate>
+        <Gate id="PHASE-2-G2">UC-FIELD-MEASURE-01 acceptance criteria met</Gate>
+        <Gate id="PHASE-2-G3">UC-STAFF-CRM-01 basic pipeline visible</Gate>
+        <Gate id="PHASE-2-G4">Audit trail captures all status changes</Gate>
+        <Gate id="PHASE-2-G5">Notifications sent for measurement confirmations</Gate>
+      </AcceptanceGates>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-MEASURE-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-FIELD-MEASURE-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-STAFF-CRM-01"/>
+        <Link ref="DP-SVC-workflow-service"/>
+        <Link ref="DP-SVC-field-ops-service"/>
+      </Links>
+    </Phase>
+
+    <Phase id="PHASE-3" name="Ordering and Payments">
+      <Description>B2C ordering with contract acceptance, payment, and order locking</Description>
+      <Priority>MUST</Priority>
+      <DependsOn>
+        <PhaseRef ref="PHASE-2"/>
+      </DependsOn>
+      <Deliverables>
+        <Deliverable id="PHASE-3-D1">cart-service with cart management and checkout preparation</Deliverable>
+        <Deliverable id="PHASE-3-D2">order-service with full state machine including PAID status lock</Deliverable>
+        <Deliverable id="PHASE-3-D3">Payment gateway integration with webhook handling</Deliverable>
+        <Deliverable id="PHASE-3-D4">Contract acceptance recording</Deliverable>
+        <Deliverable id="PHASE-3-D5">Order tracking with status timeline</Deliverable>
+        <Deliverable id="PHASE-3-D6">document-service with proposal/invoice/contract generation</Deliverable>
+        <Deliverable id="PHASE-3-D7">Notifications for payment and order status changes</Deliverable>
+      </Deliverables>
+      <AcceptanceGates>
+        <Gate id="PHASE-3-G1">UC-B2C-ORDER-01 acceptance criteria met</Gate>
+        <Gate id="PHASE-3-G2">UC-B2C-TRACK-01 acceptance criteria met</Gate>
+        <Gate id="PHASE-3-G3">Post-payment orders are immutable (locked)</Gate>
+        <Gate id="PHASE-3-G4">Payment webhooks update order status correctly</Gate>
+        <Gate id="PHASE-3-G5">Documents generated from templates</Gate>
+      </AcceptanceGates>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-ORDER-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-TRACK-01"/>
+        <Link ref="DP-SVC-order-service"/>
+        <Link ref="DP-SVC-cart-service"/>
+        <Link ref="DP-SVC-document-service"/>
+      </Links>
+    </Phase>
+
+    <Phase id="PHASE-4" name="Fulfillment and After-Sales">
+      <Description>Installation, delivery tracking, B2B features, and after-sales support</Description>
+      <Priority>MUST (installation, support) / SHOULD (delivery tracking, B2B finance)</Priority>
+      <DependsOn>
+        <PhaseRef ref="PHASE-3"/>
+      </DependsOn>
+      <Deliverables>
+        <Deliverable id="PHASE-4-D1">Installation task lifecycle in field-ops-service</Deliverable>
+        <Deliverable id="PHASE-4-D2">support-service for service/warranty requests</Deliverable>
+        <Deliverable id="PHASE-4-D3">billing-service for B2B invoices and settlements (SHOULD)</Deliverable>
+        <Deliverable id="PHASE-4-D4">Delivery tracking integration (SHOULD)</Deliverable>
+        <Deliverable id="PHASE-4-D5">B2B project orders and partner pricing (MUST)</Deliverable>
+        <Deliverable id="PHASE-4-D6">reporting-service with conversion funnel dashboards</Deliverable>
+      </Deliverables>
+      <AcceptanceGates>
+        <Gate id="PHASE-4-G1">UC-FIELD-INSTALL-01 acceptance criteria met</Gate>
+        <Gate id="PHASE-4-G2">UC-SUPPORT-CREATE-01 acceptance criteria met</Gate>
+        <Gate id="PHASE-4-G3">UC-B2B-CPQ-01 basic flow working</Gate>
+        <Gate id="PHASE-4-G4">Conversion funnel report available</Gate>
+        <Gate id="PHASE-4-G5">UC-DELIVERY-TRACK-01 (SHOULD) if logistics integration available</Gate>
+      </AcceptanceGates>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-FIELD-INSTALL-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-SUPPORT-CREATE-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2B-CPQ-01"/>
+        <Link ref="DP-SVC-field-ops-service"/>
+        <Link ref="DP-SVC-support-service"/>
+        <Link ref="DP-SVC-billing-service"/>
+      </Links>
+    </Phase>
+  </Phases>
+
+  <!-- ===============================================================================
        SERVICES & MODULES
-       ═══════════════════════════════════════════════════════════════════════════ -->
+       =============================================================================== -->
   <Services>
-    <!-- ─────────────────────────────────────────────────────────────────────────
+    <!-- ===========================================================================
          SHARED LIBRARIES
-         ───────────────────────────────────────────────────────────────────────── -->
+         =========================================================================== -->
     <Service id="DP-SVC-shared-kernel" type="library">
       <Name>shared-kernel</Name>
       <ArtifactId>shared-kernel</ArtifactId>
@@ -35,12 +195,13 @@
         <Item>LocalizedString for i18n content</Item>
         <Item>Address, Email, Id value objects</Item>
         <Item>Common enums (Language, etc.)</Item>
+        <Item>StatusChangeRecord for audit trail</Item>
       </Responsibilities>
       <Dependencies>
         <Dependency type="compile">None (pure Java)</Dependency>
       </Dependencies>
       <Constraints>
-        <Item>No Spring, JPA, Jackson, or framework dependencies (enforced by maven-enforcer-plugin)</Item>
+        <Item>No Spring, JPA, Jackson, or framework dependencies</Item>
         <Item>Immutable value objects only</Item>
         <Item>No DTOs or API models</Item>
       </Constraints>
@@ -50,6 +211,7 @@
         <Package>com.kanokna.shared.measure</Package>
         <Package>com.kanokna.shared.event</Package>
         <Package>com.kanokna.shared.i18n</Package>
+        <Package>com.kanokna.shared.audit</Package>
       </PackageLayout>
       <Links>
         <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY"/>
@@ -62,7 +224,7 @@
       <ArtifactId>api-contracts</ArtifactId>
       <Description>
         Contract-first specifications: OpenAPI for external REST APIs, Protobuf for
-        gRPC inter-service communication and Kafka events. Generated stubs used by adapters.
+        gRPC inter-service communication and Kafka events.
       </Description>
       <BoundedContext>contracts</BoundedContext>
       <Responsibilities>
@@ -96,6 +258,9 @@
         <Service name="CartService">Cart operations</Service>
         <Service name="AccountService">User profile queries</Service>
         <Service name="MediaService">Media metadata queries</Service>
+        <Service name="WorkflowService">Lead/deal/task operations</Service>
+        <Service name="FieldOpsService">Field task operations</Service>
+        <Service name="DocumentService">Document generation</Service>
       </GrpcServices>
       <Links>
         <Link ref="Technology.xml#TECH-protobuf"/>
@@ -104,9 +269,9 @@
       </Links>
     </Service>
 
-    <!-- ─────────────────────────────────────────────────────────────────────────
+    <!-- ===========================================================================
          INFRASTRUCTURE SERVICES
-         ───────────────────────────────────────────────────────────────────────── -->
+         =========================================================================== -->
     <Service id="DP-SVC-config-server" type="infrastructure">
       <Name>config-server</Name>
       <ArtifactId>config-server</ArtifactId>
@@ -158,7 +323,11 @@
         <Route path="/api/accounts/**" target="account-service"/>
         <Route path="/api/media/**" target="media-service"/>
         <Route path="/api/search/**" target="search-service"/>
-        <Route path="/api/installations/**" target="installation-service"/>
+        <Route path="/api/workflow/**" target="workflow-service"/>
+        <Route path="/api/field/**" target="field-ops-service"/>
+        <Route path="/api/documents/**" target="document-service"/>
+        <Route path="/api/billing/**" target="billing-service"/>
+        <Route path="/api/support/**" target="support-service"/>
         <Route path="/api/reports/**" target="reporting-service"/>
       </Routes>
       <Links>
@@ -167,9 +336,9 @@
       </Links>
     </Service>
 
-    <!-- ─────────────────────────────────────────────────────────────────────────
-         DOMAIN SERVICES
-         ───────────────────────────────────────────────────────────────────────── -->
+    <!-- ===========================================================================
+         DOMAIN SERVICES - EXISTING
+         =========================================================================== -->
     <Service id="DP-SVC-catalog-configuration-service" type="service">
       <Name>catalog-configuration-service</Name>
       <ArtifactId>catalog-configuration-service</ArtifactId>
@@ -229,10 +398,8 @@
         <Event name="ConfigurationValidatedEvent">Audit trail for validations</Event>
       </DomainEvents>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01"/>
         <Link ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE"/>
-        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"/>
-        <Link ref="Flow-Config-Pricing"/>
       </Links>
     </Service>
 
@@ -241,16 +408,17 @@
       <ArtifactId>pricing-service</ArtifactId>
       <Description>
         Calculates prices for product configurations including base price, option premiums,
-        campaigns, discounts, and taxes. Supports multiple currencies.
+        campaigns, discounts, partner tiers, and taxes. Supports multiple currencies.
       </Description>
       <BoundedContext>pricing</BoundedContext>
       <Responsibilities>
         <Item>Manage price books (base prices per product, per-m2 rates)</Item>
         <Item>Define option premiums (absolute or percentage)</Item>
         <Item>Manage campaigns and promotional discounts</Item>
+        <Item>Support partner pricing tiers for B2B</Item>
         <Item>Configure tax rules per region</Item>
         <Item>Calculate quotes with decision trace for auditability</Item>
-        <Item>Cache quotes in Redis for session reuse</Item>
+        <Item>Support installment schedule display (if configured)</Item>
       </Responsibilities>
       <Dependencies>
         <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
@@ -287,14 +455,16 @@
         <Aggregate name="Campaign">Promotional campaigns</Aggregate>
         <Aggregate name="TaxRule">Regional tax configurations</Aggregate>
         <Aggregate name="Quote">Calculated price quote (transient)</Aggregate>
+        <Aggregate name="PartnerPriceTier">B2B partner-specific pricing</Aggregate>
       </Aggregates>
       <DomainEvents>
         <Event name="QuoteCalculatedEvent">Audit trail for pricing decisions</Event>
+        <Event name="PriceBookPublishedEvent">Cache invalidation</Event>
       </DomainEvents>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
-        <Link ref="RequirementsAnalysis.xml#UC-PRICING-ADMIN-MANAGE"/>
-        <Link ref="Flow-Config-Pricing"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2B-CPQ-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CPQ-PROMO-01"/>
       </Links>
     </Service>
 
@@ -317,8 +487,8 @@
       <Dependencies>
         <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
         <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
-        <ServiceRef ref="DP-SVC-catalog-configuration-service" type="grpc">Validate configurations</ServiceRef>
-        <ServiceRef ref="DP-SVC-pricing-service" type="grpc">Get current prices</ServiceRef>
+        <ServiceRef ref="DP-SVC-catalog-configuration-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-pricing-service" type="grpc"/>
       </Dependencies>
       <Database>
         <Engine ref="Technology.xml#TECH-postgresql"/>
@@ -328,14 +498,8 @@
         <Port type="http">8083</Port>
         <Port type="grpc">9083</Port>
       </Ports>
-      <Aggregates>
-        <Aggregate name="Cart">Shopping cart aggregate</Aggregate>
-        <Aggregate name="CartItem">Configured item in cart</Aggregate>
-      </Aggregates>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
-        <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
-        <Link ref="Flow-Cart-Checkout"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-ORDER-01"/>
       </Links>
     </Service>
 
@@ -343,26 +507,27 @@
       <Name>order-service</Name>
       <ArtifactId>order-service</ArtifactId>
       <Description>
-        Creates orders from carts, manages order lifecycle (state machine),
-        handles payment integration, and coordinates installation scheduling.
+        Creates orders from carts, manages order lifecycle with extended state machine,
+        handles payment integration, contract acceptance, and coordinates fulfillment.
       </Description>
       <BoundedContext>order</BoundedContext>
       <Responsibilities>
         <Item>Create orders from cart snapshots</Item>
-        <Item>Manage order state machine (CREATED -> CONFIRMED -> PROCESSING -> SHIPPED -> DELIVERED -> COMPLETED)</Item>
+        <Item>Manage extended order state machine with PAID status lock</Item>
+        <Item>Record contract acceptance</Item>
         <Item>Integrate with payment gateway for authorization and capture</Item>
         <Item>Handle payment callbacks/webhooks</Item>
-        <Item>Coordinate with installation-service for scheduling</Item>
+        <Item>Coordinate with field-ops-service for installation scheduling</Item>
         <Item>Publish order lifecycle events</Item>
-        <Item>Ensure idempotency for order placement</Item>
+        <Item>Maintain status audit trail</Item>
       </Responsibilities>
       <Dependencies>
         <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
         <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
-        <ServiceRef ref="DP-SVC-cart-service" type="grpc">Get cart snapshot</ServiceRef>
-        <ServiceRef ref="DP-SVC-installation-service" type="async">Schedule installations</ServiceRef>
-        <ServiceRef ref="DP-SVC-notification-service" type="async">Trigger notifications</ServiceRef>
-        <ExternalRef ref="Technology.xml#TECH-yookassa">YooKassa payment processing</ExternalRef>
+        <ServiceRef ref="DP-SVC-cart-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-field-ops-service" type="async"/>
+        <ServiceRef ref="DP-SVC-notification-service" type="async"/>
+        <ExternalRef ref="INT-PAYMENTS">Payment gateway</ExternalRef>
       </Dependencies>
       <Database>
         <Engine ref="Technology.xml#TECH-postgresql"/>
@@ -389,42 +554,50 @@
         <Package>com.kanokna.order_service.adapters.config</Package>
       </PackageLayout>
       <Aggregates>
-        <Aggregate name="Order">Order aggregate with items and status</Aggregate>
+        <Aggregate name="Order">Order aggregate with items, status, and contract acceptance</Aggregate>
         <Aggregate name="Payment">Payment authorization and capture</Aggregate>
+        <Aggregate name="StatusAuditLog">Immutable audit records for status changes</Aggregate>
       </Aggregates>
       <DomainEvents>
-        <Event name="OrderCreatedEvent">Triggers notification, installation scheduling</Event>
-        <Event name="OrderConfirmedEvent">Payment captured successfully</Event>
-        <Event name="OrderShippedEvent">Products shipped</Event>
+        <Event name="OrderCreatedEvent">Triggers notification, workflow update</Event>
+        <Event name="OrderPaidEvent">Order locked, ready for fulfillment</Event>
+        <Event name="OrderInProductionEvent">Manufacturing started</Event>
+        <Event name="OrderReadyToShipEvent">Production complete</Event>
+        <Event name="OrderInTransitEvent">Out for delivery</Event>
         <Event name="OrderDeliveredEvent">Products delivered</Event>
-        <Event name="OrderCompletedEvent">Installation complete or self-install confirmed</Event>
-        <Event name="OrderCancelledEvent">Order cancelled, refund initiated</Event>
-        <Event name="PaymentAppliedEvent">Payment status changed</Event>
+        <Event name="OrderInstalledEvent">Installation complete</Event>
+        <Event name="OrderCancelledEvent">Order cancelled</Event>
+        <Event name="PaymentStatusChangedEvent">Payment status update</Event>
       </DomainEvents>
-      <StateMachine>
-        <State name="CREATED" initial="true"/>
-        <State name="PENDING_PAYMENT"/>
-        <State name="CONFIRMED"/>
-        <State name="PROCESSING"/>
-        <State name="SHIPPED"/>
-        <State name="DELIVERED"/>
-        <State name="COMPLETED" terminal="true"/>
-        <State name="CANCELLED" terminal="true"/>
+      <StateMachine id="OrderStateMachine">
+        <Description>Extended order state machine with PAID lock and fulfillment stages</Description>
+        <State name="CREATED" initial="true">Order placed, pending payment</State>
+        <State name="PENDING_PAYMENT">Awaiting payment completion</State>
+        <State name="PAID">Payment confirmed, order locked (immutable)</State>
+        <State name="IN_PRODUCTION">Manufacturing started</State>
+        <State name="READY_FOR_SHIPMENT">Production complete, ready to ship</State>
+        <State name="IN_TRANSIT">Out for delivery</State>
+        <State name="DELIVERED">Products delivered</State>
+        <State name="INSTALLATION_SCHEDULED">Installation appointment set</State>
+        <State name="INSTALLED" terminal="true">Installation complete</State>
+        <State name="CANCELLED" terminal="true">Order cancelled</State>
         <Transition from="CREATED" to="PENDING_PAYMENT" event="PAYMENT_INITIATED"/>
-        <Transition from="PENDING_PAYMENT" to="CONFIRMED" event="PAYMENT_CAPTURED"/>
+        <Transition from="PENDING_PAYMENT" to="PAID" event="PAYMENT_CAPTURED">Locks order</Transition>
         <Transition from="PENDING_PAYMENT" to="CANCELLED" event="PAYMENT_FAILED"/>
-        <Transition from="CONFIRMED" to="PROCESSING" event="PRODUCTION_STARTED"/>
-        <Transition from="PROCESSING" to="SHIPPED" event="SHIPPED"/>
-        <Transition from="SHIPPED" to="DELIVERED" event="DELIVERED"/>
-        <Transition from="DELIVERED" to="COMPLETED" event="INSTALLATION_COMPLETE"/>
-        <Transition from="CREATED,PENDING_PAYMENT,CONFIRMED" to="CANCELLED" event="CANCELLED"/>
+        <Transition from="PAID" to="IN_PRODUCTION" event="PRODUCTION_STARTED"/>
+        <Transition from="IN_PRODUCTION" to="READY_FOR_SHIPMENT" event="PRODUCTION_COMPLETE"/>
+        <Transition from="READY_FOR_SHIPMENT" to="IN_TRANSIT" event="SHIPPED"/>
+        <Transition from="IN_TRANSIT" to="DELIVERED" event="DELIVERED"/>
+        <Transition from="DELIVERED" to="INSTALLATION_SCHEDULED" event="INSTALLATION_SCHEDULED"/>
+        <Transition from="INSTALLATION_SCHEDULED" to="INSTALLED" event="INSTALLATION_COMPLETE"/>
+        <Transition from="DELIVERED" to="INSTALLED" event="SELF_INSTALL_CONFIRMED"/>
+        <Transition from="CREATED,PENDING_PAYMENT" to="CANCELLED" event="CANCELLED"/>
+        <Constraint>After PAID status, order is immutable (no changes to items/prices)</Constraint>
       </StateMachine>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
-        <Link ref="RequirementsAnalysis.xml#UC-ORDER-TRACK"/>
-        <Link ref="RequirementsAnalysis.xml#UC-ORDER-CANCEL"/>
-        <Link ref="Flow-Checkout-Payment"/>
-        <Link ref="Flow-Order-Lifecycle"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-ORDER-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-TRACK-01"/>
+        <Link ref="RequirementsAnalysis.xml#StatusModel"/>
       </Links>
     </Service>
 
@@ -432,8 +605,8 @@
       <Name>account-service</Name>
       <ArtifactId>account-service</ArtifactId>
       <Description>
-        Manages user profiles, addresses, and preferences. Integrates with Keycloak
-        for identity management. Stores application-specific user data.
+        Manages user profiles, addresses, preferences, saved configurations, and B2B organizations.
+        Integrates with Keycloak for identity management.
       </Description>
       <BoundedContext>account</BoundedContext>
       <Responsibilities>
@@ -441,7 +614,8 @@
         <Item>Manage delivery addresses</Item>
         <Item>Store user preferences (language, currency, notifications)</Item>
         <Item>Manage saved configurations for later</Item>
-        <Item>Role and permission queries (delegated to Keycloak tokens)</Item>
+        <Item>B2B: organization profiles, sub-users, partner tier assignment</Item>
+        <Item>Role domain assignment (B2C, B2B, Staff, Field)</Item>
       </Responsibilities>
       <Dependencies>
         <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
@@ -454,53 +628,12 @@
       <Port>8085</Port>
       <Aggregates>
         <Aggregate name="UserProfile">User profile aggregate</Aggregate>
-        <Aggregate name="SavedConfiguration">Saved product configurations</Aggregate>
+        <Aggregate name="SavedConfiguration">Saved product configurations (drafts)</Aggregate>
+        <Aggregate name="PartnerOrganization">B2B organization profile</Aggregate>
       </Aggregates>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-ACCOUNT-REGISTER"/>
-        <Link ref="RequirementsAnalysis.xml#UC-ACCOUNT-LOGIN"/>
-        <Link ref="RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE"/>
-      </Links>
-    </Service>
-
-    <Service id="DP-SVC-installation-service" type="service">
-      <Name>installation-service</Name>
-      <ArtifactId>installation-service</ArtifactId>
-      <Description>
-        Manages professional installation scheduling, installer assignments,
-        and job completion tracking.
-      </Description>
-      <BoundedContext>installation</BoundedContext>
-      <Responsibilities>
-        <Item>Manage installer profiles and availability</Item>
-        <Item>Show available installation time slots</Item>
-        <Item>Schedule installation appointments</Item>
-        <Item>Assign installers to jobs based on region and availability</Item>
-        <Item>Track installation completion</Item>
-        <Item>Publish InstallationCompletedEvent to advance order status</Item>
-      </Responsibilities>
-      <Dependencies>
-        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
-        <ServiceRef ref="DP-SVC-order-service" type="async">Receive OrderCreatedEvent</ServiceRef>
-        <ServiceRef ref="DP-SVC-notification-service" type="async">Notify installers and customers</ServiceRef>
-      </Dependencies>
-      <Database>
-        <Engine ref="Technology.xml#TECH-postgresql"/>
-        <Schema>installations</Schema>
-      </Database>
-      <Port>8086</Port>
-      <Aggregates>
-        <Aggregate name="Installer">Installer profile and availability</Aggregate>
-        <Aggregate name="InstallationAppointment">Scheduled installation job</Aggregate>
-      </Aggregates>
-      <DomainEvents>
-        <Event name="InstallationScheduledEvent">Appointment confirmed</Event>
-        <Event name="InstallationCompletedEvent">Job marked complete</Event>
-      </DomainEvents>
-      <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-SCHEDULE"/>
-        <Link ref="RequirementsAnalysis.xml#UC-INSTALL-COMPLETE"/>
-        <Link ref="RequirementsAnalysis.xml#ACT-INSTALLER"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-RBAC-01"/>
       </Links>
     </Service>
 
@@ -508,8 +641,8 @@
       <Name>media-service</Name>
       <ArtifactId>media-service</ArtifactId>
       <Description>
-        Manages media assets (product images, renders, manuals). Stores metadata
-        in database, actual files in S3-compatible object storage.
+        Manages media assets: product images, renders, manuals, and operational documents.
+        Stores metadata in database, actual files in S3-compatible storage.
       </Description>
       <BoundedContext>media</BoundedContext>
       <Responsibilities>
@@ -532,7 +665,7 @@
         <Aggregate name="MediaAsset">Asset metadata and variants</Aggregate>
       </Aggregates>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-MEDIA-SERVE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE"/>
       </Links>
     </Service>
 
@@ -561,12 +694,18 @@
         <Schema>notifications</Schema>
       </Database>
       <Port>8088</Port>
-      <Aggregates>
-        <Aggregate name="NotificationTemplate">Template with localizations</Aggregate>
-        <Aggregate name="NotificationRecord">Sent notification with status</Aggregate>
-      </Aggregates>
+      <NotificationEvents>
+        <Event trigger="MeasurementRequestCreated">Confirmation to customer</Event>
+        <Event trigger="MeasurementTaskAssigned">Notification to technician</Event>
+        <Event trigger="OrderPaid">Order confirmation to customer</Event>
+        <Event trigger="OrderInTransit">Shipping notification</Event>
+        <Event trigger="OrderDelivered">Delivery confirmation</Event>
+        <Event trigger="InstallationScheduled">Appointment confirmation</Event>
+        <Event trigger="InstallationCompleted">Completion notification</Event>
+        <Event trigger="ServiceRequestCreated">Support ticket confirmation</Event>
+      </NotificationEvents>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-NOTIFY-TRANSACTIONAL"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-TRACK-01"/>
       </Links>
     </Service>
 
@@ -575,24 +714,16 @@
       <ArtifactId>search-service</ArtifactId>
       <Description>
         Provides full-text and faceted search over product catalog using Elasticsearch.
-        Indexes products asynchronously via domain events.
       </Description>
       <BoundedContext>search</BoundedContext>
-      <Responsibilities>
-        <Item>Maintain Elasticsearch indices for products</Item>
-        <Item>Index/update products on ProductTemplatePublishedEvent</Item>
-        <Item>Execute search queries with facets and filters</Item>
-        <Item>Provide autocomplete suggestions</Item>
-        <Item>Support synonym and language-aware search</Item>
-      </Responsibilities>
       <Dependencies>
         <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
-        <ServiceRef ref="DP-SVC-catalog-configuration-service" type="async">Receive product events</ServiceRef>
+        <ServiceRef ref="DP-SVC-catalog-configuration-service" type="async"/>
         <ExternalRef ref="Technology.xml#TECH-elasticsearch">Search engine</ExternalRef>
       </Dependencies>
       <Port>8089</Port>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE"/>
         <Link ref="RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY"/>
       </Links>
     </Service>
@@ -601,8 +732,7 @@
       <Name>reporting-service</Name>
       <ArtifactId>reporting-service</ArtifactId>
       <Description>
-        Aggregates data for dashboards and reports. Uses read-optimized storage
-        with materialized views or dedicated OLAP tables.
+        Aggregates data for dashboards and reports including conversion funnel.
       </Description>
       <BoundedContext>reporting</BoundedContext>
       <Responsibilities>
@@ -613,84 +743,363 @@
       </Responsibilities>
       <Dependencies>
         <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
-        <ServiceRef ref="DP-SVC-order-service" type="async">Order events for sales data</ServiceRef>
-        <ServiceRef ref="DP-SVC-catalog-configuration-service" type="async">Product data</ServiceRef>
+        <ServiceRef ref="DP-SVC-order-service" type="async"/>
+        <ServiceRef ref="DP-SVC-workflow-service" type="async"/>
       </Dependencies>
       <Database>
         <Engine ref="Technology.xml#TECH-postgresql"/>
         <Schema>reporting</Schema>
-        <Notes>Uses materialized views for aggregations</Notes>
       </Database>
       <Port>8090</Port>
+      <Reports>
+        <Report name="ConversionFunnel">Lead -> Measurement -> Contract -> Paid -> Delivered -> Installed</Report>
+        <Report name="SalesByChannel">B2C vs B2B revenue breakdown</Report>
+        <Report name="ProductPerformance">Configuration popularity, average order value</Report>
+        <Report name="OperationalMetrics">Lead time, installation SLA compliance</Report>
+      </Reports>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-REPORT-SALES"/>
+        <Link ref="RequirementsAnalysis.xml#ACT-ADMIN"/>
+      </Links>
+    </Service>
+
+    <!-- ===========================================================================
+         NEW DOMAIN SERVICES
+         =========================================================================== -->
+    <Service id="DP-SVC-workflow-service" type="service">
+      <Name>workflow-service</Name>
+      <ArtifactId>workflow-service</ArtifactId>
+      <Description>
+        CRM-lite workflow for leads/deals/projects, tasks, reminders, and pipeline stages.
+        Owns omnichannel lead capture and deal progression.
+      </Description>
+      <BoundedContext>sales-workflow</BoundedContext>
+      <Responsibilities>
+        <Item>Capture leads from website, telephony, messengers, offline</Item>
+        <Item>Manage deal pipeline stages (New -> Consultation -> Measurement -> Quote -> Contract -> Converted)</Item>
+        <Item>Create and track tasks/reminders for managers</Item>
+        <Item>Create measurement/installation requests (delegates to field-ops-service)</Item>
+        <Item>Provide Kanban/pipeline dashboard queries</Item>
+        <Item>Sync with external CRM if configured</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
+        <ServiceRef ref="DP-SVC-catalog-configuration-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-pricing-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-field-ops-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-document-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-notification-service" type="async"/>
+        <ServiceRef ref="DP-SVC-reporting-service" type="async"/>
+        <ExternalRef ref="INT-CRM-ERP">External CRM sync</ExternalRef>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>workflow</Schema>
+      </Database>
+      <Ports>
+        <Port type="http">8091</Port>
+        <Port type="grpc">9091</Port>
+      </Ports>
+      <Aggregates>
+        <Aggregate name="Lead">Initial customer inquiry</Aggregate>
+        <Aggregate name="Deal">Qualified lead progressing through pipeline</Aggregate>
+        <Aggregate name="Task">Manager task/reminder</Aggregate>
+        <Aggregate name="PipelineStage">Configurable pipeline stages</Aggregate>
+      </Aggregates>
+      <DomainEvents>
+        <Event name="LeadCreatedEvent">New lead intake</Event>
+        <Event name="DealStageChangedEvent">Pipeline progression</Event>
+        <Event name="TaskCreatedEvent">Task assigned</Event>
+        <Event name="MeasurementRequestedEvent">Measurement visit requested</Event>
+      </DomainEvents>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-MEASURE-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-STAFF-CRM-01"/>
+        <Link ref="Flow-Measurement-Visit"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-field-ops-service" type="service">
+      <Name>field-ops-service</Name>
+      <ArtifactId>field-ops-service</ArtifactId>
+      <Description>
+        Field operations tasks: measurement visits, installation jobs, logistics/warehouse milestones.
+        Provides mobile-friendly APIs for field staff.
+      </Description>
+      <BoundedContext>field-operations</BoundedContext>
+      <Responsibilities>
+        <Item>Create/assign/track measurement tasks</Item>
+        <Item>Create/assign/track installation tasks</Item>
+        <Item>Capture measurement results (dimensions, photos, notes)</Item>
+        <Item>Capture installation completion (checklist, acceptance certificate, photos)</Item>
+        <Item>Capture logistics milestones (ready-to-ship, in-transit, delivered)</Item>
+        <Item>Provide "My Tasks" API for field staff mobile app</Item>
+        <Item>Emit events to update deals and orders</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
+        <ServiceRef ref="DP-SVC-order-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-media-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-notification-service" type="async"/>
+        <ExternalRef ref="INT-LOGISTICS">Logistics integration</ExternalRef>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>field_ops</Schema>
+      </Database>
+      <Ports>
+        <Port type="http">8092</Port>
+        <Port type="grpc">9092</Port>
+      </Ports>
+      <Aggregates>
+        <Aggregate name="MeasurementTask">On-site measurement visit</Aggregate>
+        <Aggregate name="InstallationTask">Installation job with checklist</Aggregate>
+        <Aggregate name="LogisticsTask">Delivery/warehouse tasks</Aggregate>
+      </Aggregates>
+      <DomainEvents>
+        <Event name="MeasurementTaskAssignedEvent">Task assigned to technician</Event>
+        <Event name="MeasurementCompletedEvent">Measurements submitted</Event>
+        <Event name="InstallationTaskAssignedEvent">Job assigned to installer</Event>
+        <Event name="InstallationCompletedEvent">Installation done with acceptance</Event>
+        <Event name="DeliveryStatusUpdatedEvent">Logistics milestone update</Event>
+      </DomainEvents>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-FIELD-MEASURE-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-FIELD-INSTALL-01"/>
+        <Link ref="Flow-Measurement-Visit"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-document-service" type="service">
+      <Name>document-service</Name>
+      <ArtifactId>document-service</ArtifactId>
+      <Description>
+        Document generation and versioning: proposals, invoices, contracts, acceptance certificates.
+        Template-driven with placeholder bindings from order/deal/config data.
+      </Description>
+      <BoundedContext>documents</BoundedContext>
+      <Responsibilities>
+        <Item>Manage document templates (proposal, invoice, contract, acceptance)</Item>
+        <Item>Generate documents from templates with data binding</Item>
+        <Item>Version document history</Item>
+        <Item>Store document binaries via media-service</Item>
+        <Item>Support e-contract acceptance (checkbox or e-sign integration)</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
+        <ServiceRef ref="DP-SVC-media-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-order-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-billing-service" type="grpc"/>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>documents</Schema>
+      </Database>
+      <Ports>
+        <Port type="http">8093</Port>
+        <Port type="grpc">9093</Port>
+      </Ports>
+      <Aggregates>
+        <Aggregate name="DocumentTemplate">Template with placeholders</Aggregate>
+        <Aggregate name="GeneratedDocument">Document instance with version history</Aggregate>
+      </Aggregates>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-STAFF-CRM-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2B-CPQ-01"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-billing-service" type="service">
+      <Name>billing-service</Name>
+      <ArtifactId>billing-service</ArtifactId>
+      <Description>
+        B2B billing: invoices, payment schedules, partner balances, settlements.
+        Integrates with payment gateways for status updates.
+      </Description>
+      <BoundedContext>billing-finance</BoundedContext>
+      <Responsibilities>
+        <Item>Issue invoices for B2B orders</Item>
+        <Item>Manage payment schedules (deposit, balance due)</Item>
+        <Item>Track partner balances and credit indicators</Item>
+        <Item>Generate settlement reports</Item>
+        <Item>Receive payment status updates from gateways</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
+        <ServiceRef ref="DP-SVC-notification-service" type="async"/>
+        <ServiceRef ref="DP-SVC-reporting-service" type="async"/>
+        <ExternalRef ref="INT-PAYMENTS">Payment gateway</ExternalRef>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>billing</Schema>
+      </Database>
+      <Ports>
+        <Port type="http">8094</Port>
+        <Port type="grpc">9094</Port>
+      </Ports>
+      <Aggregates>
+        <Aggregate name="Invoice">B2B invoice</Aggregate>
+        <Aggregate name="PaymentSchedule">Deposit and balance schedule</Aggregate>
+        <Aggregate name="PartnerBalance">Partner financial status</Aggregate>
+      </Aggregates>
+      <DomainEvents>
+        <Event name="InvoiceIssuedEvent">Invoice created</Event>
+        <Event name="PaymentReceivedEvent">Payment status update</Event>
+      </DomainEvents>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-B2B-CPQ-01"/>
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-support-service" type="service">
+      <Name>support-service</Name>
+      <ArtifactId>support-service</ArtifactId>
+      <Description>
+        After-sales support: service requests, warranty claims, issue tracking.
+        Links requests to orders and tracks SLA/status.
+      </Description>
+      <BoundedContext>after-sales-support</BoundedContext>
+      <Responsibilities>
+        <Item>Create service requests linked to orders</Item>
+        <Item>Track request status and SLA</Item>
+        <Item>Store communication history</Item>
+        <Item>Optionally integrate with external service desk</Item>
+      </Responsibilities>
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
+        <ServiceRef ref="DP-SVC-order-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-media-service" type="grpc"/>
+        <ServiceRef ref="DP-SVC-notification-service" type="async"/>
+      </Dependencies>
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>support</Schema>
+      </Database>
+      <Ports>
+        <Port type="http">8095</Port>
+        <Port type="grpc">9095</Port>
+      </Ports>
+      <Aggregates>
+        <Aggregate name="ServiceRequest">Service/warranty request</Aggregate>
+        <Aggregate name="Communication">Message thread on request</Aggregate>
+      </Aggregates>
+      <DomainEvents>
+        <Event name="ServiceRequestCreatedEvent">Request submitted</Event>
+        <Event name="ServiceRequestResolvedEvent">Issue resolved</Event>
+      </DomainEvents>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-SUPPORT-CREATE-01"/>
       </Links>
     </Service>
   </Services>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════════
+  <!-- ===============================================================================
        FLOWS
-       ═══════════════════════════════════════════════════════════════════════════ -->
+       =============================================================================== -->
   <Flows>
-    <Flow id="Flow-Browse-Search">
-      <Name>Product Browse and Search Flow</Name>
-      <Description>Customer discovers products through browsing or search</Description>
+    <Flow id="Flow-B2C-CPQ">
+      <Name>B2C CPQ: Configure + Instant Price + Save Draft</Name>
+      <Description>Customer configures product, receives instant pricing, and saves draft</Description>
       <Sequence>
-        <Step order="1" from="frontend" to="gateway">Request product listing or search</Step>
-        <Step order="2" from="gateway" to="search-service">Route search request</Step>
-        <Step order="3" from="search-service" to="elasticsearch">Execute search query</Step>
-        <Step order="4" from="search-service" to="frontend">Return search results with facets</Step>
-        <Step order="5" from="frontend" to="media-service">Request product images</Step>
-      </Sequence>
-      <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE"/>
-        <Link ref="RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS"/>
-      </Links>
-    </Flow>
-
-    <Flow id="Flow-Config-Pricing">
-      <Name>Configuration and Pricing Flow</Name>
-      <Description>Customer configures a product and receives real-time pricing</Description>
-      <Sequence>
-        <Step order="1" from="frontend" to="gateway">Request product template</Step>
+        <Step order="1" from="frontend" to="gateway">Load product template</Step>
         <Step order="2" from="gateway" to="catalog-configuration-service">Get product template with options</Step>
         <Step order="3" from="frontend" to="gateway">Submit configuration for validation</Step>
         <Step order="4" from="gateway" to="catalog-configuration-service">Validate configuration</Step>
-        <Step order="5" from="catalog-configuration-service" to="pricing-service">Request price quote</Step>
-        <Step order="6" from="pricing-service" to="catalog-configuration-service">Return Quote</Step>
-        <Step order="7" from="catalog-configuration-service" to="frontend">Return validated configuration with price</Step>
+        <Step order="5" from="catalog-configuration-service" to="pricing-service">Calculate price quote</Step>
+        <Step order="6" from="pricing-service" to="catalog-configuration-service">Return Quote with promos</Step>
+        <Step order="7" from="catalog-configuration-service" to="frontend">Return validated config with price</Step>
+        <Step order="8" from="frontend" to="account-service">Save draft configuration (if authenticated)</Step>
       </Sequence>
-      <AlternateFlows>
-        <Flow trigger="Validation fails">
-          <Step order="4a">catalog-configuration-service returns ValidationResult with errors</Step>
-          <Step order="4b">frontend displays errors and suggestions</Step>
-        </Flow>
-      </AlternateFlows>
+      <PerformanceRequirement>Price recalculation within 300ms of user input</PerformanceRequirement>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM"/>
-        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-PERF-CPQ-RECALC"/>
       </Links>
     </Flow>
 
-    <Flow id="Flow-Cart-Checkout">
-      <Name>Cart to Checkout Flow</Name>
-      <Description>Customer adds items to cart and proceeds to checkout</Description>
+    <Flow id="Flow-Measurement-Visit">
+      <Name>Measurement Request and Visit Flow</Name>
+      <Description>Customer requests measurement; task created; technician completes; repricing triggered</Description>
       <Sequence>
-        <Step order="1" from="frontend" to="cart-service">Add configured item to cart</Step>
-        <Step order="2" from="cart-service" to="catalog-configuration-service">Validate configuration is still valid</Step>
-        <Step order="3" from="cart-service" to="pricing-service">Get current price quote</Step>
-        <Step order="4" from="cart-service" to="frontend">Return updated cart with totals</Step>
-        <Step order="5" from="frontend" to="cart-service">Proceed to checkout</Step>
-        <Step order="6" from="cart-service" to="frontend">Return cart snapshot for order creation</Step>
+        <Step order="1" from="frontend" to="workflow-service">Request measurement with address + slot</Step>
+        <Step order="2" from="workflow-service" to="field-ops-service">Create measurement task</Step>
+        <Step order="3" from="field-ops-service" to="notification-service">Notify technician + customer</Step>
+        <Step order="4" from="field-app" to="field-ops-service">Technician submits measurements/photos</Step>
+        <Step order="5" from="field-ops-service" to="workflow-service">Emit MEASUREMENT_COMPLETED event</Step>
+        <Step order="6" from="workflow-service" to="pricing-service">Recalculate with measured dimensions</Step>
+        <Step order="7" from="workflow-service" to="notification-service">Notify customer of updated quote</Step>
       </Sequence>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-MEASURE-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-FIELD-MEASURE-01"/>
       </Links>
     </Flow>
 
     <Flow id="Flow-Checkout-Payment">
-      <Name>Checkout and Payment Flow</Name>
-      <Description>Customer completes checkout and pays for order</Description>
+      <Name>Checkout, Contract Acceptance, and Payment</Name>
+      <Description>Customer checks out, accepts contract, pays, and order is locked</Description>
+      <Sequence>
+        <Step order="1" from="frontend" to="cart-service">Get cart for checkout</Step>
+        <Step order="2" from="cart-service" to="pricing-service">Verify current prices</Step>
+        <Step order="3" from="frontend" to="order-service">Create order from cart</Step>
+        <Step order="4" from="order-service" to="database">Persist order with CREATED status</Step>
+        <Step order="5" from="frontend" to="order-service">Accept contract terms</Step>
+        <Step order="6" from="order-service" to="database">Record contract acceptance</Step>
+        <Step order="7" from="order-service" to="payment-gateway">Initiate payment</Step>
+        <Step order="8" from="payment-gateway" to="frontend">Redirect to payment form</Step>
+        <Step order="9" from="payment-gateway" to="order-service">Webhook: payment captured</Step>
+        <Step order="10" from="order-service" to="database">Update to PAID status (lock order)</Step>
+        <Step order="11" from="order-service" to="kafka">Publish OrderPaidEvent</Step>
+        <Step order="12" from="notification-service" to="customer">Send order confirmation</Step>
+      </Sequence>
+      <AlternateFlows>
+        <Flow trigger="Payment fails">
+          <Step>order-service receives failure webhook</Step>
+          <Step>Order remains in PENDING_PAYMENT or moves to CANCELLED</Step>
+          <Step>Customer notified of failure</Step>
+        </Flow>
+      </AlternateFlows>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-ORDER-01"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Order-Fulfillment">
+      <Name>Order Fulfillment through Installation</Name>
+      <Description>Order progresses from PAID through production, delivery, and installation</Description>
+      <Sequence>
+        <Step order="1" from="order-service" to="kafka">Order in PAID status</Step>
+        <Step order="2" from="external/ERP" to="order-service">Production started</Step>
+        <Step order="3" from="order-service" to="database">Update to IN_PRODUCTION</Step>
+        <Step order="4" from="external/ERP" to="order-service">Production complete</Step>
+        <Step order="5" from="order-service" to="database">Update to READY_FOR_SHIPMENT</Step>
+        <Step order="6" from="field-ops-service" to="order-service">Shipment dispatched</Step>
+        <Step order="7" from="order-service" to="database">Update to IN_TRANSIT</Step>
+        <Step order="8" from="field-ops-service" to="order-service">Delivery confirmed</Step>
+        <Step order="9" from="order-service" to="database">Update to DELIVERED</Step>
+        <Step order="10" from="workflow-service" to="field-ops-service">Schedule installation</Step>
+        <Step order="11" from="field-ops-service" to="order-service">Installation task created</Step>
+        <Step order="12" from="order-service" to="database">Update to INSTALLATION_SCHEDULED</Step>
+        <Step order="13" from="field-app" to="field-ops-service">Installation completed</Step>
+        <Step order="14" from="field-ops-service" to="order-service">Emit InstallationCompletedEvent</Step>
+        <Step order="15" from="order-service" to="database">Update to INSTALLED</Step>
+      </Sequence>
+      <AuditRequirement>Each status transition creates immutable audit record</AuditRequirement>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-TRACK-01"/>
+        <Link ref="RequirementsAnalysis.xml#UC-FIELD-INSTALL-01"/>
+        <Link ref="RequirementsAnalysis.xml#StatusModel"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-B2B-Project-Order">
+      <Name>B2B Project Order with Partner Pricing</Name>
+      <Description>Dealer creates project order with batch items, partner pricing, and documents</Description>
       <Sequence>
         <Step order="1" from="frontend" to="order-service">Create order from cart</Step>
         <Step order="2" from="order-service" to="cart-service">Get cart snapshot</Step>
@@ -742,16 +1151,19 @@
       <Description>Services communicate asynchronously via Kafka domain events</Description>
       <Producers>
         <Producer service="catalog-configuration-service" events="ProductTemplatePublishedEvent, CatalogVersionPublishedEvent"/>
-        <Producer service="order-service" events="OrderCreatedEvent, OrderConfirmedEvent, OrderShippedEvent, OrderDeliveredEvent, OrderCompletedEvent, OrderCancelledEvent"/>
-        <Producer service="installation-service" events="InstallationScheduledEvent, InstallationCompletedEvent"/>
-        <Producer service="pricing-service" events="QuoteCalculatedEvent"/>
+        <Producer service="pricing-service" events="QuoteCalculatedEvent, PriceBookPublishedEvent"/>
+        <Producer service="order-service" events="OrderCreatedEvent, OrderPaidEvent, OrderInProductionEvent, OrderDeliveredEvent, OrderInstalledEvent, OrderCancelledEvent"/>
+        <Producer service="workflow-service" events="LeadCreatedEvent, DealStageChangedEvent, MeasurementRequestedEvent"/>
+        <Producer service="field-ops-service" events="MeasurementCompletedEvent, InstallationCompletedEvent, DeliveryStatusUpdatedEvent"/>
+        <Producer service="billing-service" events="InvoiceIssuedEvent, PaymentReceivedEvent"/>
+        <Producer service="support-service" events="ServiceRequestCreatedEvent, ServiceRequestResolvedEvent"/>
       </Producers>
       <Consumers>
         <Consumer service="search-service" events="ProductTemplatePublishedEvent"/>
-        <Consumer service="notification-service" events="OrderCreatedEvent, OrderShippedEvent, InstallationScheduledEvent"/>
-        <Consumer service="reporting-service" events="OrderCreatedEvent, OrderCompletedEvent"/>
-        <Consumer service="installation-service" events="OrderCreatedEvent"/>
-        <Consumer service="order-service" events="InstallationCompletedEvent"/>
+        <Consumer service="notification-service" events="OrderPaidEvent, MeasurementCompletedEvent, InstallationCompletedEvent, ServiceRequestCreatedEvent"/>
+        <Consumer service="reporting-service" events="OrderPaidEvent, OrderInstalledEvent, LeadCreatedEvent, DealStageChangedEvent"/>
+        <Consumer service="order-service" events="InstallationCompletedEvent, DeliveryStatusUpdatedEvent, PaymentReceivedEvent"/>
+        <Consumer service="workflow-service" events="MeasurementCompletedEvent, OrderPaidEvent"/>
       </Consumers>
       <Links>
         <Link ref="Technology.xml#TECH-kafka"/>
@@ -759,9 +1171,137 @@
     </Flow>
   </Flows>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════════
+  <!-- ===============================================================================
+       INTEGRATION CONTRACTS
+       =============================================================================== -->
+  <Integrations>
+    <Integration id="INT-CRM-ERP">
+      <Name>CRM/ERP Integration</Name>
+      <Type>bidirectional</Type>
+      <Description>Sync leads, deals, tasks, and order statuses with external CRM/ERP</Description>
+      <OutboundEvents>
+        <Event name="LeadCreatedEvent">Sent when new lead captured</Event>
+        <Event name="DealStageChangedEvent">Sent when pipeline stage changes</Event>
+        <Event name="TaskCreatedEvent">Sent when task created</Event>
+        <Event name="OrderStatusChangedEvent">Sent when order status changes</Event>
+      </OutboundEvents>
+      <InboundEvents>
+        <Event name="OrderProductionStatusUpdate">Received from ERP for production milestones</Event>
+      </InboundEvents>
+      <SourceOfTruth>
+        <Field name="Lead/Deal stages">Our system (primary)</Field>
+        <Field name="Production status">TBD - see DEC-OPEN-STATUS-SOT</Field>
+      </SourceOfTruth>
+      <ImplementingService ref="DP-SVC-workflow-service"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#INT-REQ-CRM"/>
+      </Links>
+    </Integration>
+
+    <Integration id="INT-CAD">
+      <Name>CAD/CPQ Integration</Name>
+      <Type>sync-request</Type>
+      <Description>Feasibility validation, drawing generation, visualization</Description>
+      <Operations>
+        <Operation name="validateFeasibility">
+          <Input>Configuration spec (dimensions, materials, options)</Input>
+          <Output>Feasibility result (pass/fail with reasons)</Output>
+          <SLA>TBD - see DEC-OPEN-CAD-FORMAT</SLA>
+        </Operation>
+        <Operation name="generateDrawing">
+          <Input>Configuration spec</Input>
+          <Output>Drawing files (PDF, DXF)</Output>
+        </Operation>
+        <Operation name="getVisualization">
+          <Input>Configuration spec</Input>
+          <Output>Image/3D model URL</Output>
+        </Operation>
+      </Operations>
+      <ImplementingService ref="DP-SVC-catalog-configuration-service"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#INT-REQ-CAD"/>
+      </Links>
+    </Integration>
+
+    <Integration id="INT-ERP">
+      <Name>ERP/Manufacturing Integration</Name>
+      <Type>bidirectional</Type>
+      <Description>Order sync and production status updates</Description>
+      <OutboundEvents>
+        <Event name="OrderPaidEvent">Order ready for production</Event>
+      </OutboundEvents>
+      <InboundEvents>
+        <Event name="ProductionStarted">Manufacturing began</Event>
+        <Event name="ProductionComplete">Ready for shipment</Event>
+      </InboundEvents>
+      <SourceOfTruth>
+        <Field name="Production stages">ERP (likely) - see DEC-OPEN-STATUS-SOT</Field>
+      </SourceOfTruth>
+      <ImplementingService ref="DP-SVC-order-service"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#INT-REQ-ERP"/>
+      </Links>
+    </Integration>
+
+    <Integration id="INT-LOGISTICS">
+      <Name>Logistics/Delivery Integration</Name>
+      <Type>bidirectional</Type>
+      <Description>Route planning, tracking, proof of delivery</Description>
+      <OutboundEvents>
+        <Event name="DeliveryRequested">Delivery address and items</Event>
+      </OutboundEvents>
+      <InboundEvents>
+        <Event name="ShipmentDispatched">In transit</Event>
+        <Event name="DeliveryCompleted">Delivered with proof</Event>
+        <Event name="DeliveryException">Failed delivery attempt</Event>
+      </InboundEvents>
+      <ImplementingService ref="DP-SVC-field-ops-service"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#INT-REQ-LOGISTICS"/>
+        <Link ref="RequirementsAnalysis.xml#UC-DELIVERY-TRACK-01"/>
+      </Links>
+    </Integration>
+
+    <Integration id="INT-PAYMENTS">
+      <Name>Payment Gateway Integration</Name>
+      <Type>sync-request + webhook</Type>
+      <Description>Payment initiation and webhook status updates</Description>
+      <Operations>
+        <Operation name="initiatePayment">
+          <Input>Amount, currency, order reference, return URLs</Input>
+          <Output>Payment session URL or token</Output>
+        </Operation>
+        <Operation name="capturePayment">
+          <Input>Payment ID</Input>
+          <Output>Capture result</Output>
+        </Operation>
+        <Operation name="refundPayment">
+          <Input>Payment ID, amount</Input>
+          <Output>Refund result</Output>
+        </Operation>
+      </Operations>
+      <Webhooks>
+        <Webhook event="payment.succeeded">Payment captured successfully</Webhook>
+        <Webhook event="payment.failed">Payment failed</Webhook>
+        <Webhook event="refund.succeeded">Refund processed</Webhook>
+      </Webhooks>
+      <Security>
+        <Item>Webhook signature verification required</Item>
+        <Item>No card data stored (PCI on provider)</Item>
+        <Item>Payment tokens used for references</Item>
+      </Security>
+      <ImplementingService ref="DP-SVC-order-service"/>
+      <ImplementingService ref="DP-SVC-billing-service"/>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#INT-REQ-PAYMENTS"/>
+        <Link ref="RequirementsAnalysis.xml#NFR-SEC-PAYMENT"/>
+      </Links>
+    </Integration>
+  </Integrations>
+
+  <!-- ===============================================================================
        CONTRACT EVOLUTION POLICY
-       ═══════════════════════════════════════════════════════════════════════════ -->
+       =============================================================================== -->
   <ContractEvolutionPolicy id="ContractEvolutionPolicy">
     <REST>
       <Versioning>URL path versioning (/api/v1/, /api/v2/)</Versioning>
@@ -796,9 +1336,9 @@
     </Links>
   </ContractEvolutionPolicy>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════════
+  <!-- ===============================================================================
        TESTING STRATEGY
-       ═══════════════════════════════════════════════════════════════════════════ -->
+       =============================================================================== -->
   <TestingStrategy id="TestingStrategy">
     <TestingPyramid>
       <Layer name="Unit" percentage="70">
@@ -823,15 +1363,15 @@
       </Layer>
     </TestingPyramid>
     <AdditionalTesting>
-      <ArchitectureTests>
-        <Tool>ArchUnit</Tool>
-        <Rules>
-          <Rule>Domain layer has no Spring/JPA dependencies</Rule>
-          <Rule>Application layer has no adapter dependencies</Rule>
-          <Rule>Adapters implement port interfaces</Rule>
+    <ArchitectureTests>
+      <Tool>ArchUnit</Tool>
+      <Rules>
+        <Rule>Domain layer has no Spring/JPA dependencies</Rule>
+        <Rule>Application layer has no adapter dependencies</Rule>
+        <Rule>Adapters implement port interfaces</Rule>
           <Rule>No cyclic dependencies between packages</Rule>
-        </Rules>
-      </ArchitectureTests>
+      </Rules>
+    </ArchitectureTests>
       <MutationTesting enabled="optional">
         <Tool>Pitest</Tool>
         <Scope>Critical domain logic (pricing, configuration validation)</Scope>
@@ -848,9 +1388,9 @@
     </Links>
   </TestingStrategy>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════════
+  <!-- ===============================================================================
        DEPLOYMENT STRATEGY
-       ═══════════════════════════════════════════════════════════════════════════ -->
+       =============================================================================== -->
   <Deployment id="Deployment-Overview">
     <Environments>
       <Environment name="dev">
@@ -921,9 +1461,9 @@
     </Links>
   </Deployment>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════════
+  <!-- ===============================================================================
        SEMANTIC CONTRACTS REGISTRY
-       ═══════════════════════════════════════════════════════════════════════════ -->
+       =============================================================================== -->
   <Contracts>
     <ContractRegistry>
       <Description>
@@ -1166,22 +1706,44 @@
     </BlockAnchorRegistry>
   </Contracts>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════════
+  <!-- ===============================================================================
+       OPEN DECISIONS (Tracked from RA)
+       =============================================================================== -->
+  <OpenDecisions>
+    <Decision id="DEC-DP-STATUS-SOT" status="OPEN" blocking="true">
+      <Topic>Status source of truth for production/logistics</Topic>
+      <Question>Is ERP/logistics the SoT for production/delivery statuses, or do we maintain parallel?</Question>
+      <Impact>Affects integration contract design and status reconciliation logic</Impact>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#DEC-OPEN-STATUS-SOT"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-DP-CAD-FORMAT" status="OPEN" blocking="false">
+      <Topic>CAD integration API format</Topic>
+      <Question>REST API, file exchange, or proprietary protocol?</Question>
+      <Impact>Affects catalog-configuration-service adapter implementation</Impact>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#DEC-OPEN-CAD-FORMAT"/>
+      </Links>
+    </Decision>
+  </OpenDecisions>
+
+  <!-- ===============================================================================
        ASSUMPTIONS
-       ═══════════════════════════════════════════════════════════════════════════ -->
+       =============================================================================== -->
   <Assumptions>
     <Assumption id="DP-ASSUM-001">
       Port numbers are defaults for local development; production uses Kubernetes service discovery.
     </Assumption>
     <Assumption id="DP-ASSUM-002" status="SUPERSEDED">
       SUPERSEDED by DEC-INTER-SERVICE-COMM: gRPC is REQUIRED for inter-service sync communication.
-      Original assumption (WebClient/OpenFeign with optional gRPC) is no longer valid.
     </Assumption>
     <Assumption id="DP-ASSUM-003">
-      Product service (product-service) in POM is legacy; functionality merged into catalog-configuration-service.
+      New services (workflow, field-ops, document, billing, support) follow same hexagonal architecture as existing services.
     </Assumption>
     <Assumption id="DP-ASSUM-004">
-      Initial implementation prioritizes happy-path flows; advanced error handling enhanced iteratively.
+      Phase deliverables may be adjusted based on integration availability (e.g., CAD, logistics).
     </Assumption>
   </Assumptions>
 
