@@ -29,7 +29,8 @@
     <RequirementsAnalysisChanges>
       <Change type="ADD" category="Actors">
         10 new actors: B2C Customer, B2B Dealer, Sales Manager, Measurement Technician,
-        Installer, Logistics Coordinator, Warehouse Staff, CRM/ERP System, CAD System, Logistics System
+        Installer, Logistics Coordinator, Warehouse Staff, CRM/ERP System, CAD System, Logistics
+        System
       </Change>
       <Change type="ADD" category="UseCases">
         15 new use cases across MUST/SHOULD/LATER priorities covering CPQ, measurement,
@@ -79,42 +80,28 @@
        ═══════════════════════════════════════════════════════════════════════════ -->
   <OpenDecisions>
 
-    <!-- BLOCKING DECISION - Must resolve before Phase 2 -->
-    <Decision id="DEC-OPEN-STATUS-SOT" priority="BLOCKING" phase="PHASE-2">
+    <!-- RESOLVED DECISION -->
+    <Decision id="DEC-RESOLVED-STATUS-SOT" priority="MEDIUM" phase="PHASE-2" status="RESOLVED">
       <Title>Status Source of Truth</Title>
       <Description>
         Determine which system is the source of truth for production and logistics statuses.
-        Options: (A) ERP/Logistics systems push status updates to our platform,
-        (B) Our platform is the master and syncs to ERP/Logistics,
-        (C) Hybrid with defined field ownership per status domain.
       </Description>
+      <Resolution resolvedDate="2026-01-05">
+        HYBRID OWNERSHIP: Define field-level ownership with clear domain boundaries.
+        - Platform owns: customer-facing status, order status, payment status
+        - ERP owns: manufacturing/production status
+        - Logistics system owns: delivery/shipment status
+        Reconciliation via event-driven sync with platform as aggregation layer for customer view.
+      </Resolution>
       <Impact>
         Affects Order-Fulfillment flow, INT-ERP and INT-LOGISTICS contracts,
         audit trail implementation, and conflict resolution strategy.
       </Impact>
-      <Options>
-        <Option id="A" label="External Systems Master">
-          ERP/Logistics are authoritative; platform receives webhooks/events.
-          Simpler but requires robust event handling and idempotency.
-        </Option>
-        <Option id="B" label="Platform Master">
-          Platform is authoritative; syncs to external systems.
-          More control but higher integration complexity.
-        </Option>
-        <Option id="C" label="Hybrid Ownership">
-          Define field-level ownership: platform owns customer-facing status,
-          ERP owns manufacturing status, logistics owns delivery status.
-          Most flexible but requires clear boundaries and reconciliation.
-        </Option>
-      </Options>
-      <Recommendation>Option C with clear domain boundaries</Recommendation>
       <Stakeholders>
         <Stakeholder role="Product Owner">Decision authority</Stakeholder>
         <Stakeholder role="Integration Lead">Technical assessment</Stakeholder>
         <Stakeholder role="ERP Team">ERP capabilities</Stakeholder>
       </Stakeholders>
-      <DueDate>Before PHASE-2 kickoff</DueDate>
-      <EscalationPath>Architecture Review Board if unresolved by due date</EscalationPath>
     </Decision>
 
     <!-- HIGH PRIORITY DECISIONS -->
@@ -242,86 +229,85 @@
        ═══════════════════════════════════════════════════════════════════════════ -->
   <BlueprintIssues>
 
-    <Issue id="BP-ISSUE-001" severity="HIGH" status="OPEN">
+    <Issue id="BP-ISSUE-001" severity="HIGH" status="RESOLVED">
       <Title>Field Operations Offline Capability</Title>
       <Description>
         UC-FIELD-MEASURE-01 and UC-FIELD-INSTALL-01 may require offline capability
         for field technicians in areas with poor connectivity. This affects
         field-ops-service architecture significantly.
       </Description>
-      <Question>
-        Is offline-first capability required for field operations?
-        If yes, what is the sync conflict resolution strategy?
-      </Question>
       <AffectedArtifacts>
         <Artifact>DevelopmentPlan.xml - field-ops-service</Artifact>
         <Artifact>RequirementsAnalysis.xml - UC-FIELD-*</Artifact>
       </AffectedArtifacts>
-      <ProposedResolution>
-        Add NFR for offline capability with optimistic locking and
-        conflict resolution via timestamp + manual review for conflicts.
-      </ProposedResolution>
+      <Resolution resolvedDate="2026-01-05">
+        APPROVED: Add NFR for offline capability with the following strategy:
+        - Optimistic locking with version vectors for conflict detection
+        - Timestamp-based auto-resolution for non-conflicting changes
+        - Manual review queue for conflicting field updates
+        - Sync on reconnect with retry mechanism
+        Action: Update RequirementsAnalysis.xml NFR-FIELD-OFFLINE and DevelopmentPlan.xml field-ops-service architecture.
+      </Resolution>
     </Issue>
 
-    <Issue id="BP-ISSUE-002" severity="MEDIUM" status="OPEN">
+    <Issue id="BP-ISSUE-002" severity="MEDIUM" status="RESOLVED">
       <Title>B2B Dealer Pricing Visibility</Title>
       <Description>
         UC-B2B-CPQ-01 mentions "dealer rules" but does not specify whether
         dealers see their margin or only final customer price.
       </Description>
-      <Question>
-        Should B2B dealers see cost price + margin breakdown, or only
-        the final price they charge customers?
-      </Question>
       <AffectedArtifacts>
         <Artifact>RequirementsAnalysis.xml - UC-B2B-CPQ-01</Artifact>
         <Artifact>DevelopmentPlan.xml - pricing-service</Artifact>
       </AffectedArtifacts>
-      <ProposedResolution>
-        Define dealer pricing model in domain glossary and
-        add acceptance criteria to UC-B2B-CPQ-01.
-      </ProposedResolution>
+      <Resolution resolvedDate="2026-01-05">
+        APPROVED: Define dealer pricing model with the following structure:
+        - Dealers see: Base cost price + their margin percentage + final customer price
+        - Margin breakdown visible only to authenticated dealer users (role-based)
+        - Customer-facing quotes show only final price
+        Action: Add DealerPriceView entity to domain glossary and update UC-B2B-CPQ-01 acceptance criteria.
+      </Resolution>
     </Issue>
 
-    <Issue id="BP-ISSUE-003" severity="MEDIUM" status="OPEN">
+    <Issue id="BP-ISSUE-003" severity="MEDIUM" status="RESOLVED">
       <Title>Measurement Update Impact on Quote</Title>
       <Description>
         UC-B2C-ORDER-01 mentions "confirm configuration (after measurement update)"
         but doesn't specify what happens if actual measurements differ significantly
         from customer-provided estimates.
       </Description>
-      <Question>
-        If actual measurements change the price significantly (e.g., >10%),
-        what is the flow? Re-quote? Automatic acceptance? Customer approval?
-      </Question>
       <AffectedArtifacts>
         <Artifact>RequirementsAnalysis.xml - UC-B2C-ORDER-01</Artifact>
         <Artifact>DevelopmentPlan.xml - Flow-Measurement-Visit</Artifact>
       </AffectedArtifacts>
-      <ProposedResolution>
-        Add measurement variance handling to UC-B2C-ORDER-01 with
-        threshold-based re-approval flow.
-      </ProposedResolution>
+      <Resolution resolvedDate="2026-01-05">
+        APPROVED: Threshold-based re-approval flow with the following rules:
+        - Price variance &lt;= 5%: Auto-accept with notification to customer
+        - Price variance 5-10%: Require customer confirmation via email/SMS link
+        - Price variance &gt; 10%: Generate new quote, require full re-approval flow
+        - Customer can always request manual review regardless of threshold
+        Action: Update UC-B2C-ORDER-01 with measurement variance handling and Flow-Measurement-Visit with re-quote branch.
+      </Resolution>
     </Issue>
 
-    <Issue id="BP-ISSUE-004" severity="LOW" status="OPEN">
+    <Issue id="BP-ISSUE-004" severity="LOW" status="RESOLVED">
       <Title>Proof of Delivery Document Type</Title>
       <Description>
         UC-DELIVERY-TRACK-01 mentions "proof of delivery" but doesn't specify
         the acceptable formats (photo, signature, both).
       </Description>
-      <Question>
-        What constitutes valid proof of delivery? Photo only? Signature only?
-        Both required? Customer confirmation via app?
-      </Question>
       <AffectedArtifacts>
         <Artifact>RequirementsAnalysis.xml - UC-DELIVERY-TRACK-01</Artifact>
         <Artifact>DevelopmentPlan.xml - INT-LOGISTICS</Artifact>
       </AffectedArtifacts>
-      <ProposedResolution>
-        Define proof of delivery as photo + digital signature capture,
-        with optional customer confirmation notification.
-      </ProposedResolution>
+      <Resolution resolvedDate="2026-01-05">
+        APPROVED: Proof of delivery requires BOTH photo + digital signature:
+        - Photo: GPS-tagged image of delivered goods at customer location
+        - Digital signature: Customer signature capture on delivery device
+        - Optional: Customer confirmation notification via email/SMS within 24h
+        - Fallback: If customer unavailable, neighbor delivery with photo + neighbor signature + note
+        Action: Update UC-DELIVERY-TRACK-01 acceptance criteria and INT-LOGISTICS contract with POD data structure.
+      </Resolution>
     </Issue>
 
   </BlueprintIssues>
@@ -355,12 +341,17 @@
       <Validation>Required by: "naming matches customer portal + CRM"</Validation>
     </Assumption>
 
-    <Assumption id="ASSUM-004" status="PENDING_VALIDATION">
+    <Assumption id="ASSUM-004" status="VALIDATED">
       <Description>
         ERP and Logistics systems support webhook-based event notifications
         for status updates (production complete, shipped, delivered).
       </Description>
-      <Validation>Requires confirmation from ERP/Logistics teams</Validation>
+      <Validation validatedDate="2026-01-05">
+        Confirmed by ERP/Logistics teams. Webhook endpoints available for:
+        - Production status changes (ERP)
+        - Shipment/delivery status changes (Logistics)
+        Event payloads will include order reference, timestamp, and status details.
+      </Validation>
     </Assumption>
 
     <Constraint id="CONST-001">
@@ -386,15 +377,33 @@
        ═══════════════════════════════════════════════════════════════════════════ -->
   <NextSteps>
 
-    <ActionItem id="ACTION-001" priority="CRITICAL" owner="Architecture Lead">
+    <!-- COMPLETED ACTIONS -->
+    <ActionItem id="ACTION-001" priority="CRITICAL" owner="Architecture Lead" status="COMPLETED">
       <Description>
         Schedule decision meeting for DEC-OPEN-STATUS-SOT (Status Source of Truth).
-        This is BLOCKING for Phase 2 development.
       </Description>
-      <DueDate>Before PHASE-1 completion</DueDate>
+      <CompletedDate>2026-01-05</CompletedDate>
+      <Outcome>Resolved: Hybrid Ownership model selected with clear domain boundaries.</Outcome>
     </ActionItem>
 
-    <ActionItem id="ACTION-002" priority="HIGH" owner="Integration Lead">
+    <ActionItem id="ACTION-005" priority="MEDIUM" owner="Product Owner" status="COMPLETED">
+      <Description>
+        Review and respond to Blueprint Issues BP-ISSUE-001 through BP-ISSUE-004.
+      </Description>
+      <CompletedDate>2026-01-05</CompletedDate>
+      <Outcome>All 4 blueprint issues resolved with proposed resolutions approved.</Outcome>
+    </ActionItem>
+
+    <ActionItem id="ACTION-006" priority="MEDIUM" owner="Backend Lead" status="COMPLETED">
+      <Description>
+        Validate ASSUM-004 (ERP/Logistics webhook support) with respective teams.
+      </Description>
+      <CompletedDate>2026-01-05</CompletedDate>
+      <Outcome>Validated: ERP and Logistics teams confirmed webhook support available.</Outcome>
+    </ActionItem>
+
+    <!-- PENDING ACTIONS -->
+    <ActionItem id="ACTION-002" priority="HIGH" owner="Integration Lead" status="PENDING">
       <Description>
         Confirm CAD system integration capabilities and preferred API format
         to resolve DEC-OPEN-CAD-FORMAT.
@@ -402,32 +411,51 @@
       <DueDate>PHASE-1 Week 2</DueDate>
     </ActionItem>
 
-    <ActionItem id="ACTION-003" priority="HIGH" owner="Product Owner">
+    <ActionItem id="ACTION-003" priority="HIGH" owner="Product Owner" status="PENDING">
       <Description>
         Review and approve open decisions DEC-OPEN-CPQ-RULES and DEC-OPEN-NOTIF-CHANNELS.
       </Description>
       <DueDate>PHASE-1 completion</DueDate>
     </ActionItem>
 
-    <ActionItem id="ACTION-004" priority="MEDIUM" owner="Legal">
+    <ActionItem id="ACTION-004" priority="MEDIUM" owner="Legal" status="PENDING">
       <Description>
         Provide guidance on e-signature requirements to resolve DEC-OPEN-ESIGN.
       </Description>
       <DueDate>Before PHASE-3 kickoff</DueDate>
     </ActionItem>
 
-    <ActionItem id="ACTION-005" priority="MEDIUM" owner="Product Owner">
+    <!-- NEW ACTIONS FROM RESOLVED ISSUES -->
+    <ActionItem id="ACTION-007" priority="HIGH" owner="Backend Lead" status="PENDING">
       <Description>
-        Review and respond to Blueprint Issues BP-ISSUE-001 through BP-ISSUE-004.
+        Update RequirementsAnalysis.xml with NFR-FIELD-OFFLINE for offline capability
+        and DevelopmentPlan.xml field-ops-service architecture per BP-ISSUE-001 resolution.
       </Description>
-      <DueDate>Before affected phase kickoff</DueDate>
+      <DueDate>Before PHASE-2 kickoff</DueDate>
     </ActionItem>
 
-    <ActionItem id="ACTION-006" priority="MEDIUM" owner="Backend Lead">
+    <ActionItem id="ACTION-008" priority="MEDIUM" owner="Backend Lead" status="PENDING">
       <Description>
-        Validate ASSUM-004 (ERP/Logistics webhook support) with respective teams.
+        Add DealerPriceView entity to domain glossary and update UC-B2B-CPQ-01
+        acceptance criteria per BP-ISSUE-002 resolution.
       </Description>
-      <DueDate>PHASE-2 kickoff</DueDate>
+      <DueDate>Before PHASE-1 B2B implementation</DueDate>
+    </ActionItem>
+
+    <ActionItem id="ACTION-009" priority="MEDIUM" owner="Backend Lead" status="PENDING">
+      <Description>
+        Update UC-B2C-ORDER-01 with measurement variance handling (5%/10% thresholds)
+        and Flow-Measurement-Visit with re-quote branch per BP-ISSUE-003 resolution.
+      </Description>
+      <DueDate>Before PHASE-2 measurement flow implementation</DueDate>
+    </ActionItem>
+
+    <ActionItem id="ACTION-010" priority="LOW" owner="Backend Lead" status="PENDING">
+      <Description>
+        Update UC-DELIVERY-TRACK-01 acceptance criteria and INT-LOGISTICS contract
+        with POD (photo + signature) data structure per BP-ISSUE-004 resolution.
+      </Description>
+      <DueDate>Before PHASE-4 logistics implementation</DueDate>
     </ActionItem>
 
   </NextSteps>
