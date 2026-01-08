@@ -34,7 +34,7 @@ public class BasePriceEntry {
         BigDecimal chargeableArea = areaM2.max(minimumAreaM2);
         Money calculatedPrice = Money.of(chargeableArea.multiply(pricePerM2), currency);
 
-        if (minimumCharge != null && calculatedPrice.compareTo(minimumCharge) < 0) {
+        if (minimumCharge != null && calculatedPrice.isLessThan(minimumCharge)) {
             return minimumCharge;
         }
         return calculatedPrice;

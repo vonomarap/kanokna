@@ -1,0 +1,84 @@
+Change Request: Business Requirements Update (RA + DP)
+
+1) Intent
+Convert the following business requirements into updates for:
+- RequirementsAnalysis.xml (UCs, NFRs, domain glossary, integration requirements, status model)
+- DevelopmentPlan.xml (phases, deliverables, gates/risks)
+Do NOT introduce new architecture/tech beyond what is approved. Treat “recommended architecture” statements as NFR/constraints unless already decided.
+
+2) MUST/SHOULD/LATER
+MUST (MVP/near-term):
+- B2C CPQ: configure + instant pricing + save draft
+- Measurement request scheduling + CRM task creation
+- B2C ordering: contract acceptance + prepayment + paid status lock
+- Status tracking + notifications baseline
+- Core roles/RBAC domains (B2C/B2B/Staff/Field)
+- Audit trail for status changes with source (manual vs integration)
+SHOULD:
+- Promotions/discounts/installments display in CPQ
+- Delivery tracking with proof of delivery
+LATER:
+- 3D visualization (beyond basic scheme)
+- Advanced logistics auto-routing (if not available early)
+
+3) Proposed UC Drafts (minimal)
+UC-B2C-CPQ-01: Configure product and get instant price
+- Actor: B2C Customer
+- Main flow: choose type/options → enter dimensions → validate → price calc → show promos → save draft
+- Acceptance: any change recalculates; draft can be resumed from account
+
+UC-B2C-MEASURE-01: Request measurement slot
+- Actor: B2C Customer
+- Main flow: select date/time → enter contact/address → submit → confirmation → create measurement task → notify manager/CRM
+- Acceptance: request creates task; confirmation message sent
+
+UC-B2C-ORDER-01: Place order, accept contract, pay prepayment
+- Actor: B2C Customer
+- Main flow: confirm configuration (after measurement update) → choose delivery/installation options → accept contract → pay → lock order → status=Paid
+- Acceptance: post-payment order locked; status transitions recorded
+
+UC-B2C-TRACK-01: Track order and receive notifications
+- Actor: B2C Customer
+- Main flow: view statuses (measurement/production/delivery/installation) → receive email/SMS/in-app notifications
+- Acceptance: status history visible; notifications triggered by events
+
+UC-B2B-CPQ-01: Dealer config/quote + project order
+- Actor: B2B Dealer
+- Main flow: configure with dealer rules → quote generation → upload BOM/drawings → batch items → feasibility checks (CAD) → docs
+- Acceptance: quote generated; documents linked to order
+
+UC-STAFF-CRM-01: Manage leads/pipeline/quotes/calendar
+- Actor: Sales Manager/Staff
+- Main flow: ingest leads → pipeline stages → generate quote/invoice template → schedule measurement/install → receive completion updates
+- Acceptance: pipeline reflects status model; scheduling supports slot booking
+
+UC-FIELD-MEASURE-01: Measurer captures measurements/photos/acts
+UC-FIELD-INSTALL-01: Installer checklist + completion act + status update
+
+4) Status Model (baseline)
+Define states and transitions (Lead/Quote/Payment/Fulfillment/Installation/After-sales) and ensure naming matches customer portal + CRM.
+All status changes MUST be audited with: timestamp, actor/system, source (manual/integration), correlation/order id.
+
+5) Integrations
+- CRM: lead/deal creation, pipeline, tasks, reminders
+- CAD/CPQ: feasibility validation + drawing/spec generation + visualization artifacts
+- ERP/Manufacturing: order sync, single source of truth (define which fields originate where)
+- Logistics/Maps: route planning, tracking, proof of delivery
+- Payments: gateway + webhook status updates; PCI on provider side; secure token/webhook handling
+
+6) Domain Glossary (minimum entities)
+User/PartnerOrg/StaffUser/FieldUser, ProductCatalog, PricingRules, Discounts,
+Configuration, Lead/Deal, Quote, Contract, Payment,
+MeasurementVisit, Order/OrderItems, Delivery, InstallationJob, ServiceTicket/Review, Documents.
+
+7) Development Plan Phases
+Phase 0..4 as provided. Convert each phase deliverables into DP milestones + acceptance gates.
+
+8) Open Decisions / Gates (do not invent)
+- CPQ rules/options governance
+- CAD integration format/SLA
+- E-signing legal level
+- Status source of truth (ERP/logistics vs manual)
+- Notification channels/templates/events
+These must be logged as decisions or escalated as Blueprint issues if blocking.
+

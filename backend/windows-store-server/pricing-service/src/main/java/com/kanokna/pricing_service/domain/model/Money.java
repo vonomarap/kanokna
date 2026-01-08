@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -111,4 +111,3 @@ public final class Money {
         return amount + " " + currency;
     }
 }
-

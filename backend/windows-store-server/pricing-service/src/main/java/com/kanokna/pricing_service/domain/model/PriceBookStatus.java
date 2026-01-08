@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.domain.model;
+package com.kanokna.pricing_service.domain.model;
 
 /**
  * Status of a price book in its lifecycle.
@@ -14,4 +14,3 @@ public enum PriceBookStatus {
     /** Archived (replaced by newer version) */
     ARCHIVED
 }
-

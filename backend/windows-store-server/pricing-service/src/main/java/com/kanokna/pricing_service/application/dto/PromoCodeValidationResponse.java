@@ -1,4 +1,4 @@
-﻿package com.kanokna.pricing_service.application.dto;
+package com.kanokna.pricing_service.application.dto;
 
 /**
  * Response DTO for promo code validation.

@@ -36,11 +36,6 @@
       <artifactId>protobuf-java</artifactId>
       <version>${protobuf.version}</version>
     </dependency>
-    <dependency>
-      <groupId>jakarta.annotation</groupId>
-      <artifactId>jakarta.annotation-api</artifactId>
-      <version>2.1.1</version>
-    </dependency>
     <!-- Required for gRPC generated stubs (@Generated annotation) -->
     <dependency>
       <groupId>javax.annotation</groupId>
