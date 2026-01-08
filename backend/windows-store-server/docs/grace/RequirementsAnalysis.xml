@@ -1218,14 +1218,38 @@
     </Requirement>
   </NonFunctionalRequirements>
 
-  <!-- ===============================================================================
-       OPEN DECISIONS
-       =============================================================================== -->
-  <OpenDecisions id="OpenDecisions">
-    <Description>
-      Decisions that must be resolved before implementation. Do not invent solutions;
-      escalate as Blueprint Issues if blocking.
-    </Description>
+    <!-- Field Operations (BP-ISSUE-001 Resolution) -->
+    <Requirement id="NFR-FIELD-OFFLINE">
+      <Category>Field Operations</Category>
+      <Description>Offline capability for field technicians</Description>
+      <Specification>
+        Field operations (measurement and installation) support offline-first capability:
+        - Data cached locally on mobile devices for offline access
+        - Optimistic locking with version vectors for conflict detection
+        - Timestamp-based auto-resolution for non-conflicting changes
+        - Manual review queue for conflicting field updates
+        - Automatic sync on reconnect with retry mechanism (exponential backoff)
+        - Offline task queue with at-least-once delivery guarantee
+      </Specification>
+      <ConflictResolutionStrategy>
+        <Rule priority="1">Non-conflicting changes: auto-merge using last-write-wins per field</Rule>
+        <Rule priority="2">Conflicting measurement values: queue for supervisor review</Rule>
+        <Rule priority="3">Status transitions: server state wins, local changes re-queued</Rule>
+      </ConflictResolutionStrategy>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service"/>
+      </Links>
+    </Requirement>
+
+    <!-- Internationalization -->
+    <Requirement id="NFR-I18N-MULTI-LANGUAGE">
+      <Category>Internationalization</Category>
+      <Description>Multi-language support</Description>
+      <Specification>
+        Product descriptions, UI, and notifications support multiple languages.
+        LocalizedString value object in shared-kernel.
+      </Specification>
+    </Requirement>
 
     <Decision id="DEC-OPEN-CPQ-RULES">
       <Topic>CPQ rules/options governance</Topic>
@@ -1264,7 +1288,151 @@
     </Decision>
   </OpenDecisions>
 
-  <!-- ===============================================================================
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       DOMAIN GLOSSARY (BP-ISSUE-002 Resolution)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DomainGlossary>
+    <Entity id="DealerPriceView">
+      <Name>Dealer Price View</Name>
+      <Description>
+        B2B dealer-specific pricing visibility model (BP-ISSUE-002 Resolution).
+        Dealers see comprehensive pricing breakdown while customers see only final price.
+      </Description>
+      <BoundedContext>pricing</BoundedContext>
+      <Attributes>
+        <Attribute name="baseCostPrice" type="Money">Wholesale cost price visible to dealer</Attribute>
+        <Attribute name="marginPercentage" type="Percentage">Dealer's configured margin</Attribute>
+        <Attribute name="marginAmount" type="Money">Calculated margin amount</Attribute>
+        <Attribute name="finalCustomerPrice" type="Money">Price shown to end customer</Attribute>
+        <Attribute name="optionPremiums" type="List[OptionPremium]">Itemized option price breakdown</Attribute>
+        <Attribute name="dealerTier" type="DealerTier">Partner tier affecting margin rules</Attribute>
+      </Attributes>
+      <AccessControl>
+        <Rule>Only users with B2B_DEALER role can access baseCostPrice and marginPercentage</Rule>
+        <Rule>Customers see only finalCustomerPrice regardless of channel</Rule>
+        <Rule>API enforces role-based field filtering at serialization layer</Rule>
+      </AccessControl>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </Entity>
+  </DomainGlossary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       MEASUREMENT VARIANCE HANDLING (BP-ISSUE-003 Resolution)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <MeasurementVarianceRules id="MeasurementVarianceHandling">
+    <Description>
+      Rules for handling price changes when actual measurements differ from customer estimates.
+      Applied after technician submits measurement results.
+    </Description>
+    <ThresholdRules>
+      <Rule id="MVR-AUTO-ACCEPT" threshold="5">
+        <Condition>Price variance &lt;= 5%</Condition>
+        <Action>Auto-accept with notification to customer</Action>
+        <Notification>Email/SMS informing of minor adjustment, no action required</Notification>
+      </Rule>
+      <Rule id="MVR-CONFIRMATION" threshold="10">
+        <Condition>Price variance between 5% and 10%</Condition>
+        <Action>Require customer confirmation via email/SMS link</Action>
+        <Notification>Email/SMS with updated quote and one-click confirm/reject link</Notification>
+        <Timeout>72 hours before quote expires</Timeout>
+      </Rule>
+      <Rule id="MVR-REQUOTE" threshold="unlimited">
+        <Condition>Price variance &gt; 10%</Condition>
+        <Action>Generate new quote, require full re-approval flow</Action>
+        <Notification>Email/SMS explaining significant change, link to review new quote</Notification>
+        <Flow>Customer must revisit configurator to accept updated configuration</Flow>
+      </Rule>
+    </ThresholdRules>
+    <CustomerOverride>
+      Customer can always request manual review regardless of threshold by contacting support.
+    </CustomerOverride>
+    <AuditRequirement>
+      All variance decisions logged with: original quote, measured quote, variance percentage,
+      rule applied, customer response, timestamp.
+    </AuditRequirement>
+    <Links>
+      <Link ref="DevelopmentPlan.xml#Flow-Measurement-Visit"/>
+    </Links>
+  </MeasurementVarianceRules>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       PROOF OF DELIVERY REQUIREMENTS (BP-ISSUE-004 Resolution)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ProofOfDeliveryRequirements id="PODRequirements">
+    <Description>
+      Requirements for valid proof of delivery documentation.
+      Both photo and signature are required for standard delivery.
+    </Description>
+    <RequiredElements>
+      <Element id="POD-PHOTO" required="true">
+        <Name>GPS-Tagged Photo</Name>
+        <Description>Photo of delivered goods at customer location</Description>
+        <Requirements>
+          <Item>Minimum resolution: 1280x720</Item>
+          <Item>GPS coordinates embedded in EXIF data</Item>
+          <Item>Timestamp embedded in EXIF data</Item>
+          <Item>Must show delivered items and location context</Item>
+        </Requirements>
+      </Element>
+      <Element id="POD-SIGNATURE" required="true">
+        <Name>Digital Signature</Name>
+        <Description>Customer signature captured on delivery device</Description>
+        <Requirements>
+          <Item>Touch/stylus signature capture</Item>
+          <Item>Signer name (printed)</Item>
+          <Item>Timestamp of signature</Item>
+          <Item>Device ID for audit trail</Item>
+        </Requirements>
+      </Element>
+      <Element id="POD-CONFIRMATION" required="false">
+        <Name>Customer Confirmation</Name>
+        <Description>Optional email/SMS confirmation within 24 hours</Description>
+        <Requirements>
+          <Item>Automated notification sent post-delivery</Item>
+          <Item>One-click confirm/report-issue link</Item>
+          <Item>24-hour response window before auto-confirm</Item>
+        </Requirements>
+      </Element>
+    </RequiredElements>
+    <FallbackScenarios>
+      <Scenario id="POD-FALLBACK-NEIGHBOR">
+        <Condition>Customer unavailable at delivery time</Condition>
+        <Requirements>
+          <Item>Neighbor delivery with neighbor's signature</Item>
+          <Item>Photo of delivered goods at neighbor location</Item>
+          <Item>Written note with neighbor's name and address</Item>
+          <Item>Customer notification of neighbor delivery</Item>
+        </Requirements>
+      </Scenario>
+      <Scenario id="POD-FALLBACK-SAFE-PLACE">
+        <Condition>Customer pre-authorized safe place delivery</Condition>
+        <Requirements>
+          <Item>Photo of goods in designated safe place</Item>
+          <Item>No signature required if pre-authorized</Item>
+          <Item>Immediate customer notification</Item>
+        </Requirements>
+      </Scenario>
+    </FallbackScenarios>
+    <DataStructure>
+      <Field name="orderId" type="UUID">Reference to order</Field>
+      <Field name="deliveryTimestamp" type="DateTime">Actual delivery time</Field>
+      <Field name="photoUrls" type="List[URL]">GPS-tagged delivery photos</Field>
+      <Field name="signatureData" type="SignatureCapture">Digital signature blob</Field>
+      <Field name="signerName" type="String">Name of person who signed</Field>
+      <Field name="signerRelation" type="Enum">CUSTOMER, NEIGHBOR, AGENT</Field>
+      <Field name="gpsCoordinates" type="GeoPoint">Delivery location</Field>
+      <Field name="deviceId" type="String">Delivery device identifier</Field>
+      <Field name="notes" type="String">Optional delivery notes</Field>
+      <Field name="confirmationStatus" type="Enum">PENDING, CONFIRMED, DISPUTED</Field>
+    </DataStructure>
+    <Links>
+      <Link ref="DevelopmentPlan.xml#INT-LOGISTICS"/>
+    </Links>
+  </ProofOfDeliveryRequirements>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
        ASSUMPTIONS
        =============================================================================== -->
   <Assumptions>

@@ -1,29 +1,27 @@
-package com.kanokna.catalog;
-
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+package com.kanokna.account;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
  * ArchUnit tests enforcing hexagonal architecture boundaries.
- * Ensures domain layer has no framework dependencies.
  */
 class ArchitectureTest {
-
     private static JavaClasses importedClasses;
 
     @BeforeAll
     static void setup() {
         importedClasses = new ClassFileImporter()
             .withImportOption(new ImportOption.DoNotIncludeTests())
-            .importPackages("com.kanokna.catalog");
+            .importPackages("com.kanokna.account");
     }
 
     @Test
@@ -57,20 +55,7 @@ class ArchitectureTest {
     }
 
     @Test
-    @DisplayName("Domain model classes should be in domain.model package")
-    void domainModelInCorrectPackage() {
-        ArchRule rule = classes()
-            .that().haveNameMatching(".*Template|.*Configuration|.*Option.*|.*Rule.*|.*Bom.*|.*Version")
-            .and().areNotInterfaces()
-            .and().resideOutsideOfPackage("..dto..")
-            .and().resideOutsideOfPackage("..adapters..")
-            .should().resideInAPackage("..domain.model..");
-
-        rule.check(importedClasses);
-    }
-
-    @Test
-    @DisplayName("Application services should not depend on adapters")
+    @DisplayName("Application layer should not depend on adapters")
     void applicationShouldNotDependOnAdapters() {
         ArchRule rule = noClasses()
             .that().resideInAPackage("..application..")
@@ -80,7 +65,7 @@ class ArchitectureTest {
     }
 
     @Test
-    @DisplayName("JPA entities should reside only in adapters.out.persistence package")
+    @DisplayName("JPA entities should reside only in adapters.out.persistence")
     void jpaEntitiesOnlyInAdapters() {
         ArchRule rule = classes()
             .that().haveNameMatching(".*JpaEntity")

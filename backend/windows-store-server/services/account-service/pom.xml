@@ -12,9 +12,9 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>catalog-configuration-service</artifactId>
-    <name>catalog-configuration-service</name>
-    <description>Product catalog and configuration validation service</description>
+    <artifactId>account-service</artifactId>
+    <name>account-service</name>
+    <description>User profile, address, and configuration management service</description>
 
     <dependencies>
         <!-- Internal modules -->
@@ -103,7 +103,7 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>kafka</artifactId>
+            <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

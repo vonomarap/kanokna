@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  GRACE FUNCTION CONTRACTS: search-service
+  ═══════════════════════════════════════════════════════════════════════════════
+  Service:         search-service
+  Created:         2026-01-08T18:41:00+03:00
+  Purpose:         Function contracts for search operations
+  ═══════════════════════════════════════════════════════════════════════════════
+-->
+<FunctionContracts service="search-service">
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <!-- FC-search-searchProducts: Full-text search with facets                      -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <FUNCTION_CONTRACT
+        id="FC-search-searchProducts"
+        LAYER="application.service"
+        INTENT="Execute full-text search with faceted filtering and return paginated results"
+        INPUT="SearchQuery"
+        OUTPUT="SearchResult"
+        SIDE_EFFECTS="None (read-only)"
+        LINKS="RequirementsAnalysis.xml#UC-CATALOG-BROWSE;RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY">
+
+        <PRECONDITIONS>
+            <Item>Elasticsearch cluster is available and healthy</Item>
+            <Item>product_templates index exists (or alias points to valid index)</Item>
+            <Item>pageSize is between 1 and 100 (validated in adapter)</Item>
+            <Item>page is non-negative (validated in adapter)</Item>
+        </PRECONDITIONS>
+
+        <POSTCONDITIONS>
+            <Item>SearchResult contains only products with status=ACTIVE</Item>
+            <Item>SearchResult.totalCount reflects total matching documents</Item>
+            <Item>SearchResult.products.size() ≤ pageSize</Item>
+            <Item>SearchResult.facets reflect counts for current filter state</Item>
+            <Item>SearchResult.queryTimeMs contains actual execution time</Item>
+        </POSTCONDITIONS>
+
+        <INVARIANTS>
+            <Item>Query is read-only; does not modify any data</Item>
+            <Item>Results are deterministic for same query and index state</Item>
+            <Item>Facet counts are computed on filtered result set</Item>
+        </INVARIANTS>
+
+        <ERROR_HANDLING>
+            <Item type="TECHNICAL" code="ERR-SEARCH-ES-UNAVAILABLE">Elasticsearch cluster
+                unreachable</Item>
+            <Item type="TECHNICAL" code="ERR-SEARCH-INDEX-NOT-FOUND">product_templates index does
+                not exist</Item>
+            <Item type="TECHNICAL" code="ERR-SEARCH-QUERY-TIMEOUT">Query exceeded timeout threshold</Item>
+            <Item type="BUSINESS" code="ERR-SEARCH-INVALID-FACET">Unknown facet field specified in
+                filter</Item>
+        </ERROR_HANDLING>
+
+        <BLOCK_ANCHORS>
+            <Item id="BA-SEARCH-QUERY-01">Build Elasticsearch query from SearchQuery</Item>
+            <Item id="BA-SEARCH-QUERY-02">Execute query and collect results</Item>
+            <Item id="BA-SEARCH-QUERY-03">Process facet aggregations</Item>
+            <Item id="BA-SEARCH-QUERY-04">Map Elasticsearch response to SearchResult</Item>
+        </BLOCK_ANCHORS>
+
+        <LOGGING>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-SEARCH-QUERY-01][STATE=BUILD_QUERY]
+                eventType=QUERY_BUILDING keyValues=queryText,filterCount,sortField</Item>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-SEARCH-QUERY-02][STATE=EXECUTE_QUERY]
+                eventType=ELASTICSEARCH_QUERY_START keyValues=indexName</Item>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-SEARCH-QUERY-02][STATE=QUERY_COMPLETE]
+                eventType=ELASTICSEARCH_QUERY_END decision=SUCCESS|FAILURE
+                keyValues=took_ms,total_hits</Item>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-SEARCH-QUERY-04][STATE=MAPPING_COMPLETE]
+                eventType=SEARCH_RESULT_READY keyValues=resultCount,facetCount</Item>
+        </LOGGING>
+
+        <TESTS>
+            <Case id="TC-FUNC-SEARCH-001">Empty query returns all active products</Case>
+            <Case id="TC-FUNC-SEARCH-002">Text query matches name and description fields</Case>
+            <Case id="TC-FUNC-SEARCH-003">Family filter returns only matching family</Case>
+            <Case id="TC-FUNC-SEARCH-004">Price range filter works correctly</Case>
+            <Case id="TC-FUNC-SEARCH-005">Multiple filters combine with AND logic</Case>
+            <Case id="TC-FUNC-SEARCH-006">Sorting by relevance returns highest scores first</Case>
+            <Case id="TC-FUNC-SEARCH-007">Pagination returns correct slice of results</Case>
+            <Case id="TC-FUNC-SEARCH-008">Facet counts update based on active filters</Case>
+            <Case id="TC-FUNC-SEARCH-009">Elasticsearch failure returns technical error</Case>
+            <Case id="TC-FUNC-SEARCH-010">Query time is recorded in result</Case>
+        </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <!-- FC-search-autocomplete: Autocomplete suggestions                            -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <FUNCTION_CONTRACT
+        id="FC-search-autocomplete"
+        LAYER="application.service"
+        INTENT="Provide autocomplete suggestions as user types product search query"
+        INPUT="AutocompleteQuery (prefix, limit, language, familyFilter)"
+        OUTPUT="AutocompleteResult (suggestions, categoryHints)"
+        SIDE_EFFECTS="None (read-only)"
+        LINKS="RequirementsAnalysis.xml#UC-CATALOG-BROWSE">
+
+        <PRECONDITIONS>
+            <Item>prefix.length() >= 2 (minimum characters for suggestions)</Item>
+            <Item>limit is between 1 and 20</Item>
+            <Item>Elasticsearch cluster is available</Item>
+        </PRECONDITIONS>
+
+        <POSTCONDITIONS>
+            <Item>AutocompleteResult.suggestions.size() ≤ limit</Item>
+            <Item>Suggestions are ordered by relevance/popularity</Item>
+            <Item>Only suggestions from ACTIVE products included</Item>
+        </POSTCONDITIONS>
+
+        <INVARIANTS>
+            <Item>Query is read-only</Item>
+            <Item>Suggestions are case-insensitive prefix matches</Item>
+        </INVARIANTS>
+
+        <ERROR_HANDLING>
+            <Item type="BUSINESS" code="ERR-AUTO-PREFIX-TOO-SHORT">Prefix has fewer than 2
+                characters</Item>
+            <Item type="TECHNICAL" code="ERR-AUTO-ES-UNAVAILABLE">Elasticsearch unreachable</Item>
+        </ERROR_HANDLING>
+
+        <BLOCK_ANCHORS>
+            <Item id="BA-AUTO-01">Validate prefix length constraint</Item>
+            <Item id="BA-AUTO-02">Build completion suggester query</Item>
+            <Item id="BA-AUTO-03">Execute suggestion query</Item>
+            <Item id="BA-AUTO-04">Map suggestions to result</Item>
+        </BLOCK_ANCHORS>
+
+        <LOGGING>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-AUTO-01][STATE=VALIDATE_PREFIX]
+                eventType=AUTOCOMPLETE_REQUEST keyValues=prefix,prefixLength</Item>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-AUTO-03][STATE=EXECUTE_SUGGEST]
+                eventType=SUGGEST_QUERY_START keyValues=limit</Item>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-AUTO-04][STATE=RESULT_READY]
+                eventType=AUTOCOMPLETE_COMPLETE keyValues=suggestionCount,queryTimeMs</Item>
+        </LOGGING>
+
+        <TESTS>
+            <Case id="TC-FUNC-AUTO-001">Valid prefix returns relevant suggestions</Case>
+            <Case id="TC-FUNC-AUTO-002">Prefix &lt;2 chars returns empty or error</Case>
+            <Case id="TC-FUNC-AUTO-003">Family filter restricts suggestions</Case>
+            <Case id="TC-FUNC-AUTO-004">Limit parameter controls max suggestions</Case>
+            <Case id="TC-FUNC-AUTO-005">Archived products excluded from suggestions</Case>
+        </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <!-- FC-search-indexProduct: Index product from catalog event                    -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <FUNCTION_CONTRACT
+        id="FC-search-indexProduct"
+        LAYER="application.service"
+        INTENT="Index or update a product document in Elasticsearch when catalog event is received"
+        INPUT="ProductTemplatePublishedEvent (from Kafka)"
+        OUTPUT="IndexResult (success/failure, documentId)"
+        SIDE_EFFECTS="Creates or updates document in Elasticsearch index"
+        LINKS="DevelopmentPlan.xml#Flow-Event-Driven">
+
+        <PRECONDITIONS>
+            <Item>ProductTemplatePublishedEvent is valid and deserialized</Item>
+            <Item>Event contains required fields: product_template_id, name, product_family</Item>
+            <Item>Elasticsearch cluster is available</Item>
+        </PRECONDITIONS>
+
+        <POSTCONDITIONS>
+            <Item>Document with productId exists in product_templates index</Item>
+            <Item>Document fields match event payload</Item>
+            <Item>Suggest field populated for autocomplete</Item>
+        </POSTCONDITIONS>
+
+        <INVARIANTS>
+            <Item>Indexing is idempotent: same event reprocessed produces same document</Item>
+            <Item>Document ID equals product_template_id</Item>
+        </INVARIANTS>
+
+        <ERROR_HANDLING>
+            <Item type="TECHNICAL" code="ERR-INDEX-ES-UNAVAILABLE">Elasticsearch cluster unreachable</Item>
+            <Item type="TECHNICAL" code="ERR-INDEX-MAPPING-ERROR">Document doesn't match index
+                mapping</Item>
+            <Item type="BUSINESS" code="ERR-INDEX-INVALID-EVENT">Event missing required fields</Item>
+        </ERROR_HANDLING>
+
+        <BLOCK_ANCHORS>
+            <Item id="BA-INDEX-01">Validate and extract event payload</Item>
+            <Item id="BA-INDEX-02">Transform event to ProductSearchDocument</Item>
+            <Item id="BA-INDEX-03">Execute index/update operation</Item>
+            <Item id="BA-INDEX-04">Confirm indexing success</Item>
+        </BLOCK_ANCHORS>
+
+        <LOGGING>
+            <Item>[SVC=search-service][UC=INDEX-PRODUCT][BLOCK=BA-INDEX-01][STATE=EVENT_RECEIVED]
+                eventType=CATALOG_EVENT_RECEIVED keyValues=eventId,productId,eventType</Item>
+            <Item>[SVC=search-service][UC=INDEX-PRODUCT][BLOCK=BA-INDEX-02][STATE=TRANSFORM]
+                eventType=DOCUMENT_CREATED keyValues=productId</Item>
+            <Item>[SVC=search-service][UC=INDEX-PRODUCT][BLOCK=BA-INDEX-03][STATE=INDEX_EXECUTE]
+                eventType=ES_INDEX_REQUEST keyValues=productId,action=UPSERT</Item>
+            <Item>[SVC=search-service][UC=INDEX-PRODUCT][BLOCK=BA-INDEX-04][STATE=INDEX_COMPLETE]
+                eventType=PRODUCT_INDEXED decision=SUCCESS|FAILURE keyValues=productId,took_ms</Item>
+        </LOGGING>
+
+        <TESTS>
+            <Case id="TC-FUNC-INDEX-001">Published event creates new document</Case>
+            <Case id="TC-FUNC-INDEX-002">Updated event updates existing document</Case>
+            <Case id="TC-FUNC-INDEX-003">Same event reprocessed is idempotent</Case>
+            <Case id="TC-FUNC-INDEX-004">Invalid event logged and skipped</Case>
+            <Case id="TC-FUNC-INDEX-005">Elasticsearch failure triggers retry</Case>
+        </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <!-- FC-search-deleteProduct: Remove product from index                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <FUNCTION_CONTRACT
+        id="FC-search-deleteProduct"
+        LAYER="application.service"
+        INTENT="Remove a product document from Elasticsearch when product is unpublished/archived"
+        INPUT="ProductTemplateUnpublishedEvent (from Kafka) or productId"
+        OUTPUT="DeleteResult (success/notFound)"
+        SIDE_EFFECTS="Deletes document from Elasticsearch index"
+        LINKS="DevelopmentPlan.xml#Flow-Event-Driven">
+
+        <PRECONDITIONS>
+            <Item>productId is provided and non-empty</Item>
+            <Item>Elasticsearch cluster is available</Item>
+        </PRECONDITIONS>
+
+        <POSTCONDITIONS>
+            <Item>Document with productId no longer exists in index, OR was already absent</Item>
+        </POSTCONDITIONS>
+
+        <INVARIANTS>
+            <Item>Delete is idempotent: deleting non-existent document succeeds</Item>
+        </INVARIANTS>
+
+        <ERROR_HANDLING>
+            <Item type="TECHNICAL" code="ERR-DELETE-ES-UNAVAILABLE">Elasticsearch cluster
+                unreachable</Item>
+        </ERROR_HANDLING>
+
+        <BLOCK_ANCHORS>
+            <Item id="BA-DELETE-01">Extract productId from event</Item>
+            <Item id="BA-DELETE-02">Execute delete operation</Item>
+            <Item id="BA-DELETE-03">Log outcome</Item>
+        </BLOCK_ANCHORS>
+
+        <LOGGING>
+            <Item>[SVC=search-service][UC=DELETE-PRODUCT][BLOCK=BA-DELETE-01][STATE=EVENT_RECEIVED]
+                eventType=UNPUBLISH_EVENT_RECEIVED keyValues=productId</Item>
+            <Item>[SVC=search-service][UC=DELETE-PRODUCT][BLOCK=BA-DELETE-02][STATE=DELETE_EXECUTE]
+                eventType=ES_DELETE_REQUEST keyValues=productId</Item>
+            <Item>[SVC=search-service][UC=DELETE-PRODUCT][BLOCK=BA-DELETE-03][STATE=DELETE_COMPLETE]
+                eventType=PRODUCT_DELETED decision=DELETED|NOT_FOUND keyValues=productId</Item>
+        </LOGGING>
+
+        <TESTS>
+            <Case id="TC-FUNC-DELETE-001">Unpublished event removes document</Case>
+            <Case id="TC-FUNC-DELETE-002">Delete non-existent document succeeds (idempotent)</Case>
+            <Case id="TC-FUNC-DELETE-003">Elasticsearch failure triggers retry</Case>
+        </TESTS>
+    </FUNCTION_CONTRACT>
+
+</FunctionContracts>

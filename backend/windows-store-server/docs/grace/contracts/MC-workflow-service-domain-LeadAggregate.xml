@@ -1,0 +1,221 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  GRACE MODULE CONTRACT: MC-workflow-service-domain-LeadAggregate
+  ═══════════════════════════════════════════════════════════════════════════════
+  Service:         workflow-service
+  Layer:           domain.model
+  Type:            AggregateRoot
+  Bounded Context: sales-workflow
+  Schema Version:  grace-markup-v2
+  Created:         2026-01-08T14:16:00+03:00
+  Author:          GRACE-ARCHITECT
+  ═══════════════════════════════════════════════════════════════════════════════
+-->
+<MODULE_CONTRACT id="MC-workflow-service-domain-LeadAggregate"
+    ROLE="AggregateRoot"
+    SERVICE="workflow-service"
+    LAYER="domain.model"
+    BOUNDED_CONTEXT="sales-workflow"
+    SPECIFICATION="UC-WORKFLOW-CAPTURE-LEAD">
+
+    <PURPOSE>
+        Aggregate root representing a sales Lead and its lifecycle through the deal pipeline.
+        Captures omnichannel inquiries (website forms, telephony, messengers, offline entries),
+        manages pipeline stage transitions, and coordinates with field operations for measurement
+        and installation scheduling.
+    </PURPOSE>
+
+    <RESPONSIBILITIES>
+        <Item>Capture initial lead information (contact details, source channel, product interest)</Item>
+        <Item>Track pipeline stage transitions (NEW → CONSULTATION → MEASUREMENT_SCHEDULED →
+            MEASUREMENT_COMPLETED → PROPOSAL → CONTRACT → PRODUCTION → DELIVERY →
+            INSTALLATION → COMPLETED)</Item>
+        <Item>Manage assigned tasks and reminders for sales/project managers</Item>
+        <Item>Link to related entities (CustomerId, QuoteId, OrderId, MeasurementTaskId)</Item>
+        <Item>Emit domain events for stage changes, task assignments, and measurement requests</Item>
+        <Item>Enforce stage transition rules and business invariants</Item>
+    </RESPONSIBILITIES>
+
+    <INVARIANTS>
+        <Item>Lead must have valid contact information (email OR phone required)</Item>
+        <Item>LeadStatus must be a valid stage defined in PipelineConfiguration</Item>
+        <Item>Stage transitions must follow allowed workflow paths (no skipping mandatory stages)</Item>
+        <Item>Cannot transition to MEASUREMENT_COMPLETED without MeasurementTaskId reference</Item>
+        <Item>Cannot transition to CONTRACT without valid QuoteId reference</Item>
+        <Item>Tasks must have a non-null assignee and due date</Item>
+        <Item>Source channel must be a known SourceType enum value</Item>
+    </INVARIANTS>
+
+    <AGGREGATES>
+        <Aggregate name="Lead" root="true">
+            <Description>Root aggregate for sales lead lifecycle</Description>
+            <ValueObjects>
+                <ValueObject name="LeadId">UUID identifier</ValueObject>
+                <ValueObject name="ContactInfo">Email, phone, name (from shared-kernel)</ValueObject>
+                <ValueObject name="Address">Measurement/delivery address</ValueObject>
+                <ValueObject name="LeadSource">Channel + campaign + referrer</ValueObject>
+            </ValueObjects>
+            <Entities>
+                <Entity name="Task">Reminder/follow-up task with assignee and due date</Entity>
+                <Entity name="StageHistoryEntry">Immutable log of stage transitions</Entity>
+                <Entity name="Note">Free-text notes attached to lead</Entity>
+            </Entities>
+        </Aggregate>
+        <Aggregate name="Deal">
+            <Description>Qualified lead progressing through commercial stages</Description>
+        </Aggregate>
+        <Aggregate name="PipelineStage">
+            <Description>Configurable pipeline stage definitions</Description>
+        </Aggregate>
+    </AGGREGATES>
+
+    <DOMAIN_EVENTS>
+        <Event name="LeadCreatedEvent">
+            <Description>Emitted when a new lead is captured from any channel</Description>
+            <Payload>leadId, contactInfo, source, productInterest, createdAt</Payload>
+            <Consumers>notification-service, reporting-service</Consumers>
+        </Event>
+        <Event name="LeadStageChangedEvent">
+            <Description>Emitted when lead transitions to a new pipeline stage</Description>
+            <Payload>leadId, fromStage, toStage, changedBy, changedAt, reason</Payload>
+            <Consumers>reporting-service, notification-service</Consumers>
+        </Event>
+        <Event name="MeasurementRequestedEvent">
+            <Description>Emitted when customer/manager requests on-site measurement</Description>
+            <Payload>leadId, address, preferredSlot, contactInfo</Payload>
+            <Consumers>field-ops-service</Consumers>
+        </Event>
+        <Event name="TaskAssignedEvent">
+            <Description>Emitted when a task is assigned to a manager</Description>
+            <Payload>leadId, taskId, assigneeId, taskType, dueDate</Payload>
+            <Consumers>notification-service</Consumers>
+        </Event>
+        <Event name="LeadQualifiedAsDealEvent">
+            <Description>Emitted when lead is qualified and converted to a Deal</Description>
+            <Payload>leadId, dealId, qualifiedBy, qualifiedAt</Payload>
+            <Consumers>reporting-service</Consumers>
+        </Event>
+    </DOMAIN_EVENTS>
+
+    <CONTEXT>
+        <UPSTREAM>
+            <Item>workflow-service.adapters.in.web: Lead management REST API</Item>
+            <Item>workflow-service.adapters.in.web: Public lead capture form endpoints</Item>
+            <Item>workflow-service.adapters.in.listener: Omnichannel lead intake
+                (telephony/messenger webhooks)</Item>
+        </UPSTREAM>
+        <DOWNSTREAM>
+            <Item>workflow-service.adapters.out.persistence: PostgreSQL lead repository</Item>
+            <Item>field-ops-service (grpc): Create measurement tasks via MeasurementTaskPort</Item>
+            <Item>pricing-service (grpc): Request quotes via QuotePort</Item>
+            <Item>catalog-configuration-service (grpc): Validate configurations via
+                ConfigurationPort</Item>
+            <Item>notification-service (async/Kafka): Emit events for customer/manager notifications</Item>
+            <Item>reporting-service (async/Kafka): Emit events for analytics/dashboards</Item>
+        </DOWNSTREAM>
+    </CONTEXT>
+
+    <ARCHITECTURE>
+        <PATTERN>DDD Aggregate Root with Event Sourcing-Ready Design</PATTERN>
+        <TECHNOLOGY>
+            <Item>Java 25 (Records for ValueObjects, Sealed Classes for state)</Item>
+            <Item>No Spring/JPA annotations in domain layer</Item>
+            <Item>Immutable state transitions via apply() methods</Item>
+            <Item>Domain events collected via AbstractAggregateRoot pattern</Item>
+        </TECHNOLOGY>
+        <PACKAGE>com.windowsdoors.workflow.domain.model</PACKAGE>
+    </ARCHITECTURE>
+
+    <PUBLIC_API>
+        <Item>Factory: Lead.capture(LeadCaptureCommand) → Lead</Item>
+        <Item>Method: Lead.advanceToStage(StageId, UserId, Reason) → Result&lt;Lead,
+            StageTransitionError&gt;</Item>
+        <Item>Method: Lead.requestMeasurement(MeasurementRequest) →
+            Result&lt;MeasurementRequestedEvent, ValidationError&gt;</Item>
+        <Item>Method: Lead.assignTask(TaskDetails) → TaskId</Item>
+        <Item>Method: Lead.qualifyAsDeal(UserId) → Result&lt;DealId, QualificationError&gt;</Item>
+        <Item>Method: Lead.addNote(NoteContent, UserId) → NoteId</Item>
+        <Item>Query: Lead.canTransitionTo(StageId) → boolean</Item>
+    </PUBLIC_API>
+
+    <CROSS_CUTTING>
+        <SECURITY>
+            <Item>RBAC enforcement: SALES_MANAGER can view/edit all leads</Item>
+            <Item>RBAC enforcement: SALES_REP can view/edit only assigned leads</Item>
+            <Item>All mutations require authenticated principal with appropriate role</Item>
+        </SECURITY>
+        <RELIABILITY>
+            <Item>Stage transitions are idempotent (replay-safe)</Item>
+            <Item>Optimistic locking via version field prevents concurrent modifications</Item>
+        </RELIABILITY>
+        <OBSERVABILITY>
+            <Item>Log all stage transitions with duration in previous stage</Item>
+            <Item>Metrics: leads_captured_total{source}, lead_stage_duration_seconds{stage}</Item>
+            <Item>Metrics: lead_conversion_rate, tasks_overdue_total</Item>
+            <Item>All logs include traceId, spanId, correlationId</Item>
+        </OBSERVABILITY>
+    </CROSS_CUTTING>
+
+    <LOGGING>
+        <FORMAT>[SVC=workflow-service][UC={usecase}][BLOCK={blockId}][STATE={state}]
+            eventType={type} decision={decision} keyValues={...}</FORMAT>
+        <EXAMPLES>
+            <Item>[SVC=workflow-service][UC=UC-WORKFLOW-CAPTURE-LEAD][BLOCK=BA-LEAD-CAPTURE-01][STATE=VALIDATING]
+                eventType=LEAD_CAPTURE_ATTEMPT decision=EVALUATE keyValues=source=WEB,email=***@***</Item>
+            <Item>[SVC=workflow-service][UC=UC-WORKFLOW-CAPTURE-LEAD][BLOCK=BA-LEAD-CAPTURE-02][STATE=CREATED]
+                eventType=LEAD_CREATED decision=ACCEPT keyValues=leadId={uuid},source=WEB</Item>
+            <Item>[SVC=workflow-service][UC=UC-WORKFLOW-CAPTURE-LEAD][BLOCK=BA-LEAD-STAGE-01][STATE=TRANSITIONING]
+                eventType=STAGE_TRANSITION decision=ADVANCE
+                keyValues=leadId={uuid},from=NEW,to=CONSULTATION,duration_ms=86400000</Item>
+            <Item>[SVC=workflow-service][UC=UC-WORKFLOW-CAPTURE-LEAD][BLOCK=BA-LEAD-STAGE-02][STATE=REJECTED]
+                eventType=STAGE_TRANSITION decision=REJECT
+                keyValues=leadId={uuid},from=NEW,to=CONTRACT,reason=INVALID_TRANSITION_PATH</Item>
+        </EXAMPLES>
+    </LOGGING>
+
+    <BLOCK_ANCHORS>
+        <Anchor id="BA-LEAD-CAPTURE-01" purpose="Validate incoming lead contact information" />
+        <Anchor id="BA-LEAD-CAPTURE-02" purpose="Create Lead aggregate and emit LeadCreatedEvent" />
+        <Anchor id="BA-LEAD-STAGE-01" purpose="Validate stage transition against pipeline rules" />
+        <Anchor id="BA-LEAD-STAGE-02" purpose="Apply stage change and emit LeadStageChangedEvent" />
+        <Anchor id="BA-LEAD-MEASURE-01"
+            purpose="Validate measurement request and emit MeasurementRequestedEvent" />
+        <Anchor id="BA-LEAD-TASK-01" purpose="Assign task to manager and emit TaskAssignedEvent" />
+        <Anchor id="BA-LEAD-QUALIFY-01"
+            purpose="Qualify lead as deal and emit LeadQualifiedAsDealEvent" />
+    </BLOCK_ANCHORS>
+
+    <TESTS>
+        <Case id="TC-LEAD-001">Create valid lead from web form with email only</Case>
+        <Case id="TC-LEAD-002">Create valid lead from telephony with phone only</Case>
+        <Case id="TC-LEAD-003">Reject lead creation without email AND phone</Case>
+        <Case id="TC-LEAD-004">Advance lead from NEW to CONSULTATION succeeds</Case>
+        <Case id="TC-LEAD-005">Cannot advance from NEW directly to CONTRACT (skip validation)</Case>
+        <Case id="TC-LEAD-006">Cannot advance to MEASUREMENT_COMPLETED without measurement task</Case>
+        <Case id="TC-LEAD-007">Task assignment triggers TaskAssignedEvent</Case>
+        <Case id="TC-LEAD-008">Qualify lead as deal creates DealId reference</Case>
+        <Case id="TC-LEAD-009">Stage transition emits LeadStageChangedEvent with duration</Case>
+        <Case id="TC-LEAD-010">Optimistic locking prevents concurrent modifications</Case>
+    </TESTS>
+
+    <LINKS>
+        <Link ref="RequirementsAnalysis.xml#UC-WORKFLOW-CAPTURE-LEAD" />
+        <Link ref="RequirementsAnalysis.xml#UC-MEASUREMENT-REQUEST-VISIT" />
+        <Link ref="RequirementsAnalysis.xml#ACT-SALES-MANAGER" />
+        <Link ref="RequirementsAnalysis.xml#ACT-CUSTOMER" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-workflow-service" />
+        <Link ref="DevelopmentPlan.xml#Flow-Measurement-Visit" />
+        <Link ref="Technology.xml#TECH-postgresql" />
+        <Link ref="Technology.xml#TECH-kafka" />
+    </LINKS>
+
+    <ASSUMPTIONS>
+        <Item id="A-LEAD-01">workflow-service is the system-of-record for leads/deals unless
+            external CRM integration is explicitly designated via Decision</Item>
+        <Item id="A-LEAD-02">Pipeline stages are configurable via PipelineStage aggregate but
+            transition rules are enforced in Lead aggregate</Item>
+        <Item id="A-LEAD-03">Lead source channels (WEB, TELEPHONY, MESSENGER, OFFLINE) are
+            extensible via enum</Item>
+    </ASSUMPTIONS>
+
+</MODULE_CONTRACT>

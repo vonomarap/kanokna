@@ -1,0 +1,308 @@
+syntax = "proto3";
+
+package kanokna.search.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/money.proto";
+
+option java_package = "com.kanokna.search.v1";
+option java_outer_classname = "SearchServiceProto";
+option java_multiple_files = true;
+
+// =============================================================================
+// SEARCH SERVICE
+// =============================================================================
+// Full-text search, faceted filtering, and autocomplete for product catalog.
+// Stateless service backed by Elasticsearch.
+// gRPC port: 9089
+// 
+// LINKS:
+//   - RequirementsAnalysis.xml#UC-CATALOG-BROWSE
+//   - RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY
+//   - DevelopmentPlan.xml#DP-SVC-search-service
+// =============================================================================
+
+service SearchService {
+  // Search products with full-text query and faceted filtering.
+  // P95 latency target: < 200ms
+  rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse);
+  
+  // Get autocomplete suggestions as user types.
+  // P95 latency target: < 100ms
+  rpc GetAutocompleteSuggestions(AutocompleteRequest) returns (AutocompleteResponse);
+  
+  // Get facet values for filtering options (materials, colors, etc.)
+  rpc GetFacetValues(GetFacetValuesRequest) returns (GetFacetValuesResponse);
+  
+  // Get a single product by ID from the search index.
+  rpc GetProductById(GetProductByIdRequest) returns (ProductDocument);
+}
+
+// =============================================================================
+// SEARCH PRODUCTS
+// =============================================================================
+
+message SearchProductsRequest {
+  // Full-text search query (optional - empty returns all)
+  string query = 1;
+  
+  // Pagination
+  int32 page = 2;          // 0-indexed page number
+  int32 page_size = 3;     // Max 100, default 20
+  
+  // Sorting
+  SortField sort_by = 4;
+  SortOrder sort_order = 5;
+  
+  // Facet filters (AND logic between groups, OR within group)
+  repeated FacetFilter filters = 6;
+  
+  // Price range filter (in minor units of currency)
+  PriceRangeFilter price_range = 7;
+  
+  // Language for localized content
+  string language = 8; // BCP-47 tag, e.g., "ru", "en"
+}
+
+enum SortField {
+  SORT_FIELD_UNSPECIFIED = 0;
+  SORT_FIELD_RELEVANCE = 1;      // Default: Elasticsearch _score
+  SORT_FIELD_POPULARITY = 2;     // Most viewed/ordered
+  SORT_FIELD_PRICE_ASC = 3;      // Lowest price first
+  SORT_FIELD_PRICE_DESC = 4;     // Highest price first
+  SORT_FIELD_NEWEST = 5;         // Most recently published
+  SORT_FIELD_NAME = 6;           // Alphabetical
+}
+
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0;
+  SORT_ORDER_ASC = 1;
+  SORT_ORDER_DESC = 2;
+}
+
+message FacetFilter {
+  // Facet field name (e.g., "family", "material", "color")
+  string field = 1;
+  
+  // Selected values (OR logic within this filter)
+  repeated string values = 2;
+}
+
+message PriceRangeFilter {
+  // Minimum price in minor units (e.g., kopecks for RUB)
+  int64 min_price = 1;
+  
+  // Maximum price in minor units
+  int64 max_price = 2;
+  
+  // Currency code (ISO-4217)
+  string currency = 3;
+}
+
+message SearchProductsResponse {
+  // Matching products
+  repeated ProductDocument products = 1;
+  
+  // Total number of matching products (for pagination)
+  int64 total_count = 2;
+  
+  // Current page (0-indexed)
+  int32 page = 3;
+  
+  // Page size used
+  int32 page_size = 4;
+  
+  // Total pages available
+  int32 total_pages = 5;
+  
+  // Facet aggregations for UI filters
+  repeated FacetAggregation facets = 6;
+  
+  // Query execution time in milliseconds
+  int32 query_time_ms = 7;
+}
+
+// =============================================================================
+// PRODUCT DOCUMENT
+// =============================================================================
+
+message ProductDocument {
+  // Product template ID
+  string id = 1;
+  
+  // Product name (localized)
+  string name = 2;
+  
+  // Product description (localized)
+  string description = 3;
+  
+  // Product family (e.g., "windows", "doors")
+  string family = 4;
+  
+  // Profile system (e.g., "REHAU", "VEKA", "KBE")
+  string profile_system = 5;
+  
+  // Available sash opening types
+  repeated string opening_types = 6;
+  
+  // Available materials
+  repeated string materials = 7;
+  
+  // Available colors/laminations
+  repeated string colors = 8;
+  
+  // Minimum base price (for price range display)
+  kanokna.common.v1.Money min_price = 9;
+  
+  // Maximum base price (for large configurations)
+  kanokna.common.v1.Money max_price = 10;
+  
+  // Popularity score (based on views/orders)
+  int32 popularity = 11;
+  
+  // Product status
+  ProductStatus status = 12;
+  
+  // Publication timestamp
+  google.protobuf.Timestamp published_at = 13;
+  
+  // Thumbnail image URL
+  string thumbnail_url = 14;
+  
+  // Number of configuration options available
+  int32 option_count = 15;
+  
+  // Search relevance score (only in search results)
+  float score = 16;
+  
+  // Highlighted snippets from search (query terms highlighted)
+  map<string, string> highlights = 17;
+}
+
+enum ProductStatus {
+  PRODUCT_STATUS_UNSPECIFIED = 0;
+  PRODUCT_STATUS_ACTIVE = 1;
+  PRODUCT_STATUS_DRAFT = 2;
+  PRODUCT_STATUS_ARCHIVED = 3;
+}
+
+// =============================================================================
+// FACET AGGREGATIONS
+// =============================================================================
+
+message FacetAggregation {
+  // Facet field name
+  string field = 1;
+  
+  // Display name (localized)
+  string display_name = 2;
+  
+  // Facet type (terms, range, etc.)
+  FacetType type = 3;
+  
+  // Bucket values with counts
+  repeated FacetBucket buckets = 4;
+}
+
+enum FacetType {
+  FACET_TYPE_UNSPECIFIED = 0;
+  FACET_TYPE_TERMS = 1;      // Discrete values (material, color)
+  FACET_TYPE_RANGE = 2;      // Numeric ranges (price)
+  FACET_TYPE_BOOLEAN = 3;    // Yes/No filters
+}
+
+message FacetBucket {
+  // Bucket key/value
+  string key = 1;
+  
+  // Display label (localized)
+  string label = 2;
+  
+  // Document count in this bucket
+  int64 count = 3;
+  
+  // Whether this bucket is currently selected
+  bool selected = 4;
+}
+
+// =============================================================================
+// AUTOCOMPLETE
+// =============================================================================
+
+message AutocompleteRequest {
+  // Partial query text (minimum 2 characters)
+  string prefix = 1;
+  
+  // Maximum suggestions to return (default 10, max 20)
+  int32 limit = 2;
+  
+  // Language for suggestions
+  string language = 3;
+  
+  // Optional: limit to specific product family
+  string family_filter = 4;
+}
+
+message AutocompleteResponse {
+  // Product name suggestions
+  repeated Suggestion suggestions = 1;
+  
+  // Category suggestions
+  repeated Suggestion category_suggestions = 2;
+  
+  // Query execution time in milliseconds
+  int32 query_time_ms = 3;
+}
+
+message Suggestion {
+  // Suggestion text
+  string text = 1;
+  
+  // Suggestion type
+  SuggestionType type = 2;
+  
+  // Associated product ID (if product suggestion)
+  string product_id = 3;
+  
+  // Document count (for category suggestions)
+  int64 count = 4;
+  
+  // Highlighted text with matched prefix
+  string highlighted = 5;
+}
+
+enum SuggestionType {
+  SUGGESTION_TYPE_UNSPECIFIED = 0;
+  SUGGESTION_TYPE_PRODUCT = 1;
+  SUGGESTION_TYPE_CATEGORY = 2;
+  SUGGESTION_TYPE_BRAND = 3;
+}
+
+// =============================================================================
+// GET FACET VALUES
+// =============================================================================
+
+message GetFacetValuesRequest {
+  // Facet fields to retrieve (e.g., ["family", "material", "color"])
+  repeated string fields = 1;
+  
+  // Language for labels
+  string language = 2;
+}
+
+message GetFacetValuesResponse {
+  // Facet values per field
+  repeated FacetAggregation facets = 1;
+}
+
+// =============================================================================
+// GET PRODUCT BY ID
+// =============================================================================
+
+message GetProductByIdRequest {
+  // Product template ID
+  string product_id = 1;
+  
+  // Language for localized content
+  string language = 2;
+}
