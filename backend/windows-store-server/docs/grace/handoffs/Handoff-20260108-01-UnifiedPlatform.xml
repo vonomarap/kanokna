@@ -1,0 +1,254 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  GRACE HANDOFF: Handoff-20260108-01-UnifiedPlatform
+  ═══════════════════════════════════════════════════════════════════════════════
+  Schema Version:  grace-markup-v2
+  Status:          PROPOSED
+  Created:         2026-01-08T14:16:27+03:00
+  Author:          GRACE-ARCHITECT
+  Purpose:         Formal handoff for Unified Platform services (Phase 2+)
+  ═══════════════════════════════════════════════════════════════════════════════
+  
+  This handoff formalizes the architectural blueprint for the unified platform
+  expansion, covering the new services added to support B2C + B2B + Internal +
+  Field Operations workflows.
+  
+  APPROVAL REQUIRED before Coder agent may proceed with implementation.
+  ═══════════════════════════════════════════════════════════════════════════════
+-->
+<GRACE_HANDOFF
+    id="Handoff-20260108-01-UnifiedPlatform"
+    status="PROPOSED"
+    schemaVersion="grace-markup-v2"
+    created="2026-01-08T14:16:27+03:00"
+    author="GRACE-ARCHITECT"
+    taskRef="W2-UnifiedPlatform"
+    planRef="DevelopmentPlan.xml#PHASE-3"
+    blueprintRef="DevelopmentPlan.xml"
+    techRef="Technology.xml#DEC-INTER-SERVICE-COMM,Technology.xml#DEC-IDENTITY-PROVIDER,Technology.xml#DEC-PAYMENT-GATEWAY"
+    requirementsRef="RequirementsAnalysis.xml#UC-WORKFLOW-CAPTURE-LEAD,RequirementsAnalysis.xml#UC-MEASUREMENT-REQUEST-VISIT,RequirementsAnalysis.xml#UC-FIELD-MEASURE-01"
+    supersedes="Handoff-20251231-02-v2-W1-T3-T4-PricingService.xml"
+>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- SCOPE: Services and Use Cases covered by this handoff                   -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Scope>
+        <Description>
+            This handoff covers the Unified Platform services added in Phase 2-3 to support:
+            - Omnichannel lead/deal lifecycle management (CRM-lite)
+            - Field operations (measurement, installation, logistics tasks)
+            - Document generation and versioning
+            - B2B billing and settlements
+            - After-sales support and warranty claims
+        </Description>
+
+        <Services>
+            <!-- NEW: Phase 2-3 Services -->
+            <ServiceRef ref="DP-SVC-workflow-service">CRM-lite workflow for leads/deals/projects</ServiceRef>
+            <ServiceRef ref="DP-SVC-field-ops-service">Field operations: measurement, installation,
+                logistics</ServiceRef>
+            <ServiceRef ref="DP-SVC-document-service">Document generation and versioning</ServiceRef>
+            <ServiceRef ref="DP-SVC-billing-service">B2B invoices, payment schedules, settlements</ServiceRef>
+            <ServiceRef ref="DP-SVC-support-service">After-sales support and warranty claims</ServiceRef>
+        </Services>
+
+        <UseCases>
+            <!-- Workflow/Lead Management -->
+            <UseCaseRef ref="UC-WORKFLOW-CAPTURE-LEAD" />
+            <UseCaseRef ref="UC-STAFF-CRM-01" />
+
+            <!-- Measurement Flow -->
+            <UseCaseRef ref="UC-B2C-MEASURE-01" />
+            <UseCaseRef ref="UC-FIELD-MEASURE-01" />
+
+            <!-- Installation Flow -->
+            <UseCaseRef ref="UC-FIELD-INSTALL-01" />
+
+            <!-- Document Generation -->
+            <UseCaseRef ref="UC-B2B-CPQ-01" />
+
+            <!-- Billing -->
+            <UseCaseRef ref="UC-BILLING-VIEW-INVOICES-SETTLEMENTS" />
+
+            <!-- Support -->
+            <UseCaseRef ref="UC-SUPPORT-CREATE-01" />
+        </UseCases>
+
+        <Flows>
+            <FlowRef ref="Flow-Measurement-Visit" />
+            <FlowRef ref="Flow-B2C-CPQ" />
+            <FlowRef ref="Flow-Checkout-Payment" />
+            <FlowRef ref="Flow-Order-Fulfillment" />
+            <FlowRef ref="Flow-B2B-Project-Order" />
+            <FlowRef ref="Flow-Event-Driven" />
+        </Flows>
+    </Scope>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- ARTIFACTS: Canonical sources referenced by this handoff                 -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Artifacts>
+        <Artifact ref="RequirementsAnalysis.xml" version="1.0.0">
+            <Description>Business requirements, actors, use cases, and NFRs</Description>
+        </Artifact>
+        <Artifact ref="Technology.xml" version="1.2.0">
+            <Description>Technology stack, infrastructure, and cross-cutting decisions</Description>
+        </Artifact>
+        <Artifact ref="DevelopmentPlan.xml" version="1.4.0">
+            <Description>Service definitions, flows, integrations, testing strategy</Description>
+        </Artifact>
+    </Artifacts>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- CONTRACTS: Semantic contracts governing implementation                  -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Contracts>
+        <!-- Existing Contracts (from previous handoffs) -->
+        <ModuleContractRef id="MC-catalog-configuration-service-domain-ConfigurationValidation"
+            status="APPROVED" />
+        <ModuleContractRef id="MC-pricing-service-domain-PriceCalculation" status="APPROVED" />
+        <ModuleContractRef id="MC-order-service-application-OrderPlacement" status="APPROVED" />
+
+        <!-- NEW: Workflow Service Contracts -->
+        <ModuleContractRef id="MC-workflow-service-domain-LeadAggregate" status="PROPOSED" />
+
+        <!-- Function Contracts -->
+        <FunctionContractRef id="FC-catalog-configuration-service-validateConfiguration"
+            status="APPROVED" />
+
+        <!-- Block Anchors for new services -->
+        <BlockAnchorRef id="BA-LEAD-CAPTURE-01" />
+        <BlockAnchorRef id="BA-LEAD-CAPTURE-02" />
+        <BlockAnchorRef id="BA-LEAD-STAGE-01" />
+        <BlockAnchorRef id="BA-LEAD-STAGE-02" />
+        <BlockAnchorRef id="BA-LEAD-MEASURE-01" />
+    </Contracts>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- DECISIONS: Key architectural decisions governing this scope             -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Decisions>
+        <DecisionRef ref="DEC-INTER-SERVICE-COMM" status="APPROVED">gRPC for inter-service sync
+            calls</DecisionRef>
+        <DecisionRef ref="DEC-DATABASE-ENGINE" status="APPROVED">PostgreSQL per service</DecisionRef>
+        <DecisionRef ref="DEC-EVENT-SERIALIZATION" status="APPROVED">Protobuf for Kafka events</DecisionRef>
+        <DecisionRef ref="DEC-IDENTITY-PROVIDER" status="APPROVED">Keycloak (dev/stage), Auth0
+            (prod)</DecisionRef>
+        <DecisionRef ref="DEC-PAYMENT-GATEWAY" status="APPROVED">YooKassa</DecisionRef>
+        <DecisionRef ref="DEC-RULE-ENGINE-STRATEGY" status="APPROVED">Pure-Java rule engine</DecisionRef>
+    </Decisions>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- DATA OWNERSHIP: Source-of-truth assignments for new services            -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <DataOwnership>
+        <Owner service="workflow-service">
+            <Aggregate>Lead</Aggregate>
+            <Aggregate>Deal</Aggregate>
+            <Aggregate>Task</Aggregate>
+            <Aggregate>PipelineStage</Aggregate>
+        </Owner>
+        <Owner service="field-ops-service">
+            <Aggregate>MeasurementTask</Aggregate>
+            <Aggregate>InstallationTask</Aggregate>
+            <Aggregate>LogisticsTask</Aggregate>
+        </Owner>
+        <Owner service="document-service">
+            <Aggregate>DocumentTemplate</Aggregate>
+            <Aggregate>GeneratedDocument</Aggregate>
+        </Owner>
+        <Owner service="billing-service">
+            <Aggregate>Invoice</Aggregate>
+            <Aggregate>PaymentSchedule</Aggregate>
+            <Aggregate>PartnerBalance</Aggregate>
+        </Owner>
+        <Owner service="support-service">
+            <Aggregate>ServiceRequest</Aggregate>
+            <Aggregate>Communication</Aggregate>
+        </Owner>
+    </DataOwnership>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- INTEGRATION POINTS: External system boundaries                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Integrations>
+        <IntegrationRef ref="INT-CRM-ERP" implementedBy="workflow-service" />
+        <IntegrationRef ref="INT-CAD" implementedBy="catalog-configuration-service" />
+        <IntegrationRef ref="INT-ERP" implementedBy="order-service" />
+        <IntegrationRef ref="INT-LOGISTICS" implementedBy="field-ops-service" />
+        <IntegrationRef ref="INT-PAYMENTS" implementedBy="order-service,billing-service" />
+    </Integrations>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- VERIFICATION: Testing and validation requirements                       -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Verification>
+        <TestingStrategy ref="DevelopmentPlan.xml#TestingStrategy">
+            <UnitTests coverage="80">Domain and application layer logic</UnitTests>
+            <SliceTests>@WebMvcTest, @DataJpaTest for adapters</SliceTests>
+            <IntegrationTests>Testcontainers for PostgreSQL, Kafka</IntegrationTests>
+            <ContractTests>gRPC contract validation, OpenAPI compliance</ContractTests>
+            <ArchitectureTests>ArchUnit rules for hexagonal enforcement</ArchitectureTests>
+        </TestingStrategy>
+        <AcceptanceGates>
+            <Gate>All new services pass unit and integration tests</Gate>
+            <Gate>gRPC contracts validated against api-contracts</Gate>
+            <Gate>ArchUnit rules pass for domain layer isolation</Gate>
+            <Gate>Flow-Measurement-Visit E2E scenario validated</Gate>
+        </AcceptanceGates>
+    </Verification>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- ASSUMPTIONS: Documented assumptions requiring human validation          -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Assumptions>
+        <Item id="A-WF-01">workflow-service is implemented as internal CRM-lite; external CRM/ERP
+            remains optional integration via adapters</Item>
+        <Item id="A-DOC-01">document-service generates PDFs and stores binaries via media-service;
+            exact template/rendering engine is TBD</Item>
+        <Item id="A-BILL-01">billing-service owns invoice/schedule metadata; actual accounting
+            ledger may be external ERP via integration</Item>
+        <Item id="A-FIELD-01">field-ops-service is system-of-record for task execution evidence
+            (photos, checklists, GPS data)</Item>
+        <Item id="A-OFFLINE-01">Field mobile apps support offline-first with eventual consistency
+            per DevelopmentPlan.xml#DP-SVC-field-ops-service</Item>
+    </Assumptions>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- OPEN QUESTIONS: Items requiring human architect decision                -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <OpenQuestions>
+        <Question id="Q-01" priority="HIGH">
+            Should workflow-service sync bidirectionally with an external CRM, or remain the sole
+            source-of-truth for pipeline?
+        </Question>
+        <Question id="Q-02" priority="MEDIUM">
+            What PDF generation library should document-service use? (Options: iText, Apache PDFBox,
+            Jasper Reports)
+        </Question>
+        <Question id="Q-03" priority="MEDIUM">
+            Should billing-service expose invoice data to external accounting software, or receive
+            payment confirmations only?
+        </Question>
+    </OpenQuestions>
+
+</GRACE_HANDOFF>
+
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  APPROVAL INSTRUCTION (for Human Architect)
+  ═══════════════════════════════════════════════════════════════════════════════
+  
+  To approve this handoff, add the following entry to approvals.log:
+  
+  <GRACE_APPROVAL
+    ref="Handoff-20260108-01-UnifiedPlatform"
+    status="APPROVED"
+    approved="2026-01-08T##:##:##±##:##"
+    approver="Human"
+  />
+  
+  Implementation MUST NOT proceed until approval is recorded.
+  ═══════════════════════════════════════════════════════════════════════════════
+-->

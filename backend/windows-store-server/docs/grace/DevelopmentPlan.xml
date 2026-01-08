@@ -824,7 +824,7 @@
       <ArtifactId>field-ops-service</ArtifactId>
       <Description>
         Field operations tasks: measurement visits, installation jobs, logistics/warehouse milestones.
-        Provides mobile-friendly APIs for field staff.
+        Provides mobile-friendly APIs for field staff with offline-first capability.
       </Description>
       <BoundedContext>field-operations</BoundedContext>
       <Responsibilities>
@@ -835,7 +835,40 @@
         <Item>Capture logistics milestones (ready-to-ship, in-transit, delivered)</Item>
         <Item>Provide "My Tasks" API for field staff mobile app</Item>
         <Item>Emit events to update deals and orders</Item>
+        <Item>Support offline data sync with conflict resolution (BP-ISSUE-001)</Item>
+        <Item>Manage offline task queue with retry mechanism</Item>
       </Responsibilities>
+      <!-- BP-ISSUE-001 Resolution: Offline Architecture -->
+      <OfflineCapability>
+        <Description>
+          Field technicians work in areas with poor connectivity. Service supports offline-first
+          architecture with eventual consistency and conflict resolution.
+        </Description>
+        <SyncStrategy>
+          <Item>Tasks cached locally on mobile devices via service worker or native storage</Item>
+          <Item>Background sync on reconnect with exponential backoff retry</Item>
+          <Item>Optimistic UI updates with rollback on sync failure</Item>
+          <Item>Version vectors attached to each entity for conflict detection</Item>
+        </SyncStrategy>
+        <ConflictResolution>
+          <Rule priority="1">Non-conflicting field changes: auto-merge using last-write-wins</Rule>
+          <Rule priority="2">Conflicting measurement values: queue for supervisor review via workflow-service</Rule>
+          <Rule priority="3">Status transitions: server state wins, conflicting local changes re-queued</Rule>
+          <Rule priority="4">Photo uploads: always additive, no conflict possible</Rule>
+        </ConflictResolution>
+        <OfflineQueue>
+          <Item>At-least-once delivery guarantee for queued operations</Item>
+          <Item>Operations persisted to IndexedDB/SQLite before execution</Item>
+          <Item>Idempotency keys prevent duplicate submissions</Item>
+          <Item>Queue status visible to technician in mobile app</Item>
+        </OfflineQueue>
+        <DataCaching>
+          <Item>Assigned tasks prefetched when online</Item>
+          <Item>Product specs and checklists cached for offline reference</Item>
+          <Item>Customer details (address, contact) cached per task</Item>
+          <Item>Cache TTL: 24 hours with manual refresh option</Item>
+        </DataCaching>
+      </OfflineCapability>
       <Dependencies>
         <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
         <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
@@ -1024,7 +1057,10 @@
 
     <Flow id="Flow-Measurement-Visit">
       <Name>Measurement Request and Visit Flow</Name>
-      <Description>Customer requests measurement; task created; technician completes; repricing triggered</Description>
+      <Description>
+        Customer requests measurement; task created; technician completes; repricing triggered.
+        Includes variance handling with threshold-based re-approval (BP-ISSUE-003 Resolution).
+      </Description>
       <Sequence>
         <Step order="1" from="frontend" to="workflow-service">Request measurement with address + slot</Step>
         <Step order="2" from="workflow-service" to="field-ops-service">Create measurement task</Step>
@@ -1032,11 +1068,49 @@
         <Step order="4" from="field-app" to="field-ops-service">Technician submits measurements/photos</Step>
         <Step order="5" from="field-ops-service" to="workflow-service">Emit MEASUREMENT_COMPLETED event</Step>
         <Step order="6" from="workflow-service" to="pricing-service">Recalculate with measured dimensions</Step>
-        <Step order="7" from="workflow-service" to="notification-service">Notify customer of updated quote</Step>
+        <Step order="7" from="workflow-service" to="workflow-service">Calculate price variance percentage</Step>
+        <Step order="8" from="workflow-service" to="notification-service">Branch based on variance threshold</Step>
       </Sequence>
+      <!-- BP-ISSUE-003 Resolution: Measurement Variance Handling -->
+      <VarianceBranches>
+        <Branch id="variance-auto-accept" condition="variance &lt;= 5%">
+          <Description>Minor variance: auto-accept with notification</Description>
+          <Steps>
+            <Step order="8a" from="workflow-service" to="database">Update quote with measured price (auto-accepted)</Step>
+            <Step order="8b" from="notification-service" to="customer">Send info notification: "Minor adjustment applied"</Step>
+            <Step order="8c" from="workflow-service" to="workflow-service">Continue to ordering flow</Step>
+          </Steps>
+        </Branch>
+        <Branch id="variance-confirmation" condition="5% &lt; variance &lt;= 10%">
+          <Description>Moderate variance: require customer confirmation</Description>
+          <Steps>
+            <Step order="8a" from="workflow-service" to="database">Create pending quote requiring confirmation</Step>
+            <Step order="8b" from="notification-service" to="customer">Send email/SMS with updated quote + confirm link</Step>
+            <Step order="8c" from="frontend" to="workflow-service">Customer clicks confirm/reject link</Step>
+            <Step order="8d-confirm" from="workflow-service" to="database">If confirmed: accept quote, continue to ordering</Step>
+            <Step order="8d-reject" from="workflow-service" to="workflow-service">If rejected: return to configuration or cancel</Step>
+            <Step order="8e" from="workflow-service" to="workflow-service">Timeout after 72h: quote expires, notify customer</Step>
+          </Steps>
+        </Branch>
+        <Branch id="variance-requote" condition="variance &gt; 10%">
+          <Description>Significant variance: generate new quote, full re-approval</Description>
+          <Steps>
+            <Step order="8a" from="workflow-service" to="database">Invalidate original quote</Step>
+            <Step order="8b" from="workflow-service" to="pricing-service">Generate new quote with measured dimensions</Step>
+            <Step order="8c" from="notification-service" to="customer">Send notification explaining significant change</Step>
+            <Step order="8d" from="frontend" to="catalog-configuration-service">Customer reviews updated configuration</Step>
+            <Step order="8e" from="frontend" to="workflow-service">Customer accepts new quote or cancels</Step>
+          </Steps>
+        </Branch>
+      </VarianceBranches>
+      <AuditRequirement>
+        Log all variance decisions: original quote ID, measured quote ID, variance %,
+        threshold applied, customer response, timestamps.
+      </AuditRequirement>
       <Links>
         <Link ref="RequirementsAnalysis.xml#UC-B2C-MEASURE-01"/>
         <Link ref="RequirementsAnalysis.xml#UC-FIELD-MEASURE-01"/>
+        <Link ref="RequirementsAnalysis.xml#MeasurementVarianceHandling"/>
       </Links>
     </Flow>
 
@@ -1246,19 +1320,91 @@
     <Integration id="INT-LOGISTICS">
       <Name>Logistics/Delivery Integration</Name>
       <Type>bidirectional</Type>
-      <Description>Route planning, tracking, proof of delivery</Description>
+      <Description>
+        Route planning, tracking, and proof of delivery.
+        POD requires both photo and digital signature (BP-ISSUE-004 Resolution).
+      </Description>
       <OutboundEvents>
         <Event name="DeliveryRequested">Delivery address and items</Event>
       </OutboundEvents>
       <InboundEvents>
-        <Event name="ShipmentDispatched">In transit</Event>
-        <Event name="DeliveryCompleted">Delivered with proof</Event>
-        <Event name="DeliveryException">Failed delivery attempt</Event>
+        <Event name="ShipmentDispatched">In transit with tracking number</Event>
+        <Event name="DeliveryCompleted">Delivered with proof of delivery payload</Event>
+        <Event name="DeliveryException">Failed delivery attempt with reason</Event>
       </InboundEvents>
+      <!-- BP-ISSUE-004 Resolution: Proof of Delivery Data Structure -->
+      <ProofOfDeliveryContract>
+        <Description>
+          POD data structure received in DeliveryCompleted event.
+          Both photo and signature are REQUIRED for valid delivery confirmation.
+        </Description>
+        <DataStructure>
+          <Field name="orderId" type="UUID" required="true">Reference to order being delivered</Field>
+          <Field name="deliveryTimestamp" type="ISO8601DateTime" required="true">Actual delivery time</Field>
+          <Field name="trackingNumber" type="String" required="true">Carrier tracking reference</Field>
+          <Field name="photos" type="Array[PhotoCapture]" required="true" minItems="1">
+            <Description>GPS-tagged delivery photos</Description>
+            <ItemSchema>
+              <Field name="url" type="URL">Hosted photo URL</Field>
+              <Field name="gpsLatitude" type="Decimal">Photo GPS latitude</Field>
+              <Field name="gpsLongitude" type="Decimal">Photo GPS longitude</Field>
+              <Field name="captureTimestamp" type="ISO8601DateTime">When photo was taken</Field>
+              <Field name="resolution" type="String">Image resolution (min 1280x720)</Field>
+            </ItemSchema>
+          </Field>
+          <Field name="signature" type="SignatureCapture" required="true">
+            <Description>Digital signature from recipient</Description>
+            <Schema>
+              <Field name="signatureImage" type="Base64">Signature image data</Field>
+              <Field name="signerName" type="String" required="true">Printed name of signer</Field>
+              <Field name="signerRelation" type="Enum" required="true">CUSTOMER | NEIGHBOR | AGENT</Field>
+              <Field name="captureTimestamp" type="ISO8601DateTime">When signature was captured</Field>
+              <Field name="deviceId" type="String">Delivery device identifier</Field>
+            </Schema>
+          </Field>
+          <Field name="gpsCoordinates" type="GeoPoint" required="true">
+            <Description>Delivery location coordinates</Description>
+            <Schema>
+              <Field name="latitude" type="Decimal"/>
+              <Field name="longitude" type="Decimal"/>
+              <Field name="accuracy" type="Decimal">GPS accuracy in meters</Field>
+            </Schema>
+          </Field>
+          <Field name="deliveryNotes" type="String" required="false">Optional notes from driver</Field>
+          <Field name="neighborDelivery" type="NeighborInfo" required="false">
+            <Description>Required if signerRelation is NEIGHBOR</Description>
+            <Schema>
+              <Field name="neighborName" type="String">Neighbor's full name</Field>
+              <Field name="neighborAddress" type="String">Neighbor's address</Field>
+              <Field name="relationToCustomer" type="String">e.g., "Next door", "Apartment 2B"</Field>
+            </Schema>
+          </Field>
+        </DataStructure>
+        <FallbackScenarios>
+          <Scenario id="NEIGHBOR_DELIVERY">
+            <Condition>Customer unavailable, neighbor accepts delivery</Condition>
+            <RequiredFields>photos, signature (neighbor), neighborDelivery</RequiredFields>
+            <PostDeliveryAction>Notify customer of neighbor delivery location</PostDeliveryAction>
+          </Scenario>
+          <Scenario id="SAFE_PLACE">
+            <Condition>Customer pre-authorized safe place delivery</Condition>
+            <RequiredFields>photos, gpsCoordinates (signature optional)</RequiredFields>
+            <PostDeliveryAction>Immediate customer notification with photo</PostDeliveryAction>
+          </Scenario>
+        </FallbackScenarios>
+        <CustomerConfirmation>
+          <Description>Optional post-delivery confirmation flow</Description>
+          <NotificationTrigger>Sent within 1 hour of DeliveryCompleted event</NotificationTrigger>
+          <ResponseWindow>24 hours</ResponseWindow>
+          <AutoConfirmOnTimeout>true</AutoConfirmOnTimeout>
+          <DisputeFlow>If customer reports issue, create support ticket via support-service</DisputeFlow>
+        </CustomerConfirmation>
+      </ProofOfDeliveryContract>
       <ImplementingService ref="DP-SVC-field-ops-service"/>
       <Links>
         <Link ref="RequirementsAnalysis.xml#INT-REQ-LOGISTICS"/>
         <Link ref="RequirementsAnalysis.xml#UC-DELIVERY-TRACK-01"/>
+        <Link ref="RequirementsAnalysis.xml#PODRequirements"/>
       </Links>
     </Integration>
 

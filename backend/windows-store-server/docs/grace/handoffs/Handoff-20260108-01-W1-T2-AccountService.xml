@@ -1,0 +1,365 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  GRACE HANDOFF: Handoff-20260108-01-W1-T2-AccountService
+  ═══════════════════════════════════════════════════════════════════════════════
+  Schema Version:  grace-markup-v2
+  Status:          PROPOSED
+  Wave:            W1 (CPQ Core)
+  Task:            W1-T2 (account-service)
+  Created:         2026-01-08T14:20:25+03:00
+  Author:          GRACE-ARCHITECT
+  Purpose:         Implementation blueprint for account-service Wave 1 deliverables
+  ═══════════════════════════════════════════════════════════════════════════════
+  
+  This handoff formalizes the architectural blueprint for account-service as part
+  of the Wave 1 CPQ Core vertical slice, enabling:
+  - User profile management (sync from Keycloak)
+  - Saved product configurations (draft storage for CPQ flow)
+  - Delivery address management
+  - User preferences
+  
+  APPROVAL REQUIRED before Coder agent may proceed with implementation.
+  ═══════════════════════════════════════════════════════════════════════════════
+-->
+<GRACE_HANDOFF
+    id="Handoff-20260108-01-W1-T2-AccountService"
+    status="PROPOSED"
+    schemaVersion="grace-markup-v2"
+    created="2026-01-08T14:20:25+03:00"
+    author="GRACE-ARCHITECT"
+    taskRef="W1-T2"
+    planRef="DevelopmentPlan.xml#DP-SVC-account-service"
+    blueprintRef="DevelopmentPlan.xml"
+    techRef="Technology.xml#TECH-postgresql,Technology.xml#TECH-keycloak"
+    requirementsRef="RequirementsAnalysis.xml#UC-ACCOUNT-REGISTER,RequirementsAnalysis.xml#UC-ACCOUNT-LOGIN,RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE"
+>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- SCOPE: Services and Use Cases covered by this handoff                   -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Scope>
+        <Description>
+            Wave 1 Task 2: Implement account-service to complete the CPQ vertical slice.
+            Enables authenticated users to save configurations, manage delivery addresses,
+            and maintain profile preferences.
+        </Description>
+
+        <Services>
+            <ServiceRef ref="DP-SVC-account-service">User profiles, addresses, saved configurations</ServiceRef>
+        </Services>
+
+        <UseCases>
+            <UseCaseRef ref="UC-ACCOUNT-REGISTER">User registration (Keycloak handles UI)</UseCaseRef>
+            <UseCaseRef ref="UC-ACCOUNT-LOGIN">User authentication via Keycloak</UseCaseRef>
+            <UseCaseRef ref="UC-ACCOUNT-MANAGE-PROFILE">Profile and address management</UseCaseRef>
+        </UseCases>
+
+        <Flows>
+            <FlowRef ref="Flow-B2C-CPQ">Step 8: Save draft configuration to account-service</FlowRef>
+        </Flows>
+
+        <Aggregates>
+            <Aggregate name="UserProfile">User profile with addresses and preferences</Aggregate>
+            <Aggregate name="SavedConfiguration">Saved product configuration drafts</Aggregate>
+            <Aggregate name="PartnerOrganization" scope="DEFERRED">B2B organization (minimal in MVP)</Aggregate>
+        </Aggregates>
+    </Scope>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- ARTIFACTS: Canonical sources referenced by this handoff                 -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Artifacts>
+        <Artifact ref="RequirementsAnalysis.xml" version="1.0.0" />
+        <Artifact ref="Technology.xml" version="1.2.0" />
+        <Artifact ref="DevelopmentPlan.xml" version="1.4.0" />
+    </Artifacts>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- CONTRACTS: Semantic contracts governing implementation                  -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Contracts>
+        <ModuleContractRef id="MC-account-service-domain" status="PROPOSED" />
+
+        <FunctionContractRef id="FC-account-getProfile" status="PROPOSED" />
+        <FunctionContractRef id="FC-account-updateProfile" status="PROPOSED" />
+        <FunctionContractRef id="FC-account-saveConfiguration" status="PROPOSED" />
+        <FunctionContractRef id="FC-account-manageAddresses" status="PROPOSED" />
+
+        <BlockAnchorRef id="BA-ACCT-PROF-01" />
+        <BlockAnchorRef id="BA-ACCT-PROF-02" />
+        <BlockAnchorRef id="BA-ACCT-PROF-03" />
+        <BlockAnchorRef id="BA-ACCT-ADDR-01" />
+        <BlockAnchorRef id="BA-ACCT-ADDR-02" />
+        <BlockAnchorRef id="BA-ACCT-ADDR-03" />
+        <BlockAnchorRef id="BA-ACCT-CFG-01" />
+        <BlockAnchorRef id="BA-ACCT-CFG-02" />
+        <BlockAnchorRef id="BA-ACCT-CFG-03" />
+    </Contracts>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- API CONTRACTS: External contract references                             -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <ApiContracts>
+        <Contract type="gRPC"
+            path="api-contracts/src/main/proto/kanokna/account/v1/account_service.proto">
+            <Description>Existing gRPC service definition with profile and address operations</Description>
+            <Methods>
+                <Method>GetProfile</Method>
+                <Method>UpdateProfile</Method>
+                <Method>AddAddress</Method>
+                <Method>UpdateAddress</Method>
+                <Method>DeleteAddress</Method>
+                <Method>ListAddresses</Method>
+                <Method>GetOrderHistory</Method>
+            </Methods>
+        </Contract>
+        <Note>SavedConfiguration operations NOT in current proto - need to add or expose via REST</Note>
+    </ApiContracts>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- SERVICE DEFINITION: Implementation blueprint                            -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <ServiceDefinition>
+        <BoundedContext>account</BoundedContext>
+        <ArtifactId>account-service</ArtifactId>
+        <Ports>
+            <Port type="http">8085</Port>
+            <Port type="grpc">9085</Port>
+        </Ports>
+        <Database>
+            <Schema>accounts</Schema>
+            <Engine ref="Technology.xml#TECH-postgresql" />
+        </Database>
+
+        <PackageLayout>
+            <Layer name="domain">
+                <Package>com.kanokna.account.domain.model</Package>
+                <Package>com.kanokna.account.domain.service</Package>
+                <Package>com.kanokna.account.domain.event</Package>
+                <Package>com.kanokna.account.domain.exception</Package>
+            </Layer>
+            <Layer name="application">
+                <Package>com.kanokna.account.application.port.in</Package>
+                <Package>com.kanokna.account.application.port.out</Package>
+                <Package>com.kanokna.account.application.service</Package>
+                <Package>com.kanokna.account.application.dto</Package>
+            </Layer>
+            <Layer name="adapters">
+                <Package>com.kanokna.account.adapters.in.web</Package>
+                <Package>com.kanokna.account.adapters.in.grpc</Package>
+                <Package>com.kanokna.account.adapters.out.persistence</Package>
+                <Package>com.kanokna.account.adapters.out.keycloak</Package>
+                <Package>com.kanokna.account.adapters.config</Package>
+            </Layer>
+        </PackageLayout>
+    </ServiceDefinition>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- DECISIONS SNAPSHOT: Architectural decisions for this task               -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <DecisionsSnapshot>
+        <Decision id="DEC-ACCT-KEYCLOAK-SYNC" status="APPROVED">
+            <Title>Keycloak Profile Sync Strategy</Title>
+            <Selected>On-Login Sync</Selected>
+            <Rationale>
+                On first getProfile call, if profile doesn't exist, extract claims from JWT
+                (sub, email, name) and create profile. Simplest approach, avoids webhook complexity.
+            </Rationale>
+        </Decision>
+
+        <Decision id="DEC-ACCT-CONFIG-SNAPSHOT" status="APPROVED">
+            <Title>Saved Configuration Snapshot Format</Title>
+            <Selected>JSONB with application-level schema validation</Selected>
+            <Rationale>
+                Flexible storage for configuration state with validation at application layer.
+                PostgreSQL JSONB enables efficient queries if needed.
+            </Rationale>
+        </Decision>
+
+        <Decision id="DEC-ACCT-B2B-SCOPE" status="APPROVED">
+            <Title>B2B PartnerOrganization MVP Scope</Title>
+            <Selected>Minimal - partnerOrganizationId reference on UserProfile only</Selected>
+            <Rationale>
+                Full B2B sub-user management deferred to Phase 2. MVP includes optional
+                foreign key for basic partner identification.
+            </Rationale>
+        </Decision>
+
+        <!-- Reference to global decisions in Technology.xml -->
+        <DecisionRef ref="Technology.xml#DEC-IDENTITY-PROVIDER" note="Keycloak for dev/stage" />
+        <DecisionRef ref="Technology.xml#DEC-DATABASE-ENGINE" note="PostgreSQL" />
+    </DecisionsSnapshot>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- DATA MODEL: Entity definitions for implementation                       -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <DataModel>
+        <Entity name="UserProfile" table="user_profiles">
+            <Column name="id" type="UUID" pk="true">Keycloak sub claim</Column>
+            <Column name="email" type="VARCHAR(255)" nullable="false">From Keycloak, immutable</Column>
+            <Column name="first_name" type="VARCHAR(100)" />
+            <Column name="last_name" type="VARCHAR(100)" />
+            <Column name="phone_number" type="VARCHAR(20)" />
+            <Column name="preferred_language" type="VARCHAR(10)">BCP-47 tag</Column>
+            <Column name="preferred_currency" type="CHAR(3)">ISO-4217</Column>
+            <Column name="notification_preferences" type="JSONB" />
+            <Column name="partner_organization_id" type="UUID" nullable="true">FK to
+                partner_organizations</Column>
+            <Column name="version" type="INTEGER" nullable="false">Optimistic locking</Column>
+            <Column name="created_at" type="TIMESTAMPTZ" nullable="false" />
+            <Column name="updated_at" type="TIMESTAMPTZ" nullable="false" />
+        </Entity>
+
+        <Entity name="SavedAddress" table="saved_addresses">
+            <Column name="id" type="UUID" pk="true" />
+            <Column name="user_id" type="UUID" nullable="false">FK to user_profiles</Column>
+            <Column name="label" type="VARCHAR(50)" nullable="false" />
+            <Column name="street" type="VARCHAR(255)" nullable="false" />
+            <Column name="city" type="VARCHAR(100)" nullable="false" />
+            <Column name="postal_code" type="VARCHAR(20)" nullable="false" />
+            <Column name="country" type="CHAR(2)" nullable="false">ISO-3166-1 alpha-2</Column>
+            <Column name="region" type="VARCHAR(100)" />
+            <Column name="is_default" type="BOOLEAN" default="false" />
+            <Column name="created_at" type="TIMESTAMPTZ" nullable="false" />
+            <Column name="updated_at" type="TIMESTAMPTZ" nullable="false" />
+            <Index columns="user_id" />
+            <UniqueConstraint columns="user_id,street,city,postal_code" name="uq_address_no_dup" />
+        </Entity>
+
+        <Entity name="SavedConfiguration" table="saved_configurations">
+            <Column name="id" type="UUID" pk="true" />
+            <Column name="user_id" type="UUID" nullable="false">FK to user_profiles</Column>
+            <Column name="name" type="VARCHAR(255)" nullable="false" />
+            <Column name="product_template_id" type="UUID" nullable="false" />
+            <Column name="configuration_snapshot" type="JSONB" nullable="false" />
+            <Column name="quote_snapshot" type="JSONB" nullable="true" />
+            <Column name="created_at" type="TIMESTAMPTZ" nullable="false" />
+            <Column name="updated_at" type="TIMESTAMPTZ" nullable="false" />
+            <Index columns="user_id" />
+        </Entity>
+
+        <Entity name="PartnerOrganization" table="partner_organizations" scope="DEFERRED">
+            <Column name="id" type="UUID" pk="true" />
+            <Column name="name" type="VARCHAR(255)" />
+            <Column name="tier" type="VARCHAR(50)" />
+            <Note>Full implementation deferred to Phase 2</Note>
+        </Entity>
+    </DataModel>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- VERIFICATION: Testing and validation requirements                       -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Verification>
+        <TestCounts>
+            <Unit minimum="15">Domain and application service tests</Unit>
+            <Slice minimum="8">@DataJpaTest for repository, @WebMvcTest for REST</Slice>
+            <Integration minimum="5">Testcontainers with PostgreSQL</Integration>
+            <Contract minimum="2">gRPC contract validation against proto</Contract>
+        </TestCounts>
+
+        <TestCases>
+            <!-- From MODULE_CONTRACT and FUNCTION_CONTRACTs -->
+            <TestCaseRef id="TC-ACCT-001" through="TC-ACCT-015" />
+            <TestCaseRef id="TC-FUNC-PROF-001" through="TC-FUNC-PROF-004" />
+            <TestCaseRef id="TC-FUNC-UPD-001" through="TC-FUNC-UPD-005" />
+            <TestCaseRef id="TC-FUNC-CFG-001" through="TC-FUNC-CFG-005" />
+            <TestCaseRef id="TC-FUNC-ADDR-001" through="TC-FUNC-ADDR-007" />
+        </TestCases>
+
+        <AcceptanceGates>
+            <Gate>All 15+ domain/application unit tests pass</Gate>
+            <Gate>gRPC adapter implements all proto methods correctly</Gate>
+            <Gate>ArchUnit rules pass (domain layer framework-free)</Gate>
+            <Gate>Flyway migrations create accounts schema correctly</Gate>
+            <Gate>Integration test: save configuration flow with Testcontainers</Gate>
+            <Gate>Flow-B2C-CPQ step 8 can call account-service gRPC</Gate>
+        </AcceptanceGates>
+    </Verification>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- IMPLEMENTATION GUIDANCE                                                 -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <ImplementationGuidance>
+        <Pattern>Follow existing catalog-configuration-service and pricing-service structure</Pattern>
+        <Pattern>Use shared-kernel value objects: Email, Address, PhoneNumber, Id</Pattern>
+        <Pattern>Domain layer must be framework-free (enforced via ArchUnit)</Pattern>
+        <Pattern>JWT token provides userId from Keycloak sub claim</Pattern>
+        <Pattern>Use @Transactional on application services, not adapters</Pattern>
+        <Pattern>Optimistic locking with @Version on UserProfile entity</Pattern>
+
+        <Logging
+            format="[SVC=account-service][UC=...][BLOCK=...][STATE=...] eventType=... keyValues=...">
+            <Item>Include traceId, spanId, correlationId from MDC</Item>
+            <Item>Use structured JSON logging (Logstash encoder)</Item>
+        </Logging>
+
+        <Dependencies>
+            <Item>shared-kernel (compile): Value objects, domain events</Item>
+            <Item>api-contracts (compile): gRPC stubs from account_service.proto</Item>
+            <Item>External: Keycloak for JWT validation</Item>
+        </Dependencies>
+    </ImplementationGuidance>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- OPEN ITEMS: Requiring attention during implementation                   -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <OpenItems>
+        <Item id="OPEN-ACCT-01" priority="LOW">
+            SavedConfiguration operations not in current gRPC proto. Options:
+            (A) Add to account_service.proto: SaveConfiguration, ListConfigurations,
+            DeleteConfiguration
+            (B) Expose via REST only for frontend
+            Recommendation: Option A for consistency with other operations.
+        </Item>
+        <Item id="OPEN-ACCT-02" priority="LOW">
+            GetOrderHistory in proto requires order-service integration (out of W1-T2 scope).
+            Stub implementation returning empty list is acceptable for MVP.
+        </Item>
+    </OpenItems>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- ASSUMPTIONS                                                             -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <Assumptions>
+        <Item id="A-ACCT-01">Keycloak handles user registration UI; account-service syncs on first
+            login</Item>
+        <Item id="A-ACCT-02">Email from Keycloak JWT is always verified</Item>
+        <Item id="A-ACCT-03">SavedConfiguration does not validate productTemplateId against
+            catalog-service at save time</Item>
+        <Item id="A-ACCT-04">Address validation is format-only; no geocoding in MVP</Item>
+    </Assumptions>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- CONSISTENCY CHECKLIST                                                   -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <ConsistencyChecklist>
+        <Item status="PASS">IDs follow conventions (UC-/ACT-/NFR-/DP-SVC-/MC-/FC-/BA-)</Item>
+        <Item status="PASS">All Link ref targets exist in canonical artifacts</Item>
+        <Item status="PASS">No "or" ambiguity in canonical artifacts; decisions recorded in
+            DecisionsSnapshot</Item>
+        <Item status="PASS">Uncertainty captured in Assumptions section</Item>
+        <Item status="PASS">gRPC contract referenced, not duplicated</Item>
+        <Item status="PASS">Keycloak integration boundary defined (on-login sync)</Item>
+        <Item status="PASS">SavedConfiguration links to catalog via productTemplateId</Item>
+        <Item status="PASS">DB per service (accounts schema only)</Item>
+    </ConsistencyChecklist>
+
+</GRACE_HANDOFF>
+
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  APPROVAL INSTRUCTION (for Human Architect)
+  ═══════════════════════════════════════════════════════════════════════════════
+  
+  To approve this handoff, add the following entry to approvals.log:
+  
+  <GRACE_APPROVAL
+    ref="Handoff-20260108-01-W1-T2-AccountService"
+    status="APPROVED"
+    approved="2026-01-08T##:##:##±##:##"
+    approver="Human"
+  />
+  
+  Implementation MUST NOT proceed until approval is recorded.
+  ═══════════════════════════════════════════════════════════════════════════════
+-->
