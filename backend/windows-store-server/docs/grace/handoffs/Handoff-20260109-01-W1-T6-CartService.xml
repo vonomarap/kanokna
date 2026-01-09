@@ -1,0 +1,1559 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  GRACE HANDOFF: Cart Service Implementation Blueprint
+  ═══════════════════════════════════════════════════════════════════════════════
+  Handoff ID:      Handoff-20260109-01-W1-T6-CartService
+  Service:         cart-service
+  Bounded Context: cart
+  Wave:            1 (CPQ Core)
+  Task:            T6
+  Created:         2026-01-09T10:00:00+03:00
+  Author:          GRACE-ARCHITECT
+  Status:          PROPOSED
+
+  Purpose:
+    Complete implementation blueprint for cart-service enabling shopping cart
+    management with configured items, promo codes, and checkout preparation
+    as part of the PHASE-1 CPQ Core vertical slice.
+
+  Dependencies:
+    - catalog-configuration-service (gRPC): ValidateConfiguration
+    - pricing-service (gRPC): CalculateQuote, ValidatePromoCode
+
+  Changes from AWO-20260109-01:
+    - Defined all DEC-CART-* technology decisions
+    - Extended cart_service.proto v1.1.0 with promo code and merge operations
+    - Created cart_events.proto for domain events
+    - Defined module contract MC-cart-service-domain
+    - Defined 8 function contracts with 22+ block anchors
+    - Specified 25+ test cases
+  ═══════════════════════════════════════════════════════════════════════════════
+-->
+<GRACE_HANDOFF id="Handoff-20260109-01-W1-T6-CartService" version="1.0">
+  <Metadata>
+    <Title>Cart Service Implementation Blueprint</Title>
+    <Service>cart-service</Service>
+    <BoundedContext>cart</BoundedContext>
+    <Wave>W1</Wave>
+    <Task>T6</Task>
+    <Phase>PHASE-1 (CPQ Core)</Phase>
+    <CreatedAt>2026-01-09T10:00:00+03:00</CreatedAt>
+    <Author>GRACE-ARCHITECT</Author>
+    <Status>PROPOSED</Status>
+    <TracesTo>
+      <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+      <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
+      <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+      <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service"/>
+      <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment"/>
+    </TracesTo>
+  </Metadata>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 1: TECHNOLOGY DECISIONS (Updates to Technology.xml)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <TechnologyDecisions>
+    <Decision id="DEC-CART-ANONYMOUS" status="PROPOSED">
+      <Title>Anonymous Cart Identification Strategy</Title>
+      <Selected>Session-based cart ID stored in HTTP-only cookie with Redis session storage</Selected>
+      <Alternatives>
+        <Alternative>Redis key only (no cookie, stateless lookup by client ID)</Alternative>
+        <Alternative>Database-only anonymous carts (no Redis)</Alternative>
+        <Alternative>Local storage cart ID (client-generated)</Alternative>
+      </Alternatives>
+      <Rationale>
+        HTTP-only cookie provides secure session binding. Redis session storage enables
+        fast cart retrieval and automatic TTL management. Cookie name: KANOKNA_CART_SESSION.
+        Server generates cart_id on first add-to-cart for anonymous users.
+        Authenticated users have cart_id derived from customer_id (deterministic).
+      </Rationale>
+      <Configuration>
+        <Item>Cookie name: KANOKNA_CART_SESSION</Item>
+        <Item>Cookie attributes: HttpOnly, Secure (prod), SameSite=Lax</Item>
+        <Item>Cookie max-age: 7 days (aligned with anonymous cart TTL)</Item>
+        <Item>Redis key pattern: cart:session:{session_id}</Item>
+        <Item>Redis key pattern (auth): cart:customer:{customer_id}</Item>
+      </Configuration>
+      <Links>
+        <Link ref="Technology.xml#TECH-redis"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-TTL" status="PROPOSED">
+      <Title>Cart Expiration Policy</Title>
+      <Selected>7 days for anonymous carts; indefinite for authenticated carts</Selected>
+      <Alternatives>
+        <Alternative>30 days for all carts</Alternative>
+        <Alternative>24 hours for anonymous, 30 days for authenticated</Alternative>
+        <Alternative>No expiration (manual cleanup only)</Alternative>
+      </Alternatives>
+      <Rationale>
+        7-day TTL for anonymous carts balances user convenience with storage efficiency.
+        Authenticated carts persist indefinitely to support long sales cycles common in
+        windows/doors purchases (customers may configure, then consult with family/spouse,
+        request measurement, etc.). Carts transition to ABANDONED status after inactivity
+        threshold for notification-service abandoned cart reminders (separate from TTL).
+      </Rationale>
+      <Configuration>
+        <Item>Anonymous cart TTL: 7 days (168 hours)</Item>
+        <Item>Authenticated cart TTL: Indefinite (no automatic expiration)</Item>
+        <Item>Abandoned cart threshold: 72 hours inactivity (for notification triggers)</Item>
+        <Item>Redis TTL applied to session key for anonymous carts</Item>
+        <Item>Database soft-delete for authenticated carts after 365 days inactivity</Item>
+      </Configuration>
+      <Links>
+        <Link ref="Technology.xml#TECH-redis"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-notification-service"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-MERGE" status="PROPOSED">
+      <Title>Anonymous to Authenticated Cart Merge Strategy</Title>
+      <Selected>Merge items into authenticated cart with conflict resolution (keep both, sum quantities)</Selected>
+      <Alternatives>
+        <Alternative>Replace authenticated cart with anonymous cart</Alternative>
+        <Alternative>Discard anonymous cart on login</Alternative>
+        <Alternative>Prompt user to choose which cart to keep</Alternative>
+      </Alternatives>
+      <Rationale>
+        Merge strategy preserves user work from both sessions. When same product+configuration
+        exists in both carts, quantities are summed. After merge, anonymous cart is deleted.
+        Price quotes are refreshed during merge to ensure current pricing. Merge is triggered
+        automatically on successful authentication (login/signup) when anonymous cart exists.
+      </Rationale>
+      <MergeRules>
+        <Rule id="MERGE-001">Items with identical configuration hash are merged (quantities summed)</Rule>
+        <Rule id="MERGE-002">Items with different configurations are both kept</Rule>
+        <Rule id="MERGE-003">Applied promo code from authenticated cart takes precedence</Rule>
+        <Rule id="MERGE-004">If no promo code on auth cart, anonymous cart promo is preserved</Rule>
+        <Rule id="MERGE-005">All prices are refreshed after merge</Rule>
+        <Rule id="MERGE-006">Anonymous cart is deleted after successful merge</Rule>
+      </MergeRules>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-PRICE-LOCK" status="PROPOSED">
+      <Title>Quote Validity and Price Lock Strategy</Title>
+      <Selected>Prices cached per item with 5-minute quote TTL; warn on stale, auto-refresh on checkout</Selected>
+      <Alternatives>
+        <Alternative>Always fetch fresh prices (no caching)</Alternative>
+        <Alternative>Lock prices at add-to-cart time until checkout</Alternative>
+        <Alternative>Lock prices for 24 hours</Alternative>
+      </Alternatives>
+      <Rationale>
+        Cart items store quote_id from pricing-service with 5-minute TTL (per DEC-PRICING-QUOTE-TTL).
+        On GetCart, system checks quote validity:
+        - If valid: return cached prices
+        - If stale: mark items as price_stale=true, return last known prices
+        Frontend displays staleness warning. RefreshPrices RPC fetches current quotes.
+        CreateSnapshot always refreshes all prices to ensure checkout uses current pricing.
+        Customer must acknowledge price changes before checkout proceeds.
+      </Rationale>
+      <Configuration>
+        <Item>Quote TTL: 5 minutes (from pricing-service cache)</Item>
+        <Item>Staleness check: Compare quote valid_until with current time</Item>
+        <Item>Auto-refresh: On CreateSnapshot (checkout)</Item>
+        <Item>User notification: Frontend shows "Prices may have changed" badge</Item>
+        <Item>Price change acknowledgement required if total differs > 1%</Item>
+      </Configuration>
+      <Links>
+        <Link ref="Technology.xml#DEC-PRICING-QUOTE-TTL"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-STATE-MACHINE" status="PROPOSED">
+      <Title>Cart State Lifecycle</Title>
+      <Selected>Four states: ACTIVE, CHECKED_OUT, ABANDONED, MERGED</Selected>
+      <Alternatives>
+        <Alternative>Only ACTIVE state (no state machine)</Alternative>
+        <Alternative>ACTIVE, LOCKED, COMPLETED states</Alternative>
+      </Alternatives>
+      <Rationale>
+        Cart state machine tracks lifecycle for analytics and operations:
+        - ACTIVE: Default state, accepts modifications
+        - CHECKED_OUT: Snapshot created, cart cleared, items moved to order
+        - ABANDONED: Inactivity threshold exceeded (notification trigger)
+        - MERGED: Anonymous cart merged into authenticated (terminal, soft-deleted)
+        State changes are audited for analytics (abandoned cart rate, checkout conversion).
+      </Rationale>
+      <StateMachine>
+        <State name="ACTIVE" initial="true">Cart accepts modifications</State>
+        <State name="CHECKED_OUT" terminal="true">Snapshot created for order</State>
+        <State name="ABANDONED">Inactive past threshold (notification trigger)</State>
+        <State name="MERGED" terminal="true">Anonymous cart merged</State>
+        <Transition from="ACTIVE" to="CHECKED_OUT" event="SNAPSHOT_CREATED"/>
+        <Transition from="ACTIVE" to="ABANDONED" event="INACTIVITY_THRESHOLD"/>
+        <Transition from="ABANDONED" to="ACTIVE" event="CART_MODIFIED"/>
+        <Transition from="ACTIVE" to="MERGED" event="CART_MERGED"/>
+        <Transition from="ABANDONED" to="MERGED" event="CART_MERGED"/>
+      </StateMachine>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-VALIDATION" status="PROPOSED">
+      <Title>Configuration Revalidation Strategy</Title>
+      <Selected>Validate on add-to-cart and on GetCart (lazy revalidation)</Selected>
+      <Alternatives>
+        <Alternative>Validate only on add-to-cart</Alternative>
+        <Alternative>Validate only on checkout</Alternative>
+        <Alternative>No revalidation (trust stored configuration)</Alternative>
+      </Alternatives>
+      <Rationale>
+        Product configurations may become invalid if catalog rules change after item was added.
+        On GetCart, cart-service calls catalog-configuration-service.ValidateConfiguration for
+        each item and marks items as validation_status=VALID|INVALID|UNKNOWN.
+        Invalid items display warning; customer can reconfigure or remove.
+        CreateSnapshot fails if any item is INVALID (customer must resolve first).
+      </Rationale>
+      <ValidationBehavior>
+        <Item>Add-to-cart: Full validation required (reject invalid configurations)</Item>
+        <Item>GetCart: Lazy revalidation with status flag (allow display of invalid items)</Item>
+        <Item>CreateSnapshot: Full validation required (reject if any item invalid)</Item>
+        <Item>Validation timeout: 2 seconds (use last known status on timeout)</Item>
+      </ValidationBehavior>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+      </Links>
+    </Decision>
+  </TechnologyDecisions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 2: SERVICE DEFINITION
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ServiceDefinition>
+    <Service id="DP-SVC-cart-service">
+      <Name>cart-service</Name>
+      <ArtifactId>cart-service</ArtifactId>
+      <Description>
+        Manages shopping carts for customers. Stores configured items with price snapshots,
+        handles promo codes, merges anonymous carts on login, and prepares cart snapshots
+        for checkout handoff to order-service.
+      </Description>
+      <BoundedContext>cart</BoundedContext>
+
+      <Responsibilities>
+        <Item>Create and manage carts (anonymous via session, authenticated via customer_id)</Item>
+        <Item>Add configured items with price quotes from pricing-service</Item>
+        <Item>Update item quantities and recalculate totals</Item>
+        <Item>Remove items and recalculate totals</Item>
+        <Item>Validate configurations remain valid via catalog-configuration-service</Item>
+        <Item>Apply and remove promo codes via pricing-service.ValidatePromoCode</Item>
+        <Item>Merge anonymous cart into authenticated cart on login</Item>
+        <Item>Refresh prices for all items on demand or staleness</Item>
+        <Item>Create immutable cart snapshot for order-service checkout handoff</Item>
+        <Item>Publish cart domain events for analytics and notifications</Item>
+      </Responsibilities>
+
+      <Dependencies>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
+        <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
+        <ServiceRef ref="DP-SVC-catalog-configuration-service" type="grpc">
+          ValidateConfiguration - validate item configurations
+        </ServiceRef>
+        <ServiceRef ref="DP-SVC-pricing-service" type="grpc">
+          CalculateQuote - get prices for items;
+          ValidatePromoCode - validate and calculate promo discounts
+        </ServiceRef>
+        <ServiceRef ref="DP-SVC-notification-service" type="async">
+          Abandoned cart reminders via CartAbandonedEvent
+        </ServiceRef>
+      </Dependencies>
+
+      <Database>
+        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Schema>cart</Schema>
+        <Tables>
+          <Table name="carts">Primary cart records</Table>
+          <Table name="cart_items">Cart line items with configuration snapshots</Table>
+          <Table name="cart_snapshots">Immutable checkout snapshots</Table>
+          <Table name="cart_snapshot_items">Snapshot line items</Table>
+        </Tables>
+      </Database>
+
+      <Cache ref="Technology.xml#TECH-redis">
+        <Usage>Anonymous cart session storage with TTL</Usage>
+        <KeyPattern>cart:session:{session_id}</KeyPattern>
+        <KeyPattern>cart:customer:{customer_id}</KeyPattern>
+      </Cache>
+
+      <Ports>
+        <Port type="http">8083</Port>
+        <Port type="grpc">9083</Port>
+      </Ports>
+
+      <PackageLayout>
+        <Package>com.kanokna.cart.domain.model</Package>
+        <Package>com.kanokna.cart.domain.service</Package>
+        <Package>com.kanokna.cart.domain.event</Package>
+        <Package>com.kanokna.cart.domain.exception</Package>
+        <Package>com.kanokna.cart.application.port.in</Package>
+        <Package>com.kanokna.cart.application.port.out</Package>
+        <Package>com.kanokna.cart.application.service</Package>
+        <Package>com.kanokna.cart.application.dto</Package>
+        <Package>com.kanokna.cart.adapters.in.web</Package>
+        <Package>com.kanokna.cart.adapters.in.grpc</Package>
+        <Package>com.kanokna.cart.adapters.out.persistence</Package>
+        <Package>com.kanokna.cart.adapters.out.grpc</Package>
+        <Package>com.kanokna.cart.adapters.out.kafka</Package>
+        <Package>com.kanokna.cart.adapters.config</Package>
+      </PackageLayout>
+
+      <Aggregates>
+        <Aggregate name="Cart">
+          <Description>Shopping cart aggregate with items, totals, and applied promo code</Description>
+          <Root>Cart</Root>
+          <Entities>
+            <Entity>CartItem</Entity>
+          </Entities>
+          <ValueObjects>
+            <ValueObject>CartId</ValueObject>
+            <ValueObject>CartItemId</ValueObject>
+            <ValueObject>ConfigurationSnapshot</ValueObject>
+            <ValueObject>PriceQuoteReference</ValueObject>
+            <ValueObject>AppliedPromoCode</ValueObject>
+            <ValueObject>CartTotals</ValueObject>
+          </ValueObjects>
+          <Invariants>
+            <Invariant>Cart must have valid customer_id or session_id</Invariant>
+            <Invariant>Item quantity must be >= 1</Invariant>
+            <Invariant>Subtotal equals sum of line totals</Invariant>
+            <Invariant>Total equals subtotal - discount + tax</Invariant>
+            <Invariant>Only one promo code can be applied at a time</Invariant>
+          </Invariants>
+        </Aggregate>
+
+        <Aggregate name="CartSnapshot">
+          <Description>Immutable point-in-time snapshot for checkout handoff</Description>
+          <Root>CartSnapshot</Root>
+          <Entities>
+            <Entity>CartSnapshotItem</Entity>
+          </Entities>
+          <ValueObjects>
+            <ValueObject>SnapshotId</ValueObject>
+          </ValueObjects>
+          <Invariants>
+            <Invariant>Snapshot is immutable after creation</Invariant>
+            <Invariant>All items must have valid configurations at snapshot time</Invariant>
+            <Invariant>All prices must be refreshed at snapshot time</Invariant>
+            <Invariant>Snapshot expires after validity period</Invariant>
+          </Invariants>
+        </Aggregate>
+      </Aggregates>
+
+      <DomainEvents>
+        <Event name="CartCreatedEvent">
+          <Description>New cart created (anonymous or authenticated)</Description>
+          <Fields>cart_id, customer_id (nullable), session_id (nullable), created_at</Fields>
+          <Topic>cart.created</Topic>
+        </Event>
+        <Event name="CartItemAddedEvent">
+          <Description>Item added to cart</Description>
+          <Fields>cart_id, item_id, product_template_id, quantity, unit_price, line_total</Fields>
+          <Topic>cart.item.added</Topic>
+        </Event>
+        <Event name="CartItemUpdatedEvent">
+          <Description>Item quantity changed</Description>
+          <Fields>cart_id, item_id, old_quantity, new_quantity, new_line_total</Fields>
+          <Topic>cart.item.updated</Topic>
+        </Event>
+        <Event name="CartItemRemovedEvent">
+          <Description>Item removed from cart</Description>
+          <Fields>cart_id, item_id, product_template_id</Fields>
+          <Topic>cart.item.removed</Topic>
+        </Event>
+        <Event name="PromoCodeAppliedEvent">
+          <Description>Promo code successfully applied</Description>
+          <Fields>cart_id, promo_code, discount_amount, new_total</Fields>
+          <Topic>cart.promo.applied</Topic>
+        </Event>
+        <Event name="PromoCodeRemovedEvent">
+          <Description>Promo code removed</Description>
+          <Fields>cart_id, promo_code</Fields>
+          <Topic>cart.promo.removed</Topic>
+        </Event>
+        <Event name="CartMergedEvent">
+          <Description>Anonymous cart merged into authenticated cart</Description>
+          <Fields>source_cart_id, target_cart_id, items_merged_count</Fields>
+          <Topic>cart.merged</Topic>
+        </Event>
+        <Event name="CartAbandonedEvent">
+          <Description>Cart inactive past threshold (notification trigger)</Description>
+          <Fields>cart_id, customer_id, last_activity, item_count, subtotal</Fields>
+          <Topic>cart.abandoned</Topic>
+        </Event>
+        <Event name="CartCheckedOutEvent">
+          <Description>Cart snapshot created for order</Description>
+          <Fields>cart_id, snapshot_id, customer_id, total, item_count</Fields>
+          <Topic>cart.checkout</Topic>
+        </Event>
+      </DomainEvents>
+
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+        <Link ref="Technology.xml#TECH-postgresql"/>
+        <Link ref="Technology.xml#TECH-redis"/>
+      </Links>
+    </Service>
+  </ServiceDefinition>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 3: PROTO CONTRACT UPDATES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ProtoContractUpdates>
+    <Update file="api-contracts/src/main/proto/kanokna/cart/v1/cart_service.proto" version="1.1.0">
+      <Description>Extend cart_service.proto with promo code, merge, and refresh operations</Description>
+      <Changes>
+        <Change type="ADD_RPC">ApplyPromoCode - Apply promotional code to cart</Change>
+        <Change type="ADD_RPC">RemovePromoCode - Remove applied promo code</Change>
+        <Change type="ADD_RPC">MergeCarts - Merge anonymous cart into authenticated</Change>
+        <Change type="ADD_RPC">RefreshPrices - Re-fetch prices for all items</Change>
+        <Change type="ADD_FIELD">Cart.applied_promo_code - Applied promo code info</Change>
+        <Change type="ADD_FIELD">Cart.discount - Total discount amount</Change>
+        <Change type="ADD_FIELD">Cart.tax - Tax amount</Change>
+        <Change type="ADD_FIELD">Cart.total - Grand total</Change>
+        <Change type="ADD_FIELD">Cart.status - Cart state (ACTIVE, ABANDONED, etc.)</Change>
+        <Change type="ADD_FIELD">CartItem.validation_status - Configuration validity</Change>
+        <Change type="ADD_FIELD">CartItem.price_stale - Price staleness flag</Change>
+        <Change type="ADD_FIELD">CartItem.configuration_hash - For merge comparison</Change>
+        <Change type="ADD_MESSAGE">AppliedPromoCode - Promo code details</Change>
+        <Change type="ADD_MESSAGE">ApplyPromoCodeRequest/Response</Change>
+        <Change type="ADD_MESSAGE">RemovePromoCodeRequest/Response</Change>
+        <Change type="ADD_MESSAGE">MergeCartsRequest/Response</Change>
+        <Change type="ADD_MESSAGE">RefreshPricesRequest/Response</Change>
+        <Change type="ADD_ENUM">CartStatus - ACTIVE, CHECKED_OUT, ABANDONED, MERGED</Change>
+        <Change type="ADD_ENUM">ValidationStatus - VALID, INVALID, UNKNOWN</Change>
+      </Changes>
+
+      <ProtoSpec>
+        <![CDATA[
+// cart_service.proto v1.1.0 - Extended for promo codes, merge, and refresh
+syntax = "proto3";
+
+package kanokna.cart.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/dimensions.proto";
+import "kanokna/common/v1/money.proto";
+import "kanokna/catalog/v1/catalog_configuration_service.proto";
+
+option java_package = "com.kanokna.cart.v1";
+option java_outer_classname = "CartServiceProto";
+option java_multiple_files = true;
+
+// Service for managing shopping carts.
+service CartService {
+  // Get the current cart for a customer.
+  rpc GetCart(GetCartRequest) returns (GetCartResponse);
+
+  // Add an item to the cart.
+  rpc AddItem(AddItemRequest) returns (AddItemResponse);
+
+  // Update an existing cart item.
+  rpc UpdateItem(UpdateItemRequest) returns (UpdateItemResponse);
+
+  // Remove an item from the cart.
+  rpc RemoveItem(RemoveItemRequest) returns (RemoveItemResponse);
+
+  // Clear all items from the cart.
+  rpc ClearCart(ClearCartRequest) returns (ClearCartResponse);
+
+  // Apply a promotional code to the cart.
+  // v1.1.0: New RPC
+  rpc ApplyPromoCode(ApplyPromoCodeRequest) returns (ApplyPromoCodeResponse);
+
+  // Remove applied promotional code from the cart.
+  // v1.1.0: New RPC
+  rpc RemovePromoCode(RemovePromoCodeRequest) returns (RemovePromoCodeResponse);
+
+  // Merge anonymous cart into authenticated cart.
+  // Called after successful login when anonymous cart exists.
+  // v1.1.0: New RPC
+  rpc MergeCarts(MergeCartsRequest) returns (MergeCartsResponse);
+
+  // Refresh prices for all cart items.
+  // v1.1.0: New RPC
+  rpc RefreshPrices(RefreshPricesRequest) returns (RefreshPricesResponse);
+
+  // Create a cart snapshot for checkout.
+  rpc CreateSnapshot(CreateSnapshotRequest) returns (CreateSnapshotResponse);
+}
+
+// Cart status enumeration
+// v1.1.0: New enum
+enum CartStatus {
+  CART_STATUS_UNSPECIFIED = 0;
+  CART_STATUS_ACTIVE = 1;
+  CART_STATUS_CHECKED_OUT = 2;
+  CART_STATUS_ABANDONED = 3;
+  CART_STATUS_MERGED = 4;
+}
+
+// Validation status for cart items
+// v1.1.0: New enum
+enum ValidationStatus {
+  VALIDATION_STATUS_UNSPECIFIED = 0;
+  VALIDATION_STATUS_VALID = 1;
+  VALIDATION_STATUS_INVALID = 2;
+  VALIDATION_STATUS_UNKNOWN = 3;
+}
+
+// Applied promo code details
+// v1.1.0: New message
+message AppliedPromoCode {
+  string code = 1;
+  kanokna.common.v1.Money discount_amount = 2;
+  string description = 3;
+  google.protobuf.Timestamp applied_at = 4;
+}
+
+// Shopping cart with items.
+message Cart {
+  string cart_id = 1;
+  string customer_id = 2;
+  repeated CartItem items = 3;
+  kanokna.common.v1.Money subtotal = 4;
+  google.protobuf.Timestamp updated_at = 5;
+
+  // v1.1.0: New fields
+  AppliedPromoCode applied_promo_code = 6;
+  kanokna.common.v1.Money discount = 7;
+  kanokna.common.v1.Money tax = 8;
+  kanokna.common.v1.Money total = 9;
+  CartStatus status = 10;
+  string session_id = 11; // For anonymous carts
+  int32 item_count = 12;
+}
+
+// An item in the shopping cart.
+message CartItem {
+  string item_id = 1;
+  string product_template_id = 2;
+  string product_name = 3;
+  kanokna.common.v1.Dimensions dimensions = 4;
+  repeated kanokna.catalog.v1.SelectedOption selected_options = 5;
+  kanokna.catalog.v1.BillOfMaterials resolved_bom = 6;
+  int32 quantity = 7;
+  kanokna.common.v1.Money unit_price = 8;
+  kanokna.common.v1.Money line_total = 9;
+  string quote_id = 10;
+
+  // v1.1.0: New fields
+  ValidationStatus validation_status = 11;
+  string validation_message = 12;
+  bool price_stale = 13;
+  string configuration_hash = 14;
+  google.protobuf.Timestamp quote_valid_until = 15;
+}
+
+// ... (existing request/response messages remain unchanged)
+
+// Request to apply a promo code
+// v1.1.0: New message
+message ApplyPromoCodeRequest {
+  string customer_id = 1;
+  string session_id = 2; // For anonymous carts
+  string promo_code = 3;
+}
+
+// Response after applying promo code
+// v1.1.0: New message
+message ApplyPromoCodeResponse {
+  Cart cart = 1;
+  bool applied = 2;
+  string error_message = 3; // If not applied
+}
+
+// Request to remove promo code
+// v1.1.0: New message
+message RemovePromoCodeRequest {
+  string customer_id = 1;
+  string session_id = 2; // For anonymous carts
+}
+
+// Response after removing promo code
+// v1.1.0: New message
+message RemovePromoCodeResponse {
+  Cart cart = 1;
+}
+
+// Request to merge carts
+// v1.1.0: New message
+message MergeCartsRequest {
+  string customer_id = 1; // Target (authenticated) cart
+  string anonymous_session_id = 2; // Source (anonymous) cart
+}
+
+// Response after merging carts
+// v1.1.0: New message
+message MergeCartsResponse {
+  Cart merged_cart = 1;
+  int32 items_from_anonymous = 2;
+  int32 items_merged = 3; // Quantity-summed items
+  int32 items_added = 4; // New items added
+  bool promo_code_preserved = 5;
+}
+
+// Request to refresh prices
+// v1.1.0: New message
+message RefreshPricesRequest {
+  string customer_id = 1;
+  string session_id = 2; // For anonymous carts
+}
+
+// Response after refreshing prices
+// v1.1.0: New message
+message RefreshPricesResponse {
+  Cart cart = 1;
+  int32 items_updated = 2;
+  bool total_changed = 3;
+  kanokna.common.v1.Money previous_total = 4;
+}
+        ]]>
+      </ProtoSpec>
+    </Update>
+
+    <NewFile file="api-contracts/src/main/proto/kanokna/cart/v1/cart_events.proto" version="1.0.0">
+      <Description>Domain events for cart operations</Description>
+      <ProtoSpec>
+        <![CDATA[
+// cart_events.proto v1.0.0 - Domain events for cart operations
+syntax = "proto3";
+
+package kanokna.cart.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/money.proto";
+
+option java_package = "com.kanokna.cart.v1.event";
+option java_outer_classname = "CartEventsProto";
+option java_multiple_files = true;
+
+// Event: Cart created
+message CartCreatedEvent {
+  string event_id = 1;
+  string cart_id = 2;
+  string customer_id = 3; // nullable for anonymous
+  string session_id = 4;  // nullable for authenticated
+  google.protobuf.Timestamp created_at = 5;
+  bool is_anonymous = 6;
+}
+
+// Event: Item added to cart
+message CartItemAddedEvent {
+  string event_id = 1;
+  string cart_id = 2;
+  string customer_id = 3;
+  string item_id = 4;
+  string product_template_id = 5;
+  string product_name = 6;
+  int32 quantity = 7;
+  kanokna.common.v1.Money unit_price = 8;
+  kanokna.common.v1.Money line_total = 9;
+  google.protobuf.Timestamp occurred_at = 10;
+}
+
+// Event: Item quantity updated
+message CartItemUpdatedEvent {
+  string event_id = 1;
+  string cart_id = 2;
+  string item_id = 3;
+  int32 old_quantity = 4;
+  int32 new_quantity = 5;
+  kanokna.common.v1.Money old_line_total = 6;
+  kanokna.common.v1.Money new_line_total = 7;
+  google.protobuf.Timestamp occurred_at = 8;
+}
+
+// Event: Item removed from cart
+message CartItemRemovedEvent {
+  string event_id = 1;
+  string cart_id = 2;
+  string item_id = 3;
+  string product_template_id = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+}
+
+// Event: Promo code applied
+message PromoCodeAppliedEvent {
+  string event_id = 1;
+  string cart_id = 2;
+  string customer_id = 3;
+  string promo_code = 4;
+  kanokna.common.v1.Money discount_amount = 5;
+  kanokna.common.v1.Money new_total = 6;
+  google.protobuf.Timestamp occurred_at = 7;
+}
+
+// Event: Promo code removed
+message PromoCodeRemovedEvent {
+  string event_id = 1;
+  string cart_id = 2;
+  string promo_code = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+}
+
+// Event: Anonymous cart merged into authenticated
+message CartMergedEvent {
+  string event_id = 1;
+  string source_cart_id = 2; // Anonymous cart
+  string target_cart_id = 3; // Authenticated cart
+  string customer_id = 4;
+  int32 items_merged_count = 5;
+  google.protobuf.Timestamp occurred_at = 6;
+}
+
+// Event: Cart abandoned (inactivity threshold)
+message CartAbandonedEvent {
+  string event_id = 1;
+  string cart_id = 2;
+  string customer_id = 3;
+  string customer_email = 4; // For notification
+  google.protobuf.Timestamp last_activity = 5;
+  int32 item_count = 6;
+  kanokna.common.v1.Money subtotal = 7;
+  google.protobuf.Timestamp occurred_at = 8;
+}
+
+// Event: Cart checked out (snapshot created)
+message CartCheckedOutEvent {
+  string event_id = 1;
+  string cart_id = 2;
+  string snapshot_id = 3;
+  string customer_id = 4;
+  int32 item_count = 5;
+  kanokna.common.v1.Money total = 6;
+  google.protobuf.Timestamp occurred_at = 7;
+}
+        ]]>
+      </ProtoSpec>
+    </NewFile>
+  </ProtoContractUpdates>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 4: MODULE CONTRACT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ModuleContract id="MC-cart-service-domain">
+    <![CDATA[
+/* <MODULE_CONTRACT id="MC-cart-service-domain"
+     ROLE="BoundedContext"
+     SERVICE="cart-service"
+     LAYER="domain"
+     BOUNDED_CONTEXT="cart"
+     SPECIFICATION="UC-CART-MANAGE;UC-CART-APPLY-PROMO">
+  <PURPOSE>
+    Domain layer for cart-service managing shopping cart aggregate with items,
+    promo codes, and checkout snapshot preparation.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Cart aggregate with items, totals, and applied promo code</Item>
+    <Item>CartSnapshot aggregate for immutable checkout handoff</Item>
+    <Item>Configuration snapshot and price quote reference value objects</Item>
+    <Item>Cart state machine (ACTIVE, CHECKED_OUT, ABANDONED, MERGED)</Item>
+    <Item>Domain events for cart lifecycle tracking</Item>
+    <Item>Business rules for quantity constraints, promo code application</Item>
+  </RESPONSIBILITIES>
+
+  <INVARIANTS>
+    <Item>Cart must have valid customer_id (authenticated) or session_id (anonymous)</Item>
+    <Item>Item quantity must be >= 1</Item>
+    <Item>Subtotal equals sum of all line totals</Item>
+    <Item>Total = subtotal - discount + tax</Item>
+    <Item>Only one promo code can be applied at a time</Item>
+    <Item>Snapshot prices must be refreshed at creation time</Item>
+  </INVARIANTS>
+
+  <CONTEXT>
+    <UPSTREAM>
+      <Item>cart-service.adapters.in.grpc: gRPC service implementation</Item>
+      <Item>cart-service.adapters.in.web: REST controllers</Item>
+    </UPSTREAM>
+    <DOWNSTREAM>
+      <Item>cart-service.application.port.out: Repository and external service ports</Item>
+    </DOWNSTREAM>
+  </CONTEXT>
+
+  <ARCHITECTURE>
+    <TECHNOLOGY>
+      <Item>Java 25 (records for value objects)</Item>
+      <Item>No Spring, JPA, or framework dependencies in domain</Item>
+      <Item>Depends only on shared-kernel</Item>
+    </TECHNOLOGY>
+  </ARCHITECTURE>
+
+  <PUBLIC_API>
+    <Item>Cart: addItem, updateItemQuantity, removeItem, applyPromoCode, removePromoCode, clear</Item>
+    <Item>Cart: calculateTotals, isValid, createSnapshot</Item>
+    <Item>CartSnapshot: immutable, getters only</Item>
+  </PUBLIC_API>
+
+  <CROSS_CUTTING>
+    <SECURITY>
+      <Item>Customer can only access their own cart</Item>
+      <Item>Anonymous cart accessed via session_id cookie</Item>
+    </SECURITY>
+    <OBSERVABILITY>
+      <Item>Domain events emitted for all state changes</Item>
+      <Item>Structured logging with GRACE block anchors</Item>
+    </OBSERVABILITY>
+  </CROSS_CUTTING>
+
+  <LINKS>
+    <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+    <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service"/>
+    <Link ref="Technology.xml#DEC-CART-STATE-MACHINE"/>
+  </LINKS>
+</MODULE_CONTRACT> */
+    ]]>
+  </ModuleContract>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 5: FUNCTION CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContracts>
+    <!-- FC-cart-getCart -->
+    <FUNCTION_CONTRACT
+        id="FC-cart-getCart"
+        LAYER="application.service"
+        INTENT="Retrieve cart with current validation status and price staleness flags"
+        INPUT="GetCartCommand (customerId or sessionId)"
+        OUTPUT="CartResponse"
+        SIDE_EFFECTS="Lazy revalidation of item configurations"
+        LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE">
+
+      <PRECONDITIONS>
+        <Item>customerId or sessionId is provided (not both empty)</Item>
+        <Item>Caller is authorized (owns cart or is anonymous with valid session)</Item>
+      </PRECONDITIONS>
+
+      <POSTCONDITIONS>
+        <Item>If cart exists, returned with items and totals</Item>
+        <Item>If cart doesn't exist, empty cart returned (created on demand)</Item>
+        <Item>Each item has validation_status populated</Item>
+        <Item>Each item has price_stale flag populated</Item>
+      </POSTCONDITIONS>
+
+      <INVARIANTS>
+        <Item>Read-only operation does not modify cart state</Item>
+        <Item>Revalidation uses circuit breaker for catalog-service calls</Item>
+      </INVARIANTS>
+
+      <ERROR_HANDLING>
+        <Item type="BUSINESS" code="ERR-CART-UNAUTHORIZED">Caller not authorized for cart</Item>
+        <Item type="TECHNICAL" code="ERR-CART-CATALOG-UNAVAILABLE">Catalog service unavailable for revalidation</Item>
+      </ERROR_HANDLING>
+
+      <BLOCK_ANCHORS>
+        <Item id="BA-CART-GET-01">Resolve cart ID from customerId or sessionId</Item>
+        <Item id="BA-CART-GET-02">Load cart from repository</Item>
+        <Item id="BA-CART-GET-03">Revalidate item configurations (lazy)</Item>
+        <Item id="BA-CART-GET-04">Check price staleness for each item</Item>
+        <Item id="BA-CART-GET-05">Return cart response</Item>
+      </BLOCK_ANCHORS>
+
+      <LOGGING>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-GET-01][STATE=RESOLVE_CART] eventType=GET_CART_REQUEST keyValues=customerId,sessionId</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-GET-03][STATE=REVALIDATE] eventType=ITEM_REVALIDATION keyValues=itemCount,validCount,invalidCount</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-GET-05][STATE=COMPLETE] eventType=GET_CART_COMPLETE keyValues=cartId,itemCount,total</Item>
+      </LOGGING>
+
+      <TESTS>
+        <Case id="TC-FUNC-CART-GET-001">Get existing cart returns all items with totals</Case>
+        <Case id="TC-FUNC-CART-GET-002">Get non-existent cart returns empty cart</Case>
+        <Case id="TC-FUNC-CART-GET-003">Items with stale prices marked appropriately</Case>
+        <Case id="TC-FUNC-CART-GET-004">Invalid configurations flagged in response</Case>
+        <Case id="TC-FUNC-CART-GET-005">Catalog service timeout uses last known validation status</Case>
+      </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- FC-cart-addItem -->
+    <FUNCTION_CONTRACT
+        id="FC-cart-addItem"
+        LAYER="application.service"
+        INTENT="Add a configured item to cart with price from pricing-service"
+        INPUT="AddItemCommand (customerId/sessionId, productTemplateId, dimensions, options, quantity, quoteId)"
+        OUTPUT="CartResponse with added item"
+        SIDE_EFFECTS="Creates cart if not exists; persists item; publishes CartItemAddedEvent"
+        LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE;DevelopmentPlan.xml#Flow-Config-Pricing">
+
+      <PRECONDITIONS>
+        <Item>Configuration is valid (must have been validated by catalog-configuration-service)</Item>
+        <Item>quoteId is valid and not expired (from pricing-service)</Item>
+        <Item>quantity >= 1</Item>
+      </PRECONDITIONS>
+
+      <POSTCONDITIONS>
+        <Item>Item added to cart with configuration snapshot</Item>
+        <Item>Cart totals recalculated</Item>
+        <Item>CartItemAddedEvent published</Item>
+        <Item>Cart updated_at timestamp updated</Item>
+      </POSTCONDITIONS>
+
+      <INVARIANTS>
+        <Item>Only valid configurations can be added</Item>
+        <Item>Item stores snapshot of configuration and price at add time</Item>
+        <Item>configuration_hash computed for merge comparison</Item>
+      </INVARIANTS>
+
+      <ERROR_HANDLING>
+        <Item type="BUSINESS" code="ERR-CART-INVALID-CONFIG">Configuration validation failed</Item>
+        <Item type="BUSINESS" code="ERR-CART-QUOTE-EXPIRED">Quote has expired</Item>
+        <Item type="BUSINESS" code="ERR-CART-INVALID-QUANTITY">Quantity less than 1</Item>
+        <Item type="TECHNICAL" code="ERR-CART-CATALOG-UNAVAILABLE">Cannot validate configuration</Item>
+        <Item type="TECHNICAL" code="ERR-CART-PRICING-UNAVAILABLE">Cannot refresh price</Item>
+      </ERROR_HANDLING>
+
+      <BLOCK_ANCHORS>
+        <Item id="BA-CART-ADD-01">Resolve or create cart</Item>
+        <Item id="BA-CART-ADD-02">Validate configuration via catalog-configuration-service</Item>
+        <Item id="BA-CART-ADD-03">Get/verify price quote from pricing-service</Item>
+        <Item id="BA-CART-ADD-04">Create CartItem with configuration snapshot</Item>
+        <Item id="BA-CART-ADD-05">Compute configuration hash</Item>
+        <Item id="BA-CART-ADD-06">Recalculate cart totals</Item>
+        <Item id="BA-CART-ADD-07">Persist cart and publish event</Item>
+      </BLOCK_ANCHORS>
+
+      <LOGGING>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-01][STATE=RESOLVE_CART] eventType=ADD_ITEM_REQUEST keyValues=customerId,productTemplateId,quantity</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-02][STATE=VALIDATE_CONFIG] eventType=CONFIG_VALIDATION decision=VALID|INVALID keyValues=productTemplateId</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-03][STATE=GET_PRICE] eventType=PRICE_QUOTE_CHECK keyValues=quoteId,valid</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-07][STATE=COMPLETE] eventType=ITEM_ADDED decision=SUCCESS keyValues=cartId,itemId,unitPrice,lineTotal</Item>
+      </LOGGING>
+
+      <TESTS>
+        <Case id="TC-FUNC-CART-ADD-001">Add valid item creates cart item with snapshot</Case>
+        <Case id="TC-FUNC-CART-ADD-002">Add item to existing cart appends item</Case>
+        <Case id="TC-FUNC-CART-ADD-003">Invalid configuration rejected</Case>
+        <Case id="TC-FUNC-CART-ADD-004">Expired quote triggers fresh price fetch</Case>
+        <Case id="TC-FUNC-CART-ADD-005">Cart totals recalculated after add</Case>
+        <Case id="TC-FUNC-CART-ADD-006">CartItemAddedEvent published to Kafka</Case>
+      </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- FC-cart-updateItem -->
+    <FUNCTION_CONTRACT
+        id="FC-cart-updateItem"
+        LAYER="application.service"
+        INTENT="Update cart item quantity and recalculate totals"
+        INPUT="UpdateItemCommand (customerId/sessionId, itemId, newQuantity)"
+        OUTPUT="CartResponse"
+        SIDE_EFFECTS="Persists change; publishes CartItemUpdatedEvent"
+        LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE">
+
+      <PRECONDITIONS>
+        <Item>Item exists in cart</Item>
+        <Item>newQuantity >= 1</Item>
+      </PRECONDITIONS>
+
+      <POSTCONDITIONS>
+        <Item>Item quantity updated</Item>
+        <Item>Line total = unit_price * newQuantity</Item>
+        <Item>Cart totals recalculated</Item>
+        <Item>CartItemUpdatedEvent published</Item>
+      </POSTCONDITIONS>
+
+      <ERROR_HANDLING>
+        <Item type="BUSINESS" code="ERR-CART-ITEM-NOT-FOUND">Item not found in cart</Item>
+        <Item type="BUSINESS" code="ERR-CART-INVALID-QUANTITY">Quantity less than 1</Item>
+      </ERROR_HANDLING>
+
+      <BLOCK_ANCHORS>
+        <Item id="BA-CART-UPDATE-01">Load cart and find item</Item>
+        <Item id="BA-CART-UPDATE-02">Validate quantity</Item>
+        <Item id="BA-CART-UPDATE-03">Update quantity and line total</Item>
+        <Item id="BA-CART-UPDATE-04">Recalculate cart totals</Item>
+        <Item id="BA-CART-UPDATE-05">Persist and publish event</Item>
+      </BLOCK_ANCHORS>
+
+      <LOGGING>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-UPDATE-01][STATE=LOAD_ITEM] eventType=UPDATE_ITEM_REQUEST keyValues=cartId,itemId,newQuantity</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-UPDATE-05][STATE=COMPLETE] eventType=ITEM_UPDATED decision=SUCCESS keyValues=oldQuantity,newQuantity,newLineTotal</Item>
+      </LOGGING>
+
+      <TESTS>
+        <Case id="TC-FUNC-CART-UPDATE-001">Update quantity recalculates line total</Case>
+        <Case id="TC-FUNC-CART-UPDATE-002">Cart totals recalculated after update</Case>
+        <Case id="TC-FUNC-CART-UPDATE-003">Non-existent item returns error</Case>
+        <Case id="TC-FUNC-CART-UPDATE-004">Quantity 0 rejected (use remove instead)</Case>
+      </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- FC-cart-removeItem -->
+    <FUNCTION_CONTRACT
+        id="FC-cart-removeItem"
+        LAYER="application.service"
+        INTENT="Remove item from cart and recalculate totals"
+        INPUT="RemoveItemCommand (customerId/sessionId, itemId)"
+        OUTPUT="CartResponse"
+        SIDE_EFFECTS="Deletes item; publishes CartItemRemovedEvent"
+        LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE">
+
+      <PRECONDITIONS>
+        <Item>Cart exists</Item>
+        <Item>Item exists in cart</Item>
+      </PRECONDITIONS>
+
+      <POSTCONDITIONS>
+        <Item>Item removed from cart</Item>
+        <Item>Cart totals recalculated</Item>
+        <Item>CartItemRemovedEvent published</Item>
+      </POSTCONDITIONS>
+
+      <ERROR_HANDLING>
+        <Item type="BUSINESS" code="ERR-CART-ITEM-NOT-FOUND">Item not found in cart</Item>
+      </ERROR_HANDLING>
+
+      <BLOCK_ANCHORS>
+        <Item id="BA-CART-REMOVE-01">Load cart and find item</Item>
+        <Item id="BA-CART-REMOVE-02">Remove item from cart</Item>
+        <Item id="BA-CART-REMOVE-03">Recalculate cart totals</Item>
+        <Item id="BA-CART-REMOVE-04">Persist and publish event</Item>
+      </BLOCK_ANCHORS>
+
+      <LOGGING>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-REMOVE-01][STATE=LOAD_ITEM] eventType=REMOVE_ITEM_REQUEST keyValues=cartId,itemId</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-REMOVE-04][STATE=COMPLETE] eventType=ITEM_REMOVED decision=SUCCESS keyValues=cartId,itemId</Item>
+      </LOGGING>
+
+      <TESTS>
+        <Case id="TC-FUNC-CART-REMOVE-001">Remove item recalculates totals</Case>
+        <Case id="TC-FUNC-CART-REMOVE-002">Remove last item results in empty cart</Case>
+        <Case id="TC-FUNC-CART-REMOVE-003">Non-existent item returns error</Case>
+      </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- FC-cart-applyPromoCode -->
+    <FUNCTION_CONTRACT
+        id="FC-cart-applyPromoCode"
+        LAYER="application.service"
+        INTENT="Validate and apply promotional code to cart"
+        INPUT="ApplyPromoCodeCommand (customerId/sessionId, promoCode)"
+        OUTPUT="CartResponse with discount applied"
+        SIDE_EFFECTS="Updates cart; publishes PromoCodeAppliedEvent"
+        LINKS="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO;DevelopmentPlan.xml#DP-SVC-pricing-service">
+
+      <PRECONDITIONS>
+        <Item>Cart exists and has at least one item</Item>
+        <Item>promoCode is not empty</Item>
+        <Item>No promo code already applied (or will be replaced)</Item>
+      </PRECONDITIONS>
+
+      <POSTCONDITIONS>
+        <Item>If valid: promo code applied, discount calculated, totals updated</Item>
+        <Item>If invalid: error returned with reason</Item>
+        <Item>PromoCodeAppliedEvent published on success</Item>
+      </POSTCONDITIONS>
+
+      <INVARIANTS>
+        <Item>Only one promo code can be active at a time</Item>
+        <Item>Discount cannot exceed subtotal</Item>
+      </INVARIANTS>
+
+      <ERROR_HANDLING>
+        <Item type="BUSINESS" code="ERR-CART-PROMO-INVALID">Promo code is invalid or expired</Item>
+        <Item type="BUSINESS" code="ERR-CART-PROMO-MIN-NOT-MET">Minimum order amount not met</Item>
+        <Item type="BUSINESS" code="ERR-CART-EMPTY">Cannot apply promo to empty cart</Item>
+        <Item type="TECHNICAL" code="ERR-CART-PRICING-UNAVAILABLE">Pricing service unavailable</Item>
+      </ERROR_HANDLING>
+
+      <BLOCK_ANCHORS>
+        <Item id="BA-CART-PROMO-01">Load cart and validate not empty</Item>
+        <Item id="BA-CART-PROMO-02">Call pricing-service.ValidatePromoCode</Item>
+        <Item id="BA-CART-PROMO-03">Apply discount to cart</Item>
+        <Item id="BA-CART-PROMO-04">Recalculate totals</Item>
+        <Item id="BA-CART-PROMO-05">Persist and publish event</Item>
+      </BLOCK_ANCHORS>
+
+      <LOGGING>
+        <Item>[SVC=cart-service][UC=UC-CART-APPLY-PROMO][BLOCK=BA-CART-PROMO-01][STATE=LOAD_CART] eventType=APPLY_PROMO_REQUEST keyValues=cartId,promoCode</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-APPLY-PROMO][BLOCK=BA-CART-PROMO-02][STATE=VALIDATE_PROMO] eventType=PROMO_VALIDATION decision=VALID|INVALID keyValues=promoCode,discountAmount</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-APPLY-PROMO][BLOCK=BA-CART-PROMO-05][STATE=COMPLETE] eventType=PROMO_APPLIED decision=SUCCESS keyValues=promoCode,discount,newTotal</Item>
+      </LOGGING>
+
+      <TESTS>
+        <Case id="TC-FUNC-CART-PROMO-001">Valid promo code applies discount</Case>
+        <Case id="TC-FUNC-CART-PROMO-002">Invalid promo code returns error with reason</Case>
+        <Case id="TC-FUNC-CART-PROMO-003">Promo code replaces existing promo</Case>
+        <Case id="TC-FUNC-CART-PROMO-004">Empty cart rejects promo application</Case>
+        <Case id="TC-FUNC-CART-PROMO-005">Minimum order requirement checked</Case>
+      </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- FC-cart-removePromoCode -->
+    <FUNCTION_CONTRACT
+        id="FC-cart-removePromoCode"
+        LAYER="application.service"
+        INTENT="Remove applied promotional code from cart"
+        INPUT="RemovePromoCodeCommand (customerId/sessionId)"
+        OUTPUT="CartResponse"
+        SIDE_EFFECTS="Updates cart; publishes PromoCodeRemovedEvent"
+        LINKS="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO">
+
+      <PRECONDITIONS>
+        <Item>Cart exists</Item>
+        <Item>Promo code is currently applied</Item>
+      </PRECONDITIONS>
+
+      <POSTCONDITIONS>
+        <Item>Promo code removed</Item>
+        <Item>Discount set to zero</Item>
+        <Item>Totals recalculated</Item>
+        <Item>PromoCodeRemovedEvent published</Item>
+      </POSTCONDITIONS>
+
+      <ERROR_HANDLING>
+        <Item type="BUSINESS" code="ERR-CART-NO-PROMO">No promo code applied to remove</Item>
+      </ERROR_HANDLING>
+
+      <BLOCK_ANCHORS>
+        <Item id="BA-CART-PROMO-REMOVE-01">Load cart</Item>
+        <Item id="BA-CART-PROMO-REMOVE-02">Remove promo code</Item>
+        <Item id="BA-CART-PROMO-REMOVE-03">Recalculate totals</Item>
+        <Item id="BA-CART-PROMO-REMOVE-04">Persist and publish event</Item>
+      </BLOCK_ANCHORS>
+
+      <TESTS>
+        <Case id="TC-FUNC-CART-PROMO-REMOVE-001">Remove promo code zeroes discount</Case>
+        <Case id="TC-FUNC-CART-PROMO-REMOVE-002">No promo applied returns appropriate response</Case>
+      </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- FC-cart-mergeCarts -->
+    <FUNCTION_CONTRACT
+        id="FC-cart-mergeCarts"
+        LAYER="application.service"
+        INTENT="Merge anonymous cart into authenticated cart on login"
+        INPUT="MergeCartsCommand (customerId, anonymousSessionId)"
+        OUTPUT="MergeCartsResponse"
+        SIDE_EFFECTS="Merges items; deletes anonymous cart; publishes CartMergedEvent"
+        LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE;Technology.xml#DEC-CART-MERGE">
+
+      <PRECONDITIONS>
+        <Item>customerId identifies authenticated cart</Item>
+        <Item>anonymousSessionId identifies anonymous cart</Item>
+        <Item>At least one of the carts has items</Item>
+      </PRECONDITIONS>
+
+      <POSTCONDITIONS>
+        <Item>Items from anonymous cart merged into authenticated cart</Item>
+        <Item>Same configuration items have quantities summed</Item>
+        <Item>All prices refreshed after merge</Item>
+        <Item>Anonymous cart deleted</Item>
+        <Item>CartMergedEvent published</Item>
+      </POSTCONDITIONS>
+
+      <INVARIANTS>
+        <Item>Merge uses configuration_hash for item matching</Item>
+        <Item>Authenticated cart promo code takes precedence</Item>
+        <Item>Merge is idempotent (re-merge has no effect)</Item>
+      </INVARIANTS>
+
+      <ERROR_HANDLING>
+        <Item type="BUSINESS" code="ERR-CART-ANONYMOUS-NOT-FOUND">Anonymous cart not found</Item>
+        <Item type="TECHNICAL" code="ERR-CART-PRICING-UNAVAILABLE">Cannot refresh prices</Item>
+      </ERROR_HANDLING>
+
+      <BLOCK_ANCHORS>
+        <Item id="BA-CART-MERGE-01">Load both carts</Item>
+        <Item id="BA-CART-MERGE-02">Match items by configuration_hash</Item>
+        <Item id="BA-CART-MERGE-03">Merge items (sum quantities for matches, add new)</Item>
+        <Item id="BA-CART-MERGE-04">Resolve promo code precedence</Item>
+        <Item id="BA-CART-MERGE-05">Refresh all prices</Item>
+        <Item id="BA-CART-MERGE-06">Delete anonymous cart</Item>
+        <Item id="BA-CART-MERGE-07">Persist and publish event</Item>
+      </BLOCK_ANCHORS>
+
+      <LOGGING>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-MERGE-01][STATE=LOAD_CARTS] eventType=MERGE_CARTS_REQUEST keyValues=customerId,sessionId</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-MERGE-03][STATE=MERGE_ITEMS] eventType=ITEMS_MERGED keyValues=itemsMerged,itemsAdded</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-MERGE-07][STATE=COMPLETE] eventType=CARTS_MERGED decision=SUCCESS keyValues=sourceCartId,targetCartId,totalItems</Item>
+      </LOGGING>
+
+      <TESTS>
+        <Case id="TC-FUNC-CART-MERGE-001">Merge combines items from both carts</Case>
+        <Case id="TC-FUNC-CART-MERGE-002">Same configuration items have quantities summed</Case>
+        <Case id="TC-FUNC-CART-MERGE-003">Anonymous cart deleted after merge</Case>
+        <Case id="TC-FUNC-CART-MERGE-004">Authenticated promo code preserved</Case>
+        <Case id="TC-FUNC-CART-MERGE-005">Anonymous promo adopted if no auth promo</Case>
+      </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- FC-cart-createSnapshot -->
+    <FUNCTION_CONTRACT
+        id="FC-cart-createSnapshot"
+        LAYER="application.service"
+        INTENT="Create immutable cart snapshot for checkout handoff to order-service"
+        INPUT="CreateSnapshotCommand (customerId)"
+        OUTPUT="CartSnapshotResponse (snapshotId, cart_snapshot, valid_until)"
+        SIDE_EFFECTS="Creates snapshot; clears cart; publishes CartCheckedOutEvent"
+        LINKS="RequirementsAnalysis.xml#UC-ORDER-PLACE;DevelopmentPlan.xml#Flow-Checkout-Payment">
+
+      <PRECONDITIONS>
+        <Item>Customer is authenticated</Item>
+        <Item>Cart has at least one item</Item>
+        <Item>All items have VALID configuration status</Item>
+      </PRECONDITIONS>
+
+      <POSTCONDITIONS>
+        <Item>Immutable snapshot created with fresh prices</Item>
+        <Item>Original cart cleared (status CHECKED_OUT)</Item>
+        <Item>Snapshot has validity period (for order creation)</Item>
+        <Item>CartCheckedOutEvent published</Item>
+      </POSTCONDITIONS>
+
+      <INVARIANTS>
+        <Item>Snapshot is immutable after creation</Item>
+        <Item>All prices refreshed at snapshot time</Item>
+        <Item>Snapshot contains complete configuration for order creation</Item>
+      </INVARIANTS>
+
+      <ERROR_HANDLING>
+        <Item type="BUSINESS" code="ERR-CART-EMPTY">Cannot create snapshot of empty cart</Item>
+        <Item type="BUSINESS" code="ERR-CART-INVALID-ITEMS">Cart contains invalid configurations</Item>
+        <Item type="BUSINESS" code="ERR-CART-ANONYMOUS">Anonymous users must authenticate first</Item>
+        <Item type="TECHNICAL" code="ERR-CART-PRICING-UNAVAILABLE">Cannot refresh prices</Item>
+      </ERROR_HANDLING>
+
+      <BLOCK_ANCHORS>
+        <Item id="BA-CART-SNAP-01">Load cart and validate not empty</Item>
+        <Item id="BA-CART-SNAP-02">Validate all configurations</Item>
+        <Item id="BA-CART-SNAP-03">Refresh all prices</Item>
+        <Item id="BA-CART-SNAP-04">Create immutable snapshot</Item>
+        <Item id="BA-CART-SNAP-05">Clear original cart (set status CHECKED_OUT)</Item>
+        <Item id="BA-CART-SNAP-06">Persist and publish event</Item>
+      </BLOCK_ANCHORS>
+
+      <LOGGING>
+        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-01][STATE=LOAD_CART] eventType=CREATE_SNAPSHOT_REQUEST keyValues=customerId,itemCount</Item>
+        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-02][STATE=VALIDATE_ALL] eventType=SNAPSHOT_VALIDATION decision=PASS|FAIL keyValues=validCount,invalidCount</Item>
+        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-03][STATE=REFRESH_PRICES] eventType=PRICES_REFRESHED keyValues=priceChanges,totalChange</Item>
+        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-06][STATE=COMPLETE] eventType=SNAPSHOT_CREATED decision=SUCCESS keyValues=snapshotId,total,validUntil</Item>
+      </LOGGING>
+
+      <TESTS>
+        <Case id="TC-FUNC-CART-SNAP-001">Snapshot created with fresh prices</Case>
+        <Case id="TC-FUNC-CART-SNAP-002">Original cart cleared after snapshot</Case>
+        <Case id="TC-FUNC-CART-SNAP-003">Invalid items prevent snapshot creation</Case>
+        <Case id="TC-FUNC-CART-SNAP-004">Anonymous cart rejected</Case>
+        <Case id="TC-FUNC-CART-SNAP-005">Snapshot has validity period</Case>
+      </TESTS>
+    </FUNCTION_CONTRACT>
+  </FunctionContracts>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 6: FLOWS (Updates to DevelopmentPlan.xml)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FlowUpdates>
+    <Flow id="Flow-Cart-Add-Item">
+      <Name>Add Configured Item to Cart</Name>
+      <Description>Customer adds validated, priced configuration to cart</Description>
+      <Sequence>
+        <Step order="1" from="frontend" to="catalog-configuration-service">ValidateConfiguration</Step>
+        <Step order="2" from="frontend" to="pricing-service">CalculateQuote (get quoteId)</Step>
+        <Step order="3" from="frontend" to="cart-service">AddItem with configuration + quoteId</Step>
+        <Step order="4" from="cart-service" to="catalog-configuration-service">Re-validate configuration (optional)</Step>
+        <Step order="5" from="cart-service" to="pricing-service">Verify/refresh quote</Step>
+        <Step order="6" from="cart-service" to="database">Persist cart item</Step>
+        <Step order="7" from="cart-service" to="kafka">Publish CartItemAddedEvent</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+        <Link ref="FC-cart-addItem"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Cart-PromoCode">
+      <Name>Apply Promotional Code to Cart</Name>
+      <Description>Customer applies promo code and receives discount</Description>
+      <Sequence>
+        <Step order="1" from="frontend" to="cart-service">ApplyPromoCode</Step>
+        <Step order="2" from="cart-service" to="pricing-service">ValidatePromoCode (get discount)</Step>
+        <Step order="3" from="cart-service" to="database">Update cart with promo</Step>
+        <Step order="4" from="cart-service" to="kafka">Publish PromoCodeAppliedEvent</Step>
+        <Step order="5" from="cart-service" to="frontend">Return updated cart with discount</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
+        <Link ref="FC-cart-applyPromoCode"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Cart-Merge-On-Login">
+      <Name>Merge Anonymous Cart on Authentication</Name>
+      <Description>Anonymous cart merged into authenticated cart after login</Description>
+      <Sequence>
+        <Step order="1" from="frontend" to="identity-provider">User authenticates</Step>
+        <Step order="2" from="frontend" to="cart-service">MergeCarts (customerId + sessionId)</Step>
+        <Step order="3" from="cart-service" to="database">Load both carts</Step>
+        <Step order="4" from="cart-service" to="pricing-service">Refresh all prices</Step>
+        <Step order="5" from="cart-service" to="database">Merge items, delete anonymous</Step>
+        <Step order="6" from="cart-service" to="kafka">Publish CartMergedEvent</Step>
+      </Sequence>
+      <Links>
+        <Link ref="Technology.xml#DEC-CART-MERGE"/>
+        <Link ref="FC-cart-mergeCarts"/>
+      </Links>
+    </Flow>
+
+    <Flow id="Flow-Cart-Checkout-Handoff">
+      <Name>Cart to Order Checkout Handoff</Name>
+      <Description>Cart snapshot created for order-service checkout</Description>
+      <Sequence>
+        <Step order="1" from="frontend" to="cart-service">CreateSnapshot</Step>
+        <Step order="2" from="cart-service" to="catalog-configuration-service">Validate all configurations</Step>
+        <Step order="3" from="cart-service" to="pricing-service">Refresh all prices</Step>
+        <Step order="4" from="cart-service" to="database">Create immutable snapshot, clear cart</Step>
+        <Step order="5" from="cart-service" to="kafka">Publish CartCheckedOutEvent</Step>
+        <Step order="6" from="cart-service" to="frontend">Return snapshotId</Step>
+        <Step order="7" from="frontend" to="order-service">CreateOrder with snapshotId</Step>
+      </Sequence>
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+        <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment"/>
+        <Link ref="FC-cart-createSnapshot"/>
+      </Links>
+    </Flow>
+  </FlowUpdates>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 7: DATABASE SCHEMA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DatabaseSchema>
+    <Migration version="V1" name="init_cart_schema">
+      <![CDATA[
+-- V1__init_cart_schema.sql
+-- Cart service initial schema
+
+-- Carts table
+CREATE TABLE carts (
+    cart_id UUID PRIMARY KEY,
+    customer_id VARCHAR(255),
+    session_id VARCHAR(255),
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    applied_promo_code VARCHAR(50),
+    promo_discount_amount DECIMAL(19,4),
+    promo_discount_currency VARCHAR(3),
+    subtotal_amount DECIMAL(19,4) NOT NULL DEFAULT 0,
+    subtotal_currency VARCHAR(3) NOT NULL DEFAULT 'RUB',
+    discount_amount DECIMAL(19,4) NOT NULL DEFAULT 0,
+    tax_amount DECIMAL(19,4) NOT NULL DEFAULT 0,
+    total_amount DECIMAL(19,4) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    version BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT chk_cart_owner CHECK (customer_id IS NOT NULL OR session_id IS NOT NULL)
+);
+
+CREATE UNIQUE INDEX idx_carts_customer ON carts(customer_id) WHERE customer_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_carts_session ON carts(session_id) WHERE session_id IS NOT NULL;
+CREATE INDEX idx_carts_status ON carts(status);
+CREATE INDEX idx_carts_updated ON carts(updated_at);
+
+-- Cart items table
+CREATE TABLE cart_items (
+    item_id UUID PRIMARY KEY,
+    cart_id UUID NOT NULL REFERENCES carts(cart_id) ON DELETE CASCADE,
+    product_template_id VARCHAR(255) NOT NULL,
+    product_name VARCHAR(500) NOT NULL,
+    configuration_snapshot JSONB NOT NULL,
+    configuration_hash VARCHAR(64) NOT NULL,
+    quantity INT NOT NULL CHECK (quantity >= 1),
+    unit_price_amount DECIMAL(19,4) NOT NULL,
+    unit_price_currency VARCHAR(3) NOT NULL,
+    line_total_amount DECIMAL(19,4) NOT NULL,
+    quote_id VARCHAR(255),
+    quote_valid_until TIMESTAMP WITH TIME ZONE,
+    validation_status VARCHAR(20) NOT NULL DEFAULT 'VALID',
+    validation_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_cart_items_cart ON cart_items(cart_id);
+CREATE INDEX idx_cart_items_product ON cart_items(product_template_id);
+CREATE INDEX idx_cart_items_hash ON cart_items(cart_id, configuration_hash);
+
+-- Cart snapshots table (immutable)
+CREATE TABLE cart_snapshots (
+    snapshot_id UUID PRIMARY KEY,
+    cart_id UUID NOT NULL,
+    customer_id VARCHAR(255) NOT NULL,
+    snapshot_data JSONB NOT NULL,
+    subtotal_amount DECIMAL(19,4) NOT NULL,
+    discount_amount DECIMAL(19,4) NOT NULL DEFAULT 0,
+    tax_amount DECIMAL(19,4) NOT NULL DEFAULT 0,
+    total_amount DECIMAL(19,4) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    applied_promo_code VARCHAR(50),
+    item_count INT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    valid_until TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE INDEX idx_cart_snapshots_customer ON cart_snapshots(customer_id);
+CREATE INDEX idx_cart_snapshots_valid ON cart_snapshots(valid_until);
+      ]]>
+    </Migration>
+  </DatabaseSchema>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 8: VERIFICATION REQUIREMENTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <VerificationRequirements>
+    <TestCounts>
+      <Category name="Unit" count="25+">Domain and application service tests</Category>
+      <Category name="Slice" count="6+">Repository and adapter tests</Category>
+      <Category name="Integration" count="8+">Testcontainers with PostgreSQL, Redis, Kafka</Category>
+      <Category name="Contract" count="3+">gRPC proto validation tests</Category>
+    </TestCounts>
+
+    <AcceptanceGates>
+      <Gate id="AG-CART-001">All 8 use cases implemented per function contracts</Gate>
+      <Gate id="AG-CART-002">gRPC adapter implements all proto RPCs correctly</Gate>
+      <Gate id="AG-CART-003">ArchUnit rules enforced (domain layer framework-free)</Gate>
+      <Gate id="AG-CART-004">AddItem validates configuration via catalog-configuration-service</Gate>
+      <Gate id="AG-CART-005">AddItem retrieves price via pricing-service</Gate>
+      <Gate id="AG-CART-006">ApplyPromoCode validates via pricing-service.ValidatePromoCode</Gate>
+      <Gate id="AG-CART-007">MergeCarts correctly combines items by configuration_hash</Gate>
+      <Gate id="AG-CART-008">CreateSnapshot refreshes all prices before snapshot</Gate>
+      <Gate id="AG-CART-009">CreateSnapshot fails if any item has INVALID status</Gate>
+      <Gate id="AG-CART-010">Domain events published to Kafka for all mutations</Gate>
+      <Gate id="AG-CART-011">Anonymous cart TTL managed via Redis</Gate>
+      <Gate id="AG-CART-012">P95 GetCart latency &lt; 100ms</Gate>
+    </AcceptanceGates>
+
+    <TestCases total="25+">
+      <!-- GetCart tests -->
+      <TestCase id="TC-FUNC-CART-GET-001">Get existing cart returns all items with totals</TestCase>
+      <TestCase id="TC-FUNC-CART-GET-002">Get non-existent cart returns empty cart</TestCase>
+      <TestCase id="TC-FUNC-CART-GET-003">Items with stale prices marked appropriately</TestCase>
+      <TestCase id="TC-FUNC-CART-GET-004">Invalid configurations flagged in response</TestCase>
+      <TestCase id="TC-FUNC-CART-GET-005">Catalog service timeout uses last known validation status</TestCase>
+
+      <!-- AddItem tests -->
+      <TestCase id="TC-FUNC-CART-ADD-001">Add valid item creates cart item with snapshot</TestCase>
+      <TestCase id="TC-FUNC-CART-ADD-002">Add item to existing cart appends item</TestCase>
+      <TestCase id="TC-FUNC-CART-ADD-003">Invalid configuration rejected</TestCase>
+      <TestCase id="TC-FUNC-CART-ADD-004">Expired quote triggers fresh price fetch</TestCase>
+      <TestCase id="TC-FUNC-CART-ADD-005">Cart totals recalculated after add</TestCase>
+      <TestCase id="TC-FUNC-CART-ADD-006">CartItemAddedEvent published to Kafka</TestCase>
+
+      <!-- UpdateItem tests -->
+      <TestCase id="TC-FUNC-CART-UPDATE-001">Update quantity recalculates line total</TestCase>
+      <TestCase id="TC-FUNC-CART-UPDATE-002">Cart totals recalculated after update</TestCase>
+      <TestCase id="TC-FUNC-CART-UPDATE-003">Non-existent item returns error</TestCase>
+      <TestCase id="TC-FUNC-CART-UPDATE-004">Quantity 0 rejected</TestCase>
+
+      <!-- RemoveItem tests -->
+      <TestCase id="TC-FUNC-CART-REMOVE-001">Remove item recalculates totals</TestCase>
+      <TestCase id="TC-FUNC-CART-REMOVE-002">Remove last item results in empty cart</TestCase>
+      <TestCase id="TC-FUNC-CART-REMOVE-003">Non-existent item returns error</TestCase>
+
+      <!-- ApplyPromoCode tests -->
+      <TestCase id="TC-FUNC-CART-PROMO-001">Valid promo code applies discount</TestCase>
+      <TestCase id="TC-FUNC-CART-PROMO-002">Invalid promo code returns error with reason</TestCase>
+      <TestCase id="TC-FUNC-CART-PROMO-003">Promo code replaces existing promo</TestCase>
+      <TestCase id="TC-FUNC-CART-PROMO-004">Empty cart rejects promo application</TestCase>
+      <TestCase id="TC-FUNC-CART-PROMO-005">Minimum order requirement checked</TestCase>
+
+      <!-- MergeCarts tests -->
+      <TestCase id="TC-FUNC-CART-MERGE-001">Merge combines items from both carts</TestCase>
+      <TestCase id="TC-FUNC-CART-MERGE-002">Same configuration items have quantities summed</TestCase>
+      <TestCase id="TC-FUNC-CART-MERGE-003">Anonymous cart deleted after merge</TestCase>
+      <TestCase id="TC-FUNC-CART-MERGE-004">Authenticated promo code preserved</TestCase>
+      <TestCase id="TC-FUNC-CART-MERGE-005">Anonymous promo adopted if no auth promo</TestCase>
+
+      <!-- CreateSnapshot tests -->
+      <TestCase id="TC-FUNC-CART-SNAP-001">Snapshot created with fresh prices</TestCase>
+      <TestCase id="TC-FUNC-CART-SNAP-002">Original cart cleared after snapshot</TestCase>
+      <TestCase id="TC-FUNC-CART-SNAP-003">Invalid items prevent snapshot creation</TestCase>
+      <TestCase id="TC-FUNC-CART-SNAP-004">Anonymous cart rejected</TestCase>
+      <TestCase id="TC-FUNC-CART-SNAP-005">Snapshot has validity period</TestCase>
+    </TestCases>
+  </VerificationRequirements>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 9: IMPLEMENTATION NOTES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationNotes>
+    <Note id="IMP-001" topic="Phase Placement">
+      This handoff positions cart-service in Wave 1 (CPQ Core) to complete the vertical slice.
+      DevelopmentPlan.xml places cart-service in PHASE-3, but CPQ flow (Configure → Price → Cart)
+      requires cart functionality for the MVP. Recommend updating DevelopmentPlan.xml to include
+      cart-service in PHASE-1 deliverables, or create a "PHASE-1.5" for cart + basic checkout.
+    </Note>
+
+    <Note id="IMP-002" topic="Pricing Service Dependency">
+      Pricing-service files were deleted from git. Cart-service requires:
+      - CalculateQuote RPC for item prices
+      - ValidatePromoCode RPC for promo validation
+      Either restore pricing-service or confirm alternative integration approach.
+    </Note>
+
+    <Note id="IMP-003" topic="Configuration Hash">
+      Configuration hash should be computed deterministically from:
+      - product_template_id
+      - dimensions (width_cm, height_cm)
+      - sorted selected_options (option_group_id + option_id pairs)
+      Use SHA-256 truncated to 64 hex characters for configuration_hash field.
+    </Note>
+
+    <Note id="IMP-004" topic="Anonymous Cart Session">
+      Cookie management should be handled at gateway level or in cart-service REST adapter.
+      Session ID generation: UUID v4, stored in HTTP-only cookie.
+      Redis session key format: cart:session:{session_id} with 7-day TTL.
+    </Note>
+
+    <Note id="IMP-005" topic="Circuit Breaker Configuration">
+      Apply Resilience4j circuit breaker to:
+      - catalog-configuration-service.ValidateConfiguration calls (revalidation)
+      - pricing-service.CalculateQuote calls
+      - pricing-service.ValidatePromoCode calls
+      Fallback: Use last known status/price with staleness flag on timeout.
+    </Note>
+  </ImplementationNotes>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 10: TRACEABILITY MATRIX
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <TraceabilityMatrix>
+    <Trace requirement="UC-CART-MANAGE">
+      <Flow>Flow-Cart-Add-Item</Flow>
+      <Contracts>FC-cart-getCart, FC-cart-addItem, FC-cart-updateItem, FC-cart-removeItem</Contracts>
+      <BlockAnchors>BA-CART-GET-*, BA-CART-ADD-*, BA-CART-UPDATE-*, BA-CART-REMOVE-*</BlockAnchors>
+      <Tests>TC-FUNC-CART-GET-*, TC-FUNC-CART-ADD-*, TC-FUNC-CART-UPDATE-*, TC-FUNC-CART-REMOVE-*</Tests>
+    </Trace>
+
+    <Trace requirement="UC-CART-APPLY-PROMO">
+      <Flow>Flow-Cart-PromoCode</Flow>
+      <Contracts>FC-cart-applyPromoCode, FC-cart-removePromoCode</Contracts>
+      <BlockAnchors>BA-CART-PROMO-*</BlockAnchors>
+      <Tests>TC-FUNC-CART-PROMO-*</Tests>
+    </Trace>
+
+    <Trace requirement="UC-ORDER-PLACE">
+      <Flow>Flow-Cart-Checkout-Handoff</Flow>
+      <Contracts>FC-cart-createSnapshot</Contracts>
+      <BlockAnchors>BA-CART-SNAP-*</BlockAnchors>
+      <Tests>TC-FUNC-CART-SNAP-*</Tests>
+    </Trace>
+
+    <Trace requirement="DEC-CART-MERGE">
+      <Flow>Flow-Cart-Merge-On-Login</Flow>
+      <Contracts>FC-cart-mergeCarts</Contracts>
+      <BlockAnchors>BA-CART-MERGE-*</BlockAnchors>
+      <Tests>TC-FUNC-CART-MERGE-*</Tests>
+    </Trace>
+  </TraceabilityMatrix>
+
+</GRACE_HANDOFF>

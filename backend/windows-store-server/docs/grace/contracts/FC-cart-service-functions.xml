@@ -1,0 +1,759 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  GRACE FUNCTION CONTRACTS: cart-service
+  ═══════════════════════════════════════════════════════════════════════════════
+  Service:         cart-service
+  Version:         1.0.0
+  Handoff:         Handoff-20260109-01-W1-T6-CartService
+  Contract Count:  8
+  Block Anchors:   28
+  Test Cases:      32
+  Created:         2026-01-09T11:00:00+03:00
+  ═══════════════════════════════════════════════════════════════════════════════
+-->
+<FunctionContracts id="FC-cart-service" version="1.0.0">
+  <Metadata>
+    <Service>cart-service</Service>
+    <Module ref="MC-cart-service-domain"/>
+    <Author>GRACE-ARCHITECT</Author>
+    <CreatedAt>2026-01-09T11:00:00+03:00</CreatedAt>
+    <HandoffRef>Handoff-20260109-01-W1-T6-CartService</HandoffRef>
+  </Metadata>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FC-cart-getCart: Retrieve or create cart
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContract id="FC-cart-getCart">
+    <Metadata>
+      <Layer>application</Layer>
+      <UseCase ref="UC-CART-MANAGE"/>
+      <Proto ref="cart_service_v1_1.proto#GetCart"/>
+    </Metadata>
+
+    <Purpose>
+      Retrieve existing cart or create empty cart for customer/session.
+      Supports both authenticated (customer_id) and anonymous (session_id) carts.
+    </Purpose>
+
+    <Signature>
+      <Input>GetCartQuery(customerId: String?, sessionId: String?)</Input>
+      <Output>CartDto</Output>
+    </Signature>
+
+    <Preconditions>
+      <Condition id="PRE-GC-01">At least one of customerId or sessionId must be provided</Condition>
+    </Preconditions>
+
+    <Postconditions>
+      <Condition id="POST-GC-01">Returns existing cart if found, empty cart otherwise</Condition>
+      <Condition id="POST-GC-02">Empty cart has ACTIVE status and zero items</Condition>
+      <Condition id="POST-GC-03">Cart totals are calculated and current</Condition>
+    </Postconditions>
+
+    <BlockAnchors>
+      <Anchor id="BA-CART-GET-RESOLVE" location="CartApplicationService.getCart">
+        Resolve cart owner (customer_id takes precedence over session_id)
+      </Anchor>
+      <Anchor id="BA-CART-GET-LOAD" location="CartApplicationService.getCart">
+        Load cart from repository or create new empty cart
+      </Anchor>
+      <Anchor id="BA-CART-GET-STALENESS" location="CartApplicationService.getCart">
+        Check price quote staleness for all items
+      </Anchor>
+    </BlockAnchors>
+
+    <ErrorConditions>
+      <Error code="INVALID_ARGUMENT">Neither customerId nor sessionId provided</Error>
+    </ErrorConditions>
+
+    <TestCases>
+      <TestCase id="TC-GC-01" type="unit">
+        <Description>Get existing authenticated cart</Description>
+        <Given>Customer has cart with 2 items</Given>
+        <When>GetCart called with customer_id</When>
+        <Then>Returns cart with 2 items and calculated totals</Then>
+      </TestCase>
+      <TestCase id="TC-GC-02" type="unit">
+        <Description>Get cart for new customer creates empty cart</Description>
+        <Given>Customer has no existing cart</Given>
+        <When>GetCart called with customer_id</When>
+        <Then>Returns empty cart with ACTIVE status</Then>
+      </TestCase>
+      <TestCase id="TC-GC-03" type="unit">
+        <Description>Get anonymous cart by session</Description>
+        <Given>Session has cart with 1 item</Given>
+        <When>GetCart called with session_id only</When>
+        <Then>Returns anonymous cart</Then>
+      </TestCase>
+      <TestCase id="TC-GC-04" type="unit">
+        <Description>Stale prices flagged on retrieval</Description>
+        <Given>Cart has item with expired quote</Given>
+        <When>GetCart called</When>
+        <Then>Item.price_stale = true</Then>
+      </TestCase>
+    </TestCases>
+
+    <Dependencies>
+      <Dependency type="repository">CartRepository.findByCustomerId</Dependency>
+      <Dependency type="repository">CartRepository.findBySessionId</Dependency>
+    </Dependencies>
+  </FunctionContract>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FC-cart-addItem: Add configured product to cart
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContract id="FC-cart-addItem">
+    <Metadata>
+      <Layer>application</Layer>
+      <UseCase ref="UC-CART-MANAGE"/>
+      <Proto ref="cart_service_v1_1.proto#AddItem"/>
+    </Metadata>
+
+    <Purpose>
+      Add a configured product to the cart. Validates configuration against catalog-service,
+      retrieves price quote from pricing-service, computes configuration hash for merge support.
+    </Purpose>
+
+    <Signature>
+      <Input>AddItemCommand(customerId, sessionId, productTemplateId, dimensions, selectedOptions, quantity, quoteId?, resolvedBom)</Input>
+      <Output>AddItemResult(cart: CartDto, addedItemId: String)</Output>
+    </Signature>
+
+    <Preconditions>
+      <Condition id="PRE-AI-01">Cart owner identified (customerId or sessionId)</Condition>
+      <Condition id="PRE-AI-02">productTemplateId is valid</Condition>
+      <Condition id="PRE-AI-03">quantity >= 1</Condition>
+      <Condition id="PRE-AI-04">Configuration (dimensions + options) is valid</Condition>
+    </Preconditions>
+
+    <Postconditions>
+      <Condition id="POST-AI-01">Item added to cart with unique itemId</Condition>
+      <Condition id="POST-AI-02">Configuration snapshot captured immutably</Condition>
+      <Condition id="POST-AI-03">Price quote obtained and stored</Condition>
+      <Condition id="POST-AI-04">Cart totals recalculated</Condition>
+      <Condition id="POST-AI-05">CartItemAddedEvent published</Condition>
+    </Postconditions>
+
+    <BlockAnchors>
+      <Anchor id="BA-CART-ADD-VALIDATE" location="CartApplicationService.addItem">
+        Validate configuration via CatalogConfigurationPort
+      </Anchor>
+      <Anchor id="BA-CART-ADD-QUOTE" location="CartApplicationService.addItem">
+        Fetch price quote from PricingPort (use provided or fetch new)
+      </Anchor>
+      <Anchor id="BA-CART-ADD-HASH" location="CartApplicationService.addItem">
+        Compute configuration hash for merge comparison
+      </Anchor>
+      <Anchor id="BA-CART-ADD-SNAPSHOT" location="CartApplicationService.addItem">
+        Create immutable ConfigurationSnapshot
+      </Anchor>
+      <Anchor id="BA-CART-ADD-ITEM" location="Cart.addItem">
+        Add CartItem to aggregate, update totals
+      </Anchor>
+      <Anchor id="BA-CART-ADD-EVENT" location="CartApplicationService.addItem">
+        Publish CartItemAddedEvent to Kafka
+      </Anchor>
+    </BlockAnchors>
+
+    <ErrorConditions>
+      <Error code="INVALID_ARGUMENT">Invalid quantity (less than 1)</Error>
+      <Error code="INVALID_ARGUMENT">Invalid configuration (failed validation)</Error>
+      <Error code="NOT_FOUND">Product template not found</Error>
+      <Error code="UNAVAILABLE">Pricing service unavailable</Error>
+    </ErrorConditions>
+
+    <TestCases>
+      <TestCase id="TC-AI-01" type="unit">
+        <Description>Add first item to empty cart</Description>
+        <Given>Empty cart exists</Given>
+        <When>AddItem with valid configuration</When>
+        <Then>Cart has 1 item, subtotal = line_total</Then>
+      </TestCase>
+      <TestCase id="TC-AI-02" type="unit">
+        <Description>Add item with same config increases quantity</Description>
+        <Given>Cart has item with configuration hash X</Given>
+        <When>AddItem with same configuration (hash X)</When>
+        <Then>Existing item quantity increased, no new item added</Then>
+      </TestCase>
+      <TestCase id="TC-AI-03" type="unit">
+        <Description>Add item with different config creates new item</Description>
+        <Given>Cart has item with configuration hash X</Given>
+        <When>AddItem with different configuration (hash Y)</When>
+        <Then>New item added, cart has 2 items</Then>
+      </TestCase>
+      <TestCase id="TC-AI-04" type="integration">
+        <Description>Configuration validation failure</Description>
+        <Given>Invalid dimension configuration</Given>
+        <When>AddItem called</When>
+        <Then>INVALID_ARGUMENT error with validation message</Then>
+      </TestCase>
+      <TestCase id="TC-AI-05" type="integration">
+        <Description>CartItemAddedEvent published</Description>
+        <Given>Valid add item request</Given>
+        <When>AddItem succeeds</When>
+        <Then>CartItemAddedEvent sent to Kafka</Then>
+      </TestCase>
+    </TestCases>
+
+    <Dependencies>
+      <Dependency type="port">CatalogConfigurationPort.validateConfiguration</Dependency>
+      <Dependency type="port">PricingPort.calculateQuote</Dependency>
+      <Dependency type="service">ConfigurationHashGenerator.generateHash</Dependency>
+      <Dependency type="port">EventPublisher.publish</Dependency>
+      <Dependency type="repository">CartRepository.save</Dependency>
+    </Dependencies>
+  </FunctionContract>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FC-cart-updateItem: Update item quantity
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContract id="FC-cart-updateItem">
+    <Metadata>
+      <Layer>application</Layer>
+      <UseCase ref="UC-CART-MANAGE"/>
+      <Proto ref="cart_service_v1_1.proto#UpdateItem"/>
+    </Metadata>
+
+    <Purpose>
+      Update the quantity of an existing cart item. Recalculates line total and cart totals.
+    </Purpose>
+
+    <Signature>
+      <Input>UpdateItemCommand(customerId, sessionId, itemId, quantity)</Input>
+      <Output>CartDto</Output>
+    </Signature>
+
+    <Preconditions>
+      <Condition id="PRE-UI-01">Cart exists for owner</Condition>
+      <Condition id="PRE-UI-02">Item exists in cart</Condition>
+      <Condition id="PRE-UI-03">quantity >= 1</Condition>
+    </Preconditions>
+
+    <Postconditions>
+      <Condition id="POST-UI-01">Item quantity updated</Condition>
+      <Condition id="POST-UI-02">Line total recalculated</Condition>
+      <Condition id="POST-UI-03">Cart totals recalculated</Condition>
+      <Condition id="POST-UI-04">CartItemUpdatedEvent published</Condition>
+    </Postconditions>
+
+    <BlockAnchors>
+      <Anchor id="BA-CART-UPD-FIND" location="CartApplicationService.updateItemQuantity">
+        Find cart and item, validate ownership
+      </Anchor>
+      <Anchor id="BA-CART-UPD-QTY" location="Cart.updateItemQuantity">
+        Update quantity and recalculate line_total
+      </Anchor>
+      <Anchor id="BA-CART-UPD-TOTALS" location="Cart.calculateTotals">
+        Recalculate cart subtotal, discount, tax, total
+      </Anchor>
+    </BlockAnchors>
+
+    <ErrorConditions>
+      <Error code="NOT_FOUND">Cart not found</Error>
+      <Error code="NOT_FOUND">Item not found in cart</Error>
+      <Error code="INVALID_ARGUMENT">Invalid quantity (less than 1)</Error>
+    </ErrorConditions>
+
+    <TestCases>
+      <TestCase id="TC-UI-01" type="unit">
+        <Description>Increase item quantity</Description>
+        <Given>Cart item with quantity 2</Given>
+        <When>UpdateItem with quantity 5</When>
+        <Then>Item quantity = 5, line_total = unit_price * 5</Then>
+      </TestCase>
+      <TestCase id="TC-UI-02" type="unit">
+        <Description>Decrease item quantity</Description>
+        <Given>Cart item with quantity 5</Given>
+        <When>UpdateItem with quantity 2</When>
+        <Then>Item quantity = 2, cart subtotal decreased</Then>
+      </TestCase>
+      <TestCase id="TC-UI-03" type="unit">
+        <Description>Update non-existent item fails</Description>
+        <Given>Cart with items</Given>
+        <When>UpdateItem with invalid itemId</When>
+        <Then>NOT_FOUND error</Then>
+      </TestCase>
+    </TestCases>
+
+    <Dependencies>
+      <Dependency type="repository">CartRepository.findByOwner</Dependency>
+      <Dependency type="repository">CartRepository.save</Dependency>
+      <Dependency type="port">EventPublisher.publish</Dependency>
+    </Dependencies>
+  </FunctionContract>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FC-cart-removeItem: Remove item from cart
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContract id="FC-cart-removeItem">
+    <Metadata>
+      <Layer>application</Layer>
+      <UseCase ref="UC-CART-MANAGE"/>
+      <Proto ref="cart_service_v1_1.proto#RemoveItem"/>
+    </Metadata>
+
+    <Purpose>
+      Remove an item from the cart entirely. Recalculates cart totals after removal.
+    </Purpose>
+
+    <Signature>
+      <Input>RemoveItemCommand(customerId, sessionId, itemId)</Input>
+      <Output>CartDto</Output>
+    </Signature>
+
+    <Preconditions>
+      <Condition id="PRE-RI-01">Cart exists for owner</Condition>
+      <Condition id="PRE-RI-02">Item exists in cart</Condition>
+    </Preconditions>
+
+    <Postconditions>
+      <Condition id="POST-RI-01">Item removed from cart</Condition>
+      <Condition id="POST-RI-02">Cart totals recalculated</Condition>
+      <Condition id="POST-RI-03">CartItemRemovedEvent published</Condition>
+    </Postconditions>
+
+    <BlockAnchors>
+      <Anchor id="BA-CART-REM-FIND" location="CartApplicationService.removeItem">
+        Find cart and validate ownership
+      </Anchor>
+      <Anchor id="BA-CART-REM-ITEM" location="Cart.removeItem">
+        Remove item from items collection
+      </Anchor>
+      <Anchor id="BA-CART-REM-EVENT" location="CartApplicationService.removeItem">
+        Publish CartItemRemovedEvent
+      </Anchor>
+    </BlockAnchors>
+
+    <ErrorConditions>
+      <Error code="NOT_FOUND">Cart not found</Error>
+      <Error code="NOT_FOUND">Item not found in cart</Error>
+    </ErrorConditions>
+
+    <TestCases>
+      <TestCase id="TC-RI-01" type="unit">
+        <Description>Remove item from cart with multiple items</Description>
+        <Given>Cart with 3 items</Given>
+        <When>RemoveItem for item 2</When>
+        <Then>Cart has 2 items, subtotal recalculated</Then>
+      </TestCase>
+      <TestCase id="TC-RI-02" type="unit">
+        <Description>Remove last item leaves empty cart</Description>
+        <Given>Cart with 1 item</Given>
+        <When>RemoveItem</When>
+        <Then>Cart empty, subtotal = 0</Then>
+      </TestCase>
+      <TestCase id="TC-RI-03" type="unit">
+        <Description>Remove item recalculates discount eligibility</Description>
+        <Given>Cart with promo code requiring minimum subtotal</Given>
+        <When>RemoveItem drops subtotal below minimum</When>
+        <Then>Promo code removed, discount = 0</Then>
+      </TestCase>
+    </TestCases>
+
+    <Dependencies>
+      <Dependency type="repository">CartRepository.findByOwner</Dependency>
+      <Dependency type="repository">CartRepository.save</Dependency>
+      <Dependency type="port">EventPublisher.publish</Dependency>
+    </Dependencies>
+  </FunctionContract>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FC-cart-applyPromoCode: Apply promotional code
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContract id="FC-cart-applyPromoCode">
+    <Metadata>
+      <Layer>application</Layer>
+      <UseCase ref="UC-CART-APPLY-PROMO"/>
+      <Proto ref="cart_service_v1_1.proto#ApplyPromoCode"/>
+    </Metadata>
+
+    <Purpose>
+      Validate and apply a promotional code to the cart. Validates via pricing-service,
+      calculates discount, and updates cart totals. Only one promo code allowed at a time.
+    </Purpose>
+
+    <Signature>
+      <Input>ApplyPromoCodeCommand(customerId, sessionId, promoCode)</Input>
+      <Output>ApplyPromoCodeResult(cart: CartDto, applied: boolean, errorMessage: String?, errorCode: String?)</Output>
+    </Signature>
+
+    <Preconditions>
+      <Condition id="PRE-AP-01">Cart exists with items (non-empty)</Condition>
+      <Condition id="PRE-AP-02">promoCode is non-empty string</Condition>
+    </Preconditions>
+
+    <Postconditions>
+      <Condition id="POST-AP-01">If valid: AppliedPromoCode set on cart</Condition>
+      <Condition id="POST-AP-02">If valid: discount and total recalculated</Condition>
+      <Condition id="POST-AP-03">If valid: PromoCodeAppliedEvent published</Condition>
+      <Condition id="POST-AP-04">If invalid: Cart unchanged, error returned</Condition>
+      <Condition id="POST-AP-05">Previous promo code (if any) replaced</Condition>
+    </Postconditions>
+
+    <BlockAnchors>
+      <Anchor id="BA-CART-PROMO-VALIDATE" location="CartApplicationService.applyPromoCode">
+        Validate promo code via PricingPort.validatePromoCode
+      </Anchor>
+      <Anchor id="BA-CART-PROMO-APPLY" location="Cart.applyPromoCode">
+        Apply validated promo code to cart, set discount
+      </Anchor>
+      <Anchor id="BA-CART-PROMO-TOTALS" location="Cart.calculateTotals">
+        Recalculate totals with discount applied
+      </Anchor>
+      <Anchor id="BA-CART-PROMO-EVENT" location="CartApplicationService.applyPromoCode">
+        Publish PromoCodeAppliedEvent
+      </Anchor>
+    </BlockAnchors>
+
+    <ErrorConditions>
+      <Error code="PROMO_INVALID">Promo code does not exist</Error>
+      <Error code="PROMO_EXPIRED">Promo code has expired</Error>
+      <Error code="PROMO_MINIMUM_NOT_MET">Cart subtotal below minimum requirement</Error>
+      <Error code="PROMO_USAGE_EXCEEDED">Promo code usage limit exceeded</Error>
+      <Error code="EMPTY_CART">Cannot apply promo to empty cart</Error>
+    </ErrorConditions>
+
+    <TestCases>
+      <TestCase id="TC-AP-01" type="unit">
+        <Description>Apply valid percentage promo code</Description>
+        <Given>Cart with subtotal 10000 RUB</Given>
+        <When>ApplyPromoCode "SAVE10" (10% off)</When>
+        <Then>discount = 1000 RUB, total = 9000 RUB + tax</Then>
+      </TestCase>
+      <TestCase id="TC-AP-02" type="unit">
+        <Description>Apply valid fixed amount promo code</Description>
+        <Given>Cart with subtotal 10000 RUB</Given>
+        <When>ApplyPromoCode "FLAT500" (500 RUB off)</When>
+        <Then>discount = 500 RUB</Then>
+      </TestCase>
+      <TestCase id="TC-AP-03" type="unit">
+        <Description>Replace existing promo code</Description>
+        <Given>Cart with promo "OLD10" applied</Given>
+        <When>ApplyPromoCode "NEW20"</When>
+        <Then>New promo replaces old, discount recalculated</Then>
+      </TestCase>
+      <TestCase id="TC-AP-04" type="unit">
+        <Description>Invalid promo code rejected</Description>
+        <Given>Cart with items</Given>
+        <When>ApplyPromoCode "INVALID"</When>
+        <Then>applied = false, errorCode = PROMO_INVALID</Then>
+      </TestCase>
+      <TestCase id="TC-AP-05" type="unit">
+        <Description>Minimum not met rejected</Description>
+        <Given>Cart with subtotal 1000 RUB</Given>
+        <When>ApplyPromoCode requiring minimum 5000 RUB</When>
+        <Then>applied = false, errorCode = PROMO_MINIMUM_NOT_MET</Then>
+      </TestCase>
+    </TestCases>
+
+    <Dependencies>
+      <Dependency type="port">PricingPort.validatePromoCode</Dependency>
+      <Dependency type="repository">CartRepository.findByOwner</Dependency>
+      <Dependency type="repository">CartRepository.save</Dependency>
+      <Dependency type="port">EventPublisher.publish</Dependency>
+    </Dependencies>
+  </FunctionContract>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FC-cart-removePromoCode: Remove promotional code
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContract id="FC-cart-removePromoCode">
+    <Metadata>
+      <Layer>application</Layer>
+      <UseCase ref="UC-CART-APPLY-PROMO"/>
+      <Proto ref="cart_service_v1_1.proto#RemovePromoCode"/>
+    </Metadata>
+
+    <Purpose>
+      Remove the applied promotional code from the cart. Resets discount to zero
+      and recalculates cart totals.
+    </Purpose>
+
+    <Signature>
+      <Input>RemovePromoCodeCommand(customerId, sessionId)</Input>
+      <Output>CartDto</Output>
+    </Signature>
+
+    <Preconditions>
+      <Condition id="PRE-RP-01">Cart exists for owner</Condition>
+    </Preconditions>
+
+    <Postconditions>
+      <Condition id="POST-RP-01">applied_promo_code cleared</Condition>
+      <Condition id="POST-RP-02">discount = 0</Condition>
+      <Condition id="POST-RP-03">Cart totals recalculated</Condition>
+      <Condition id="POST-RP-04">PromoCodeRemovedEvent published (if promo was present)</Condition>
+    </Postconditions>
+
+    <BlockAnchors>
+      <Anchor id="BA-CART-PROMO-REM" location="Cart.removePromoCode">
+        Clear applied promo code and reset discount
+      </Anchor>
+    </BlockAnchors>
+
+    <ErrorConditions>
+      <Error code="NOT_FOUND">Cart not found</Error>
+    </ErrorConditions>
+
+    <TestCases>
+      <TestCase id="TC-RP-01" type="unit">
+        <Description>Remove applied promo code</Description>
+        <Given>Cart with promo code applied</Given>
+        <When>RemovePromoCode</When>
+        <Then>discount = 0, total = subtotal + tax</Then>
+      </TestCase>
+      <TestCase id="TC-RP-02" type="unit">
+        <Description>Remove promo from cart with no promo is no-op</Description>
+        <Given>Cart with no promo code</Given>
+        <When>RemovePromoCode</When>
+        <Then>Cart unchanged, no error</Then>
+      </TestCase>
+    </TestCases>
+
+    <Dependencies>
+      <Dependency type="repository">CartRepository.findByOwner</Dependency>
+      <Dependency type="repository">CartRepository.save</Dependency>
+      <Dependency type="port">EventPublisher.publish</Dependency>
+    </Dependencies>
+  </FunctionContract>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FC-cart-mergeCarts: Merge anonymous cart into authenticated cart
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContract id="FC-cart-mergeCarts">
+    <Metadata>
+      <Layer>application</Layer>
+      <UseCase ref="UC-CART-MANAGE"/>
+      <Proto ref="cart_service_v1_1.proto#MergeCarts"/>
+      <Decision ref="DEC-CART-MERGE"/>
+    </Metadata>
+
+    <Purpose>
+      Merge an anonymous (session-based) cart into an authenticated (customer) cart.
+      Items with matching configuration_hash have quantities summed.
+      New configurations are added. Anonymous cart is marked as MERGED.
+      Promo code preference: authenticated cart's promo code wins if both have one.
+    </Purpose>
+
+    <Signature>
+      <Input>MergeCartsCommand(customerId, anonymousSessionId)</Input>
+      <Output>MergeCartsResult(mergedCart, itemsFromAnonymous, itemsMerged, itemsAdded, promoCodePreserved, promoCodeSource)</Output>
+    </Signature>
+
+    <Preconditions>
+      <Condition id="PRE-MC-01">customerId is valid authenticated customer</Condition>
+      <Condition id="PRE-MC-02">anonymousSessionId has associated cart</Condition>
+    </Preconditions>
+
+    <Postconditions>
+      <Condition id="POST-MC-01">Authenticated cart contains merged items</Condition>
+      <Condition id="POST-MC-02">Items with same config_hash have summed quantities</Condition>
+      <Condition id="POST-MC-03">Anonymous cart status = MERGED</Condition>
+      <Condition id="POST-MC-04">CartMergedEvent published</Condition>
+      <Condition id="POST-MC-05">Promo code resolved (auth wins on conflict)</Condition>
+    </Postconditions>
+
+    <BlockAnchors>
+      <Anchor id="BA-CART-MERGE-LOAD" location="CartApplicationService.mergeCarts">
+        Load both carts (authenticated and anonymous)
+      </Anchor>
+      <Anchor id="BA-CART-MERGE-MATCH" location="CartMergeService.merge">
+        Match items by configuration_hash
+      </Anchor>
+      <Anchor id="BA-CART-MERGE-SUM" location="CartMergeService.merge">
+        Sum quantities for matching items
+      </Anchor>
+      <Anchor id="BA-CART-MERGE-ADD" location="CartMergeService.merge">
+        Add non-matching items as new
+      </Anchor>
+      <Anchor id="BA-CART-MERGE-PROMO" location="CartMergeService.merge">
+        Resolve promo code conflict (auth wins)
+      </Anchor>
+      <Anchor id="BA-CART-MERGE-STATUS" location="Cart.markMerged">
+        Mark anonymous cart as MERGED
+      </Anchor>
+    </BlockAnchors>
+
+    <ErrorConditions>
+      <Error code="NOT_FOUND">Anonymous cart not found</Error>
+      <Error code="INVALID_ARGUMENT">Customer cart and anonymous cart are the same</Error>
+    </ErrorConditions>
+
+    <TestCases>
+      <TestCase id="TC-MC-01" type="unit">
+        <Description>Merge with no overlapping items</Description>
+        <Given>Auth cart: [A, B], Anon cart: [C, D]</Given>
+        <When>MergeCarts</When>
+        <Then>Merged cart: [A, B, C, D], itemsAdded = 2</Then>
+      </TestCase>
+      <TestCase id="TC-MC-02" type="unit">
+        <Description>Merge with matching items sums quantities</Description>
+        <Given>Auth cart: [A qty:2], Anon cart: [A qty:3]</Given>
+        <When>MergeCarts</When>
+        <Then>Merged cart: [A qty:5], itemsMerged = 1</Then>
+      </TestCase>
+      <TestCase id="TC-MC-03" type="unit">
+        <Description>Promo code from auth cart preserved</Description>
+        <Given>Auth cart: promo "AUTH10", Anon cart: promo "ANON20"</Given>
+        <When>MergeCarts</When>
+        <Then>promoCodeSource = "AUTHENTICATED", code = "AUTH10"</Then>
+      </TestCase>
+      <TestCase id="TC-MC-04" type="unit">
+        <Description>Promo code from anon cart used when auth has none</Description>
+        <Given>Auth cart: no promo, Anon cart: promo "ANON20"</Given>
+        <When>MergeCarts</When>
+        <Then>promoCodeSource = "ANONYMOUS", code = "ANON20"</Then>
+      </TestCase>
+      <TestCase id="TC-MC-05" type="unit">
+        <Description>Anonymous cart marked as MERGED</Description>
+        <Given>Both carts exist</Given>
+        <When>MergeCarts</When>
+        <Then>Anonymous cart status = MERGED</Then>
+      </TestCase>
+    </TestCases>
+
+    <Dependencies>
+      <Dependency type="repository">CartRepository.findByCustomerId</Dependency>
+      <Dependency type="repository">CartRepository.findBySessionId</Dependency>
+      <Dependency type="service">CartMergeService.merge</Dependency>
+      <Dependency type="repository">CartRepository.save</Dependency>
+      <Dependency type="port">EventPublisher.publish</Dependency>
+    </Dependencies>
+  </FunctionContract>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FC-cart-createSnapshot: Create checkout snapshot
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContract id="FC-cart-createSnapshot">
+    <Metadata>
+      <Layer>application</Layer>
+      <UseCase ref="UC-ORDER-PLACE"/>
+      <Proto ref="cart_service_v1_1.proto#CreateSnapshot"/>
+      <Decision ref="DEC-CART-PRICE-LOCK"/>
+    </Metadata>
+
+    <Purpose>
+      Create an immutable snapshot of the cart for checkout. Validates all configurations,
+      refreshes all prices, and creates a time-limited snapshot for order-service handoff.
+      Cart is transitioned to CHECKED_OUT state.
+    </Purpose>
+
+    <Signature>
+      <Input>CreateSnapshotCommand(customerId, acknowledgePriceChanges)</Input>
+      <Output>CreateSnapshotResult(snapshotId, cartSnapshot, validUntil, pricesChanged, previousTotal)</Output>
+    </Signature>
+
+    <Preconditions>
+      <Condition id="PRE-CS-01">Customer is authenticated (not anonymous)</Condition>
+      <Condition id="PRE-CS-02">Cart has at least one item</Condition>
+      <Condition id="PRE-CS-03">All items have VALID validation_status</Condition>
+    </Preconditions>
+
+    <Postconditions>
+      <Condition id="POST-CS-01">Immutable snapshot created with fresh prices</Condition>
+      <Condition id="POST-CS-02">Snapshot has 15-minute validity period</Condition>
+      <Condition id="POST-CS-03">Cart status = CHECKED_OUT</Condition>
+      <Condition id="POST-CS-04">CartCheckedOutEvent published</Condition>
+      <Condition id="POST-CS-05">If prices changed and !acknowledgePriceChanges: operation rejected</Condition>
+    </Postconditions>
+
+    <BlockAnchors>
+      <Anchor id="BA-CART-SNAP-AUTH" location="CartApplicationService.createSnapshot">
+        Verify customer is authenticated (not session-based)
+      </Anchor>
+      <Anchor id="BA-CART-SNAP-VALIDATE" location="CartApplicationService.createSnapshot">
+        Validate all item configurations are still valid
+      </Anchor>
+      <Anchor id="BA-CART-SNAP-REFRESH" location="CartApplicationService.createSnapshot">
+        Refresh all prices from pricing-service
+      </Anchor>
+      <Anchor id="BA-CART-SNAP-CHANGE" location="CartApplicationService.createSnapshot">
+        Check for price changes, require acknowledgment if changed
+      </Anchor>
+      <Anchor id="BA-CART-SNAP-CREATE" location="Cart.createSnapshot">
+        Create immutable CartSnapshot with validity period
+      </Anchor>
+      <Anchor id="BA-CART-SNAP-STATUS" location="Cart.markCheckedOut">
+        Transition cart to CHECKED_OUT state
+      </Anchor>
+    </BlockAnchors>
+
+    <ErrorConditions>
+      <Error code="UNAUTHENTICATED">Anonymous users cannot create snapshots</Error>
+      <Error code="FAILED_PRECONDITION">Cart is empty</Error>
+      <Error code="FAILED_PRECONDITION">Cart contains invalid configurations</Error>
+      <Error code="FAILED_PRECONDITION">Prices changed and not acknowledged</Error>
+      <Error code="UNAVAILABLE">Pricing service unavailable</Error>
+    </ErrorConditions>
+
+    <TestCases>
+      <TestCase id="TC-CS-01" type="unit">
+        <Description>Create snapshot with stable prices</Description>
+        <Given>Cart with valid items, prices unchanged</Given>
+        <When>CreateSnapshot</When>
+        <Then>Snapshot created, pricesChanged = false</Then>
+      </TestCase>
+      <TestCase id="TC-CS-02" type="unit">
+        <Description>Create snapshot with price changes acknowledged</Description>
+        <Given>Cart items, prices have changed</Given>
+        <When>CreateSnapshot with acknowledgePriceChanges = true</When>
+        <Then>Snapshot created, pricesChanged = true, previousTotal set</Then>
+      </TestCase>
+      <TestCase id="TC-CS-03" type="unit">
+        <Description>Reject snapshot when prices changed and not acknowledged</Description>
+        <Given>Cart items, prices have changed</Given>
+        <When>CreateSnapshot with acknowledgePriceChanges = false</When>
+        <Then>FAILED_PRECONDITION error</Then>
+      </TestCase>
+      <TestCase id="TC-CS-04" type="unit">
+        <Description>Reject snapshot for anonymous user</Description>
+        <Given>Anonymous cart (session_id only)</Given>
+        <When>CreateSnapshot</When>
+        <Then>UNAUTHENTICATED error</Then>
+      </TestCase>
+      <TestCase id="TC-CS-05" type="unit">
+        <Description>Reject snapshot with invalid configurations</Description>
+        <Given>Cart item with validation_status = INVALID</Given>
+        <When>CreateSnapshot</When>
+        <Then>FAILED_PRECONDITION error</Then>
+      </TestCase>
+      <TestCase id="TC-CS-06" type="unit">
+        <Description>Snapshot validity is 15 minutes</Description>
+        <Given>Valid cart</Given>
+        <When>CreateSnapshot</When>
+        <Then>validUntil = now + 15 minutes</Then>
+      </TestCase>
+    </TestCases>
+
+    <Dependencies>
+      <Dependency type="port">CatalogConfigurationPort.validateConfiguration</Dependency>
+      <Dependency type="port">PricingPort.calculateQuote</Dependency>
+      <Dependency type="repository">CartRepository.findByCustomerId</Dependency>
+      <Dependency type="repository">CartSnapshotRepository.save</Dependency>
+      <Dependency type="repository">CartRepository.save</Dependency>
+      <Dependency type="port">EventPublisher.publish</Dependency>
+    </Dependencies>
+  </FunctionContract>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       Summary Statistics
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Statistics>
+    <FunctionContractCount>8</FunctionContractCount>
+    <BlockAnchorCount>28</BlockAnchorCount>
+    <TestCaseCount>32</TestCaseCount>
+    <ErrorConditionCount>21</ErrorConditionCount>
+    <DependencyCount>35</DependencyCount>
+  </Statistics>
+
+  <Links>
+    <Link ref="MC-cart-service-domain.xml"/>
+    <Link ref="cart_service_v1_1.proto"/>
+    <Link ref="cart_events.proto"/>
+    <Link ref="Handoff-20260109-01-W1-T6-CartService.xml"/>
+    <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+    <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
+    <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+  </Links>
+</FunctionContracts>
