@@ -503,6 +503,69 @@
     </UseCase>
 
     <!-- ===========================================================================
+         MUST (MVP): Order Placement (Checkout Flow)
+         =========================================================================== -->
+    <UseCase id="UC-ORDER-PLACE" priority="MUST">
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
+      <Action>Place order from cart snapshot</Action>
+      <Goal>Convert cart checkout snapshot into a submitted order</Goal>
+      <Preconditions>
+        <Item>Customer is authenticated</Item>
+        <Item>Cart has at least one item with VALID status</Item>
+        <Item>All configurations have been validated</Item>
+        <Item>All prices have been refreshed</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Cart snapshot is created with fresh prices</Item>
+        <Item>Order is created from snapshot</Item>
+        <Item>Cart is cleared (status = CHECKED_OUT)</Item>
+        <Item>CartCheckedOutEvent is published</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer initiates checkout from cart</Step>
+        <Step order="2">cart-service validates all item configurations</Step>
+        <Step order="3">cart-service refreshes all prices from pricing-service</Step>
+        <Step order="4">If prices changed, customer must acknowledge changes</Step>
+        <Step order="5">cart-service creates immutable cart snapshot</Step>
+        <Step order="6">order-service creates order from snapshot</Step>
+        <Step order="7">cart-service clears cart and sets status to CHECKED_OUT</Step>
+        <Step order="8">System publishes CartCheckedOutEvent</Step>
+      </MainFlow>
+      <AlternateFlows>
+        <Flow id="UC-ORDER-PLACE-A1" trigger="Invalid configuration found">
+          <Step order="1">Validation fails for one or more items</Step>
+          <Step order="2">System returns error with list of invalid items</Step>
+          <Step order="3">Customer must reconfigure or remove invalid items</Step>
+        </Flow>
+        <Flow id="UC-ORDER-PLACE-A2" trigger="Price change not acknowledged">
+          <Step order="1">Prices have changed since last view</Step>
+          <Step order="2">acknowledge_price_changes flag is false</Step>
+          <Step order="3">System returns error requiring acknowledgement</Step>
+        </Flow>
+        <Flow id="UC-ORDER-PLACE-A3" trigger="Empty cart">
+          <Step order="1">Cart has no items</Step>
+          <Step order="2">System returns EMPTY_CART error</Step>
+        </Flow>
+      </AlternateFlows>
+      <AcceptanceCriteria>
+        <Criterion id="AC-ORDER-PLACE-01">Snapshot contains all cart items with validated
+          configurations</Criterion>
+        <Criterion id="AC-ORDER-PLACE-02">Snapshot prices are refreshed at creation time</Criterion>
+        <Criterion id="AC-ORDER-PLACE-03">Snapshot has 15-minute validity period</Criterion>
+        <Criterion id="AC-ORDER-PLACE-04">Cart is cleared after successful snapshot creation</Criterion>
+        <Criterion id="AC-ORDER-PLACE-05">Anonymous users cannot create snapshots (UNAUTHENTICATED
+          error)</Criterion>
+      </AcceptanceCriteria>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service" />
+        <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment" />
+        <Link ref="Technology.xml#DEC-CART-PRICE-LOCK" />
+        <Link ref="Technology.xml#DEC-CART-STATE-MACHINE" />
+      </Links>
+    </UseCase>
+
+    <!-- ===========================================================================
          MUST (MVP): B2C Ordering - Contract + Prepayment + Lock
          =========================================================================== -->
     <UseCase id="UC-B2C-ORDER-01" priority="MUST">

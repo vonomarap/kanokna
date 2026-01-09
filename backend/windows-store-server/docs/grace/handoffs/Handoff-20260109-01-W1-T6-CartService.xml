@@ -899,7 +899,7 @@ message CartCheckedOutEvent {
       id="FC-cart-addItem"
       LAYER="application.service"
       INTENT="Add a configured item to cart with price from pricing-service"
-      INPUT="AddItemCommand (customerId/sessionId, productTemplateId, dimensions, options, quantity, quoteId)"
+      INPUT="AddItemCommand (customerId/sessionId, productTemplateId, productName, thumbnailUrl, productFamily, dimensions, options, quantity, quoteId, resolvedBom)"
       OUTPUT="CartResponse with added item"
       SIDE_EFFECTS="Creates cart if not exists; persists item; publishes CartItemAddedEvent"
       LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE;DevelopmentPlan.xml#Flow-Config-Pricing">
@@ -908,6 +908,8 @@ message CartCheckedOutEvent {
         <Item>Configuration is valid (must have been validated by catalog-configuration-service)</Item>
         <Item>quoteId is valid and not expired (from pricing-service)</Item>
         <Item>quantity >= 1</Item>
+        <Item>productName is not empty</Item>
+        <Item>productFamily is one of: WINDOW, DOOR, ACCESSORY</Item>
       </PRECONDITIONS>
 
       <POSTCONDITIONS>
@@ -1055,6 +1057,136 @@ message CartCheckedOutEvent {
         <Case id="TC-FUNC-CART-REMOVE-001">Remove item recalculates totals</Case>
         <Case id="TC-FUNC-CART-REMOVE-002">Remove last item results in empty cart</Case>
         <Case id="TC-FUNC-CART-REMOVE-003">Non-existent item returns error</Case>
+      </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- FC-cart-clearCart -->
+    <FUNCTION_CONTRACT
+      id="FC-cart-clearCart"
+      LAYER="application.service"
+      INTENT="Remove all items from the cart"
+      INPUT="ClearCartCommand (customerId or sessionId)"
+      OUTPUT="CartResponse (empty cart)"
+      SIDE_EFFECTS="Deletes all items; removes promo code; publishes CartClearedEvent"
+      LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE">
+
+      <PRECONDITIONS>
+        <Item>customerId or sessionId is provided</Item>
+        <Item>Caller is authorized (owns cart or is anonymous with valid session)</Item>
+      </PRECONDITIONS>
+
+      <POSTCONDITIONS>
+        <Item>All items removed from cart</Item>
+        <Item>Applied promo code removed</Item>
+        <Item>Cart totals reset to zero</Item>
+        <Item>Cart status remains ACTIVE</Item>
+        <Item>CartClearedEvent published</Item>
+      </POSTCONDITIONS>
+
+      <INVARIANTS>
+        <Item>Cart entity is preserved (not deleted), only emptied</Item>
+        <Item>Cart updated_at timestamp updated</Item>
+      </INVARIANTS>
+
+      <ERROR_HANDLING>
+        <Item type="BUSINESS" code="ERR-CART-NOT-FOUND">Cart not found</Item>
+        <Item type="BUSINESS" code="ERR-CART-UNAUTHORIZED">Caller not authorized for cart</Item>
+      </ERROR_HANDLING>
+
+      <BLOCK_ANCHORS>
+        <Item id="BA-CART-CLEAR-01">Resolve cart from customerId or sessionId</Item>
+        <Item id="BA-CART-CLEAR-02">Validate cart exists and caller authorized</Item>
+        <Item id="BA-CART-CLEAR-03">Remove all items from cart</Item>
+        <Item id="BA-CART-CLEAR-04">Remove applied promo code</Item>
+        <Item id="BA-CART-CLEAR-05">Reset cart totals to zero</Item>
+        <Item id="BA-CART-CLEAR-06">Persist and publish CartClearedEvent</Item>
+      </BLOCK_ANCHORS>
+
+      <LOGGING>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-CLEAR-01][STATE=RESOLVE_CART]
+          eventType=CLEAR_CART_REQUEST keyValues=customerId,sessionId</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-CLEAR-03][STATE=CLEAR_ITEMS]
+          eventType=ITEMS_CLEARED keyValues=cartId,itemsRemoved</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-CLEAR-06][STATE=COMPLETE]
+          eventType=CART_CLEARED decision=SUCCESS keyValues=cartId</Item>
+      </LOGGING>
+
+      <TESTS>
+        <Case id="TC-FUNC-CART-CLEAR-001">Clear cart removes all items</Case>
+        <Case id="TC-FUNC-CART-CLEAR-002">Clear cart removes applied promo code</Case>
+        <Case id="TC-FUNC-CART-CLEAR-003">Clear cart resets totals to zero</Case>
+        <Case id="TC-FUNC-CART-CLEAR-004">Clear empty cart is idempotent (no error)</Case>
+        <Case id="TC-FUNC-CART-CLEAR-005">CartClearedEvent published with item count</Case>
+      </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- FC-cart-refreshPrices -->
+    <FUNCTION_CONTRACT
+      id="FC-cart-refreshPrices"
+      LAYER="application.service"
+      INTENT="Refresh price quotes for all cart items from pricing-service"
+      INPUT="RefreshPricesCommand (customerId or sessionId)"
+      OUTPUT="RefreshPricesResponse (cart with updated prices, change indicators)"
+      SIDE_EFFECTS="Updates item prices; recalculates totals; publishes CartPricesRefreshedEvent"
+      LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE;Technology.xml#DEC-CART-PRICE-LOCK;DevelopmentPlan.xml#DP-SVC-pricing-service">
+
+      <PRECONDITIONS>
+        <Item>customerId or sessionId is provided</Item>
+        <Item>Cart exists and has at least one item</Item>
+      </PRECONDITIONS>
+
+      <POSTCONDITIONS>
+        <Item>All item prices refreshed from pricing-service.CalculateQuote</Item>
+        <Item>quote_id and quote_valid_until updated per item</Item>
+        <Item>price_stale flag set to false for all items</Item>
+        <Item>Cart totals recalculated</Item>
+        <Item>If promo code applied, discount recalculated with new subtotal</Item>
+        <Item>CartPricesRefreshedEvent published</Item>
+      </POSTCONDITIONS>
+
+      <INVARIANTS>
+        <Item>Item configurations unchanged (only prices updated)</Item>
+        <Item>Promo code remains applied (discount amount may change)</Item>
+        <Item>Circuit breaker applied to pricing-service calls</Item>
+      </INVARIANTS>
+
+      <ERROR_HANDLING>
+        <Item type="BUSINESS" code="ERR-CART-EMPTY">Cannot refresh prices for empty cart</Item>
+        <Item type="BUSINESS" code="ERR-CART-NOT-FOUND">Cart not found</Item>
+        <Item type="TECHNICAL" code="ERR-CART-PRICING-UNAVAILABLE">Pricing service unavailable</Item>
+        <Item type="TECHNICAL" code="ERR-CART-PRICING-PARTIAL">Some items failed to refresh (partial
+          success)</Item>
+      </ERROR_HANDLING>
+
+      <BLOCK_ANCHORS>
+        <Item id="BA-CART-REFRESH-01">Load cart and validate not empty</Item>
+        <Item id="BA-CART-REFRESH-02">Iterate items and call pricing-service.CalculateQuote for each</Item>
+        <Item id="BA-CART-REFRESH-03">Update item prices, quote_id, quote_valid_until</Item>
+        <Item id="BA-CART-REFRESH-04">Clear price_stale flags</Item>
+        <Item id="BA-CART-REFRESH-05">Recalculate cart totals</Item>
+        <Item id="BA-CART-REFRESH-06">Recalculate promo discount if applied</Item>
+        <Item id="BA-CART-REFRESH-07">Persist and publish CartPricesRefreshedEvent</Item>
+      </BLOCK_ANCHORS>
+
+      <LOGGING>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-REFRESH-01][STATE=LOAD_CART]
+          eventType=REFRESH_PRICES_REQUEST keyValues=customerId,sessionId,itemCount</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-REFRESH-02][STATE=FETCH_QUOTES]
+          eventType=PRICING_CALLS keyValues=itemCount,successCount,failCount</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-REFRESH-05][STATE=RECALCULATE]
+          eventType=TOTALS_RECALCULATED keyValues=previousTotal,newTotal,changePercent</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-REFRESH-07][STATE=COMPLETE]
+          eventType=PRICES_REFRESHED decision=SUCCESS keyValues=itemsUpdated,totalChanged</Item>
+      </LOGGING>
+
+      <TESTS>
+        <Case id="TC-FUNC-CART-REFRESH-001">Refresh updates all item prices from pricing-service</Case>
+        <Case id="TC-FUNC-CART-REFRESH-002">Refresh clears price_stale flags</Case>
+        <Case id="TC-FUNC-CART-REFRESH-003">Refresh recalculates cart totals</Case>
+        <Case id="TC-FUNC-CART-REFRESH-004">Promo discount recalculated with new subtotal</Case>
+        <Case id="TC-FUNC-CART-REFRESH-005">Pricing service timeout uses circuit breaker fallback</Case>
+        <Case id="TC-FUNC-CART-REFRESH-006">Empty cart returns error</Case>
+        <Case id="TC-FUNC-CART-REFRESH-007">Response includes total change indicators</Case>
       </TESTS>
     </FUNCTION_CONTRACT>
 
@@ -1517,6 +1649,22 @@ CREATE INDEX idx_cart_snapshots_valid ON cart_snapshots(valid_until);
       <TestCase id="TC-FUNC-CART-SNAP-003">Invalid items prevent snapshot creation</TestCase>
       <TestCase id="TC-FUNC-CART-SNAP-004">Anonymous cart rejected</TestCase>
       <TestCase id="TC-FUNC-CART-SNAP-005">Snapshot has validity period</TestCase>
+
+      <!-- ClearCart tests -->
+      <TestCase id="TC-FUNC-CART-CLEAR-001">Clear cart removes all items</TestCase>
+      <TestCase id="TC-FUNC-CART-CLEAR-002">Clear cart removes applied promo code</TestCase>
+      <TestCase id="TC-FUNC-CART-CLEAR-003">Clear cart resets totals to zero</TestCase>
+      <TestCase id="TC-FUNC-CART-CLEAR-004">Clear empty cart is idempotent</TestCase>
+      <TestCase id="TC-FUNC-CART-CLEAR-005">CartClearedEvent published with item count</TestCase>
+
+      <!-- RefreshPrices tests -->
+      <TestCase id="TC-FUNC-CART-REFRESH-001">Refresh updates all item prices</TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-002">Refresh clears price_stale flags</TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-003">Refresh recalculates cart totals</TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-004">Promo discount recalculated with new subtotal</TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-005">Pricing service timeout uses fallback</TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-006">Empty cart returns error</TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-007">Response includes change indicators</TestCase>
     </TestCases>
   </VerificationRequirements>
 
@@ -1559,6 +1707,12 @@ CREATE INDEX idx_cart_snapshots_valid ON cart_snapshots(valid_until);
       - pricing-service.ValidatePromoCode calls
       Fallback: Use last known status/price with staleness flag on timeout.
     </Note>
+    <Note id="IMP-006" topic="Trace ID Propagation">
+      All cart domain events include trace_id field. CODER should populate this using:
+      - OpenTelemetry automatic propagation: Span.current().getSpanContext().getTraceId()
+      - Or MDC fallback: MDC.get("traceId")
+      This provides distributed tracing correlation without explicit contract specification.
+    </Note>
   </ImplementationNotes>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
@@ -1584,6 +1738,20 @@ CREATE INDEX idx_cart_snapshots_valid ON cart_snapshots(valid_until);
       <Contracts>FC-cart-createSnapshot</Contracts>
       <BlockAnchors>BA-CART-SNAP-*</BlockAnchors>
       <Tests>TC-FUNC-CART-SNAP-*</Tests>
+    </Trace>
+
+    <Trace requirement="UC-CART-MANAGE">
+      <Flow>Flow-Cart-Clear</Flow>
+      <Contracts>FC-cart-clearCart</Contracts>
+      <BlockAnchors>BA-CART-CLEAR-*</BlockAnchors>
+      <Tests>TC-FUNC-CART-CLEAR-*</Tests>
+    </Trace>
+
+    <Trace requirement="UC-CART-MANAGE">
+      <Flow>Flow-Cart-Refresh-Prices</Flow>
+      <Contracts>FC-cart-refreshPrices</Contracts>
+      <BlockAnchors>BA-CART-REFRESH-*</BlockAnchors>
+      <Tests>TC-FUNC-CART-REFRESH-*</Tests>
     </Trace>
 
     <Trace requirement="DEC-CART-MERGE">
@@ -1626,6 +1794,8 @@ CREATE INDEX idx_cart_snapshots_valid ON cart_snapshots(valid_until);
     <FunctionContractRef id="FC-cart-removeItem" />
     <FunctionContractRef id="FC-cart-applyPromoCode" />
     <FunctionContractRef id="FC-cart-removePromoCode" />
+    <FunctionContractRef id="FC-cart-clearCart" />
+    <FunctionContractRef id="FC-cart-refreshPrices" />
     <FunctionContractRef id="FC-cart-mergeCarts" />
     <FunctionContractRef id="FC-cart-createSnapshot" />
     <BlockAnchorRef id="BA-CART-GET-*" />
@@ -1633,6 +1803,8 @@ CREATE INDEX idx_cart_snapshots_valid ON cart_snapshots(valid_until);
     <BlockAnchorRef id="BA-CART-UPD-*" />
     <BlockAnchorRef id="BA-CART-REM-*" />
     <BlockAnchorRef id="BA-CART-PROMO-*" />
+    <BlockAnchorRef id="BA-CART-CLEAR-*" />
+    <BlockAnchorRef id="BA-CART-REFRESH-*" />
     <BlockAnchorRef id="BA-CART-MERGE-*" />
     <BlockAnchorRef id="BA-CART-SNAP-*" />
   </Contracts>
