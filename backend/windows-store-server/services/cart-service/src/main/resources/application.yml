@@ -1,0 +1,77 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: cart-service
+  config:
+    import: optional:configserver:http://localhost:8888
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:cart}
+    username: ${DB_USERNAME:kanokna}
+    password: ${DB_PASSWORD:kanokna_dev}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: cart
+  flyway:
+    schemas: cart
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer
+    properties:
+      schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+
+grpc:
+  server:
+    port: 9083
+  client:
+    catalog-configuration-service:
+      address: static://localhost:9081
+      negotiationType: plaintext
+    pricing-service:
+      address: static://localhost:9082
+      negotiationType: plaintext
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      catalogService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+      pricingService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+
+cart:
+  anonymous-ttl: 7d
+  abandoned-threshold: 72h
+  snapshot-validity: 15m
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+
+logging:
+  level:
+    com.kanokna.cart: DEBUG

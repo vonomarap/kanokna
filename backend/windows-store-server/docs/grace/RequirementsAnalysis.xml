@@ -2,16 +2,18 @@
 <!--
   GRACE Canonical Artifact: RequirementsAnalysis.xml
   Purpose: Formalize business intent, actors, use cases, and non-functional requirements
-  Version: 1.1.0
-  Last Updated: 2026-01-02T00:00:00+00:00
+  Version: 1.4.0
+  Last Updated: 2026-01-09T16:00:00+03:00
   Changes:
+    - v1.4.0: Added UC-CART-MANAGE and UC-CART-APPLY-PROMO for cart-service
+              (from Handoff-20260109-01-W1-T6-CartService)
     - v1.1.0: Added B2C CPQ, B2B, Staff, Field actors and use cases per new-business-requirements.txt
               Added status model with audit trail requirements
               Added domain glossary
               Added integration requirements (CRM, CAD, ERP, Logistics, Payments)
               Added MUST/SHOULD/LATER prioritization
 -->
-<RequirementsAnalysis version="1.1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<RequirementsAnalysis version="1.4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!-- ===============================================================================
        DOMAIN DEFINITION
@@ -24,20 +26,23 @@
       receive real-time pricing (CPQ), save drafts, request on-site measurements, place orders,
       accept contracts, pay prepayments, and track the full lifecycle from lead to installation.
       The system supports B2B dealers with partner pricing, project orders, and finance workflows.
-      Internal staff manage leads/pipelines/CRM, while field staff execute measurements and installations.
+      Internal staff manage leads/pipelines/CRM, while field staff execute measurements and
+      installations.
     </Description>
     <BusinessGoals>
       <Goal id="BG-SALES">Enable online sales of configurable window and door products</Goal>
       <Goal id="BG-SELF-SERVICE">Provide self-service CPQ: configure + instant pricing + save draft</Goal>
-      <Goal id="BG-B2B">Support B2B dealers with partner pricing, project orders, and document workflows</Goal>
-      <Goal id="BG-OMNICHANNEL">Capture leads from website, telephony, messengers, and offline sources</Goal>
+      <Goal id="BG-B2B">Support B2B dealers with partner pricing, project orders, and document
+        workflows</Goal>
+      <Goal id="BG-OMNICHANNEL">Capture leads from website, telephony, messengers, and offline
+        sources</Goal>
       <Goal id="BG-MEASUREMENT">Enable measurement request scheduling with CRM task creation</Goal>
       <Goal id="BG-LIFECYCLE">Full status tracking from lead through installation with notifications</Goal>
       <Goal id="BG-ANALYTICS">Provide insights into sales, conversion, and operational performance</Goal>
     </BusinessGoals>
     <Links>
-      <Link ref="Technology.xml#TECH-spring-boot"/>
-      <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+      <Link ref="Technology.xml#TECH-spring-boot" />
+      <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
     </Links>
   </Domain>
 
@@ -65,7 +70,7 @@
         <Goal id="ACT-B2C-G9">Submit service/warranty requests post-installation</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service" />
       </Links>
     </Actor>
 
@@ -86,8 +91,8 @@
         <Goal id="ACT-B2B-G6">View invoices, payment schedules, balances, and settlements</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-billing-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-billing-service" />
       </Links>
     </Actor>
 
@@ -107,7 +112,7 @@
         <Goal id="ACT-SM-G6">Track tasks, reminders, and calendar</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-workflow-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-workflow-service" />
       </Links>
     </Actor>
 
@@ -125,7 +130,7 @@
         <Goal id="ACT-MT-G4">Adjust configuration on-site if needed</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service" />
       </Links>
     </Actor>
 
@@ -142,7 +147,7 @@
         <Goal id="ACT-INS-G4">Mark installation as completed</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service" />
       </Links>
     </Actor>
 
@@ -157,7 +162,7 @@
         <Goal id="ACT-LOG-G3">Record delivery exceptions and reschedules</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service" />
       </Links>
     </Actor>
 
@@ -171,7 +176,7 @@
         <Goal id="ACT-WH-G2">Mark order ready for shipment</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service" />
       </Links>
     </Actor>
 
@@ -189,7 +194,7 @@
         <Goal id="ACT-ADMIN-G5">Monitor system health and audit logs</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-reporting-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-reporting-service" />
       </Links>
     </Actor>
 
@@ -206,7 +211,7 @@
         <Goal id="ACT-CRM-G3">Sync order status updates</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-CRM-ERP"/>
+        <Link ref="DevelopmentPlan.xml#INT-CRM-ERP" />
       </Links>
     </Actor>
 
@@ -222,7 +227,7 @@
         <Goal id="ACT-CAD-G3">Provide visualization artifacts (2D/3D)</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-CAD"/>
+        <Link ref="DevelopmentPlan.xml#INT-CAD" />
       </Links>
     </Actor>
 
@@ -237,7 +242,7 @@
         <Goal id="ACT-LOGISTICS-G3">Capture proof of delivery</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-LOGISTICS"/>
+        <Link ref="DevelopmentPlan.xml#INT-LOGISTICS" />
       </Links>
     </Actor>
 
@@ -253,7 +258,7 @@
         <Goal id="ACT-PG-G3">Notify of payment status changes via webhooks</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-PAYMENTS"/>
+        <Link ref="DevelopmentPlan.xml#INT-PAYMENTS" />
       </Links>
     </Actor>
 
@@ -269,7 +274,7 @@
         <Goal id="ACT-NP-G4">Report delivery status</Goal>
       </Goals>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-notification-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-notification-service" />
       </Links>
     </Actor>
 
@@ -284,7 +289,7 @@
         <Goal id="ACT-IDP-G3">Manage user sessions</Goal>
       </Goals>
       <Links>
-        <Link ref="Technology.xml#TECH-keycloak"/>
+        <Link ref="Technology.xml#TECH-keycloak" />
       </Links>
     </Actor>
   </Actors>
@@ -297,7 +302,7 @@
          MUST (MVP): B2C CPQ - Configure + Instant Pricing + Save Draft
          =========================================================================== -->
     <UseCase id="UC-B2C-CPQ-01" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER"/>
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
       <Action>Configure product and get instant price</Action>
       <Goal>Create a valid, priced configuration that can be saved as draft and resumed</Goal>
       <Preconditions>
@@ -335,9 +340,9 @@
         <Criterion id="AC-CPQ-03">Promotions/discounts are displayed inline</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
-        <Link ref="DevelopmentPlan.xml#Flow-B2C-CPQ"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
+        <Link ref="DevelopmentPlan.xml#Flow-B2C-CPQ" />
       </Links>
     </UseCase>
 
@@ -345,7 +350,7 @@
          MUST (MVP): Measurement Request Scheduling
          =========================================================================== -->
     <UseCase id="UC-B2C-MEASURE-01" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER"/>
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
       <Action>Request measurement slot</Action>
       <Goal>Schedule an on-site measurement visit and create CRM task</Goal>
       <Preconditions>
@@ -372,9 +377,191 @@
         <Criterion id="AC-MEAS-03">Task appears in manager/CRM pipeline</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-workflow-service"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service"/>
-        <Link ref="DevelopmentPlan.xml#Flow-Measurement-Visit"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-workflow-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service" />
+        <Link ref="DevelopmentPlan.xml#Flow-Measurement-Visit" />
+      </Links>
+    </UseCase>
+
+    <!-- ===========================================================================
+         MUST (MVP): Cart Management
+         =========================================================================== -->
+    <UseCase id="UC-CART-MANAGE" priority="MUST">
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
+      <Action>Manage shopping cart</Action>
+      <Goal>Accumulate configured items before checkout</Goal>
+      <Preconditions>
+        <Item>Customer has a session (anonymous or authenticated)</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Cart reflects all added items with current prices</Item>
+        <Item>Cart totals are recalculated on any change</Item>
+        <Item>Cart state is persisted (Redis for anonymous, DB for authenticated)</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer adds configured item to cart</Step>
+        <Step order="2">System validates configuration is still valid via
+          catalog-configuration-service</Step>
+        <Step order="3">System retrieves current price quote from pricing-service</Step>
+        <Step order="4">System adds item to cart with snapshot of configuration and price</Step>
+        <Step order="5">System recalculates cart totals</Step>
+        <Step order="6">System returns updated cart to customer</Step>
+      </MainFlow>
+      <AlternateFlows>
+        <Flow id="UC-CART-MANAGE-A1" trigger="Update item quantity">
+          <Step order="1">Customer changes quantity for existing cart item</Step>
+          <Step order="2">System updates quantity and recalculates totals</Step>
+        </Flow>
+        <Flow id="UC-CART-MANAGE-A2" trigger="Remove item">
+          <Step order="1">Customer removes item from cart</Step>
+          <Step order="2">System removes item and recalculates totals</Step>
+        </Flow>
+        <Flow id="UC-CART-MANAGE-A3" trigger="Price changed notification">
+          <Step order="1">System detects stale prices on GetCart</Step>
+          <Step order="2">System marks items as price_stale</Step>
+          <Step order="3">Frontend displays "Prices may have changed" warning</Step>
+        </Flow>
+        <Flow id="UC-CART-MANAGE-A4" trigger="Anonymous user logs in">
+          <Step order="1">User authenticates (login/signup)</Step>
+          <Step order="2">System detects anonymous cart exists</Step>
+          <Step order="3">System merges anonymous cart into authenticated cart per DEC-CART-MERGE
+            rules</Step>
+          <Step order="4">System deletes anonymous cart</Step>
+        </Flow>
+      </AlternateFlows>
+      <AcceptanceCriteria>
+        <Criterion id="AC-CART-01">Items added to cart have valid configurations</Criterion>
+        <Criterion id="AC-CART-02">Cart totals (subtotal, discount, tax, total) are accurate</Criterion>
+        <Criterion id="AC-CART-03">Anonymous carts are merged on login per DEC-CART-MERGE</Criterion>
+        <Criterion id="AC-CART-04">Stale prices are flagged on cart retrieval</Criterion>
+        <Criterion id="AC-CART-05">CartItemAddedEvent published on add</Criterion>
+      </AcceptanceCriteria>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
+        <Link ref="Technology.xml#DEC-CART-ANONYMOUS" />
+        <Link ref="Technology.xml#DEC-CART-MERGE" />
+        <Link ref="Technology.xml#DEC-CART-PRICE-LOCK" />
+      </Links>
+    </UseCase>
+
+    <!-- ===========================================================================
+         MUST (MVP): Apply Promotional Code to Cart
+         =========================================================================== -->
+    <UseCase id="UC-CART-APPLY-PROMO" priority="MUST">
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
+      <Action>Apply promotional code to cart</Action>
+      <Goal>Receive discount by entering a valid promo code</Goal>
+      <Preconditions>
+        <Item>Cart exists with at least one item</Item>
+        <Item>Customer has promo code to apply</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Valid promo code is applied to cart</Item>
+        <Item>Discount amount is calculated and stored</Item>
+        <Item>Cart totals are recalculated with discount</Item>
+        <Item>PromoCodeAppliedEvent is published</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer enters promo code</Step>
+        <Step order="2">cart-service validates code via pricing-service.ValidatePromoCode</Step>
+        <Step order="3">pricing-service returns validation result (valid, expired, minimum not met,
+          etc.)</Step>
+        <Step order="4">System applies discount and recalculates totals</Step>
+        <Step order="5">System returns updated cart with applied promo code details</Step>
+      </MainFlow>
+      <AlternateFlows>
+        <Flow id="UC-CART-APPLY-PROMO-A1" trigger="Invalid promo code">
+          <Step order="1">pricing-service returns PROMO_INVALID error</Step>
+          <Step order="2">System returns error to customer with message</Step>
+          <Step order="3">Cart remains unchanged</Step>
+        </Flow>
+        <Flow id="UC-CART-APPLY-PROMO-A2" trigger="Minimum not met">
+          <Step order="1">pricing-service returns PROMO_MINIMUM_NOT_MET error</Step>
+          <Step order="2">System returns error with minimum amount required</Step>
+          <Step order="3">Cart remains unchanged</Step>
+        </Flow>
+        <Flow id="UC-CART-APPLY-PROMO-A3" trigger="Remove promo code">
+          <Step order="1">Customer requests to remove applied promo code</Step>
+          <Step order="2">System removes promo code and recalculates totals</Step>
+          <Step order="3">PromoCodeRemovedEvent published</Step>
+        </Flow>
+      </AlternateFlows>
+      <AcceptanceCriteria>
+        <Criterion id="AC-PROMO-CART-01">Valid promo codes are applied correctly</Criterion>
+        <Criterion id="AC-PROMO-CART-02">Invalid promo codes return appropriate error messages</Criterion>
+        <Criterion id="AC-PROMO-CART-03">Only one promo code can be applied at a time</Criterion>
+        <Criterion id="AC-PROMO-CART-04">Discount does not exceed subtotal</Criterion>
+        <Criterion id="AC-PROMO-CART-05">Promo code is preserved during cart operations</Criterion>
+      </AcceptanceCriteria>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
+        <Link ref="Technology.xml#DEC-PRICING-DISCOUNT-PRECEDENCE" />
+      </Links>
+    </UseCase>
+
+    <!-- ===========================================================================
+         MUST (MVP): Order Placement (Checkout Flow)
+         =========================================================================== -->
+    <UseCase id="UC-ORDER-PLACE" priority="MUST">
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
+      <Action>Place order from cart snapshot</Action>
+      <Goal>Convert cart checkout snapshot into a submitted order</Goal>
+      <Preconditions>
+        <Item>Customer is authenticated</Item>
+        <Item>Cart has at least one item with VALID status</Item>
+        <Item>All configurations have been validated</Item>
+        <Item>All prices have been refreshed</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Cart snapshot is created with fresh prices</Item>
+        <Item>Order is created from snapshot</Item>
+        <Item>Cart is cleared (status = CHECKED_OUT)</Item>
+        <Item>CartCheckedOutEvent is published</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Customer initiates checkout from cart</Step>
+        <Step order="2">cart-service validates all item configurations</Step>
+        <Step order="3">cart-service refreshes all prices from pricing-service</Step>
+        <Step order="4">If prices changed, customer must acknowledge changes</Step>
+        <Step order="5">cart-service creates immutable cart snapshot</Step>
+        <Step order="6">order-service creates order from snapshot</Step>
+        <Step order="7">cart-service clears cart and sets status to CHECKED_OUT</Step>
+        <Step order="8">System publishes CartCheckedOutEvent</Step>
+      </MainFlow>
+      <AlternateFlows>
+        <Flow id="UC-ORDER-PLACE-A1" trigger="Invalid configuration found">
+          <Step order="1">Validation fails for one or more items</Step>
+          <Step order="2">System returns error with list of invalid items</Step>
+          <Step order="3">Customer must reconfigure or remove invalid items</Step>
+        </Flow>
+        <Flow id="UC-ORDER-PLACE-A2" trigger="Price change not acknowledged">
+          <Step order="1">Prices have changed since last view</Step>
+          <Step order="2">acknowledge_price_changes flag is false</Step>
+          <Step order="3">System returns error requiring acknowledgement</Step>
+        </Flow>
+        <Flow id="UC-ORDER-PLACE-A3" trigger="Empty cart">
+          <Step order="1">Cart has no items</Step>
+          <Step order="2">System returns EMPTY_CART error</Step>
+        </Flow>
+      </AlternateFlows>
+      <AcceptanceCriteria>
+        <Criterion id="AC-ORDER-PLACE-01">Snapshot contains all cart items with validated
+          configurations</Criterion>
+        <Criterion id="AC-ORDER-PLACE-02">Snapshot prices are refreshed at creation time</Criterion>
+        <Criterion id="AC-ORDER-PLACE-03">Snapshot has 15-minute validity period</Criterion>
+        <Criterion id="AC-ORDER-PLACE-04">Cart is cleared after successful snapshot creation</Criterion>
+        <Criterion id="AC-ORDER-PLACE-05">Anonymous users cannot create snapshots (UNAUTHENTICATED
+          error)</Criterion>
+      </AcceptanceCriteria>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service" />
+        <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment" />
+        <Link ref="Technology.xml#DEC-CART-PRICE-LOCK" />
+        <Link ref="Technology.xml#DEC-CART-STATE-MACHINE" />
       </Links>
     </UseCase>
 
@@ -382,7 +569,7 @@
          MUST (MVP): B2C Ordering - Contract + Prepayment + Lock
          =========================================================================== -->
     <UseCase id="UC-B2C-ORDER-01" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER"/>
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
       <Action>Place order, accept contract, pay prepayment</Action>
       <Goal>Convert confirmed configuration into locked paid order</Goal>
       <Preconditions>
@@ -414,8 +601,8 @@
         <Criterion id="AC-ORD-03">Contract acceptance is recorded</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
-        <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service" />
+        <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment" />
       </Links>
     </UseCase>
 
@@ -423,7 +610,7 @@
          MUST (MVP): Status Tracking + Notifications
          =========================================================================== -->
     <UseCase id="UC-B2C-TRACK-01" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER"/>
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
       <Action>Track order and receive notifications</Action>
       <Goal>View order lifecycle status and receive event-driven notifications</Goal>
       <Preconditions>
@@ -435,7 +622,8 @@
       </Postconditions>
       <MainFlow>
         <Step order="1">Customer navigates to order tracking</Step>
-        <Step order="2">System displays status timeline (measurement/production/delivery/installation)</Step>
+        <Step order="2">System displays status timeline
+          (measurement/production/delivery/installation)</Step>
         <Step order="3">System displays status history with timestamps</Step>
         <Step order="4">Customer receives notifications for each status change</Step>
       </MainFlow>
@@ -445,9 +633,9 @@
         <Criterion id="AC-TRACK-03">Status names match between portal and CRM</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-notification-service"/>
-        <Link ref="DevelopmentPlan.xml#StatusModel"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-notification-service" />
+        <Link ref="DevelopmentPlan.xml#StatusModel" />
       </Links>
     </UseCase>
 
@@ -455,7 +643,7 @@
          MUST (MVP): Core RBAC Domains
          =========================================================================== -->
     <UseCase id="UC-RBAC-01" priority="MUST">
-      <ActorRef ref="ACT-ADMIN"/>
+      <ActorRef ref="ACT-ADMIN" />
       <Action>Manage roles and permissions</Action>
       <Goal>Define and enforce access control for B2C, B2B, Staff, and Field roles</Goal>
       <Preconditions>
@@ -466,7 +654,8 @@
         <Item>Permissions are enforced at service level</Item>
       </Postconditions>
       <MainFlow>
-        <Step order="1">Admin defines roles (B2C_CUSTOMER, B2B_DEALER, SALES_MANAGER, MEASUREMENT_TECH, INSTALLER, ADMIN)</Step>
+        <Step order="1">Admin defines roles (B2C_CUSTOMER, B2B_DEALER, SALES_MANAGER,
+          MEASUREMENT_TECH, INSTALLER, ADMIN)</Step>
         <Step order="2">Admin assigns permissions to roles</Step>
         <Step order="3">System enforces role-based access on all endpoints</Step>
       </MainFlow>
@@ -475,8 +664,8 @@
         <Criterion id="AC-RBAC-02">Each endpoint enforces required role(s)</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service"/>
-        <Link ref="Technology.xml#TECH-keycloak"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service" />
+        <Link ref="Technology.xml#TECH-keycloak" />
       </Links>
     </UseCase>
 
@@ -484,7 +673,7 @@
          MUST (MVP): Status Audit Trail
          =========================================================================== -->
     <UseCase id="UC-AUDIT-01" priority="MUST">
-      <ActorRef ref="ACT-ADMIN"/>
+      <ActorRef ref="ACT-ADMIN" />
       <Action>Audit status changes</Action>
       <Goal>Track all status changes with actor, timestamp, and source</Goal>
       <Preconditions>
@@ -495,16 +684,18 @@
       </Postconditions>
       <MainFlow>
         <Step order="1">Status change is triggered (manual or integration)</Step>
-        <Step order="2">System captures: timestamp, actor/system, source (manual/integration), entity ID</Step>
+        <Step order="2">System captures: timestamp, actor/system, source (manual/integration),
+          entity ID</Step>
         <Step order="3">System persists audit record</Step>
         <Step order="4">Audit trail is queryable for reporting</Step>
       </MainFlow>
       <AcceptanceCriteria>
         <Criterion id="AC-AUDIT-01">Every status change has audit record</Criterion>
-        <Criterion id="AC-AUDIT-02">Audit includes: timestamp, actor, source, entity ID, old/new status</Criterion>
+        <Criterion id="AC-AUDIT-02">Audit includes: timestamp, actor, source, entity ID, old/new
+          status</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#StatusModel"/>
+        <Link ref="DevelopmentPlan.xml#StatusModel" />
       </Links>
     </UseCase>
 
@@ -512,7 +703,7 @@
          MUST (MVP): B2B CPQ + Project Orders
          =========================================================================== -->
     <UseCase id="UC-B2B-CPQ-01" priority="MUST">
-      <ActorRef ref="ACT-B2B-DEALER"/>
+      <ActorRef ref="ACT-B2B-DEALER" />
       <Action>Configure/quote with dealer rules + create project order</Action>
       <Goal>Generate quote with partner pricing and create project order with documents</Goal>
       <Preconditions>
@@ -540,9 +731,9 @@
         <Criterion id="AC-B2B-03">CAD feasibility validated when integrated</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-document-service"/>
-        <Link ref="DevelopmentPlan.xml#INT-CAD"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-document-service" />
+        <Link ref="DevelopmentPlan.xml#INT-CAD" />
       </Links>
     </UseCase>
 
@@ -550,7 +741,7 @@
          MUST (MVP): Staff CRM/Pipeline Management
          =========================================================================== -->
     <UseCase id="UC-STAFF-CRM-01" priority="MUST">
-      <ActorRef ref="ACT-SALES-MANAGER"/>
+      <ActorRef ref="ACT-SALES-MANAGER" />
       <Action>Manage leads/pipeline/quotes/calendar</Action>
       <Goal>Process omnichannel leads through pipeline to completion</Goal>
       <Preconditions>
@@ -575,8 +766,8 @@
         <Criterion id="AC-CRM-03">Documents generated from templates</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-workflow-service"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-document-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-workflow-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-document-service" />
       </Links>
     </UseCase>
 
@@ -584,7 +775,7 @@
          MUST (MVP): Field Measurement Task
          =========================================================================== -->
     <UseCase id="UC-FIELD-MEASURE-01" priority="MUST">
-      <ActorRef ref="ACT-MEASUREMENT-TECHNICIAN"/>
+      <ActorRef ref="ACT-MEASUREMENT-TECHNICIAN" />
       <Action>Capture measurements, photos, and completion act</Action>
       <Goal>Complete measurement task with all required data</Goal>
       <Preconditions>
@@ -614,8 +805,8 @@
         <Criterion id="AC-FIELD-M-03">Deal stage advances to MEASUREMENT_COMPLETED</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service"/>
-        <Link ref="DevelopmentPlan.xml#Flow-Measurement-Visit"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service" />
+        <Link ref="DevelopmentPlan.xml#Flow-Measurement-Visit" />
       </Links>
     </UseCase>
 
@@ -623,7 +814,7 @@
          MUST (MVP): Field Installation Task
          =========================================================================== -->
     <UseCase id="UC-FIELD-INSTALL-01" priority="MUST">
-      <ActorRef ref="ACT-INSTALLER"/>
+      <ActorRef ref="ACT-INSTALLER" />
       <Action>Complete installation with checklist and acceptance act</Action>
       <Goal>Execute installation and capture completion evidence</Goal>
       <Preconditions>
@@ -652,7 +843,7 @@
         <Criterion id="AC-FIELD-I-03">Order status updated automatically</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service" />
       </Links>
     </UseCase>
 
@@ -660,7 +851,7 @@
          SHOULD: Promotions/Discounts/Installments Display in CPQ
          =========================================================================== -->
     <UseCase id="UC-CPQ-PROMO-01" priority="SHOULD">
-      <ActorRef ref="ACT-B2C-CUSTOMER"/>
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
       <Action>View promotions, discounts, and installment options</Action>
       <Goal>See all applicable pricing incentives during configuration</Goal>
       <Preconditions>
@@ -683,7 +874,7 @@
         <Criterion id="AC-PROMO-03">Installment schedule displayed when applicable</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
       </Links>
     </UseCase>
 
@@ -691,7 +882,7 @@
          SHOULD: Delivery Tracking with Proof of Delivery
          =========================================================================== -->
     <UseCase id="UC-DELIVERY-TRACK-01" priority="SHOULD">
-      <ActorRef ref="ACT-B2C-CUSTOMER"/>
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
       <Action>Track delivery with proof of delivery</Action>
       <Goal>Real-time delivery tracking and delivery confirmation</Goal>
       <Preconditions>
@@ -714,7 +905,7 @@
         <Criterion id="AC-DEL-02">Proof of delivery captured and viewable</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-LOGISTICS"/>
+        <Link ref="DevelopmentPlan.xml#INT-LOGISTICS" />
       </Links>
     </UseCase>
 
@@ -722,7 +913,7 @@
          LATER: 3D Visualization
          =========================================================================== -->
     <UseCase id="UC-VIS-3D-01" priority="LATER">
-      <ActorRef ref="ACT-B2C-CUSTOMER"/>
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
       <Action>View 3D visualization of configuration</Action>
       <Goal>Interactive 3D model of configured product</Goal>
       <Preconditions>
@@ -743,7 +934,7 @@
         <Criterion id="AC-3D-02">Interactive rotation and zoom</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-CAD"/>
+        <Link ref="DevelopmentPlan.xml#INT-CAD" />
       </Links>
     </UseCase>
 
@@ -751,7 +942,7 @@
          LATER: Advanced Logistics Auto-Routing
          =========================================================================== -->
     <UseCase id="UC-LOGISTICS-ROUTE-01" priority="LATER">
-      <ActorRef ref="ACT-LOGISTICS-COORDINATOR"/>
+      <ActorRef ref="ACT-LOGISTICS-COORDINATOR" />
       <Action>Auto-route deliveries</Action>
       <Goal>Automated route optimization for delivery fleet</Goal>
       <Preconditions>
@@ -773,7 +964,7 @@
         <Criterion id="AC-ROUTE-02">Drivers receive turn-by-turn navigation</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-LOGISTICS"/>
+        <Link ref="DevelopmentPlan.xml#INT-LOGISTICS" />
       </Links>
     </UseCase>
 
@@ -781,7 +972,7 @@
          Existing Use Cases (Updated Links)
          =========================================================================== -->
     <UseCase id="UC-CATALOG-BROWSE" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER"/>
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
       <Action>Browse product catalog</Action>
       <Goal>Discover available window and door products with filtering and search</Goal>
       <Preconditions>
@@ -800,13 +991,13 @@
         <Step order="5">Customer selects a product to configure</Step>
       </MainFlow>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
       </Links>
     </UseCase>
 
     <UseCase id="UC-SUPPORT-CREATE-01" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER"/>
+      <ActorRef ref="ACT-B2C-CUSTOMER" />
       <Action>Create service or warranty request</Action>
       <Goal>Submit after-sales service request with tracking</Goal>
       <Preconditions>
@@ -832,7 +1023,7 @@
         <Criterion id="AC-SUPPORT-03">Communication history preserved</Criterion>
       </AcceptanceCriteria>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-support-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-support-service" />
       </Links>
     </UseCase>
   </UseCases>
@@ -851,8 +1042,10 @@
       <Domain name="Lead/Deal">
         <Status id="STATUS-LEAD-NEW" name="New Lead">Initial lead intake</Status>
         <Status id="STATUS-LEAD-CONSULTATION" name="Consultation">Initial contact/discussion</Status>
-        <Status id="STATUS-LEAD-MEASURE-SCHEDULED" name="Measurement Scheduled">Measurement visit scheduled</Status>
-        <Status id="STATUS-LEAD-MEASURE-COMPLETED" name="Measurement Completed">Measurements captured</Status>
+        <Status id="STATUS-LEAD-MEASURE-SCHEDULED" name="Measurement Scheduled">Measurement visit
+          scheduled</Status>
+        <Status id="STATUS-LEAD-MEASURE-COMPLETED" name="Measurement Completed">Measurements
+          captured</Status>
         <Status id="STATUS-LEAD-QUOTE-SENT" name="Quote/Proposal Sent">Commercial proposal sent</Status>
         <Status id="STATUS-LEAD-CONTRACT-SIGNED" name="Contract Signed">Contract accepted</Status>
         <Status id="STATUS-LEAD-LOST" name="Lost" terminal="true">Lead closed without conversion</Status>
@@ -865,10 +1058,12 @@
         <Status id="STATUS-ORD-PENDING-PAYMENT" name="Pending Payment">Awaiting payment</Status>
         <Status id="STATUS-ORD-PAID" name="Paid">Payment confirmed, order locked</Status>
         <Status id="STATUS-ORD-IN-PRODUCTION" name="In Production">Manufacturing started</Status>
-        <Status id="STATUS-ORD-READY-SHIP" name="Ready for Shipment">Production complete, ready to ship</Status>
+        <Status id="STATUS-ORD-READY-SHIP" name="Ready for Shipment">Production complete, ready to
+          ship</Status>
         <Status id="STATUS-ORD-IN-TRANSIT" name="In Transit">Out for delivery</Status>
         <Status id="STATUS-ORD-DELIVERED" name="Delivered">Products delivered</Status>
-        <Status id="STATUS-ORD-INSTALL-SCHEDULED" name="Installation Scheduled">Install appointment set</Status>
+        <Status id="STATUS-ORD-INSTALL-SCHEDULED" name="Installation Scheduled">Install appointment
+          set</Status>
         <Status id="STATUS-ORD-INSTALLED" name="Installed/Completed">Installation done</Status>
         <Status id="STATUS-ORD-CANCELLED" name="Cancelled" terminal="true">Order cancelled</Status>
       </Domain>
@@ -884,14 +1079,15 @@
 
     <AuditRequirements>
       <Requirement>All status changes MUST be audited</Requirement>
-      <Requirement>Audit record MUST include: timestamp (UTC), actor ID or system ID, source (manual|integration|system), correlation/order ID, old status, new status</Requirement>
+      <Requirement>Audit record MUST include: timestamp (UTC), actor ID or system ID, source
+        (manual|integration|system), correlation/order ID, old status, new status</Requirement>
       <Requirement>Audit records are immutable</Requirement>
       <Requirement>Audit trail queryable for reporting</Requirement>
     </AuditRequirements>
 
     <Links>
-      <Link ref="UC-AUDIT-01"/>
-      <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+      <Link ref="UC-AUDIT-01" />
+      <Link ref="DevelopmentPlan.xml#DP-SVC-order-service" />
     </Links>
   </StatusModel>
 
@@ -903,12 +1099,14 @@
 
     <Entity id="GLOSS-USER">
       <Name>User</Name>
-      <Definition>Any authenticated individual: B2C customer, B2B dealer contact, staff member, or field user</Definition>
+      <Definition>Any authenticated individual: B2C customer, B2B dealer contact, staff member, or
+        field user</Definition>
     </Entity>
 
     <Entity id="GLOSS-PARTNER-ORG">
       <Name>PartnerOrg</Name>
-      <Definition>B2B organization with legal/finance profile, multiple sub-users, and partner pricing tier</Definition>
+      <Definition>B2B organization with legal/finance profile, multiple sub-users, and partner
+        pricing tier</Definition>
     </Entity>
 
     <Entity id="GLOSS-STAFF-USER">
@@ -938,7 +1136,8 @@
 
     <Entity id="GLOSS-CONFIGURATION">
       <Name>Configuration</Name>
-      <Definition>Customer-specified product setup: dimensions, material, glazing, options, accessories</Definition>
+      <Definition>Customer-specified product setup: dimensions, material, glazing, options,
+        accessories</Definition>
     </Entity>
 
     <Entity id="GLOSS-LEAD">
@@ -1020,7 +1219,7 @@
         <Field name="Order status after PAID">Requires Decision - ERP vs our system</Field>
       </SourceOfTruth>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-CRM-ERP"/>
+        <Link ref="DevelopmentPlan.xml#INT-CRM-ERP" />
       </Links>
     </Integration>
 
@@ -1038,7 +1237,7 @@
         <Decision id="DEC-CAD-SLA">Response time SLA for feasibility check - TBD</Decision>
       </OpenDecisions>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-CAD"/>
+        <Link ref="DevelopmentPlan.xml#INT-CAD" />
       </Links>
     </Integration>
 
@@ -1054,7 +1253,7 @@
         <Field name="Production stages">Requires Decision - ERP is likely SoT</Field>
       </SourceOfTruth>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-ERP"/>
+        <Link ref="DevelopmentPlan.xml#INT-ERP" />
       </Links>
     </Integration>
 
@@ -1068,7 +1267,7 @@
         <Flow direction="inbound">Proof of delivery (photo, signature)</Flow>
       </DataFlows>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-LOGISTICS"/>
+        <Link ref="DevelopmentPlan.xml#INT-LOGISTICS" />
       </Links>
     </Integration>
 
@@ -1086,7 +1285,7 @@
         <Item>Webhook signature verification</Item>
       </SecurityRequirements>
       <Links>
-        <Link ref="DevelopmentPlan.xml#INT-PAYMENTS"/>
+        <Link ref="DevelopmentPlan.xml#INT-PAYMENTS" />
       </Links>
     </Integration>
   </IntegrationRequirements>
@@ -1101,8 +1300,8 @@
       <Description>API response time for user-facing endpoints</Description>
       <Metric>P95 response time &lt; 500ms for CPQ, configuration validation, and pricing</Metric>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
       </Links>
     </Requirement>
 
@@ -1111,7 +1310,7 @@
       <Description>CPQ recalculation on configuration change</Description>
       <Metric>Price recalculation completes within 300ms of user input</Metric>
       <Links>
-        <Link ref="UC-B2C-CPQ-01"/>
+        <Link ref="UC-B2C-CPQ-01" />
       </Links>
     </Requirement>
 
@@ -1120,7 +1319,7 @@
       <Description>Search query latency</Description>
       <Metric>P95 search response time &lt; 200ms</Metric>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
       </Links>
     </Requirement>
 
@@ -1153,7 +1352,7 @@
         Fine-grained permissions enforced at service level.
       </Specification>
       <Links>
-        <Link ref="UC-RBAC-01"/>
+        <Link ref="UC-RBAC-01" />
       </Links>
     </Requirement>
 
@@ -1177,8 +1376,8 @@
         entity ID, old/new status, correlation ID.
       </Specification>
       <Links>
-        <Link ref="UC-AUDIT-01"/>
-        <Link ref="StatusModel"/>
+        <Link ref="UC-AUDIT-01" />
+        <Link ref="StatusModel" />
       </Links>
     </Requirement>
 
@@ -1218,74 +1417,75 @@
     </Requirement>
   </NonFunctionalRequirements>
 
-    <!-- Field Operations (BP-ISSUE-001 Resolution) -->
-    <Requirement id="NFR-FIELD-OFFLINE">
-      <Category>Field Operations</Category>
-      <Description>Offline capability for field technicians</Description>
-      <Specification>
-        Field operations (measurement and installation) support offline-first capability:
-        - Data cached locally on mobile devices for offline access
-        - Optimistic locking with version vectors for conflict detection
-        - Timestamp-based auto-resolution for non-conflicting changes
-        - Manual review queue for conflicting field updates
-        - Automatic sync on reconnect with retry mechanism (exponential backoff)
-        - Offline task queue with at-least-once delivery guarantee
-      </Specification>
-      <ConflictResolutionStrategy>
-        <Rule priority="1">Non-conflicting changes: auto-merge using last-write-wins per field</Rule>
-        <Rule priority="2">Conflicting measurement values: queue for supervisor review</Rule>
-        <Rule priority="3">Status transitions: server state wins, local changes re-queued</Rule>
-      </ConflictResolutionStrategy>
-      <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service"/>
-      </Links>
-    </Requirement>
+  <!-- Field Operations (BP-ISSUE-001 Resolution) -->
+  <Requirement id="NFR-FIELD-OFFLINE">
+    <Category>Field Operations</Category>
+    <Description>Offline capability for field technicians</Description>
+    <Specification>
+      Field operations (measurement and installation) support offline-first capability:
+      - Data cached locally on mobile devices for offline access
+      - Optimistic locking with version vectors for conflict detection
+      - Timestamp-based auto-resolution for non-conflicting changes
+      - Manual review queue for conflicting field updates
+      - Automatic sync on reconnect with retry mechanism (exponential backoff)
+      - Offline task queue with at-least-once delivery guarantee
+    </Specification>
+    <ConflictResolutionStrategy>
+      <Rule priority="1">Non-conflicting changes: auto-merge using last-write-wins per field</Rule>
+      <Rule priority="2">Conflicting measurement values: queue for supervisor review</Rule>
+      <Rule priority="3">Status transitions: server state wins, local changes re-queued</Rule>
+    </ConflictResolutionStrategy>
+    <Links>
+      <Link ref="DevelopmentPlan.xml#DP-SVC-field-ops-service" />
+    </Links>
+  </Requirement>
 
-    <!-- Internationalization -->
-    <Requirement id="NFR-I18N-MULTI-LANGUAGE">
-      <Category>Internationalization</Category>
-      <Description>Multi-language support</Description>
-      <Specification>
-        Product descriptions, UI, and notifications support multiple languages.
-        LocalizedString value object in shared-kernel.
-      </Specification>
-    </Requirement>
+  <!-- Internationalization -->
+  <Requirement id="NFR-I18N-MULTI-LANGUAGE">
+    <Category>Internationalization</Category>
+    <Description>Multi-language support</Description>
+    <Specification>
+      Product descriptions, UI, and notifications support multiple languages.
+      LocalizedString value object in shared-kernel.
+    </Specification>
+  </Requirement>
 
-    <Decision id="DEC-OPEN-CPQ-RULES">
-      <Topic>CPQ rules/options governance</Topic>
-      <Question>Who owns configuration rules? How are they maintained?</Question>
-      <Status>OPEN</Status>
-      <Blocking>false</Blocking>
-    </Decision>
+  <Decision id="DEC-OPEN-CPQ-RULES">
+    <Topic>CPQ rules/options governance</Topic>
+    <Question>Who owns configuration rules? How are they maintained?</Question>
+    <Status>OPEN</Status>
+    <Blocking>false</Blocking>
+  </Decision>
 
-    <Decision id="DEC-OPEN-CAD-FORMAT">
-      <Topic>CAD integration format/SLA</Topic>
-      <Question>What API format for CAD integration? What is acceptable response time?</Question>
-      <Status>OPEN</Status>
-      <Blocking>false</Blocking>
-    </Decision>
+  <Decision id="DEC-OPEN-CAD-FORMAT">
+    <Topic>CAD integration format/SLA</Topic>
+    <Question>What API format for CAD integration? What is acceptable response time?</Question>
+    <Status>OPEN</Status>
+    <Blocking>false</Blocking>
+  </Decision>
 
-    <Decision id="DEC-OPEN-ESIGN">
-      <Topic>E-signing legal level</Topic>
-      <Question>What level of e-signature is legally required? Simple checkbox vs qualified e-sign?</Question>
-      <Status>OPEN</Status>
-      <Blocking>false</Blocking>
-    </Decision>
+  <Decision id="DEC-OPEN-ESIGN">
+    <Topic>E-signing legal level</Topic>
+    <Question>What level of e-signature is legally required? Simple checkbox vs qualified e-sign?</Question>
+    <Status>OPEN</Status>
+    <Blocking>false</Blocking>
+  </Decision>
 
-    <Decision id="DEC-OPEN-STATUS-SOT">
-      <Topic>Status source of truth</Topic>
-      <Question>For production/logistics statuses, is ERP/logistics the SoT or do we maintain parallel?</Question>
-      <Status>OPEN</Status>
-      <Blocking>true</Blocking>
-      <Recommendation>Define clear ownership in integration contract</Recommendation>
-    </Decision>
+  <Decision id="DEC-OPEN-STATUS-SOT">
+    <Topic>Status source of truth</Topic>
+    <Question>For production/logistics statuses, is ERP/logistics the SoT or do we maintain
+      parallel?</Question>
+    <Status>OPEN</Status>
+    <Blocking>true</Blocking>
+    <Recommendation>Define clear ownership in integration contract</Recommendation>
+  </Decision>
 
-    <Decision id="DEC-OPEN-NOTIF-CHANNELS">
-      <Topic>Notification channels/templates/events</Topic>
-      <Question>Which events trigger which channels? Template ownership?</Question>
-      <Status>OPEN</Status>
-      <Blocking>false</Blocking>
-    </Decision>
+  <Decision id="DEC-OPEN-NOTIF-CHANNELS">
+    <Topic>Notification channels/templates/events</Topic>
+    <Question>Which events trigger which channels? Template ownership?</Question>
+    <Status>OPEN</Status>
+    <Blocking>false</Blocking>
+  </Decision>
   </OpenDecisions>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
@@ -1313,7 +1513,7 @@
         <Rule>API enforces role-based field filtering at serialization layer</Rule>
       </AccessControl>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
       </Links>
     </Entity>
   </DomainGlossary>
@@ -1353,7 +1553,7 @@
       rule applied, customer response, timestamp.
     </AuditRequirement>
     <Links>
-      <Link ref="DevelopmentPlan.xml#Flow-Measurement-Visit"/>
+      <Link ref="DevelopmentPlan.xml#Flow-Measurement-Visit" />
     </Links>
   </MeasurementVarianceRules>
 
@@ -1428,7 +1628,7 @@
       <Field name="confirmationStatus" type="Enum">PENDING, CONFIRMED, DISPUTED</Field>
     </DataStructure>
     <Links>
-      <Link ref="DevelopmentPlan.xml#INT-LOGISTICS"/>
+      <Link ref="DevelopmentPlan.xml#INT-LOGISTICS" />
     </Links>
   </ProofOfDeliveryRequirements>
 

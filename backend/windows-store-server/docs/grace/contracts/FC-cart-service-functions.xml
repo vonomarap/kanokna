@@ -4,18 +4,20 @@
   GRACE FUNCTION CONTRACTS: cart-service
   ═══════════════════════════════════════════════════════════════════════════════
   Service:         cart-service
-  Version:         1.0.0
+  Version:         1.1.0
   Handoff:         Handoff-20260109-01-W1-T6-CartService
   Contract Count:  8
-  Block Anchors:   28
-  Test Cases:      32
+  Block Anchors:   44 (harmonized with Handoff IDs)
+  Test Cases:      39 (harmonized with Handoff IDs)
   Created:         2026-01-09T11:00:00+03:00
+  Updated:         2026-01-09T18:45:00+03:00
+  Changes:         v1.1.0 - Harmonized BA-* and TC-* IDs to match Handoff
   ═══════════════════════════════════════════════════════════════════════════════
 -->
-<FunctionContracts id="FC-cart-service" version="1.0.0">
+<FunctionContracts id="FC-cart-service" version="1.1.0">
   <Metadata>
     <Service>cart-service</Service>
-    <Module ref="MC-cart-service-domain"/>
+    <Module ref="MC-cart-service-domain" />
     <Author>GRACE-ARCHITECT</Author>
     <CreatedAt>2026-01-09T11:00:00+03:00</CreatedAt>
     <HandoffRef>Handoff-20260109-01-W1-T6-CartService</HandoffRef>
@@ -27,8 +29,8 @@
   <FunctionContract id="FC-cart-getCart">
     <Metadata>
       <Layer>application</Layer>
-      <UseCase ref="UC-CART-MANAGE"/>
-      <Proto ref="cart_service_v1_1.proto#GetCart"/>
+      <UseCase ref="UC-CART-MANAGE" />
+      <Proto ref="cart_service_v1_1.proto#GetCart" />
     </Metadata>
 
     <Purpose>
@@ -52,14 +54,20 @@
     </Postconditions>
 
     <BlockAnchors>
-      <Anchor id="BA-CART-GET-RESOLVE" location="CartApplicationService.getCart">
-        Resolve cart owner (customer_id takes precedence over session_id)
+      <Anchor id="BA-CART-GET-01" location="CartApplicationService.getCart">
+        Resolve cart ID from customerId or sessionId
       </Anchor>
-      <Anchor id="BA-CART-GET-LOAD" location="CartApplicationService.getCart">
-        Load cart from repository or create new empty cart
+      <Anchor id="BA-CART-GET-02" location="CartApplicationService.getCart">
+        Load cart from repository
       </Anchor>
-      <Anchor id="BA-CART-GET-STALENESS" location="CartApplicationService.getCart">
-        Check price quote staleness for all items
+      <Anchor id="BA-CART-GET-03" location="CartApplicationService.getCart">
+        Revalidate item configurations (lazy)
+      </Anchor>
+      <Anchor id="BA-CART-GET-04" location="CartApplicationService.getCart">
+        Check price staleness for each item
+      </Anchor>
+      <Anchor id="BA-CART-GET-05" location="CartApplicationService.getCart">
+        Return cart response
       </Anchor>
     </BlockAnchors>
 
@@ -68,29 +76,35 @@
     </ErrorConditions>
 
     <TestCases>
-      <TestCase id="TC-GC-01" type="unit">
-        <Description>Get existing authenticated cart</Description>
+      <TestCase id="TC-FUNC-CART-GET-001" type="unit">
+        <Description>Get existing cart returns all items with totals</Description>
         <Given>Customer has cart with 2 items</Given>
         <When>GetCart called with customer_id</When>
         <Then>Returns cart with 2 items and calculated totals</Then>
       </TestCase>
-      <TestCase id="TC-GC-02" type="unit">
-        <Description>Get cart for new customer creates empty cart</Description>
+      <TestCase id="TC-FUNC-CART-GET-002" type="unit">
+        <Description>Get non-existent cart returns empty cart</Description>
         <Given>Customer has no existing cart</Given>
         <When>GetCart called with customer_id</When>
         <Then>Returns empty cart with ACTIVE status</Then>
       </TestCase>
-      <TestCase id="TC-GC-03" type="unit">
-        <Description>Get anonymous cart by session</Description>
-        <Given>Session has cart with 1 item</Given>
-        <When>GetCart called with session_id only</When>
-        <Then>Returns anonymous cart</Then>
-      </TestCase>
-      <TestCase id="TC-GC-04" type="unit">
-        <Description>Stale prices flagged on retrieval</Description>
+      <TestCase id="TC-FUNC-CART-GET-003" type="unit">
+        <Description>Items with stale prices marked appropriately</Description>
         <Given>Cart has item with expired quote</Given>
         <When>GetCart called</When>
         <Then>Item.price_stale = true</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-GET-004" type="unit">
+        <Description>Invalid configurations flagged in response</Description>
+        <Given>Cart has item with changed catalog rules</Given>
+        <When>GetCart called</When>
+        <Then>Item.validation_status = INVALID</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-GET-005" type="integration">
+        <Description>Catalog service timeout uses last known validation status</Description>
+        <Given>Cart has items, catalog service unavailable</Given>
+        <When>GetCart called</When>
+        <Then>Returns cart with validation_status = UNKNOWN</Then>
       </TestCase>
     </TestCases>
 
@@ -106,8 +120,8 @@
   <FunctionContract id="FC-cart-addItem">
     <Metadata>
       <Layer>application</Layer>
-      <UseCase ref="UC-CART-MANAGE"/>
-      <Proto ref="cart_service_v1_1.proto#AddItem"/>
+      <UseCase ref="UC-CART-MANAGE" />
+      <Proto ref="cart_service_v1_1.proto#AddItem" />
     </Metadata>
 
     <Purpose>
@@ -116,7 +130,8 @@
     </Purpose>
 
     <Signature>
-      <Input>AddItemCommand(customerId, sessionId, productTemplateId, dimensions, selectedOptions, quantity, quoteId?, resolvedBom)</Input>
+      <Input>AddItemCommand(customerId, sessionId, productTemplateId, dimensions, selectedOptions,
+        quantity, quoteId?, resolvedBom)</Input>
       <Output>AddItemResult(cart: CartDto, addedItemId: String)</Output>
     </Signature>
 
@@ -136,23 +151,26 @@
     </Postconditions>
 
     <BlockAnchors>
-      <Anchor id="BA-CART-ADD-VALIDATE" location="CartApplicationService.addItem">
-        Validate configuration via CatalogConfigurationPort
+      <Anchor id="BA-CART-ADD-01" location="CartApplicationService.addItem">
+        Resolve or create cart
       </Anchor>
-      <Anchor id="BA-CART-ADD-QUOTE" location="CartApplicationService.addItem">
-        Fetch price quote from PricingPort (use provided or fetch new)
+      <Anchor id="BA-CART-ADD-02" location="CartApplicationService.addItem">
+        Validate configuration via catalog-configuration-service
       </Anchor>
-      <Anchor id="BA-CART-ADD-HASH" location="CartApplicationService.addItem">
-        Compute configuration hash for merge comparison
+      <Anchor id="BA-CART-ADD-03" location="CartApplicationService.addItem">
+        Get/verify price quote from pricing-service
       </Anchor>
-      <Anchor id="BA-CART-ADD-SNAPSHOT" location="CartApplicationService.addItem">
-        Create immutable ConfigurationSnapshot
+      <Anchor id="BA-CART-ADD-04" location="CartApplicationService.addItem">
+        Create CartItem with configuration snapshot
       </Anchor>
-      <Anchor id="BA-CART-ADD-ITEM" location="Cart.addItem">
-        Add CartItem to aggregate, update totals
+      <Anchor id="BA-CART-ADD-05" location="CartApplicationService.addItem">
+        Compute configuration hash
       </Anchor>
-      <Anchor id="BA-CART-ADD-EVENT" location="CartApplicationService.addItem">
-        Publish CartItemAddedEvent to Kafka
+      <Anchor id="BA-CART-ADD-06" location="CartApplicationService.addItem">
+        Recalculate cart totals
+      </Anchor>
+      <Anchor id="BA-CART-ADD-07" location="CartApplicationService.addItem">
+        Persist cart and publish event
       </Anchor>
     </BlockAnchors>
 
@@ -164,32 +182,38 @@
     </ErrorConditions>
 
     <TestCases>
-      <TestCase id="TC-AI-01" type="unit">
-        <Description>Add first item to empty cart</Description>
+      <TestCase id="TC-FUNC-CART-ADD-001" type="unit">
+        <Description>Add valid item creates cart item with snapshot</Description>
         <Given>Empty cart exists</Given>
         <When>AddItem with valid configuration</When>
-        <Then>Cart has 1 item, subtotal = line_total</Then>
+        <Then>Cart has 1 item with configuration snapshot</Then>
       </TestCase>
-      <TestCase id="TC-AI-02" type="unit">
-        <Description>Add item with same config increases quantity</Description>
-        <Given>Cart has item with configuration hash X</Given>
-        <When>AddItem with same configuration (hash X)</When>
-        <Then>Existing item quantity increased, no new item added</Then>
+      <TestCase id="TC-FUNC-CART-ADD-002" type="unit">
+        <Description>Add item to existing cart appends item</Description>
+        <Given>Cart has 1 item already</Given>
+        <When>AddItem with different configuration</When>
+        <Then>Cart has 2 items</Then>
       </TestCase>
-      <TestCase id="TC-AI-03" type="unit">
-        <Description>Add item with different config creates new item</Description>
-        <Given>Cart has item with configuration hash X</Given>
-        <When>AddItem with different configuration (hash Y)</When>
-        <Then>New item added, cart has 2 items</Then>
-      </TestCase>
-      <TestCase id="TC-AI-04" type="integration">
-        <Description>Configuration validation failure</Description>
+      <TestCase id="TC-FUNC-CART-ADD-003" type="integration">
+        <Description>Invalid configuration rejected</Description>
         <Given>Invalid dimension configuration</Given>
         <When>AddItem called</When>
-        <Then>INVALID_ARGUMENT error with validation message</Then>
+        <Then>ERR-CART-INVALID-CONFIG error returned</Then>
       </TestCase>
-      <TestCase id="TC-AI-05" type="integration">
-        <Description>CartItemAddedEvent published</Description>
+      <TestCase id="TC-FUNC-CART-ADD-004" type="integration">
+        <Description>Expired quote triggers fresh price fetch</Description>
+        <Given>Expired quoteId provided</Given>
+        <When>AddItem called</When>
+        <Then>Fresh quote fetched from pricing-service</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-ADD-005" type="unit">
+        <Description>Cart totals recalculated after add</Description>
+        <Given>Cart has existing items</Given>
+        <When>AddItem succeeds</When>
+        <Then>Cart subtotal, tax, total recalculated</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-ADD-006" type="integration">
+        <Description>CartItemAddedEvent published to Kafka</Description>
         <Given>Valid add item request</Given>
         <When>AddItem succeeds</When>
         <Then>CartItemAddedEvent sent to Kafka</Then>
@@ -211,8 +235,8 @@
   <FunctionContract id="FC-cart-updateItem">
     <Metadata>
       <Layer>application</Layer>
-      <UseCase ref="UC-CART-MANAGE"/>
-      <Proto ref="cart_service_v1_1.proto#UpdateItem"/>
+      <UseCase ref="UC-CART-MANAGE" />
+      <Proto ref="cart_service_v1_1.proto#UpdateItem" />
     </Metadata>
 
     <Purpose>
@@ -238,14 +262,20 @@
     </Postconditions>
 
     <BlockAnchors>
-      <Anchor id="BA-CART-UPD-FIND" location="CartApplicationService.updateItemQuantity">
-        Find cart and item, validate ownership
+      <Anchor id="BA-CART-UPDATE-01" location="CartApplicationService.updateItemQuantity">
+        Load cart and find item
       </Anchor>
-      <Anchor id="BA-CART-UPD-QTY" location="Cart.updateItemQuantity">
-        Update quantity and recalculate line_total
+      <Anchor id="BA-CART-UPDATE-02" location="CartApplicationService.updateItemQuantity">
+        Validate quantity
       </Anchor>
-      <Anchor id="BA-CART-UPD-TOTALS" location="Cart.calculateTotals">
-        Recalculate cart subtotal, discount, tax, total
+      <Anchor id="BA-CART-UPDATE-03" location="Cart.updateItemQuantity">
+        Update quantity and line total
+      </Anchor>
+      <Anchor id="BA-CART-UPDATE-04" location="Cart.calculateTotals">
+        Recalculate cart totals
+      </Anchor>
+      <Anchor id="BA-CART-UPDATE-05" location="CartApplicationService.updateItemQuantity">
+        Persist and publish event
       </Anchor>
     </BlockAnchors>
 
@@ -256,23 +286,29 @@
     </ErrorConditions>
 
     <TestCases>
-      <TestCase id="TC-UI-01" type="unit">
-        <Description>Increase item quantity</Description>
+      <TestCase id="TC-FUNC-CART-UPDATE-001" type="unit">
+        <Description>Update quantity recalculates line total</Description>
         <Given>Cart item with quantity 2</Given>
         <When>UpdateItem with quantity 5</When>
         <Then>Item quantity = 5, line_total = unit_price * 5</Then>
       </TestCase>
-      <TestCase id="TC-UI-02" type="unit">
-        <Description>Decrease item quantity</Description>
+      <TestCase id="TC-FUNC-CART-UPDATE-002" type="unit">
+        <Description>Cart totals recalculated after update</Description>
         <Given>Cart item with quantity 5</Given>
         <When>UpdateItem with quantity 2</When>
         <Then>Item quantity = 2, cart subtotal decreased</Then>
       </TestCase>
-      <TestCase id="TC-UI-03" type="unit">
-        <Description>Update non-existent item fails</Description>
+      <TestCase id="TC-FUNC-CART-UPDATE-003" type="unit">
+        <Description>Non-existent item returns error</Description>
         <Given>Cart with items</Given>
         <When>UpdateItem with invalid itemId</When>
-        <Then>NOT_FOUND error</Then>
+        <Then>ERR-CART-ITEM-NOT-FOUND error</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-UPDATE-004" type="unit">
+        <Description>Quantity 0 rejected (use remove instead)</Description>
+        <Given>Cart item with quantity 2</Given>
+        <When>UpdateItem with quantity 0</When>
+        <Then>ERR-CART-INVALID-QUANTITY error</Then>
       </TestCase>
     </TestCases>
 
@@ -289,8 +325,8 @@
   <FunctionContract id="FC-cart-removeItem">
     <Metadata>
       <Layer>application</Layer>
-      <UseCase ref="UC-CART-MANAGE"/>
-      <Proto ref="cart_service_v1_1.proto#RemoveItem"/>
+      <UseCase ref="UC-CART-MANAGE" />
+      <Proto ref="cart_service_v1_1.proto#RemoveItem" />
     </Metadata>
 
     <Purpose>
@@ -314,14 +350,17 @@
     </Postconditions>
 
     <BlockAnchors>
-      <Anchor id="BA-CART-REM-FIND" location="CartApplicationService.removeItem">
-        Find cart and validate ownership
+      <Anchor id="BA-CART-REMOVE-01" location="CartApplicationService.removeItem">
+        Load cart and find item
       </Anchor>
-      <Anchor id="BA-CART-REM-ITEM" location="Cart.removeItem">
-        Remove item from items collection
+      <Anchor id="BA-CART-REMOVE-02" location="Cart.removeItem">
+        Remove item from cart
       </Anchor>
-      <Anchor id="BA-CART-REM-EVENT" location="CartApplicationService.removeItem">
-        Publish CartItemRemovedEvent
+      <Anchor id="BA-CART-REMOVE-03" location="Cart.calculateTotals">
+        Recalculate cart totals
+      </Anchor>
+      <Anchor id="BA-CART-REMOVE-04" location="CartApplicationService.removeItem">
+        Persist and publish event
       </Anchor>
     </BlockAnchors>
 
@@ -331,23 +370,23 @@
     </ErrorConditions>
 
     <TestCases>
-      <TestCase id="TC-RI-01" type="unit">
-        <Description>Remove item from cart with multiple items</Description>
+      <TestCase id="TC-FUNC-CART-REMOVE-001" type="unit">
+        <Description>Remove item recalculates totals</Description>
         <Given>Cart with 3 items</Given>
         <When>RemoveItem for item 2</When>
         <Then>Cart has 2 items, subtotal recalculated</Then>
       </TestCase>
-      <TestCase id="TC-RI-02" type="unit">
-        <Description>Remove last item leaves empty cart</Description>
+      <TestCase id="TC-FUNC-CART-REMOVE-002" type="unit">
+        <Description>Remove last item results in empty cart</Description>
         <Given>Cart with 1 item</Given>
         <When>RemoveItem</When>
         <Then>Cart empty, subtotal = 0</Then>
       </TestCase>
-      <TestCase id="TC-RI-03" type="unit">
-        <Description>Remove item recalculates discount eligibility</Description>
-        <Given>Cart with promo code requiring minimum subtotal</Given>
-        <When>RemoveItem drops subtotal below minimum</When>
-        <Then>Promo code removed, discount = 0</Then>
+      <TestCase id="TC-FUNC-CART-REMOVE-003" type="unit">
+        <Description>Non-existent item returns error</Description>
+        <Given>Cart with items</Given>
+        <When>RemoveItem with invalid itemId</When>
+        <Then>ERR-CART-ITEM-NOT-FOUND error</Then>
       </TestCase>
     </TestCases>
 
@@ -364,8 +403,8 @@
   <FunctionContract id="FC-cart-applyPromoCode">
     <Metadata>
       <Layer>application</Layer>
-      <UseCase ref="UC-CART-APPLY-PROMO"/>
-      <Proto ref="cart_service_v1_1.proto#ApplyPromoCode"/>
+      <UseCase ref="UC-CART-APPLY-PROMO" />
+      <Proto ref="cart_service_v1_1.proto#ApplyPromoCode" />
     </Metadata>
 
     <Purpose>
@@ -375,7 +414,8 @@
 
     <Signature>
       <Input>ApplyPromoCodeCommand(customerId, sessionId, promoCode)</Input>
-      <Output>ApplyPromoCodeResult(cart: CartDto, applied: boolean, errorMessage: String?, errorCode: String?)</Output>
+      <Output>ApplyPromoCodeResult(cart: CartDto, applied: boolean, errorMessage: String?,
+        errorCode: String?)</Output>
     </Signature>
 
     <Preconditions>
@@ -392,17 +432,20 @@
     </Postconditions>
 
     <BlockAnchors>
-      <Anchor id="BA-CART-PROMO-VALIDATE" location="CartApplicationService.applyPromoCode">
-        Validate promo code via PricingPort.validatePromoCode
+      <Anchor id="BA-CART-PROMO-01" location="CartApplicationService.applyPromoCode">
+        Load cart and validate not empty
       </Anchor>
-      <Anchor id="BA-CART-PROMO-APPLY" location="Cart.applyPromoCode">
-        Apply validated promo code to cart, set discount
+      <Anchor id="BA-CART-PROMO-02" location="CartApplicationService.applyPromoCode">
+        Call pricing-service.ValidatePromoCode
       </Anchor>
-      <Anchor id="BA-CART-PROMO-TOTALS" location="Cart.calculateTotals">
-        Recalculate totals with discount applied
+      <Anchor id="BA-CART-PROMO-03" location="Cart.applyPromoCode">
+        Apply discount to cart
       </Anchor>
-      <Anchor id="BA-CART-PROMO-EVENT" location="CartApplicationService.applyPromoCode">
-        Publish PromoCodeAppliedEvent
+      <Anchor id="BA-CART-PROMO-04" location="Cart.calculateTotals">
+        Recalculate totals
+      </Anchor>
+      <Anchor id="BA-CART-PROMO-05" location="CartApplicationService.applyPromoCode">
+        Persist and publish event
       </Anchor>
     </BlockAnchors>
 
@@ -415,35 +458,35 @@
     </ErrorConditions>
 
     <TestCases>
-      <TestCase id="TC-AP-01" type="unit">
-        <Description>Apply valid percentage promo code</Description>
+      <TestCase id="TC-FUNC-CART-PROMO-001" type="unit">
+        <Description>Valid promo code applies discount</Description>
         <Given>Cart with subtotal 10000 RUB</Given>
         <When>ApplyPromoCode "SAVE10" (10% off)</When>
         <Then>discount = 1000 RUB, total = 9000 RUB + tax</Then>
       </TestCase>
-      <TestCase id="TC-AP-02" type="unit">
-        <Description>Apply valid fixed amount promo code</Description>
-        <Given>Cart with subtotal 10000 RUB</Given>
-        <When>ApplyPromoCode "FLAT500" (500 RUB off)</When>
-        <Then>discount = 500 RUB</Then>
+      <TestCase id="TC-FUNC-CART-PROMO-002" type="unit">
+        <Description>Invalid promo code returns error with reason</Description>
+        <Given>Cart with items</Given>
+        <When>ApplyPromoCode "INVALID"</When>
+        <Then>applied = false, errorCode = ERR-CART-PROMO-INVALID</Then>
       </TestCase>
-      <TestCase id="TC-AP-03" type="unit">
-        <Description>Replace existing promo code</Description>
+      <TestCase id="TC-FUNC-CART-PROMO-003" type="unit">
+        <Description>Promo code replaces existing promo</Description>
         <Given>Cart with promo "OLD10" applied</Given>
         <When>ApplyPromoCode "NEW20"</When>
         <Then>New promo replaces old, discount recalculated</Then>
       </TestCase>
-      <TestCase id="TC-AP-04" type="unit">
-        <Description>Invalid promo code rejected</Description>
-        <Given>Cart with items</Given>
-        <When>ApplyPromoCode "INVALID"</When>
-        <Then>applied = false, errorCode = PROMO_INVALID</Then>
+      <TestCase id="TC-FUNC-CART-PROMO-004" type="unit">
+        <Description>Empty cart rejects promo application</Description>
+        <Given>Empty cart</Given>
+        <When>ApplyPromoCode "SAVE10"</When>
+        <Then>applied = false, errorCode = ERR-CART-EMPTY</Then>
       </TestCase>
-      <TestCase id="TC-AP-05" type="unit">
-        <Description>Minimum not met rejected</Description>
+      <TestCase id="TC-FUNC-CART-PROMO-005" type="unit">
+        <Description>Minimum order requirement checked</Description>
         <Given>Cart with subtotal 1000 RUB</Given>
         <When>ApplyPromoCode requiring minimum 5000 RUB</When>
-        <Then>applied = false, errorCode = PROMO_MINIMUM_NOT_MET</Then>
+        <Then>applied = false, errorCode = ERR-CART-PROMO-MIN-NOT-MET</Then>
       </TestCase>
     </TestCases>
 
@@ -461,8 +504,8 @@
   <FunctionContract id="FC-cart-removePromoCode">
     <Metadata>
       <Layer>application</Layer>
-      <UseCase ref="UC-CART-APPLY-PROMO"/>
-      <Proto ref="cart_service_v1_1.proto#RemovePromoCode"/>
+      <UseCase ref="UC-CART-APPLY-PROMO" />
+      <Proto ref="cart_service_v1_1.proto#RemovePromoCode" />
     </Metadata>
 
     <Purpose>
@@ -487,8 +530,17 @@
     </Postconditions>
 
     <BlockAnchors>
-      <Anchor id="BA-CART-PROMO-REM" location="Cart.removePromoCode">
-        Clear applied promo code and reset discount
+      <Anchor id="BA-CART-PROMO-REMOVE-01" location="CartApplicationService.removePromoCode">
+        Load cart
+      </Anchor>
+      <Anchor id="BA-CART-PROMO-REMOVE-02" location="Cart.removePromoCode">
+        Remove promo code
+      </Anchor>
+      <Anchor id="BA-CART-PROMO-REMOVE-03" location="Cart.calculateTotals">
+        Recalculate totals
+      </Anchor>
+      <Anchor id="BA-CART-PROMO-REMOVE-04" location="CartApplicationService.removePromoCode">
+        Persist and publish event
       </Anchor>
     </BlockAnchors>
 
@@ -497,14 +549,14 @@
     </ErrorConditions>
 
     <TestCases>
-      <TestCase id="TC-RP-01" type="unit">
-        <Description>Remove applied promo code</Description>
+      <TestCase id="TC-FUNC-CART-PROMO-REMOVE-001" type="unit">
+        <Description>Remove promo code zeroes discount</Description>
         <Given>Cart with promo code applied</Given>
         <When>RemovePromoCode</When>
         <Then>discount = 0, total = subtotal + tax</Then>
       </TestCase>
-      <TestCase id="TC-RP-02" type="unit">
-        <Description>Remove promo from cart with no promo is no-op</Description>
+      <TestCase id="TC-FUNC-CART-PROMO-REMOVE-002" type="unit">
+        <Description>No promo applied returns appropriate response</Description>
         <Given>Cart with no promo code</Given>
         <When>RemovePromoCode</When>
         <Then>Cart unchanged, no error</Then>
@@ -517,6 +569,222 @@
       <Dependency type="port">EventPublisher.publish</Dependency>
     </Dependencies>
   </FunctionContract>
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       FC-cart-clearCart: Clear all items from cart
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContract id="FC-cart-clearCart">
+    <Metadata>
+      <Layer>application</Layer>
+      <UseCase ref="UC-CART-MANAGE" />
+      <Proto ref="cart_service_v1_1.proto#ClearCart" />
+    </Metadata>
+
+    <Purpose>
+      Remove all items from the cart. Removes any applied promo code and
+      resets totals to zero. Cart entity is preserved with ACTIVE status.
+    </Purpose>
+
+    <Signature>
+      <Input>ClearCartCommand(customerId, sessionId)</Input>
+      <Output>CartDto (empty cart)</Output>
+    </Signature>
+
+    <Preconditions>
+      <Condition id="PRE-CC-01">Cart owner identified (customerId or sessionId)</Condition>
+    </Preconditions>
+
+    <Postconditions>
+      <Condition id="POST-CC-01">All items removed from cart</Condition>
+      <Condition id="POST-CC-02">Applied promo code removed</Condition>
+      <Condition id="POST-CC-03">Cart totals reset to zero</Condition>
+      <Condition id="POST-CC-04">Cart status remains ACTIVE</Condition>
+      <Condition id="POST-CC-05">CartClearedEvent published</Condition>
+    </Postconditions>
+
+    <BlockAnchors>
+      <Anchor id="BA-CART-CLEAR-01" location="CartApplicationService.clearCart">
+        Resolve cart from customerId or sessionId
+      </Anchor>
+      <Anchor id="BA-CART-CLEAR-02" location="CartApplicationService.clearCart">
+        Validate cart exists and caller authorized
+      </Anchor>
+      <Anchor id="BA-CART-CLEAR-03" location="Cart.clear">
+        Remove all items from cart
+      </Anchor>
+      <Anchor id="BA-CART-CLEAR-04" location="Cart.clear">
+        Remove applied promo code
+      </Anchor>
+      <Anchor id="BA-CART-CLEAR-05" location="Cart.calculateTotals">
+        Reset cart totals to zero
+      </Anchor>
+      <Anchor id="BA-CART-CLEAR-06" location="CartApplicationService.clearCart">
+        Persist and publish CartClearedEvent
+      </Anchor>
+    </BlockAnchors>
+
+    <ErrorConditions>
+      <Error code="NOT_FOUND">Cart not found</Error>
+    </ErrorConditions>
+
+    <TestCases>
+      <TestCase id="TC-FUNC-CART-CLEAR-001" type="unit">
+        <Description>Clear cart removes all items</Description>
+        <Given>Cart with 3 items</Given>
+        <When>ClearCart called</When>
+        <Then>Cart has 0 items</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-CLEAR-002" type="unit">
+        <Description>Clear cart removes applied promo code</Description>
+        <Given>Cart with promo code applied</Given>
+        <When>ClearCart called</When>
+        <Then>applied_promo_code = null, discount = 0</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-CLEAR-003" type="unit">
+        <Description>Clear cart resets totals to zero</Description>
+        <Given>Cart with subtotal 10000 RUB</Given>
+        <When>ClearCart called</When>
+        <Then>subtotal = 0, tax = 0, total = 0</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-CLEAR-004" type="unit">
+        <Description>Clear empty cart is idempotent</Description>
+        <Given>Empty cart</Given>
+        <When>ClearCart called</When>
+        <Then>Returns empty cart, no error</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-CLEAR-005" type="integration">
+        <Description>CartClearedEvent published with item count</Description>
+        <Given>Cart with 3 items</Given>
+        <When>ClearCart called</When>
+        <Then>CartClearedEvent published with items_removed = 3</Then>
+      </TestCase>
+    </TestCases>
+
+    <Dependencies>
+      <Dependency type="repository">CartRepository.findByOwner</Dependency>
+      <Dependency type="repository">CartRepository.save</Dependency>
+      <Dependency type="port">EventPublisher.publish</Dependency>
+    </Dependencies>
+  </FunctionContract>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       FC-cart-refreshPrices: Refresh price quotes for all items
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContract id="FC-cart-refreshPrices">
+    <Metadata>
+      <Layer>application</Layer>
+      <UseCase ref="UC-CART-MANAGE" />
+      <Proto ref="cart_service_v1_1.proto#RefreshPrices" />
+      <Decision ref="DEC-CART-PRICE-LOCK" />
+    </Metadata>
+
+    <Purpose>
+      Refresh price quotes for all cart items from pricing-service. Clears staleness
+      flags, updates quote IDs and validity timestamps, recalculates totals.
+      If promo code is applied, recalculates discount with new subtotal.
+    </Purpose>
+
+    <Signature>
+      <Input>RefreshPricesCommand(customerId, sessionId)</Input>
+      <Output>RefreshPricesResult(cart, itemsUpdated, totalChanged, previousTotal, priceChangePercent)</Output>
+    </Signature>
+
+    <Preconditions>
+      <Condition id="PRE-RP-01">Cart exists for owner</Condition>
+      <Condition id="PRE-RP-02">Cart has at least one item</Condition>
+    </Preconditions>
+
+    <Postconditions>
+      <Condition id="POST-RP-01">All item prices refreshed from pricing-service</Condition>
+      <Condition id="POST-RP-02">quote_id and quote_valid_until updated per item</Condition>
+      <Condition id="POST-RP-03">price_stale = false for all items</Condition>
+      <Condition id="POST-RP-04">Cart totals recalculated</Condition>
+      <Condition id="POST-RP-05">Promo discount recalculated if applied</Condition>
+      <Condition id="POST-RP-06">CartPricesRefreshedEvent published</Condition>
+    </Postconditions>
+
+    <BlockAnchors>
+      <Anchor id="BA-CART-REFRESH-01" location="CartApplicationService.refreshPrices">
+        Load cart and validate not empty
+      </Anchor>
+      <Anchor id="BA-CART-REFRESH-02" location="CartApplicationService.refreshPrices">
+        Iterate items and call pricing-service.CalculateQuote for each
+      </Anchor>
+      <Anchor id="BA-CART-REFRESH-03" location="CartItem.updatePrice">
+        Update item prices, quote_id, quote_valid_until
+      </Anchor>
+      <Anchor id="BA-CART-REFRESH-04" location="CartItem.clearStaleFlag">
+        Clear price_stale flags
+      </Anchor>
+      <Anchor id="BA-CART-REFRESH-05" location="Cart.calculateTotals">
+        Recalculate cart totals
+      </Anchor>
+      <Anchor id="BA-CART-REFRESH-06" location="Cart.recalculatePromoDiscount">
+        Recalculate promo discount if applied
+      </Anchor>
+      <Anchor id="BA-CART-REFRESH-07" location="CartApplicationService.refreshPrices">
+        Persist and publish CartPricesRefreshedEvent
+      </Anchor>
+    </BlockAnchors>
+
+    <ErrorConditions>
+      <Error code="FAILED_PRECONDITION">Cart is empty</Error>
+      <Error code="NOT_FOUND">Cart not found</Error>
+      <Error code="UNAVAILABLE">Pricing service unavailable</Error>
+      <Error code="PARTIAL_FAILURE">Some items failed to refresh</Error>
+    </ErrorConditions>
+
+    <TestCases>
+      <TestCase id="TC-FUNC-CART-REFRESH-001" type="integration">
+        <Description>Refresh updates all item prices from pricing-service</Description>
+        <Given>Cart with 2 items, pricing-service available</Given>
+        <When>RefreshPrices called</When>
+        <Then>Both items have new quote_id and updated prices</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-002" type="unit">
+        <Description>Refresh clears price_stale flags</Description>
+        <Given>Cart with items where price_stale = true</Given>
+        <When>RefreshPrices called</When>
+        <Then>All items have price_stale = false</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-003" type="unit">
+        <Description>Refresh recalculates cart totals</Description>
+        <Given>Cart with stale prices</Given>
+        <When>RefreshPrices called with price changes</When>
+        <Then>subtotal, tax, total recalculated</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-004" type="unit">
+        <Description>Promo discount recalculated with new subtotal</Description>
+        <Given>Cart with promo "SAVE10" (10%), subtotal changes</Given>
+        <When>RefreshPrices called</When>
+        <Then>Discount recalculated as 10% of new subtotal</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-005" type="integration">
+        <Description>Pricing service timeout uses circuit breaker fallback</Description>
+        <Given>Pricing service unavailable</Given>
+        <When>RefreshPrices called</When>
+        <Then>Circuit breaker triggered, appropriate error returned</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-006" type="unit">
+        <Description>Empty cart returns error</Description>
+        <Given>Empty cart</Given>
+        <When>RefreshPrices called</When>
+        <Then>FAILED_PRECONDITION error</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-REFRESH-007" type="unit">
+        <Description>Response includes total change indicators</Description>
+        <Given>Cart with price changes</Given>
+        <When>RefreshPrices called</When>
+        <Then>totalChanged = true, previousTotal set, priceChangePercent calculated</Then>
+      </TestCase>
+    </TestCases>
+
+    <Dependencies>
+      <Dependency type="port">PricingPort.calculateQuote</Dependency>
+      <Dependency type="repository">CartRepository.findByOwner</Dependency>
+      <Dependency type="repository">CartRepository.save</Dependency>
+      <Dependency type="port">EventPublisher.publish</Dependency>
+    </Dependencies>
+  </FunctionContract>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
        FC-cart-mergeCarts: Merge anonymous cart into authenticated cart
@@ -524,9 +792,9 @@
   <FunctionContract id="FC-cart-mergeCarts">
     <Metadata>
       <Layer>application</Layer>
-      <UseCase ref="UC-CART-MANAGE"/>
-      <Proto ref="cart_service_v1_1.proto#MergeCarts"/>
-      <Decision ref="DEC-CART-MERGE"/>
+      <UseCase ref="UC-CART-MANAGE" />
+      <Proto ref="cart_service_v1_1.proto#MergeCarts" />
+      <Decision ref="DEC-CART-MERGE" />
     </Metadata>
 
     <Purpose>
@@ -538,7 +806,8 @@
 
     <Signature>
       <Input>MergeCartsCommand(customerId, anonymousSessionId)</Input>
-      <Output>MergeCartsResult(mergedCart, itemsFromAnonymous, itemsMerged, itemsAdded, promoCodePreserved, promoCodeSource)</Output>
+      <Output>MergeCartsResult(mergedCart, itemsFromAnonymous, itemsMerged, itemsAdded,
+        promoCodePreserved, promoCodeSource)</Output>
     </Signature>
 
     <Preconditions>
@@ -555,23 +824,26 @@
     </Postconditions>
 
     <BlockAnchors>
-      <Anchor id="BA-CART-MERGE-LOAD" location="CartApplicationService.mergeCarts">
-        Load both carts (authenticated and anonymous)
+      <Anchor id="BA-CART-MERGE-01" location="CartApplicationService.mergeCarts">
+        Load both carts
       </Anchor>
-      <Anchor id="BA-CART-MERGE-MATCH" location="CartMergeService.merge">
+      <Anchor id="BA-CART-MERGE-02" location="CartMergeService.merge">
         Match items by configuration_hash
       </Anchor>
-      <Anchor id="BA-CART-MERGE-SUM" location="CartMergeService.merge">
-        Sum quantities for matching items
+      <Anchor id="BA-CART-MERGE-03" location="CartMergeService.merge">
+        Merge items (sum quantities for matches, add new)
       </Anchor>
-      <Anchor id="BA-CART-MERGE-ADD" location="CartMergeService.merge">
-        Add non-matching items as new
+      <Anchor id="BA-CART-MERGE-04" location="CartMergeService.merge">
+        Resolve promo code precedence
       </Anchor>
-      <Anchor id="BA-CART-MERGE-PROMO" location="CartMergeService.merge">
-        Resolve promo code conflict (auth wins)
+      <Anchor id="BA-CART-MERGE-05" location="CartApplicationService.mergeCarts">
+        Refresh all prices
       </Anchor>
-      <Anchor id="BA-CART-MERGE-STATUS" location="Cart.markMerged">
-        Mark anonymous cart as MERGED
+      <Anchor id="BA-CART-MERGE-06" location="Cart.markMerged">
+        Delete anonymous cart
+      </Anchor>
+      <Anchor id="BA-CART-MERGE-07" location="CartApplicationService.mergeCarts">
+        Persist and publish event
       </Anchor>
     </BlockAnchors>
 
@@ -581,35 +853,35 @@
     </ErrorConditions>
 
     <TestCases>
-      <TestCase id="TC-MC-01" type="unit">
-        <Description>Merge with no overlapping items</Description>
+      <TestCase id="TC-FUNC-CART-MERGE-001" type="unit">
+        <Description>Merge combines items from both carts</Description>
         <Given>Auth cart: [A, B], Anon cart: [C, D]</Given>
         <When>MergeCarts</When>
         <Then>Merged cart: [A, B, C, D], itemsAdded = 2</Then>
       </TestCase>
-      <TestCase id="TC-MC-02" type="unit">
-        <Description>Merge with matching items sums quantities</Description>
+      <TestCase id="TC-FUNC-CART-MERGE-002" type="unit">
+        <Description>Same configuration items have quantities summed</Description>
         <Given>Auth cart: [A qty:2], Anon cart: [A qty:3]</Given>
         <When>MergeCarts</When>
         <Then>Merged cart: [A qty:5], itemsMerged = 1</Then>
       </TestCase>
-      <TestCase id="TC-MC-03" type="unit">
-        <Description>Promo code from auth cart preserved</Description>
+      <TestCase id="TC-FUNC-CART-MERGE-003" type="unit">
+        <Description>Anonymous cart deleted after merge</Description>
+        <Given>Both carts exist</Given>
+        <When>MergeCarts</When>
+        <Then>Anonymous cart status = MERGED</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-MERGE-004" type="unit">
+        <Description>Authenticated promo code preserved</Description>
         <Given>Auth cart: promo "AUTH10", Anon cart: promo "ANON20"</Given>
         <When>MergeCarts</When>
         <Then>promoCodeSource = "AUTHENTICATED", code = "AUTH10"</Then>
       </TestCase>
-      <TestCase id="TC-MC-04" type="unit">
-        <Description>Promo code from anon cart used when auth has none</Description>
+      <TestCase id="TC-FUNC-CART-MERGE-005" type="unit">
+        <Description>Anonymous promo adopted if no auth promo</Description>
         <Given>Auth cart: no promo, Anon cart: promo "ANON20"</Given>
         <When>MergeCarts</When>
         <Then>promoCodeSource = "ANONYMOUS", code = "ANON20"</Then>
-      </TestCase>
-      <TestCase id="TC-MC-05" type="unit">
-        <Description>Anonymous cart marked as MERGED</Description>
-        <Given>Both carts exist</Given>
-        <When>MergeCarts</When>
-        <Then>Anonymous cart status = MERGED</Then>
       </TestCase>
     </TestCases>
 
@@ -628,9 +900,9 @@
   <FunctionContract id="FC-cart-createSnapshot">
     <Metadata>
       <Layer>application</Layer>
-      <UseCase ref="UC-ORDER-PLACE"/>
-      <Proto ref="cart_service_v1_1.proto#CreateSnapshot"/>
-      <Decision ref="DEC-CART-PRICE-LOCK"/>
+      <UseCase ref="UC-ORDER-PLACE" />
+      <Proto ref="cart_service_v1_1.proto#CreateSnapshot" />
+      <Decision ref="DEC-CART-PRICE-LOCK" />
     </Metadata>
 
     <Purpose>
@@ -641,7 +913,8 @@
 
     <Signature>
       <Input>CreateSnapshotCommand(customerId, acknowledgePriceChanges)</Input>
-      <Output>CreateSnapshotResult(snapshotId, cartSnapshot, validUntil, pricesChanged, previousTotal)</Output>
+      <Output>CreateSnapshotResult(snapshotId, cartSnapshot, validUntil, pricesChanged,
+        previousTotal)</Output>
     </Signature>
 
     <Preconditions>
@@ -659,23 +932,23 @@
     </Postconditions>
 
     <BlockAnchors>
-      <Anchor id="BA-CART-SNAP-AUTH" location="CartApplicationService.createSnapshot">
-        Verify customer is authenticated (not session-based)
+      <Anchor id="BA-CART-SNAP-01" location="CartApplicationService.createSnapshot">
+        Load cart and validate not empty
       </Anchor>
-      <Anchor id="BA-CART-SNAP-VALIDATE" location="CartApplicationService.createSnapshot">
-        Validate all item configurations are still valid
+      <Anchor id="BA-CART-SNAP-02" location="CartApplicationService.createSnapshot">
+        Validate all configurations
       </Anchor>
-      <Anchor id="BA-CART-SNAP-REFRESH" location="CartApplicationService.createSnapshot">
-        Refresh all prices from pricing-service
+      <Anchor id="BA-CART-SNAP-03" location="CartApplicationService.createSnapshot">
+        Refresh all prices
       </Anchor>
-      <Anchor id="BA-CART-SNAP-CHANGE" location="CartApplicationService.createSnapshot">
-        Check for price changes, require acknowledgment if changed
+      <Anchor id="BA-CART-SNAP-04" location="Cart.createSnapshot">
+        Create immutable snapshot
       </Anchor>
-      <Anchor id="BA-CART-SNAP-CREATE" location="Cart.createSnapshot">
-        Create immutable CartSnapshot with validity period
+      <Anchor id="BA-CART-SNAP-05" location="Cart.markCheckedOut">
+        Clear original cart (set status CHECKED_OUT)
       </Anchor>
-      <Anchor id="BA-CART-SNAP-STATUS" location="Cart.markCheckedOut">
-        Transition cart to CHECKED_OUT state
+      <Anchor id="BA-CART-SNAP-06" location="CartApplicationService.createSnapshot">
+        Persist and publish event
       </Anchor>
     </BlockAnchors>
 
@@ -688,38 +961,32 @@
     </ErrorConditions>
 
     <TestCases>
-      <TestCase id="TC-CS-01" type="unit">
-        <Description>Create snapshot with stable prices</Description>
+      <TestCase id="TC-FUNC-CART-SNAP-001" type="unit">
+        <Description>Snapshot created with fresh prices</Description>
         <Given>Cart with valid items, prices unchanged</Given>
         <When>CreateSnapshot</When>
         <Then>Snapshot created, pricesChanged = false</Then>
       </TestCase>
-      <TestCase id="TC-CS-02" type="unit">
-        <Description>Create snapshot with price changes acknowledged</Description>
-        <Given>Cart items, prices have changed</Given>
-        <When>CreateSnapshot with acknowledgePriceChanges = true</When>
-        <Then>Snapshot created, pricesChanged = true, previousTotal set</Then>
-      </TestCase>
-      <TestCase id="TC-CS-03" type="unit">
-        <Description>Reject snapshot when prices changed and not acknowledged</Description>
-        <Given>Cart items, prices have changed</Given>
-        <When>CreateSnapshot with acknowledgePriceChanges = false</When>
-        <Then>FAILED_PRECONDITION error</Then>
-      </TestCase>
-      <TestCase id="TC-CS-04" type="unit">
-        <Description>Reject snapshot for anonymous user</Description>
-        <Given>Anonymous cart (session_id only)</Given>
+      <TestCase id="TC-FUNC-CART-SNAP-002" type="unit">
+        <Description>Original cart cleared after snapshot</Description>
+        <Given>Cart with items</Given>
         <When>CreateSnapshot</When>
-        <Then>UNAUTHENTICATED error</Then>
+        <Then>Cart status = CHECKED_OUT</Then>
       </TestCase>
-      <TestCase id="TC-CS-05" type="unit">
-        <Description>Reject snapshot with invalid configurations</Description>
+      <TestCase id="TC-FUNC-CART-SNAP-003" type="unit">
+        <Description>Invalid items prevent snapshot creation</Description>
         <Given>Cart item with validation_status = INVALID</Given>
         <When>CreateSnapshot</When>
-        <Then>FAILED_PRECONDITION error</Then>
+        <Then>ERR-CART-INVALID-ITEMS error</Then>
       </TestCase>
-      <TestCase id="TC-CS-06" type="unit">
-        <Description>Snapshot validity is 15 minutes</Description>
+      <TestCase id="TC-FUNC-CART-SNAP-004" type="unit">
+        <Description>Anonymous cart rejected</Description>
+        <Given>Anonymous cart (session_id only)</Given>
+        <When>CreateSnapshot</When>
+        <Then>ERR-CART-ANONYMOUS error</Then>
+      </TestCase>
+      <TestCase id="TC-FUNC-CART-SNAP-005" type="unit">
+        <Description>Snapshot has validity period</Description>
         <Given>Valid cart</Given>
         <When>CreateSnapshot</When>
         <Then>validUntil = now + 15 minutes</Then>
@@ -740,20 +1007,20 @@
        Summary Statistics
        ═══════════════════════════════════════════════════════════════════════════ -->
   <Statistics>
-    <FunctionContractCount>8</FunctionContractCount>
-    <BlockAnchorCount>28</BlockAnchorCount>
-    <TestCaseCount>32</TestCaseCount>
+    <FunctionContractCount>10</FunctionContractCount>
+    <BlockAnchorCount>41</BlockAnchorCount>
+    <TestCaseCount>44</TestCaseCount>
     <ErrorConditionCount>21</ErrorConditionCount>
     <DependencyCount>35</DependencyCount>
   </Statistics>
 
   <Links>
-    <Link ref="MC-cart-service-domain.xml"/>
-    <Link ref="cart_service_v1_1.proto"/>
-    <Link ref="cart_events.proto"/>
-    <Link ref="Handoff-20260109-01-W1-T6-CartService.xml"/>
-    <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
-    <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
-    <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+    <Link ref="MC-cart-service-domain.xml" />
+    <Link ref="cart_service_v1_1.proto" />
+    <Link ref="cart_events.proto" />
+    <Link ref="Handoff-20260109-01-W1-T6-CartService.xml" />
+    <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
+    <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO" />
+    <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE" />
   </Links>
 </FunctionContracts>

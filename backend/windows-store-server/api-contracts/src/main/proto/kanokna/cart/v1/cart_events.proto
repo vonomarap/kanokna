@@ -125,6 +125,38 @@ message CartCheckedOutEvent {
   string trace_id = 11;
 }
 
+// Event: Cart cleared (all items removed)
+// Topic: cart.cleared
+// Consumers: reporting-service
+message CartClearedEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Cart identifier
+  string cart_id = 2;
+
+  // Customer identifier
+  string customer_id = 3;
+
+  // Session identifier (for anonymous)
+  string session_id = 4;
+
+  // Number of items that were removed
+  int32 items_removed = 5;
+
+  // Subtotal that was cleared
+  kanokna.common.v1.Money cleared_subtotal = 6;
+
+  // Whether a promo code was also removed
+  bool promo_code_removed = 7;
+
+  // When the clear occurred
+  google.protobuf.Timestamp occurred_at = 8;
+
+  // Trace context
+  string trace_id = 9;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CART ITEM EVENTS
 // ═══════════════════════════════════════════════════════════════════════════════
