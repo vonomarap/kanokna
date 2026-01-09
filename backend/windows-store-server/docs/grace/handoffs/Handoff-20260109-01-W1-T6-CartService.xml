@@ -30,7 +30,18 @@
     - Specified 25+ test cases
   ═══════════════════════════════════════════════════════════════════════════════
 -->
-<GRACE_HANDOFF id="Handoff-20260109-01-W1-T6-CartService" version="1.0">
+<GRACE_HANDOFF
+  id="Handoff-20260109-01-W1-T6-CartService"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2026-01-09T10:00:00+03:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W1-T6"
+  planRef="DevelopmentPlan.xml#PHASE-1"
+  blueprintRef="DevelopmentPlan.xml#DP-SVC-cart-service"
+  techRef="Technology.xml#DEC-CART-ANONYMOUS,Technology.xml#DEC-CART-TTL,Technology.xml#DEC-CART-MERGE,Technology.xml#DEC-CART-PRICE-LOCK"
+  requirementsRef="RequirementsAnalysis.xml#UC-CART-MANAGE,RequirementsAnalysis.xml#UC-CART-APPLY-PROMO,RequirementsAnalysis.xml#UC-ORDER-PLACE"
+>
   <Metadata>
     <Title>Cart Service Implementation Blueprint</Title>
     <Service>cart-service</Service>
@@ -42,11 +53,11 @@
     <Author>GRACE-ARCHITECT</Author>
     <Status>PROPOSED</Status>
     <TracesTo>
-      <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
-      <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
-      <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
-      <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service"/>
-      <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment"/>
+      <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
+      <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO" />
+      <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE" />
+      <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+      <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment" />
     </TracesTo>
   </Metadata>
 
@@ -76,8 +87,8 @@
         <Item>Redis key pattern (auth): cart:customer:{customer_id}</Item>
       </Configuration>
       <Links>
-        <Link ref="Technology.xml#TECH-redis"/>
-        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+        <Link ref="Technology.xml#TECH-redis" />
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
       </Links>
     </Decision>
 
@@ -104,14 +115,15 @@
         <Item>Database soft-delete for authenticated carts after 365 days inactivity</Item>
       </Configuration>
       <Links>
-        <Link ref="Technology.xml#TECH-redis"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-notification-service"/>
+        <Link ref="Technology.xml#TECH-redis" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-notification-service" />
       </Links>
     </Decision>
 
     <Decision id="DEC-CART-MERGE" status="PROPOSED">
       <Title>Anonymous to Authenticated Cart Merge Strategy</Title>
-      <Selected>Merge items into authenticated cart with conflict resolution (keep both, sum quantities)</Selected>
+      <Selected>Merge items into authenticated cart with conflict resolution (keep both, sum
+        quantities)</Selected>
       <Alternatives>
         <Alternative>Replace authenticated cart with anonymous cart</Alternative>
         <Alternative>Discard anonymous cart on login</Alternative>
@@ -132,20 +144,22 @@
         <Rule id="MERGE-006">Anonymous cart is deleted after successful merge</Rule>
       </MergeRules>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
       </Links>
     </Decision>
 
     <Decision id="DEC-CART-PRICE-LOCK" status="PROPOSED">
       <Title>Quote Validity and Price Lock Strategy</Title>
-      <Selected>Prices cached per item with 5-minute quote TTL; warn on stale, auto-refresh on checkout</Selected>
+      <Selected>Prices cached per item with 5-minute quote TTL; warn on stale, auto-refresh on
+        checkout</Selected>
       <Alternatives>
         <Alternative>Always fetch fresh prices (no caching)</Alternative>
         <Alternative>Lock prices at add-to-cart time until checkout</Alternative>
         <Alternative>Lock prices for 24 hours</Alternative>
       </Alternatives>
       <Rationale>
-        Cart items store quote_id from pricing-service with 5-minute TTL (per DEC-PRICING-QUOTE-TTL).
+        Cart items store quote_id from pricing-service with 5-minute TTL (per
+        DEC-PRICING-QUOTE-TTL).
         On GetCart, system checks quote validity:
         - If valid: return cached prices
         - If stale: mark items as price_stale=true, return last known prices
@@ -161,8 +175,8 @@
         <Item>Price change acknowledgement required if total differs > 1%</Item>
       </Configuration>
       <Links>
-        <Link ref="Technology.xml#DEC-PRICING-QUOTE-TTL"/>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service"/>
+        <Link ref="Technology.xml#DEC-PRICING-QUOTE-TTL" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
       </Links>
     </Decision>
 
@@ -186,14 +200,14 @@
         <State name="CHECKED_OUT" terminal="true">Snapshot created for order</State>
         <State name="ABANDONED">Inactive past threshold (notification trigger)</State>
         <State name="MERGED" terminal="true">Anonymous cart merged</State>
-        <Transition from="ACTIVE" to="CHECKED_OUT" event="SNAPSHOT_CREATED"/>
-        <Transition from="ACTIVE" to="ABANDONED" event="INACTIVITY_THRESHOLD"/>
-        <Transition from="ABANDONED" to="ACTIVE" event="CART_MODIFIED"/>
-        <Transition from="ACTIVE" to="MERGED" event="CART_MERGED"/>
-        <Transition from="ABANDONED" to="MERGED" event="CART_MERGED"/>
+        <Transition from="ACTIVE" to="CHECKED_OUT" event="SNAPSHOT_CREATED" />
+        <Transition from="ACTIVE" to="ABANDONED" event="INACTIVITY_THRESHOLD" />
+        <Transition from="ABANDONED" to="ACTIVE" event="CART_MODIFIED" />
+        <Transition from="ACTIVE" to="MERGED" event="CART_MERGED" />
+        <Transition from="ABANDONED" to="MERGED" event="CART_MERGED" />
       </StateMachine>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
       </Links>
     </Decision>
 
@@ -219,7 +233,7 @@
         <Item>Validation timeout: 2 seconds (use last known status on timeout)</Item>
       </ValidationBehavior>
       <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service"/>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
       </Links>
     </Decision>
   </TechnologyDecisions>
@@ -252,8 +266,8 @@
       </Responsibilities>
 
       <Dependencies>
-        <ServiceRef ref="DP-SVC-shared-kernel" type="compile"/>
-        <ServiceRef ref="DP-SVC-api-contracts" type="compile"/>
+        <ServiceRef ref="DP-SVC-shared-kernel" type="compile" />
+        <ServiceRef ref="DP-SVC-api-contracts" type="compile" />
         <ServiceRef ref="DP-SVC-catalog-configuration-service" type="grpc">
           ValidateConfiguration - validate item configurations
         </ServiceRef>
@@ -267,7 +281,7 @@
       </Dependencies>
 
       <Database>
-        <Engine ref="Technology.xml#TECH-postgresql"/>
+        <Engine ref="Technology.xml#TECH-postgresql" />
         <Schema>cart</Schema>
         <Tables>
           <Table name="carts">Primary cart records</Table>
@@ -396,11 +410,11 @@
       </DomainEvents>
 
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
-        <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
-        <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
-        <Link ref="Technology.xml#TECH-postgresql"/>
-        <Link ref="Technology.xml#TECH-redis"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
+        <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO" />
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE" />
+        <Link ref="Technology.xml#TECH-postgresql" />
+        <Link ref="Technology.xml#TECH-redis" />
       </Links>
     </Service>
   </ServiceDefinition>
@@ -823,13 +837,13 @@ message CartCheckedOutEvent {
   <FunctionContracts>
     <!-- FC-cart-getCart -->
     <FUNCTION_CONTRACT
-        id="FC-cart-getCart"
-        LAYER="application.service"
-        INTENT="Retrieve cart with current validation status and price staleness flags"
-        INPUT="GetCartCommand (customerId or sessionId)"
-        OUTPUT="CartResponse"
-        SIDE_EFFECTS="Lazy revalidation of item configurations"
-        LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE">
+      id="FC-cart-getCart"
+      LAYER="application.service"
+      INTENT="Retrieve cart with current validation status and price staleness flags"
+      INPUT="GetCartCommand (customerId or sessionId)"
+      OUTPUT="CartResponse"
+      SIDE_EFFECTS="Lazy revalidation of item configurations"
+      LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE">
 
       <PRECONDITIONS>
         <Item>customerId or sessionId is provided (not both empty)</Item>
@@ -850,7 +864,8 @@ message CartCheckedOutEvent {
 
       <ERROR_HANDLING>
         <Item type="BUSINESS" code="ERR-CART-UNAUTHORIZED">Caller not authorized for cart</Item>
-        <Item type="TECHNICAL" code="ERR-CART-CATALOG-UNAVAILABLE">Catalog service unavailable for revalidation</Item>
+        <Item type="TECHNICAL" code="ERR-CART-CATALOG-UNAVAILABLE">Catalog service unavailable for
+          revalidation</Item>
       </ERROR_HANDLING>
 
       <BLOCK_ANCHORS>
@@ -862,9 +877,12 @@ message CartCheckedOutEvent {
       </BLOCK_ANCHORS>
 
       <LOGGING>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-GET-01][STATE=RESOLVE_CART] eventType=GET_CART_REQUEST keyValues=customerId,sessionId</Item>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-GET-03][STATE=REVALIDATE] eventType=ITEM_REVALIDATION keyValues=itemCount,validCount,invalidCount</Item>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-GET-05][STATE=COMPLETE] eventType=GET_CART_COMPLETE keyValues=cartId,itemCount,total</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-GET-01][STATE=RESOLVE_CART]
+          eventType=GET_CART_REQUEST keyValues=customerId,sessionId</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-GET-03][STATE=REVALIDATE]
+          eventType=ITEM_REVALIDATION keyValues=itemCount,validCount,invalidCount</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-GET-05][STATE=COMPLETE]
+          eventType=GET_CART_COMPLETE keyValues=cartId,itemCount,total</Item>
       </LOGGING>
 
       <TESTS>
@@ -878,13 +896,13 @@ message CartCheckedOutEvent {
 
     <!-- FC-cart-addItem -->
     <FUNCTION_CONTRACT
-        id="FC-cart-addItem"
-        LAYER="application.service"
-        INTENT="Add a configured item to cart with price from pricing-service"
-        INPUT="AddItemCommand (customerId/sessionId, productTemplateId, dimensions, options, quantity, quoteId)"
-        OUTPUT="CartResponse with added item"
-        SIDE_EFFECTS="Creates cart if not exists; persists item; publishes CartItemAddedEvent"
-        LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE;DevelopmentPlan.xml#Flow-Config-Pricing">
+      id="FC-cart-addItem"
+      LAYER="application.service"
+      INTENT="Add a configured item to cart with price from pricing-service"
+      INPUT="AddItemCommand (customerId/sessionId, productTemplateId, dimensions, options, quantity, quoteId)"
+      OUTPUT="CartResponse with added item"
+      SIDE_EFFECTS="Creates cart if not exists; persists item; publishes CartItemAddedEvent"
+      LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE;DevelopmentPlan.xml#Flow-Config-Pricing">
 
       <PRECONDITIONS>
         <Item>Configuration is valid (must have been validated by catalog-configuration-service)</Item>
@@ -924,10 +942,14 @@ message CartCheckedOutEvent {
       </BLOCK_ANCHORS>
 
       <LOGGING>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-01][STATE=RESOLVE_CART] eventType=ADD_ITEM_REQUEST keyValues=customerId,productTemplateId,quantity</Item>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-02][STATE=VALIDATE_CONFIG] eventType=CONFIG_VALIDATION decision=VALID|INVALID keyValues=productTemplateId</Item>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-03][STATE=GET_PRICE] eventType=PRICE_QUOTE_CHECK keyValues=quoteId,valid</Item>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-07][STATE=COMPLETE] eventType=ITEM_ADDED decision=SUCCESS keyValues=cartId,itemId,unitPrice,lineTotal</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-01][STATE=RESOLVE_CART]
+          eventType=ADD_ITEM_REQUEST keyValues=customerId,productTemplateId,quantity</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-02][STATE=VALIDATE_CONFIG]
+          eventType=CONFIG_VALIDATION decision=VALID|INVALID keyValues=productTemplateId</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-03][STATE=GET_PRICE]
+          eventType=PRICE_QUOTE_CHECK keyValues=quoteId,valid</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-ADD-07][STATE=COMPLETE]
+          eventType=ITEM_ADDED decision=SUCCESS keyValues=cartId,itemId,unitPrice,lineTotal</Item>
       </LOGGING>
 
       <TESTS>
@@ -942,13 +964,13 @@ message CartCheckedOutEvent {
 
     <!-- FC-cart-updateItem -->
     <FUNCTION_CONTRACT
-        id="FC-cart-updateItem"
-        LAYER="application.service"
-        INTENT="Update cart item quantity and recalculate totals"
-        INPUT="UpdateItemCommand (customerId/sessionId, itemId, newQuantity)"
-        OUTPUT="CartResponse"
-        SIDE_EFFECTS="Persists change; publishes CartItemUpdatedEvent"
-        LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE">
+      id="FC-cart-updateItem"
+      LAYER="application.service"
+      INTENT="Update cart item quantity and recalculate totals"
+      INPUT="UpdateItemCommand (customerId/sessionId, itemId, newQuantity)"
+      OUTPUT="CartResponse"
+      SIDE_EFFECTS="Persists change; publishes CartItemUpdatedEvent"
+      LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE">
 
       <PRECONDITIONS>
         <Item>Item exists in cart</Item>
@@ -976,8 +998,10 @@ message CartCheckedOutEvent {
       </BLOCK_ANCHORS>
 
       <LOGGING>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-UPDATE-01][STATE=LOAD_ITEM] eventType=UPDATE_ITEM_REQUEST keyValues=cartId,itemId,newQuantity</Item>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-UPDATE-05][STATE=COMPLETE] eventType=ITEM_UPDATED decision=SUCCESS keyValues=oldQuantity,newQuantity,newLineTotal</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-UPDATE-01][STATE=LOAD_ITEM]
+          eventType=UPDATE_ITEM_REQUEST keyValues=cartId,itemId,newQuantity</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-UPDATE-05][STATE=COMPLETE]
+          eventType=ITEM_UPDATED decision=SUCCESS keyValues=oldQuantity,newQuantity,newLineTotal</Item>
       </LOGGING>
 
       <TESTS>
@@ -990,13 +1014,13 @@ message CartCheckedOutEvent {
 
     <!-- FC-cart-removeItem -->
     <FUNCTION_CONTRACT
-        id="FC-cart-removeItem"
-        LAYER="application.service"
-        INTENT="Remove item from cart and recalculate totals"
-        INPUT="RemoveItemCommand (customerId/sessionId, itemId)"
-        OUTPUT="CartResponse"
-        SIDE_EFFECTS="Deletes item; publishes CartItemRemovedEvent"
-        LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE">
+      id="FC-cart-removeItem"
+      LAYER="application.service"
+      INTENT="Remove item from cart and recalculate totals"
+      INPUT="RemoveItemCommand (customerId/sessionId, itemId)"
+      OUTPUT="CartResponse"
+      SIDE_EFFECTS="Deletes item; publishes CartItemRemovedEvent"
+      LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE">
 
       <PRECONDITIONS>
         <Item>Cart exists</Item>
@@ -1021,8 +1045,10 @@ message CartCheckedOutEvent {
       </BLOCK_ANCHORS>
 
       <LOGGING>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-REMOVE-01][STATE=LOAD_ITEM] eventType=REMOVE_ITEM_REQUEST keyValues=cartId,itemId</Item>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-REMOVE-04][STATE=COMPLETE] eventType=ITEM_REMOVED decision=SUCCESS keyValues=cartId,itemId</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-REMOVE-01][STATE=LOAD_ITEM]
+          eventType=REMOVE_ITEM_REQUEST keyValues=cartId,itemId</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-REMOVE-04][STATE=COMPLETE]
+          eventType=ITEM_REMOVED decision=SUCCESS keyValues=cartId,itemId</Item>
       </LOGGING>
 
       <TESTS>
@@ -1034,13 +1060,13 @@ message CartCheckedOutEvent {
 
     <!-- FC-cart-applyPromoCode -->
     <FUNCTION_CONTRACT
-        id="FC-cart-applyPromoCode"
-        LAYER="application.service"
-        INTENT="Validate and apply promotional code to cart"
-        INPUT="ApplyPromoCodeCommand (customerId/sessionId, promoCode)"
-        OUTPUT="CartResponse with discount applied"
-        SIDE_EFFECTS="Updates cart; publishes PromoCodeAppliedEvent"
-        LINKS="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO;DevelopmentPlan.xml#DP-SVC-pricing-service">
+      id="FC-cart-applyPromoCode"
+      LAYER="application.service"
+      INTENT="Validate and apply promotional code to cart"
+      INPUT="ApplyPromoCodeCommand (customerId/sessionId, promoCode)"
+      OUTPUT="CartResponse with discount applied"
+      SIDE_EFFECTS="Updates cart; publishes PromoCodeAppliedEvent"
+      LINKS="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO;DevelopmentPlan.xml#DP-SVC-pricing-service">
 
       <PRECONDITIONS>
         <Item>Cart exists and has at least one item</Item>
@@ -1075,9 +1101,12 @@ message CartCheckedOutEvent {
       </BLOCK_ANCHORS>
 
       <LOGGING>
-        <Item>[SVC=cart-service][UC=UC-CART-APPLY-PROMO][BLOCK=BA-CART-PROMO-01][STATE=LOAD_CART] eventType=APPLY_PROMO_REQUEST keyValues=cartId,promoCode</Item>
-        <Item>[SVC=cart-service][UC=UC-CART-APPLY-PROMO][BLOCK=BA-CART-PROMO-02][STATE=VALIDATE_PROMO] eventType=PROMO_VALIDATION decision=VALID|INVALID keyValues=promoCode,discountAmount</Item>
-        <Item>[SVC=cart-service][UC=UC-CART-APPLY-PROMO][BLOCK=BA-CART-PROMO-05][STATE=COMPLETE] eventType=PROMO_APPLIED decision=SUCCESS keyValues=promoCode,discount,newTotal</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-APPLY-PROMO][BLOCK=BA-CART-PROMO-01][STATE=LOAD_CART]
+          eventType=APPLY_PROMO_REQUEST keyValues=cartId,promoCode</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-APPLY-PROMO][BLOCK=BA-CART-PROMO-02][STATE=VALIDATE_PROMO]
+          eventType=PROMO_VALIDATION decision=VALID|INVALID keyValues=promoCode,discountAmount</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-APPLY-PROMO][BLOCK=BA-CART-PROMO-05][STATE=COMPLETE]
+          eventType=PROMO_APPLIED decision=SUCCESS keyValues=promoCode,discount,newTotal</Item>
       </LOGGING>
 
       <TESTS>
@@ -1091,13 +1120,13 @@ message CartCheckedOutEvent {
 
     <!-- FC-cart-removePromoCode -->
     <FUNCTION_CONTRACT
-        id="FC-cart-removePromoCode"
-        LAYER="application.service"
-        INTENT="Remove applied promotional code from cart"
-        INPUT="RemovePromoCodeCommand (customerId/sessionId)"
-        OUTPUT="CartResponse"
-        SIDE_EFFECTS="Updates cart; publishes PromoCodeRemovedEvent"
-        LINKS="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO">
+      id="FC-cart-removePromoCode"
+      LAYER="application.service"
+      INTENT="Remove applied promotional code from cart"
+      INPUT="RemovePromoCodeCommand (customerId/sessionId)"
+      OUTPUT="CartResponse"
+      SIDE_EFFECTS="Updates cart; publishes PromoCodeRemovedEvent"
+      LINKS="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO">
 
       <PRECONDITIONS>
         <Item>Cart exists</Item>
@@ -1130,13 +1159,13 @@ message CartCheckedOutEvent {
 
     <!-- FC-cart-mergeCarts -->
     <FUNCTION_CONTRACT
-        id="FC-cart-mergeCarts"
-        LAYER="application.service"
-        INTENT="Merge anonymous cart into authenticated cart on login"
-        INPUT="MergeCartsCommand (customerId, anonymousSessionId)"
-        OUTPUT="MergeCartsResponse"
-        SIDE_EFFECTS="Merges items; deletes anonymous cart; publishes CartMergedEvent"
-        LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE;Technology.xml#DEC-CART-MERGE">
+      id="FC-cart-mergeCarts"
+      LAYER="application.service"
+      INTENT="Merge anonymous cart into authenticated cart on login"
+      INPUT="MergeCartsCommand (customerId, anonymousSessionId)"
+      OUTPUT="MergeCartsResponse"
+      SIDE_EFFECTS="Merges items; deletes anonymous cart; publishes CartMergedEvent"
+      LINKS="RequirementsAnalysis.xml#UC-CART-MANAGE;Technology.xml#DEC-CART-MERGE">
 
       <PRECONDITIONS>
         <Item>customerId identifies authenticated cart</Item>
@@ -1174,9 +1203,12 @@ message CartCheckedOutEvent {
       </BLOCK_ANCHORS>
 
       <LOGGING>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-MERGE-01][STATE=LOAD_CARTS] eventType=MERGE_CARTS_REQUEST keyValues=customerId,sessionId</Item>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-MERGE-03][STATE=MERGE_ITEMS] eventType=ITEMS_MERGED keyValues=itemsMerged,itemsAdded</Item>
-        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-MERGE-07][STATE=COMPLETE] eventType=CARTS_MERGED decision=SUCCESS keyValues=sourceCartId,targetCartId,totalItems</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-MERGE-01][STATE=LOAD_CARTS]
+          eventType=MERGE_CARTS_REQUEST keyValues=customerId,sessionId</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-MERGE-03][STATE=MERGE_ITEMS]
+          eventType=ITEMS_MERGED keyValues=itemsMerged,itemsAdded</Item>
+        <Item>[SVC=cart-service][UC=UC-CART-MANAGE][BLOCK=BA-CART-MERGE-07][STATE=COMPLETE]
+          eventType=CARTS_MERGED decision=SUCCESS keyValues=sourceCartId,targetCartId,totalItems</Item>
       </LOGGING>
 
       <TESTS>
@@ -1190,13 +1222,13 @@ message CartCheckedOutEvent {
 
     <!-- FC-cart-createSnapshot -->
     <FUNCTION_CONTRACT
-        id="FC-cart-createSnapshot"
-        LAYER="application.service"
-        INTENT="Create immutable cart snapshot for checkout handoff to order-service"
-        INPUT="CreateSnapshotCommand (customerId)"
-        OUTPUT="CartSnapshotResponse (snapshotId, cart_snapshot, valid_until)"
-        SIDE_EFFECTS="Creates snapshot; clears cart; publishes CartCheckedOutEvent"
-        LINKS="RequirementsAnalysis.xml#UC-ORDER-PLACE;DevelopmentPlan.xml#Flow-Checkout-Payment">
+      id="FC-cart-createSnapshot"
+      LAYER="application.service"
+      INTENT="Create immutable cart snapshot for checkout handoff to order-service"
+      INPUT="CreateSnapshotCommand (customerId)"
+      OUTPUT="CartSnapshotResponse (snapshotId, cart_snapshot, valid_until)"
+      SIDE_EFFECTS="Creates snapshot; clears cart; publishes CartCheckedOutEvent"
+      LINKS="RequirementsAnalysis.xml#UC-ORDER-PLACE;DevelopmentPlan.xml#Flow-Checkout-Payment">
 
       <PRECONDITIONS>
         <Item>Customer is authenticated</Item>
@@ -1234,10 +1266,14 @@ message CartCheckedOutEvent {
       </BLOCK_ANCHORS>
 
       <LOGGING>
-        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-01][STATE=LOAD_CART] eventType=CREATE_SNAPSHOT_REQUEST keyValues=customerId,itemCount</Item>
-        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-02][STATE=VALIDATE_ALL] eventType=SNAPSHOT_VALIDATION decision=PASS|FAIL keyValues=validCount,invalidCount</Item>
-        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-03][STATE=REFRESH_PRICES] eventType=PRICES_REFRESHED keyValues=priceChanges,totalChange</Item>
-        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-06][STATE=COMPLETE] eventType=SNAPSHOT_CREATED decision=SUCCESS keyValues=snapshotId,total,validUntil</Item>
+        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-01][STATE=LOAD_CART]
+          eventType=CREATE_SNAPSHOT_REQUEST keyValues=customerId,itemCount</Item>
+        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-02][STATE=VALIDATE_ALL]
+          eventType=SNAPSHOT_VALIDATION decision=PASS|FAIL keyValues=validCount,invalidCount</Item>
+        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-03][STATE=REFRESH_PRICES]
+          eventType=PRICES_REFRESHED keyValues=priceChanges,totalChange</Item>
+        <Item>[SVC=cart-service][UC=UC-ORDER-PLACE][BLOCK=BA-CART-SNAP-06][STATE=COMPLETE]
+          eventType=SNAPSHOT_CREATED decision=SUCCESS keyValues=snapshotId,total,validUntil</Item>
       </LOGGING>
 
       <TESTS>
@@ -1261,14 +1297,15 @@ message CartCheckedOutEvent {
         <Step order="1" from="frontend" to="catalog-configuration-service">ValidateConfiguration</Step>
         <Step order="2" from="frontend" to="pricing-service">CalculateQuote (get quoteId)</Step>
         <Step order="3" from="frontend" to="cart-service">AddItem with configuration + quoteId</Step>
-        <Step order="4" from="cart-service" to="catalog-configuration-service">Re-validate configuration (optional)</Step>
+        <Step order="4" from="cart-service" to="catalog-configuration-service">Re-validate
+          configuration (optional)</Step>
         <Step order="5" from="cart-service" to="pricing-service">Verify/refresh quote</Step>
         <Step order="6" from="cart-service" to="database">Persist cart item</Step>
         <Step order="7" from="cart-service" to="kafka">Publish CartItemAddedEvent</Step>
       </Sequence>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
-        <Link ref="FC-cart-addItem"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
+        <Link ref="FC-cart-addItem" />
       </Links>
     </Flow>
 
@@ -1283,8 +1320,8 @@ message CartCheckedOutEvent {
         <Step order="5" from="cart-service" to="frontend">Return updated cart with discount</Step>
       </Sequence>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
-        <Link ref="FC-cart-applyPromoCode"/>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO" />
+        <Link ref="FC-cart-applyPromoCode" />
       </Links>
     </Flow>
 
@@ -1300,8 +1337,8 @@ message CartCheckedOutEvent {
         <Step order="6" from="cart-service" to="kafka">Publish CartMergedEvent</Step>
       </Sequence>
       <Links>
-        <Link ref="Technology.xml#DEC-CART-MERGE"/>
-        <Link ref="FC-cart-mergeCarts"/>
+        <Link ref="Technology.xml#DEC-CART-MERGE" />
+        <Link ref="FC-cart-mergeCarts" />
       </Links>
     </Flow>
 
@@ -1310,7 +1347,8 @@ message CartCheckedOutEvent {
       <Description>Cart snapshot created for order-service checkout</Description>
       <Sequence>
         <Step order="1" from="frontend" to="cart-service">CreateSnapshot</Step>
-        <Step order="2" from="cart-service" to="catalog-configuration-service">Validate all configurations</Step>
+        <Step order="2" from="cart-service" to="catalog-configuration-service">Validate all
+          configurations</Step>
         <Step order="3" from="cart-service" to="pricing-service">Refresh all prices</Step>
         <Step order="4" from="cart-service" to="database">Create immutable snapshot, clear cart</Step>
         <Step order="5" from="cart-service" to="kafka">Publish CartCheckedOutEvent</Step>
@@ -1318,9 +1356,9 @@ message CartCheckedOutEvent {
         <Step order="7" from="frontend" to="order-service">CreateOrder with snapshotId</Step>
       </Sequence>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
-        <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment"/>
-        <Link ref="FC-cart-createSnapshot"/>
+        <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE" />
+        <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment" />
+        <Link ref="FC-cart-createSnapshot" />
       </Links>
     </Flow>
   </FlowUpdates>
@@ -1555,5 +1593,48 @@ CREATE INDEX idx_cart_snapshots_valid ON cart_snapshots(valid_until);
       <Tests>TC-FUNC-CART-MERGE-*</Tests>
     </Trace>
   </TraceabilityMatrix>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 11: GRACE v2 STRUCTURED METADATA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Scope>
+    <Services>
+      <ServiceRef ref="DP-SVC-cart-service" />
+    </Services>
+    <UseCases>
+      <UseCaseRef ref="UC-CART-MANAGE" />
+      <UseCaseRef ref="UC-CART-APPLY-PROMO" />
+      <UseCaseRef ref="UC-ORDER-PLACE" />
+    </UseCases>
+  </Scope>
+
+  <Artifacts>
+    <Artifact ref="RequirementsAnalysis.xml" version="1.4.0" />
+    <Artifact ref="Technology.xml" version="1.4.0" />
+    <Artifact ref="DevelopmentPlan.xml" version="1.4.0" />
+    <Artifact ref="MC-cart-service-domain.xml" version="1.0.0" />
+    <Artifact ref="FC-cart-service-functions.xml" version="1.0.0" />
+    <Artifact ref="cart_service_v1_1.proto" version="1.1.0" />
+    <Artifact ref="cart_events.proto" version="1.0.0" />
+  </Artifacts>
+
+  <Contracts>
+    <ModuleContractRef id="MC-cart-service-domain" />
+    <FunctionContractRef id="FC-cart-getCart" />
+    <FunctionContractRef id="FC-cart-addItem" />
+    <FunctionContractRef id="FC-cart-updateItem" />
+    <FunctionContractRef id="FC-cart-removeItem" />
+    <FunctionContractRef id="FC-cart-applyPromoCode" />
+    <FunctionContractRef id="FC-cart-removePromoCode" />
+    <FunctionContractRef id="FC-cart-mergeCarts" />
+    <FunctionContractRef id="FC-cart-createSnapshot" />
+    <BlockAnchorRef id="BA-CART-GET-*" />
+    <BlockAnchorRef id="BA-CART-ADD-*" />
+    <BlockAnchorRef id="BA-CART-UPD-*" />
+    <BlockAnchorRef id="BA-CART-REM-*" />
+    <BlockAnchorRef id="BA-CART-PROMO-*" />
+    <BlockAnchorRef id="BA-CART-MERGE-*" />
+    <BlockAnchorRef id="BA-CART-SNAP-*" />
+  </Contracts>
 
 </GRACE_HANDOFF>
