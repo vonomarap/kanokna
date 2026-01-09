@@ -12,6 +12,7 @@ option java_multiple_files = true;
 
 // Domain event: Product template was published and is now available.
 // Topic: catalog.product.published
+// UPDATED: 2026-01-08 - Extended for search-service indexing (ISS-SEARCH-004)
 message ProductTemplatePublishedEvent {
   // Event metadata
   kanokna.common.v1.EventMetadata metadata = 1;
@@ -19,13 +20,13 @@ message ProductTemplatePublishedEvent {
   // Product template identifier
   string product_template_id = 2;
 
-  // Product template name
+  // Product template name (localized, primary language)
   string name = 3;
 
   // Product family (e.g., "windows", "doors")
   string product_family = 4;
 
-  // Base price in default currency
+  // Base price in default currency (minimum configuration price)
   kanokna.common.v1.Money base_price = 5;
 
   // Number of option groups available
@@ -33,6 +34,43 @@ message ProductTemplatePublishedEvent {
 
   // Publication timestamp
   google.protobuf.Timestamp published_at = 7;
+
+  // ─── NEW FIELDS FOR SEARCH INDEXING (v1.1) ───────────────────────────────
+
+  // Product description (localized, primary language)
+  string description = 8;
+
+  // Profile system brand (e.g., "REHAU", "VEKA", "KBE")
+  string profile_system = 9;
+
+  // Available sash opening types (e.g., "tilt", "turn", "tilt-turn", "fixed")
+  repeated string opening_types = 10;
+
+  // Available materials (e.g., "PVC", "aluminum", "wood")
+  repeated string materials = 11;
+
+  // Available colors/laminations (e.g., "white", "anthracite", "golden_oak")
+  repeated string colors = 12;
+
+  // Maximum price for fully configured product
+  kanokna.common.v1.Money max_price = 13;
+
+  // Product status (ACTIVE, DRAFT, ARCHIVED)
+  ProductStatus status = 14;
+
+  // Thumbnail image URL for search results
+  string thumbnail_url = 15;
+
+  // Popularity score (based on views/orders, default 0)
+  int32 popularity = 16;
+}
+
+// Product lifecycle status
+enum ProductStatus {
+  PRODUCT_STATUS_UNSPECIFIED = 0;
+  PRODUCT_STATUS_ACTIVE = 1;
+  PRODUCT_STATUS_DRAFT = 2;
+  PRODUCT_STATUS_ARCHIVED = 3;
 }
 
 // Domain event: Product template was unpublished.
@@ -48,8 +86,10 @@ message ProductTemplateUnpublishedEvent {
   string reason = 3;
 }
 
-// Domain event: Product template was updated.
+// Domain event: Product template was updated (full snapshot for search indexing).
 // Topic: catalog.product.updated
+// UPDATED: 2026-01-08 v1.2.0 - Extended with full search payload (ISS-SEARCH-BLUEPRINT-001)
+// NOTE: Event carries full snapshot to enable search index updates without enrichment
 message ProductTemplateUpdatedEvent {
   // Event metadata
   kanokna.common.v1.EventMetadata metadata = 1;
@@ -57,14 +97,58 @@ message ProductTemplateUpdatedEvent {
   // Product template identifier
   string product_template_id = 2;
 
-  // Fields that were updated
+  // Fields that were updated (for audit/debugging)
   repeated string updated_fields = 3;
 
-  // Whether price changed
+  // Whether price changed (for downstream filtering)
   bool price_changed = 4;
 
-  // Whether options changed
+  // Whether options changed (for downstream filtering)
   bool options_changed = 5;
+
+  // ─── FULL SNAPSHOT FOR SEARCH INDEXING (v1.2.0) ───────────────────────────
+
+  // Product template name (localized, primary language)
+  string name = 6;
+
+  // Product family (e.g., "windows", "doors")
+  string product_family = 7;
+
+  // Product description (localized, primary language)
+  string description = 8;
+
+  // Profile system brand (e.g., "REHAU", "VEKA", "KBE")
+  string profile_system = 9;
+
+  // Available sash opening types (e.g., "tilt", "turn", "tilt-turn", "fixed")
+  repeated string opening_types = 10;
+
+  // Available materials (e.g., "PVC", "aluminum", "wood")
+  repeated string materials = 11;
+
+  // Available colors/laminations (e.g., "white", "anthracite", "golden_oak")
+  repeated string colors = 12;
+
+  // Base price in default currency (minimum configuration price)
+  kanokna.common.v1.Money base_price = 13;
+
+  // Maximum price for fully configured product
+  kanokna.common.v1.Money max_price = 14;
+
+  // Product status (ACTIVE, DRAFT, ARCHIVED)
+  ProductStatus status = 15;
+
+  // Thumbnail image URL for search results
+  string thumbnail_url = 16;
+
+  // Popularity score (based on views/orders, default 0)
+  int32 popularity = 17;
+
+  // Number of option groups available
+  int32 option_group_count = 18;
+
+  // Update timestamp
+  google.protobuf.Timestamp updated_at = 19;
 }
 
 // Domain event: Option pricing was updated.

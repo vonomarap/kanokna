@@ -122,6 +122,7 @@ message GetProductTemplateResponse {
 }
 
 // A product template with configuration options.
+// UPDATED: 2026-01-08 v1.2.0 - Extended with search fields (ISS-SEARCH-BLUEPRINT-003)
 message ProductTemplate {
   // Unique identifier
   string id = 1;
@@ -140,6 +141,46 @@ message ProductTemplate {
 
   // Dimension constraints
   DimensionConstraints dimension_constraints = 6;
+
+  // ─── SEARCH INDEXING FIELDS (v1.2.0 - ISS-SEARCH-BLUEPRINT-003) ───────────
+
+  // Profile system brand (e.g., "REHAU", "VEKA", "KBE")
+  string profile_system = 7;
+
+  // Available sash opening types (e.g., "tilt", "turn", "tilt-turn", "fixed")
+  repeated string opening_types = 8;
+
+  // Available materials (e.g., "PVC", "aluminum", "wood")
+  repeated string materials = 9;
+
+  // Available colors/laminations (e.g., "white", "anthracite", "golden_oak")
+  repeated string colors = 10;
+
+  // Base price in default currency (minimum configuration price)
+  kanokna.common.v1.Money base_price = 11;
+
+  // Maximum price for fully configured product
+  kanokna.common.v1.Money max_price = 12;
+
+  // Product status (ACTIVE, DRAFT, ARCHIVED)
+  ProductTemplateStatus status = 13;
+
+  // Thumbnail image URL for search results
+  string thumbnail_url = 14;
+
+  // Popularity score (based on views/orders)
+  int32 popularity = 15;
+
+  // Number of option groups (for quick access without counting)
+  int32 option_group_count = 16;
+}
+
+// Product template lifecycle status (ISS-SEARCH-BLUEPRINT-003)
+enum ProductTemplateStatus {
+  PRODUCT_TEMPLATE_STATUS_UNSPECIFIED = 0;
+  PRODUCT_TEMPLATE_STATUS_ACTIVE = 1;
+  PRODUCT_TEMPLATE_STATUS_DRAFT = 2;
+  PRODUCT_TEMPLATE_STATUS_ARCHIVED = 3;
 }
 
 // A group of related options (e.g., "Glass Type", "Frame Material").

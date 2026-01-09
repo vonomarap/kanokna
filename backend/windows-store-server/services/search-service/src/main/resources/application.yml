@@ -1,0 +1,72 @@
+server:
+  port: 8089
+
+spring:
+  application:
+    name: search-service
+  config:
+    import: optional:configserver:http://localhost:8888
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+    connection-timeout: 5s
+    socket-timeout: 30s
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: search-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 100
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer
+    properties:
+      schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+
+grpc:
+  server:
+    port: 9089
+  client:
+    catalog-configuration-service:
+      address: static://localhost:9081
+      negotiationType: plaintext
+
+search:
+  index:
+    name: product_templates
+    alias: product_templates
+    version-prefix: product_templates_v
+  reindex:
+    batch-size: 200
+    lock-name: search-service:reindex-lock
+
+kafka:
+  topics:
+    product-published: catalog.product.published
+    product-unpublished: catalog.product.unpublished
+    product-updated: catalog.product.updated
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+
+logging:
+  level:
+    com.kanokna.search: DEBUG
