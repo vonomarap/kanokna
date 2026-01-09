@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  GRACE MODULE CONTRACT: cart-service Domain Layer
+  ═══════════════════════════════════════════════════════════════════════════════
+  Service:         cart-service
+  Layer:           domain
+  Bounded Context: cart
+  Created:         2026-01-09T10:00:00+03:00
+  Version:         1.0.0
+  Handoff:         Handoff-20260109-01-W1-T6-CartService
+  ═══════════════════════════════════════════════════════════════════════════════
+-->
+<ModuleContract id="MC-cart-service-domain" version="1.0.0">
+  <Metadata>
+    <Role>BoundedContext</Role>
+    <Service>cart-service</Service>
+    <Layer>domain</Layer>
+    <BoundedContext>cart</BoundedContext>
+    <Specification>UC-CART-MANAGE;UC-CART-APPLY-PROMO;UC-ORDER-PLACE</Specification>
+    <Author>GRACE-ARCHITECT</Author>
+    <CreatedAt>2026-01-09T10:00:00+03:00</CreatedAt>
+  </Metadata>
+
+  <Purpose>
+    Domain layer for cart-service managing shopping cart aggregate with items,
+    promotional codes, totals calculation, and checkout snapshot preparation.
+    Supports both anonymous (session-based) and authenticated (customer-based) carts.
+  </Purpose>
+
+  <Responsibilities>
+    <Item>Cart aggregate root with items, totals, and applied promo code</Item>
+    <Item>CartItem entity representing configured product in cart</Item>
+    <Item>CartSnapshot aggregate for immutable checkout handoff to order-service</Item>
+    <Item>Configuration snapshot value object storing item configuration at add time</Item>
+    <Item>Price quote reference value object linking to pricing-service quotes</Item>
+    <Item>Cart state machine: ACTIVE -> CHECKED_OUT | ABANDONED | MERGED</Item>
+    <Item>Domain events for cart lifecycle tracking and analytics</Item>
+    <Item>Business rules for quantity constraints, promo code stacking, totals calculation</Item>
+    <Item>Configuration hash computation for merge comparison</Item>
+  </Responsibilities>
+
+  <Aggregates>
+    <Aggregate name="Cart">
+      <Description>Shopping cart aggregate managing items, totals, and promo codes</Description>
+      <Root>Cart</Root>
+      <Entities>
+        <Entity name="CartItem">
+          <Description>Line item with configuration snapshot, quantity, and price</Description>
+          <Fields>
+            <Field name="itemId" type="CartItemId">Unique identifier</Field>
+            <Field name="productTemplateId" type="String">Product reference</Field>
+            <Field name="productName" type="String">Snapshot of product name</Field>
+            <Field name="configurationSnapshot" type="ConfigurationSnapshot">Dimensions + options</Field>
+            <Field name="configurationHash" type="String">SHA-256 hash for merge comparison</Field>
+            <Field name="quantity" type="int">Item quantity (>= 1)</Field>
+            <Field name="unitPrice" type="Money">Price per unit</Field>
+            <Field name="lineTotal" type="Money">unit_price * quantity</Field>
+            <Field name="quoteReference" type="PriceQuoteReference">Link to pricing quote</Field>
+            <Field name="validationStatus" type="ValidationStatus">VALID/INVALID/UNKNOWN</Field>
+            <Field name="thumbnailUrl" type="String">Product image snapshot</Field>
+          </Fields>
+        </Entity>
+      </Entities>
+      <ValueObjects>
+        <ValueObject name="CartId">UUID-based cart identifier</ValueObject>
+        <ValueObject name="CartItemId">UUID-based item identifier</ValueObject>
+        <ValueObject name="ConfigurationSnapshot">
+          Immutable snapshot of configuration at add time:
+          dimensions (width_cm, height_cm), selected_options, resolved_bom
+        </ValueObject>
+        <ValueObject name="PriceQuoteReference">
+          Reference to pricing-service quote:
+          quote_id, valid_until, is_stale()
+        </ValueObject>
+        <ValueObject name="AppliedPromoCode">
+          Promo code details: code, discount_amount, description, applied_at
+        </ValueObject>
+        <ValueObject name="CartTotals">
+          Calculated totals: subtotal, discount, tax, total, item_count
+        </ValueObject>
+      </ValueObjects>
+      <Invariants>
+        <Invariant id="INV-CART-001">Cart must have valid customer_id OR session_id (not both empty)</Invariant>
+        <Invariant id="INV-CART-002">Item quantity must be >= 1</Invariant>
+        <Invariant id="INV-CART-003">Subtotal = sum of all item line_totals</Invariant>
+        <Invariant id="INV-CART-004">Total = subtotal - discount + tax</Invariant>
+        <Invariant id="INV-CART-005">Only one promo code can be applied at a time</Invariant>
+        <Invariant id="INV-CART-006">Discount cannot exceed subtotal</Invariant>
+        <Invariant id="INV-CART-007">Line total = unit_price * quantity</Invariant>
+        <Invariant id="INV-CART-008">item_count = sum of item quantities</Invariant>
+      </Invariants>
+      <Operations>
+        <Operation name="addItem">Add configured item with price</Operation>
+        <Operation name="updateItemQuantity">Change item quantity</Operation>
+        <Operation name="removeItem">Remove item from cart</Operation>
+        <Operation name="clear">Remove all items</Operation>
+        <Operation name="applyPromoCode">Apply validated promo code</Operation>
+        <Operation name="removePromoCode">Remove applied promo code</Operation>
+        <Operation name="mergeFrom">Merge items from another cart</Operation>
+        <Operation name="refreshPrices">Update all item prices</Operation>
+        <Operation name="calculateTotals">Recalculate subtotal, discount, tax, total</Operation>
+        <Operation name="markAbandoned">Transition to ABANDONED state</Operation>
+        <Operation name="createSnapshot">Create immutable checkout snapshot</Operation>
+      </Operations>
+    </Aggregate>
+
+    <Aggregate name="CartSnapshot">
+      <Description>Immutable point-in-time snapshot for checkout handoff to order-service</Description>
+      <Root>CartSnapshot</Root>
+      <Entities>
+        <Entity name="CartSnapshotItem">
+          <Description>Immutable copy of cart item for snapshot</Description>
+        </Entity>
+      </Entities>
+      <ValueObjects>
+        <ValueObject name="SnapshotId">UUID-based snapshot identifier</ValueObject>
+      </ValueObjects>
+      <Invariants>
+        <Invariant id="INV-SNAP-001">Snapshot is immutable after creation</Invariant>
+        <Invariant id="INV-SNAP-002">All items must have VALID configuration status</Invariant>
+        <Invariant id="INV-SNAP-003">All prices must be fresh (refreshed at creation)</Invariant>
+        <Invariant id="INV-SNAP-004">Snapshot expires after validity period (15 minutes)</Invariant>
+        <Invariant id="INV-SNAP-005">Customer must be authenticated (no anonymous snapshots)</Invariant>
+      </Invariants>
+    </Aggregate>
+  </Aggregates>
+
+  <DomainEvents>
+    <Event name="CartCreatedEvent">
+      <Description>New cart created (anonymous or authenticated)</Description>
+      <Fields>cart_id, customer_id, session_id, is_anonymous, created_at</Fields>
+      <Trigger>First item added or explicit cart creation</Trigger>
+    </Event>
+    <Event name="CartItemAddedEvent">
+      <Description>Item added to cart</Description>
+      <Fields>cart_id, item_id, product_template_id, quantity, unit_price, line_total</Fields>
+      <Trigger>addItem operation</Trigger>
+    </Event>
+    <Event name="CartItemUpdatedEvent">
+      <Description>Item quantity changed</Description>
+      <Fields>cart_id, item_id, old_quantity, new_quantity, new_line_total</Fields>
+      <Trigger>updateItemQuantity operation</Trigger>
+    </Event>
+    <Event name="CartItemRemovedEvent">
+      <Description>Item removed from cart</Description>
+      <Fields>cart_id, item_id, product_template_id</Fields>
+      <Trigger>removeItem operation</Trigger>
+    </Event>
+    <Event name="PromoCodeAppliedEvent">
+      <Description>Promo code successfully applied</Description>
+      <Fields>cart_id, promo_code, discount_amount, new_total</Fields>
+      <Trigger>applyPromoCode operation succeeds</Trigger>
+    </Event>
+    <Event name="PromoCodeRemovedEvent">
+      <Description>Promo code removed</Description>
+      <Fields>cart_id, promo_code</Fields>
+      <Trigger>removePromoCode operation</Trigger>
+    </Event>
+    <Event name="CartMergedEvent">
+      <Description>Anonymous cart merged into authenticated cart</Description>
+      <Fields>source_cart_id, target_cart_id, items_merged_count</Fields>
+      <Trigger>mergeFrom operation</Trigger>
+    </Event>
+    <Event name="CartAbandonedEvent">
+      <Description>Cart inactive past threshold (72 hours)</Description>
+      <Fields>cart_id, customer_id, last_activity, item_count, subtotal</Fields>
+      <Trigger>Scheduled job detects inactivity</Trigger>
+    </Event>
+    <Event name="CartCheckedOutEvent">
+      <Description>Cart snapshot created for order</Description>
+      <Fields>cart_id, snapshot_id, customer_id, total, item_count</Fields>
+      <Trigger>createSnapshot operation</Trigger>
+    </Event>
+  </DomainEvents>
+
+  <StateMachine id="CartStateMachine">
+    <Description>Cart state lifecycle for analytics and operations</Description>
+    <States>
+      <State name="ACTIVE" initial="true">Cart accepts modifications</State>
+      <State name="CHECKED_OUT" terminal="true">Snapshot created for order</State>
+      <State name="ABANDONED">Inactive past threshold (notification trigger)</State>
+      <State name="MERGED" terminal="true">Anonymous cart merged</State>
+    </States>
+    <Transitions>
+      <Transition from="ACTIVE" to="CHECKED_OUT" event="SNAPSHOT_CREATED"/>
+      <Transition from="ACTIVE" to="ABANDONED" event="INACTIVITY_THRESHOLD"/>
+      <Transition from="ABANDONED" to="ACTIVE" event="CART_MODIFIED"/>
+      <Transition from="ACTIVE" to="MERGED" event="CART_MERGED"/>
+      <Transition from="ABANDONED" to="MERGED" event="CART_MERGED"/>
+    </Transitions>
+  </StateMachine>
+
+  <DomainServices>
+    <Service name="CartTotalsCalculator">
+      <Description>
+        Calculates cart totals from items: subtotal (sum of line totals),
+        discount (from applied promo), tax (based on region), total.
+      </Description>
+      <Methods>
+        <Method>calculateSubtotal(items): Money</Method>
+        <Method>calculateTax(subtotal, discount, region): Money</Method>
+        <Method>calculateTotal(subtotal, discount, tax): Money</Method>
+      </Methods>
+    </Service>
+    <Service name="ConfigurationHashGenerator">
+      <Description>
+        Generates deterministic SHA-256 hash from configuration for merge comparison.
+        Hash based on: product_template_id + dimensions + sorted selected_options.
+      </Description>
+      <Methods>
+        <Method>generateHash(productTemplateId, dimensions, selectedOptions): String</Method>
+      </Methods>
+    </Service>
+    <Service name="CartMergeService">
+      <Description>
+        Handles merging anonymous cart into authenticated cart.
+        Matches items by configuration_hash, sums quantities for matches.
+      </Description>
+      <Methods>
+        <Method>merge(source: Cart, target: Cart): MergeResult</Method>
+      </Methods>
+    </Service>
+  </DomainServices>
+
+  <Exceptions>
+    <Exception name="CartNotFoundException">Cart does not exist</Exception>
+    <Exception name="CartItemNotFoundException">Item not found in cart</Exception>
+    <Exception name="InvalidQuantityException">Quantity less than 1</Exception>
+    <Exception name="InvalidConfigurationException">Configuration validation failed</Exception>
+    <Exception name="PromoCodeInvalidException">Promo code invalid or expired</Exception>
+    <Exception name="PromoCodeMinimumNotMetException">Order minimum not met for promo</Exception>
+    <Exception name="EmptyCartException">Operation requires non-empty cart</Exception>
+    <Exception name="AnonymousCheckoutException">Anonymous users cannot create snapshots</Exception>
+    <Exception name="InvalidItemsException">Cart contains invalid configurations</Exception>
+    <Exception name="SnapshotExpiredException">Checkout snapshot has expired</Exception>
+  </Exceptions>
+
+  <Context>
+    <Upstream>
+      <Item>cart-service.adapters.in.grpc: gRPC service implementation</Item>
+      <Item>cart-service.adapters.in.web: REST controllers</Item>
+      <Item>cart-service.application.service: Application service orchestration</Item>
+    </Upstream>
+    <Downstream>
+      <Item>cart-service.application.port.out.CartRepository: Persistence port</Item>
+      <Item>cart-service.application.port.out.CartSnapshotRepository: Snapshot persistence</Item>
+      <Item>cart-service.application.port.out.CatalogConfigurationPort: Config validation</Item>
+      <Item>cart-service.application.port.out.PricingPort: Price quote retrieval</Item>
+      <Item>cart-service.application.port.out.EventPublisher: Domain event publishing</Item>
+    </Downstream>
+  </Context>
+
+  <Architecture>
+    <Technology>
+      <Item>Java 25 (records for value objects, sealed interfaces)</Item>
+      <Item>No Spring, JPA, or framework dependencies in domain</Item>
+      <Item>Depends only on shared-kernel (Money, DomainException, etc.)</Item>
+    </Technology>
+    <Patterns>
+      <Item>Aggregate pattern with Cart as root</Item>
+      <Item>Factory pattern for CartSnapshot creation</Item>
+      <Item>Strategy pattern for totals calculation (extensible for partner pricing)</Item>
+      <Item>Value object pattern for immutable configuration snapshots</Item>
+    </Patterns>
+  </Architecture>
+
+  <CrossCutting>
+    <Security>
+      <Item>Customer can only access their own cart (customer_id match)</Item>
+      <Item>Anonymous cart accessed via session_id from HTTP-only cookie</Item>
+      <Item>Snapshot creation requires authenticated customer</Item>
+    </Security>
+    <Observability>
+      <Item>Domain events emitted for all state changes</Item>
+      <Item>Structured logging with GRACE block anchors in application service</Item>
+      <Item>Metrics: cart_items_total, cart_value_total, promo_applications_total</Item>
+    </Observability>
+    <Reliability>
+      <Item>Optimistic locking on Cart aggregate (version field)</Item>
+      <Item>Idempotent operations using item_id for add/update/remove</Item>
+      <Item>Eventual consistency with pricing-service via quote staleness handling</Item>
+    </Reliability>
+  </CrossCutting>
+
+  <Links>
+    <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+    <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO"/>
+    <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service"/>
+    <Link ref="Technology.xml#DEC-CART-STATE-MACHINE"/>
+    <Link ref="Technology.xml#DEC-CART-MERGE"/>
+    <Link ref="Technology.xml#DEC-CART-PRICE-LOCK"/>
+    <Link ref="Handoff-20260109-01-W1-T6-CartService"/>
+  </Links>
+</ModuleContract>

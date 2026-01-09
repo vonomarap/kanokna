@@ -1,0 +1,494 @@
+// cart_service.proto v1.1.0 - Extended for promo codes, merge, and refresh operations
+// GRACE Handoff: Handoff-20260109-01-W1-T6-CartService
+// Changes from v1.0.0:
+//   - Added ApplyPromoCode, RemovePromoCode, MergeCarts, RefreshPrices RPCs
+//   - Added Cart.applied_promo_code, discount, tax, total, status, session_id, item_count fields
+//   - Added CartItem.validation_status, validation_message, price_stale, configuration_hash, quote_valid_until fields
+//   - Added CartStatus and ValidationStatus enums
+//   - Added AppliedPromoCode message
+syntax = "proto3";
+
+package kanokna.cart.v1;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/dimensions.proto";
+import "kanokna/common/v1/money.proto";
+import "kanokna/catalog/v1/catalog_configuration_service.proto";
+
+option java_package = "com.kanokna.cart.v1";
+option java_outer_classname = "CartServiceProto";
+option java_multiple_files = true;
+
+// Service for managing shopping carts.
+// Supports both anonymous (session-based) and authenticated (customer-based) carts.
+service CartService {
+  // Get the current cart for a customer or session.
+  // Creates empty cart if none exists.
+  rpc GetCart(GetCartRequest) returns (GetCartResponse);
+
+  // Add an item to the cart.
+  // Validates configuration and retrieves price quote.
+  rpc AddItem(AddItemRequest) returns (AddItemResponse);
+
+  // Update an existing cart item (quantity change).
+  rpc UpdateItem(UpdateItemRequest) returns (UpdateItemResponse);
+
+  // Remove an item from the cart.
+  rpc RemoveItem(RemoveItemRequest) returns (RemoveItemResponse);
+
+  // Clear all items from the cart.
+  rpc ClearCart(ClearCartRequest) returns (ClearCartResponse);
+
+  // Apply a promotional code to the cart.
+  // Validates code via pricing-service and applies discount.
+  // v1.1.0: New RPC
+  rpc ApplyPromoCode(ApplyPromoCodeRequest) returns (ApplyPromoCodeResponse);
+
+  // Remove applied promotional code from the cart.
+  // v1.1.0: New RPC
+  rpc RemovePromoCode(RemovePromoCodeRequest) returns (RemovePromoCodeResponse);
+
+  // Merge anonymous cart into authenticated cart.
+  // Called after successful login when anonymous cart exists.
+  // Items with same configuration are quantity-summed.
+  // v1.1.0: New RPC
+  rpc MergeCarts(MergeCartsRequest) returns (MergeCartsResponse);
+
+  // Refresh prices for all cart items.
+  // Fetches current quotes from pricing-service.
+  // v1.1.0: New RPC
+  rpc RefreshPrices(RefreshPricesRequest) returns (RefreshPricesResponse);
+
+  // Create a cart snapshot for checkout.
+  // All prices are refreshed, configurations validated.
+  // Original cart is cleared after snapshot creation.
+  rpc CreateSnapshot(CreateSnapshotRequest) returns (CreateSnapshotResponse);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENUMS (v1.1.0)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Cart status enumeration
+// v1.1.0: New enum
+enum CartStatus {
+  CART_STATUS_UNSPECIFIED = 0;
+  // Cart is active and accepts modifications
+  CART_STATUS_ACTIVE = 1;
+  // Cart has been checked out (snapshot created)
+  CART_STATUS_CHECKED_OUT = 2;
+  // Cart is abandoned (inactive past threshold)
+  CART_STATUS_ABANDONED = 3;
+  // Anonymous cart has been merged into authenticated cart
+  CART_STATUS_MERGED = 4;
+}
+
+// Validation status for cart items
+// v1.1.0: New enum
+enum ValidationStatus {
+  VALIDATION_STATUS_UNSPECIFIED = 0;
+  // Configuration is valid
+  VALIDATION_STATUS_VALID = 1;
+  // Configuration is invalid (rules changed since added)
+  VALIDATION_STATUS_INVALID = 2;
+  // Validation status unknown (service unavailable)
+  VALIDATION_STATUS_UNKNOWN = 3;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CORE MESSAGES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Applied promo code details
+// v1.1.0: New message
+message AppliedPromoCode {
+  // The promotional code string
+  string code = 1;
+  // Calculated discount amount
+  kanokna.common.v1.Money discount_amount = 2;
+  // Human-readable description of the discount
+  string description = 3;
+  // When the promo code was applied
+  google.protobuf.Timestamp applied_at = 4;
+}
+
+// Shopping cart with items.
+message Cart {
+  // Unique cart identifier
+  string cart_id = 1;
+
+  // Customer identifier (for authenticated carts)
+  string customer_id = 2;
+
+  // Cart line items
+  repeated CartItem items = 3;
+
+  // Subtotal before discounts and tax (sum of line totals)
+  kanokna.common.v1.Money subtotal = 4;
+
+  // Last modification timestamp
+  google.protobuf.Timestamp updated_at = 5;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // v1.1.0: New fields
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Applied promotional code (if any)
+  AppliedPromoCode applied_promo_code = 6;
+
+  // Total discount amount (from promo code)
+  kanokna.common.v1.Money discount = 7;
+
+  // Tax amount (calculated based on region)
+  kanokna.common.v1.Money tax = 8;
+
+  // Grand total (subtotal - discount + tax)
+  kanokna.common.v1.Money total = 9;
+
+  // Current cart status
+  CartStatus status = 10;
+
+  // Session identifier (for anonymous carts)
+  string session_id = 11;
+
+  // Number of items in cart
+  int32 item_count = 12;
+
+  // When the cart was created
+  google.protobuf.Timestamp created_at = 13;
+}
+
+// An item in the shopping cart.
+message CartItem {
+  // Unique cart item identifier
+  string item_id = 1;
+
+  // Product template identifier
+  string product_template_id = 2;
+
+  // Product template name (snapshot at add time)
+  string product_name = 3;
+
+  // Configured dimensions
+  kanokna.common.v1.Dimensions dimensions = 4;
+
+  // Selected options for this configuration
+  repeated kanokna.catalog.v1.SelectedOption selected_options = 5;
+
+  // Resolved bill of materials
+  kanokna.catalog.v1.BillOfMaterials resolved_bom = 6;
+
+  // Quantity of this item
+  int32 quantity = 7;
+
+  // Unit price (from price quote)
+  kanokna.common.v1.Money unit_price = 8;
+
+  // Line total (unit_price * quantity)
+  kanokna.common.v1.Money line_total = 9;
+
+  // Quote ID for price lock reference
+  string quote_id = 10;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // v1.1.0: New fields
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Current validation status of the configuration
+  ValidationStatus validation_status = 11;
+
+  // Validation error message (if status is INVALID)
+  string validation_message = 12;
+
+  // True if the price quote has expired
+  bool price_stale = 13;
+
+  // Hash of configuration for merge comparison (SHA-256 truncated)
+  string configuration_hash = 14;
+
+  // When the price quote expires
+  google.protobuf.Timestamp quote_valid_until = 15;
+
+  // Product thumbnail URL (snapshot at add time)
+  string thumbnail_url = 16;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GET CART
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Request to get the current cart.
+message GetCartRequest {
+  // Customer identifier (for authenticated users)
+  string customer_id = 1;
+  // Session identifier (for anonymous users)
+  string session_id = 2;
+}
+
+// Response with cart contents.
+message GetCartResponse {
+  // Cart details (empty cart if none exists)
+  Cart cart = 1;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADD ITEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Request to add an item to the cart.
+message AddItemRequest {
+  // Customer identifier (for authenticated users)
+  string customer_id = 1;
+
+  // Session identifier (for anonymous users)
+  string session_id = 2;
+
+  // Product template identifier
+  string product_template_id = 3;
+
+  // Configured dimensions
+  kanokna.common.v1.Dimensions dimensions = 4;
+
+  // Selected options
+  repeated kanokna.catalog.v1.SelectedOption selected_options = 5;
+
+  // Quantity to add
+  int32 quantity = 6;
+
+  // Quote ID from pricing-service (optional, will be fetched if not provided)
+  string quote_id = 7;
+
+  // Resolved BOM from configuration validation
+  kanokna.catalog.v1.BillOfMaterials resolved_bom = 8;
+}
+
+// Response after adding an item.
+message AddItemResponse {
+  // Updated cart
+  Cart cart = 1;
+
+  // Added item identifier
+  string added_item_id = 2;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UPDATE ITEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Request to update a cart item.
+message UpdateItemRequest {
+  // Customer identifier
+  string customer_id = 1;
+
+  // Session identifier (for anonymous users)
+  string session_id = 2;
+
+  // Cart item identifier
+  string item_id = 3;
+
+  // New quantity (must be >= 1)
+  int32 quantity = 4;
+}
+
+// Response after updating an item.
+message UpdateItemResponse {
+  // Updated cart
+  Cart cart = 1;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REMOVE ITEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Request to remove a cart item.
+message RemoveItemRequest {
+  // Customer identifier
+  string customer_id = 1;
+
+  // Session identifier (for anonymous users)
+  string session_id = 2;
+
+  // Cart item identifier
+  string item_id = 3;
+}
+
+// Response after removing an item.
+message RemoveItemResponse {
+  // Updated cart
+  Cart cart = 1;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CLEAR CART
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Request to clear the cart.
+message ClearCartRequest {
+  // Customer identifier
+  string customer_id = 1;
+
+  // Session identifier (for anonymous users)
+  string session_id = 2;
+}
+
+// Response after clearing the cart.
+message ClearCartResponse {
+  // Empty cart
+  Cart cart = 1;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APPLY PROMO CODE (v1.1.0)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Request to apply a promotional code to the cart.
+// v1.1.0: New message
+message ApplyPromoCodeRequest {
+  // Customer identifier
+  string customer_id = 1;
+
+  // Session identifier (for anonymous users)
+  string session_id = 2;
+
+  // Promotional code to apply
+  string promo_code = 3;
+}
+
+// Response after applying promo code.
+// v1.1.0: New message
+message ApplyPromoCodeResponse {
+  // Updated cart with discount applied
+  Cart cart = 1;
+
+  // Whether the promo code was successfully applied
+  bool applied = 2;
+
+  // Error message if not applied (invalid code, expired, minimum not met, etc.)
+  string error_message = 3;
+
+  // Error code for programmatic handling
+  string error_code = 4;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REMOVE PROMO CODE (v1.1.0)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Request to remove applied promo code.
+// v1.1.0: New message
+message RemovePromoCodeRequest {
+  // Customer identifier
+  string customer_id = 1;
+
+  // Session identifier (for anonymous users)
+  string session_id = 2;
+}
+
+// Response after removing promo code.
+// v1.1.0: New message
+message RemovePromoCodeResponse {
+  // Updated cart with discount removed
+  Cart cart = 1;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MERGE CARTS (v1.1.0)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Request to merge anonymous cart into authenticated cart.
+// Called after successful login when anonymous session has cart items.
+// v1.1.0: New message
+message MergeCartsRequest {
+  // Target customer ID (authenticated user)
+  string customer_id = 1;
+
+  // Source session ID (anonymous cart to merge from)
+  string anonymous_session_id = 2;
+}
+
+// Response after merging carts.
+// v1.1.0: New message
+message MergeCartsResponse {
+  // Merged cart (authenticated user's cart with items from anonymous)
+  Cart merged_cart = 1;
+
+  // Number of items that came from anonymous cart
+  int32 items_from_anonymous = 2;
+
+  // Number of items that were quantity-summed (same configuration existed)
+  int32 items_merged = 3;
+
+  // Number of new items added (configuration didn't exist in auth cart)
+  int32 items_added = 4;
+
+  // Whether a promo code was preserved from anonymous cart
+  bool promo_code_preserved = 5;
+
+  // Source of preserved promo code
+  string promo_code_source = 6;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REFRESH PRICES (v1.1.0)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Request to refresh prices for all cart items.
+// v1.1.0: New message
+message RefreshPricesRequest {
+  // Customer identifier
+  string customer_id = 1;
+
+  // Session identifier (for anonymous users)
+  string session_id = 2;
+}
+
+// Response after refreshing prices.
+// v1.1.0: New message
+message RefreshPricesResponse {
+  // Updated cart with fresh prices
+  Cart cart = 1;
+
+  // Number of items whose prices were updated
+  int32 items_updated = 2;
+
+  // Whether the total changed after refresh
+  bool total_changed = 3;
+
+  // Previous total before refresh
+  kanokna.common.v1.Money previous_total = 4;
+
+  // Price change percentage (positive = increase, negative = decrease)
+  double price_change_percent = 5;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CREATE SNAPSHOT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Request to create a checkout snapshot.
+// Requires authenticated user, validates all configurations, refreshes all prices.
+message CreateSnapshotRequest {
+  // Customer identifier (required, must be authenticated)
+  string customer_id = 1;
+
+  // Acknowledge price changes if total differs from last viewed
+  bool acknowledge_price_changes = 2;
+}
+
+// Response with cart snapshot for checkout.
+message CreateSnapshotResponse {
+  // Unique snapshot identifier for order creation
+  string snapshot_id = 1;
+
+  // Immutable snapshot of cart at time of checkout
+  Cart cart_snapshot = 2;
+
+  // Snapshot expiration (order must be created before this time)
+  google.protobuf.Timestamp valid_until = 3;
+
+  // Whether prices changed during snapshot creation
+  bool prices_changed = 4;
+
+  // Previous total (if prices changed)
+  kanokna.common.v1.Money previous_total = 5;
+}

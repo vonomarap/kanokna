@@ -1,0 +1,206 @@
+/* <MODULE_CONTRACT
+    id="MC-search-service-domain"
+    ROLE="DomainModule"
+    SERVICE="search-service"
+    LAYER="domain"
+    BOUNDED_CONTEXT="search"
+    SPECIFICATION="UC-CATALOG-BROWSE">
+
+    <PURPOSE>
+        Provides full-text search, faceted filtering, autocomplete, and product
+        discovery
+        capabilities over the product catalog. Consumes catalog events to maintain a
+        denormalized search index optimized for read performance and low latency
+        queries.
+    </PURPOSE>
+
+    <RESPONSIBILITIES>
+        <Item>Full-text search across product names, descriptions, and keywords</Item>
+        <Item>Faceted filtering by product family, profile system, materials, colors, opening types</Item>
+        <Item>Price range filtering with multi-currency support</Item>
+        <Item>Autocomplete suggestions for product names and categories</Item>
+        <Item>Sorting by relevance, popularity, price, and publication date</Item>
+        <Item>Pagination with configurable page size</Item>
+        <Item>Index management: create, update, delete product documents on catalog events</Item>
+        <Item>Index alias management for zero-downtime reindexing</Item>
+    </RESPONSIBILITIES>
+
+    <INVARIANTS>
+        <Item>Search results only include products with status ACTIVE</Item>
+        <Item>Facet counts reflect current filter state (updated on each query)</Item>
+        <Item>Autocomplete requires minimum 2 characters input</Item>
+        <Item>Page size is bounded: 1 ? pageSize ? 100</Item>
+        <Item>Search index contains only published product templates</Item>
+        <Item>Index documents are eventually consistent with catalog-configuration-service (async)</Item>
+        <Item>Query execution time tracked and logged (target P95 < 200ms)</Item>
+    </INVARIANTS>
+
+    <CONTEXT>
+        <UPSTREAM>
+            <Item>gateway: Routes search API requests from frontend</Item>
+            <Item>catalog-configuration-service (async): Publishes ProductTemplatePublishedEvent,
+                ProductTemplateUnpublishedEvent for indexing</Item>
+        </UPSTREAM>
+        <DOWNSTREAM>
+            <Item>Elasticsearch: Search index storage and query execution</Item>
+            <Item>Kafka: Event consumption from catalog domain events</Item>
+        </DOWNSTREAM>
+    </CONTEXT>
+
+    <ARCHITECTURE>
+        <TECHNOLOGY>
+            <Item>Java 25 (see Technology.xml#TECH-java)</Item>
+            <Item>Spring Boot (see Technology.xml#TECH-spring-boot)</Item>
+            <Item>Elasticsearch 8.x (see Technology.xml#TECH-elasticsearch)</Item>
+            <Item>Spring Data Elasticsearch or Elasticsearch Java Client</Item>
+            <Item>gRPC for inter-service calls (see Technology.xml#TECH-grpc)</Item>
+            <Item>Kafka consumer for event consumption (see Technology.xml#TECH-kafka)</Item>
+        </TECHNOLOGY>
+        <PATTERNS>
+            <Pattern>CQRS read-side: search index as denormalized read model</Pattern>
+            <Pattern>Event-driven indexing via Kafka consumers</Pattern>
+            <Pattern>Index aliasing for zero-downtime deployments</Pattern>
+            <Pattern>Filter context for non-scoring queries (cache optimization)</Pattern>
+        </PATTERNS>
+    </ARCHITECTURE>
+
+    <PUBLIC_API>
+        <!-- gRPC APIs -->
+        <Item>SearchProducts(SearchProductsRequest) > SearchProductsResponse</Item>
+        <Item>GetAutocompleteSuggestions(AutocompleteRequest) > AutocompleteResponse</Item>
+        <Item>GetFacetValues(GetFacetValuesRequest) > GetFacetValuesResponse</Item>
+        <Item>GetProductById(GetProductByIdRequest) > ProductDocument</Item>
+
+        <!-- Internal Use Case Ports -->
+        <Item>SearchProductsUseCase: Full-text search with facets and pagination</Item>
+        <Item>AutocompleteUseCase: Prefix-based suggestions</Item>
+        <Item>IndexProductUseCase: Index/update product from catalog event</Item>
+        <Item>DeleteProductFromIndexUseCase: Remove product from index</Item>
+        <Item>ReindexCatalogUseCase: Full reindex with alias swap</Item>
+    </PUBLIC_API>
+
+    <DOMAIN_MODEL>
+        <Aggregate name="ProductSearchDocument" root="true">
+            <Description>Denormalized product document optimized for search</Description>
+            <Fields>
+                <Field name="id" type="String">Product template ID</Field>
+                <Field name="name" type="LocalizedString">Product name (localized)</Field>
+                <Field name="description" type="LocalizedString">Product description (localized)</Field>
+                <Field name="family" type="String">Product family (windows/doors)</Field>
+                <Field name="profileSystem" type="String">Profile system brand</Field>
+                <Field name="openingTypes" type="List<String>">Sash opening types</Field>
+                <Field name="materials" type="List<String>">Available materials</Field>
+                <Field name="colors" type="List<String>">Available colors/laminations</Field>
+                <Field name="minPrice" type="Money">Minimum base price</Field>
+                <Field name="maxPrice" type="Money">Maximum price</Field>
+                <Field name="popularity" type="Integer">Popularity score</Field>
+                <Field name="status" type="ProductStatus">ACTIVE/DRAFT/ARCHIVED</Field>
+                <Field name="publishedAt" type="Instant">Publication timestamp</Field>
+                <Field name="thumbnailUrl" type="String">Thumbnail image URL</Field>
+                <Field name="optionCount" type="Integer">Number of configurable options</Field>
+                <Field name="suggest" type="CompletionField">Autocomplete suggestions</Field>
+            </Fields>
+        </Aggregate>
+
+        <ValueObject name="SearchQuery">
+            <Description>Encapsulates search request parameters</Description>
+            <Fields>
+                <Field name="queryText" type="String">Full-text search query</Field>
+                <Field name="page" type="Integer">Page number (0-indexed)</Field>
+                <Field name="pageSize" type="Integer">Results per page (1-100)</Field>
+                <Field name="sortField" type="SortField">Sort field enum</Field>
+                <Field name="sortOrder" type="SortOrder">ASC/DESC</Field>
+                <Field name="filters" type="List<FacetFilter>">Facet filters</Field>
+                <Field name="priceRange" type="PriceRange">Optional price range</Field>
+                <Field name="language" type="Language">Content language</Field>
+            </Fields>
+        </ValueObject>
+
+        <ValueObject name="SearchResult">
+            <Description>Encapsulates search response</Description>
+            <Fields>
+                <Field name="products" type="List<ProductSearchDocument>">Matching products</Field>
+                <Field name="totalCount" type="Long">Total matching count</Field>
+                <Field name="page" type="Integer">Current page</Field>
+                <Field name="pageSize" type="Integer">Page size used</Field>
+                <Field name="totalPages" type="Integer">Total pages</Field>
+                <Field name="facets" type="List<FacetAggregation>">Facet buckets</Field>
+                <Field name="queryTimeMs" type="Integer">Execution time in ms</Field>
+            </Fields>
+        </ValueObject>
+    </DOMAIN_MODEL>
+
+    <CROSS_CUTTING>
+        <SECURITY>
+            <Item>Public read access for product search (no authentication required for browsing)</Item>
+            <Item>Admin role required for reindex operations</Item>
+            <Item>Rate limiting on autocomplete endpoint (prevent abuse)</Item>
+        </SECURITY>
+        <RELIABILITY>
+            <Item>Elasticsearch circuit breaker for query failures</Item>
+            <Item>Retry with exponential backoff for transient failures</Item>
+            <Item>Graceful degradation: return cached or empty results if Elasticsearch unavailable</Item>
+            <Item>Idempotent indexing: same event reprocessed produces same document</Item>
+        </RELIABILITY>
+        <OBSERVABILITY>
+            <Item>Structured JSON logs with traceId/spanId/correlationId</Item>
+            <Item>Metrics: search_latency_ms, search_results_count, autocomplete_latency_ms</Item>
+            <Item>Metrics: index_operations_total, index_failures_total</Item>
+            <Item>Metrics: kafka_consumer_lag, events_processed_total</Item>
+            <Item>Health check includes Elasticsearch cluster health</Item>
+        </OBSERVABILITY>
+        <PERFORMANCE>
+            <Item>NFR target: P95 search latency < 200ms</Item>
+            <Item>NFR target: P95 autocomplete latency < 100ms</Item>
+            <Item>Use filter context for non-scoring filters (better caching)</Item>
+            <Item>Limit returned fields to reduce payload size</Item>
+            <Item>Connection pooling for Elasticsearch client</Item>
+            <Item>Query caching enabled in Elasticsearch</Item>
+        </PERFORMANCE>
+    </CROSS_CUTTING>
+
+    <LOGGING>
+        <FORMAT>[SVC=search-service][UC=...][BLOCK=...][STATE=...] eventType=... decision=...
+            keyValues=...</FORMAT>
+        <EXAMPLES>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-SEARCH-QUERY-01][STATE=EXECUTE_QUERY]
+                eventType=SEARCH_QUERY_STARTED keyValues=query="rehau windows",filters=3,page=0</Item>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-SEARCH-QUERY-02][STATE=RESULTS_RETURNED]
+                eventType=SEARCH_QUERY_COMPLETED decision=SUCCESS
+                keyValues=totalHits=42,queryTimeMs=87</Item>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-SEARCH-INDEX-01][STATE=INDEX_DOCUMENT]
+                eventType=PRODUCT_INDEXED keyValues=productId=abc-123,action=UPSERT</Item>
+        </EXAMPLES>
+    </LOGGING>
+
+    <TESTS>
+        <Case id="TC-SEARCH-001">Empty query returns all active products with default pagination</Case>
+        <Case id="TC-SEARCH-002">Full-text query matches products by name and description</Case>
+        <Case id="TC-SEARCH-003">Facet filter by family returns only matching products</Case>
+        <Case id="TC-SEARCH-004">Multiple facet filters use AND logic between groups</Case>
+        <Case id="TC-SEARCH-005">Price range filter returns products within range</Case>
+        <Case id="TC-SEARCH-006">Sorting by popularity returns most popular first</Case>
+        <Case id="TC-SEARCH-007">Pagination returns correct page with total count</Case>
+        <Case id="TC-SEARCH-008">Archived products are excluded from search results</Case>
+        <Case id="TC-SEARCH-009">Facet aggregations update based on current filters</Case>
+        <Case id="TC-SEARCH-010">Query execution time is tracked and logged</Case>
+        <Case id="TC-AUTO-001">Autocomplete returns suggestions for valid prefix</Case>
+        <Case id="TC-AUTO-002">Autocomplete with <2 chars returns empty result</Case>
+        <Case id="TC-AUTO-003">Autocomplete respects family filter</Case>
+        <Case id="TC-INDEX-001">ProductTemplatePublishedEvent creates/updates index document</Case>
+        <Case id="TC-INDEX-002">ProductTemplateUnpublishedEvent removes document from index</Case>
+        <Case id="TC-INDEX-003">Reindex operation uses alias swap for zero downtime</Case>
+    </TESTS>
+
+    <LINKS>
+        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE" />
+        <Link ref="RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
+        <Link ref="DevelopmentPlan.xml#Flow-Event-Driven" />
+        <Link ref="Technology.xml#TECH-elasticsearch" />
+        <Link ref="Technology.xml#TECH-kafka" />
+        <Link ref="Technology.xml#DEC-SEARCH-ENGINE" />
+    </LINKS>
+
+</MODULE_CONTRACT> */
+package com.kanokna.search.domain;

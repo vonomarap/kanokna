@@ -3,7 +3,7 @@
   GRACE HANDOFF: Handoff-20260108-01-W1-T2-AccountService
   ═══════════════════════════════════════════════════════════════════════════════
   Schema Version:  grace-markup-v2
-  Status:          PROPOSED
+  Status:          APPROVED
   Wave:            W1 (CPQ Core)
   Task:            W1-T2 (account-service)
   Created:         2026-01-08T14:20:25+03:00
@@ -23,7 +23,7 @@
 -->
 <GRACE_HANDOFF
     id="Handoff-20260108-01-W1-T2-AccountService"
-    status="PROPOSED"
+    status="APPROVED"
     schemaVersion="grace-markup-v2"
     created="2026-01-08T14:20:25+03:00"
     author="GRACE-ARCHITECT"

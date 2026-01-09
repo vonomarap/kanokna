@@ -6,7 +6,7 @@
 #
 # Links:
 #   - DevelopmentPlan.xml#DP-SVC-search-service
-#   - RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS
+#   - RequirementsAnalysis.xml#UC-CATALOG-BROWSE
 #   - RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY
 #   - Technology.xml#TECH-elasticsearch
 # ============================================================================
@@ -21,72 +21,44 @@ spring:
     password: ${ELASTICSEARCH_PASSWORD:}
     connection-timeout: 5s
     socket-timeout: 30s
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: search-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 100
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer
+    properties:
+      schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
 
 # -----------------------------------------------------------------------------
 # Search Domain Configuration
 # -----------------------------------------------------------------------------
 search:
-  # Index settings
   index:
-    products:
-      name: kanokna-products
-      alias: products
-      shards: 1
-      replicas: 0  # Increase in production
-      refresh-interval: 1s
-
-  # Search settings
-  query:
-    default-page-size: 20
-    max-page-size: 100
-    highlight-enabled: true
-    fuzziness: AUTO
-    min-score: 0.1
-
-  # Facets configuration
-  facets:
-    enabled: true
-    definitions:
-      - field: category
-        type: terms
-        size: 20
-      - field: material
-        type: terms
-        size: 10
-      - field: priceRange
-        type: range
-        ranges:
-          - to: 10000
-          - from: 10000
-            to: 50000
-          - from: 50000
-            to: 100000
-          - from: 100000
-
-  # Autocomplete settings
-  autocomplete:
-    enabled: true
-    min-chars: 2
-    max-suggestions: 10
-    fields:
-      - name
-      - category
-      - tags
-
-  # Reindexing settings
+    name: product_templates
+    alias: product_templates
+    version-prefix: product_templates_v
   reindex:
-    batch-size: 100
-    concurrent-requests: 2
+    batch-size: 200
+    lock-name: search-service:reindex-lock
 
 # -----------------------------------------------------------------------------
 # Kafka Consumer Configuration
 # -----------------------------------------------------------------------------
 kafka:
-  consumer:
-    group-id: search-service
   topics:
     product-published: catalog.product.published
-    catalog-version-published: catalog.version.published
+    product-unpublished: catalog.product.unpublished
+    product-updated: catalog.product.updated
 
 # -----------------------------------------------------------------------------
 # Resilience4j
@@ -108,6 +80,6 @@ resilience4j:
 # -----------------------------------------------------------------------------
 logging:
   level:
-    com.kanokna.search_service.domain: DEBUG
-    com.kanokna.search_service.application: DEBUG
+    com.kanokna.search.domain: DEBUG
+    com.kanokna.search.application: DEBUG
     org.elasticsearch: INFO

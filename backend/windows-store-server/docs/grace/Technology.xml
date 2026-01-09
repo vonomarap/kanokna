@@ -2,13 +2,14 @@
 <!--
   GRACE Canonical Artifact: Technology.xml
   Purpose: Define approved technology stack, versions, and cross-cutting technical decisions
-  Version: 1.2.0
-  Last Updated: 2025-12-31T15:00:00+03:00
-  Changes: v1.2.0 - Added DEC-PRICING-* decisions from Handoff-20251231-02
+  Version: 1.3.0
+  Last Updated: 2026-01-08T23:20:00+03:00
+  Changes: v1.3.0 - Added DEC-DISTRIBUTED-LOCK for search-service reindex (ISS-SEARCH-BLUEPRINT-002)
+           v1.2.0 - Added DEC-PRICING-* decisions from Handoff-20251231-02
            v1.1.0 - Promoted DEC-CATALOG-RULE-ENGINE and DEC-CATALOG-VERSIONING from Handoff-20251230-07
            as architectural patterns DEC-ARCH-RULE-ENGINE-STRATEGY and DEC-ARCH-ENTITY-VERSIONING
 -->
-<Technology version="1.2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<Technology version="1.3.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
        LANGUAGES
@@ -949,6 +950,38 @@
       <Links>
         <Link ref="Technology.xml#TECH-redis" />
         <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-DISTRIBUTED-LOCK" status="APPROVED">
+      <Title>Distributed Lock Mechanism for Cross-Instance Coordination</Title>
+      <Selected>Redis-based distributed locks with Redisson</Selected>
+      <Alternatives>
+        <Alternative>Database advisory locks (requires service-specific DB)</Alternative>
+        <Alternative>Elasticsearch document-based locks (non-standard)</Alternative>
+        <Alternative>ZooKeeper/etcd (additional infrastructure)</Alternative>
+      </Alternatives>
+      <Rationale>
+        Redis is already in the stack (TECH-redis) for caching and rate limiting.
+        Redisson provides reliable distributed locks with TTL, auto-renewal, and
+        fairness options. Used by search-service for reindex coordination to prevent
+        concurrent full reindex operations. Lock TTL set to 30 minutes with renewal
+        to handle long-running reindex jobs safely.
+      </Rationale>
+      <Configuration>
+        <Item>Lock provider: Redisson (RedissonClient)</Item>
+        <Item>Spring Integration: spring-integration-redis DistributedLock abstraction</Item>
+        <Item>Default lock TTL: 30 seconds (auto-renewed for long operations)</Item>
+        <Item>Wait timeout: Configurable per use case (0 for reindex = fail-fast)</Item>
+      </Configuration>
+      <UseCases>
+        <UseCase>FC-search-reindexCatalog: Exclusive lock for catalog reindex</UseCase>
+        <UseCase>Future: Other singleton operations requiring coordination</UseCase>
+      </UseCases>
+      <AddedFor>ISS-SEARCH-BLUEPRINT-002</AddedFor>
+      <Links>
+        <Link ref="Technology.xml#TECH-redis" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
       </Links>
     </Decision>
   </Decisions>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<BlueprintIssueReport ref="Handoff-20260108-02-v2-W1-T5-SearchService" round="2">
+    <ValidationDate>2026-01-08T23:06:21+03:00</ValidationDate>
+    <ValidatedBy>GRACE-COORDINATOR</ValidatedBy>
+    <Status>BLOCKING</Status>
+    <PreviousRound>ISS-SEARCH-001 through ISS-SEARCH-005 (RESOLVED in v2)</PreviousRound>
+
+    <Issue id="ISS-SEARCH-BLUEPRINT-001" severity="BLOCKING">
+        <Description>ProductTemplateUpdatedEvent missing search fields</Description>
+        <Evidence>
+            - FC-search-indexProduct: INPUT="ProductTemplatePublishedEvent (from Kafka)"
+            - TC-FUNC-INDEX-002: "Updated event updates existing document"
+            - catalog_events.proto: ProductTemplateUpdatedEvent exists but lacks
+            description, profile_system, opening_types, materials, colors, max_price,
+            status, thumbnail_url, popularity fields
+            - KafkaConfiguration: catalog.product.updated topic consumes ProductTemplateUpdatedEvent
+        </Evidence>
+        <Impact>Cannot implement TC-FUNC-INDEX-002 without invented data source</Impact>
+        <ProposedFix>
+            OPTION A: Extend ProductTemplateUpdatedEvent to carry full search payload
+            (same as ProductTemplatePublishedEvent)
+            OPTION B: Define that updated event only carries productId + changed fields,
+            and search-service calls catalog gRPC to get full document for re-indexing
+        </ProposedFix>
+        <RequiredAgent>GRACE-ARCHITECT</RequiredAgent>
+    </Issue>
+
+    <Issue id="ISS-SEARCH-BLUEPRINT-002" severity="BLOCKING">
+        <Description>Distributed lock mechanism undefined for reindex</Description>
+        <Evidence>
+            - FC-search-reindexCatalog: INVARIANTS includes "Only one reindex operation
+            can run at a time (distributed lock)"
+            - BA-REINDEX-01: "Acquire distributed lock for reindex"
+            - Technology.xml: No DEC-* for distributed locking mechanism
+            - Handoff dependencies: No lock provider specified
+            - search-service is stateless (no local DB for lock)
+        </Evidence>
+        <Impact>Cannot implement BA-REINDEX-01 without inventing lock mechanism</Impact>
+        <ProposedFix>
+            Add DEC-DISTRIBUTED-LOCK to Technology.xml with options:
+            OPTION A (recommended): Redis-based lock with TTL (Redis already in stack
+            for pricing-service cache)
+            OPTION B: Database advisory lock (requires search-service DB)
+            OPTION C: Elasticsearch doc-based lock (creative but non-standard)
+        </ProposedFix>
+        <RequiredAgent>GRACE-ARCHITECT</RequiredAgent>
+    </Issue>
+
+    <Issue id="ISS-SEARCH-BLUEPRINT-003" severity="BLOCKING">
+        <Description>catalog-configuration-service gRPC missing search fields for reindex</Description>
+        <Evidence>
+            - FC-search-reindexCatalog: BA-REINDEX-03 "Fetch all products from
+            catalog-configuration-service"
+            - ProductSearchDocument requires: profile_system, opening_types, materials,
+            colors, max_price, status, thumbnail_url, popularity
+            - catalog_configuration_service.proto: ListProductTemplates and
+            GetProductTemplate don't include these fields
+        </Evidence>
+        <Impact>Reindex cannot populate facets/search fields correctly</Impact>
+        <ProposedFix>
+            OPTION A: Extend catalog_configuration_service.proto to include all search
+            fields in ProductTemplate response
+            OPTION B: Add dedicated ListProductTemplatesForSearch RPC with full payload
+            OPTION C: Rely on event sourcing only - remove reindex from scope and
+            require manual republish of all events
+        </ProposedFix>
+        <RequiredAgent>GRACE-ARCHITECT</RequiredAgent>
+    </Issue>
+</BlueprintIssueReport>

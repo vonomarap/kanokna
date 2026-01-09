@@ -1,41 +1,92 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   ═══════════════════════════════════════════════════════════════════════════════
-  GRACE HANDOFF: Handoff-20260108-02-W1-T5-SearchService
+  GRACE HANDOFF: Handoff-20260108-02-v2-W1-T5-SearchService
   ═══════════════════════════════════════════════════════════════════════════════
   Schema Version:  grace-markup-v2
   Status:          PROPOSED
   Wave:            W1 (CPQ Core)
-  Task:            W1-T5 (search-service)
+  Task:            W1-T5-FIX (search-service)
   Created:         2026-01-08T18:41:30+03:00
+  Updated:         2026-01-08T20:45:00+03:00
   Author:          GRACE-ARCHITECT
-  Purpose:         Implementation blueprint for search-service Wave 1 deliverables
+  Purpose:         Implementation blueprint for search-service (version 2, all issues resolved)
   ═══════════════════════════════════════════════════════════════════════════════
   
-  This handoff formalizes the architectural blueprint for search-service as part
-  of the Wave 1 CPQ Core vertical slice, enabling:
-  - Full-text search over product catalog
-  - Faceted filtering by product attributes
-  - Autocomplete suggestions for product discovery
-  - Event-driven indexing from catalog-configuration-service
-  
-  The service is STATELESS with no database — Elasticsearch is the only data store.
+  VERSION 2 CHANGES (per W1-T5-FIX):
+  - ISS-SEARCH-001: Flow-ProductSearch added to DevelopmentPlan.xml
+  - ISS-SEARCH-002: Added FC-search-getFacetValues and FC-search-getProductById
+  - ISS-SEARCH-003: Added FC-search-reindexCatalog with alias swap block anchors
+  - ISS-SEARCH-004: Extended ProductTemplatePublishedEvent with all required fields
+  - ISS-SEARCH-005: Updated Flow-Event-Driven with all 3 search events
   
   APPROVAL REQUIRED before Coder agent may proceed with implementation.
   ═══════════════════════════════════════════════════════════════════════════════
 -->
 <GRACE_HANDOFF
-    id="Handoff-20260108-02-W1-T5-SearchService"
+    id="Handoff-20260108-02-v2-W1-T5-SearchService"
     status="PROPOSED"
     schemaVersion="grace-markup-v2"
     created="2026-01-08T18:41:30+03:00"
+    updated="2026-01-08T20:45:00+03:00"
     author="GRACE-ARCHITECT"
-    taskRef="W1-T5"
+    taskRef="W1-T5-FIX"
     planRef="DevelopmentPlan.xml#DP-SVC-search-service"
     blueprintRef="DevelopmentPlan.xml"
     techRef="Technology.xml#TECH-elasticsearch,Technology.xml#TECH-kafka,Technology.xml#DEC-SEARCH-ENGINE"
     requirementsRef="RequirementsAnalysis.xml#UC-CATALOG-BROWSE,RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY"
->
+    previousVersion="Handoff-20260108-02-W1-T5-SearchService">
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- RESOLVED ISSUES: Changes made in this version                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <ResolvedIssues>
+        <Issue id="ISS-SEARCH-001" status="RESOLVED">
+            <Title>Add Flow-ProductSearch to DevelopmentPlan.xml</Title>
+            <Resolution>Added Flow-ProductSearch with 7 steps + autocomplete alternate flow</Resolution>
+            <AffectedArtifacts>
+                <Artifact>DevelopmentPlan.xml</Artifact>
+            </AffectedArtifacts>
+        </Issue>
+
+        <Issue id="ISS-SEARCH-002" status="RESOLVED">
+            <Title>Add missing FUNCTION_CONTRACTs</Title>
+            <Resolution>Added FC-search-getFacetValues and FC-search-getProductById with block
+                anchors BA-FACET-01..04 and BA-GET-01..03</Resolution>
+            <AffectedArtifacts>
+                <Artifact>FC-search-service-functions.xml</Artifact>
+            </AffectedArtifacts>
+        </Issue>
+
+        <Issue id="ISS-SEARCH-003" status="RESOLVED">
+            <Title>Define ReindexCatalogUseCase</Title>
+            <Resolution>Added FC-search-reindexCatalog with ADMIN role requirement, distributed
+                lock, and alias swap block anchors BA-REINDEX-01..06</Resolution>
+            <AffectedArtifacts>
+                <Artifact>FC-search-service-functions.xml</Artifact>
+            </AffectedArtifacts>
+        </Issue>
+
+        <Issue id="ISS-SEARCH-004" status="RESOLVED">
+            <Title>Complete catalog event payload</Title>
+            <Resolution>Extended ProductTemplatePublishedEvent with: description, profile_system,
+                opening_types, materials, colors, max_price, status, thumbnail_url, popularity.
+                Added ProductStatus enum.</Resolution>
+            <AffectedArtifacts>
+                <Artifact>api-contracts/.../catalog_events.proto</Artifact>
+            </AffectedArtifacts>
+        </Issue>
+
+        <Issue id="ISS-SEARCH-005" status="RESOLVED">
+            <Title>Align Flow-Event-Driven with Kafka configuration</Title>
+            <Resolution>Updated catalog-configuration-service producer and search-service consumer
+                to include ProductTemplatePublishedEvent, ProductTemplateUnpublishedEvent, and
+                ProductTemplateUpdatedEvent with action descriptions.</Resolution>
+            <AffectedArtifacts>
+                <Artifact>DevelopmentPlan.xml</Artifact>
+            </AffectedArtifacts>
+        </Issue>
+    </ResolvedIssues>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <!-- SCOPE: Services and Use Cases covered by this handoff                   -->
@@ -62,7 +113,7 @@
 
         <Flows>
             <FlowRef ref="Flow-Event-Driven">Consumer of ProductTemplatePublishedEvent for indexing</FlowRef>
-            <FlowRef ref="Flow-ProductSearch">NEW: User product search flow</FlowRef>
+            <FlowRef ref="Flow-ProductSearch">NEW: User product search flow (ISS-SEARCH-001)</FlowRef>
         </Flows>
 
         <Aggregates>
@@ -76,7 +127,10 @@
     <Artifacts>
         <Artifact ref="RequirementsAnalysis.xml" version="1.0.0" />
         <Artifact ref="Technology.xml" version="1.2.0" />
-        <Artifact ref="DevelopmentPlan.xml" version="1.4.0" />
+        <Artifact ref="DevelopmentPlan.xml" version="1.5.0"
+            note="Updated: Flow-ProductSearch, Flow-Event-Driven" />
+        <Artifact ref="catalog_events.proto" version="1.1.0"
+            note="Updated: Extended ProductTemplatePublishedEvent" />
     </Artifacts>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -85,26 +139,60 @@
     <Contracts>
         <ModuleContractRef id="MC-search-service-domain" status="PROPOSED" />
 
+        <!-- Original function contracts -->
         <FunctionContractRef id="FC-search-searchProducts" status="PROPOSED" />
         <FunctionContractRef id="FC-search-autocomplete" status="PROPOSED" />
         <FunctionContractRef id="FC-search-indexProduct" status="PROPOSED" />
         <FunctionContractRef id="FC-search-deleteProduct" status="PROPOSED" />
 
+        <!-- NEW: Added per ISS-SEARCH-002 -->
+        <FunctionContractRef id="FC-search-getFacetValues" status="PROPOSED" note="ISS-SEARCH-002" />
+        <FunctionContractRef id="FC-search-getProductById" status="PROPOSED" note="ISS-SEARCH-002" />
+
+        <!-- NEW: Added per ISS-SEARCH-003 -->
+        <FunctionContractRef id="FC-search-reindexCatalog" status="PROPOSED" note="ISS-SEARCH-003" />
+
+        <!-- Block Anchors: SearchProducts -->
         <BlockAnchorRef id="BA-SEARCH-QUERY-01" />
         <BlockAnchorRef id="BA-SEARCH-QUERY-02" />
         <BlockAnchorRef id="BA-SEARCH-QUERY-03" />
         <BlockAnchorRef id="BA-SEARCH-QUERY-04" />
+
+        <!-- Block Anchors: Autocomplete -->
         <BlockAnchorRef id="BA-AUTO-01" />
         <BlockAnchorRef id="BA-AUTO-02" />
         <BlockAnchorRef id="BA-AUTO-03" />
         <BlockAnchorRef id="BA-AUTO-04" />
+
+        <!-- Block Anchors: IndexProduct -->
         <BlockAnchorRef id="BA-INDEX-01" />
         <BlockAnchorRef id="BA-INDEX-02" />
         <BlockAnchorRef id="BA-INDEX-03" />
         <BlockAnchorRef id="BA-INDEX-04" />
+
+        <!-- Block Anchors: DeleteProduct -->
         <BlockAnchorRef id="BA-DELETE-01" />
         <BlockAnchorRef id="BA-DELETE-02" />
         <BlockAnchorRef id="BA-DELETE-03" />
+
+        <!-- NEW Block Anchors: GetFacetValues (ISS-SEARCH-002) -->
+        <BlockAnchorRef id="BA-FACET-01" />
+        <BlockAnchorRef id="BA-FACET-02" />
+        <BlockAnchorRef id="BA-FACET-03" />
+        <BlockAnchorRef id="BA-FACET-04" />
+
+        <!-- NEW Block Anchors: GetProductById (ISS-SEARCH-002) -->
+        <BlockAnchorRef id="BA-GET-01" />
+        <BlockAnchorRef id="BA-GET-02" />
+        <BlockAnchorRef id="BA-GET-03" />
+
+        <!-- NEW Block Anchors: ReindexCatalog (ISS-SEARCH-003) -->
+        <BlockAnchorRef id="BA-REINDEX-01" />
+        <BlockAnchorRef id="BA-REINDEX-02" />
+        <BlockAnchorRef id="BA-REINDEX-03" />
+        <BlockAnchorRef id="BA-REINDEX-04" />
+        <BlockAnchorRef id="BA-REINDEX-05" />
+        <BlockAnchorRef id="BA-REINDEX-06" />
     </Contracts>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -113,7 +201,7 @@
     <ApiContracts>
         <Contract type="gRPC"
             path="api-contracts/src/main/proto/kanokna/search/v1/search_service.proto">
-            <Description>NEW: gRPC service definition for search operations</Description>
+            <Description>gRPC service definition for search operations</Description>
             <Methods>
                 <Method>SearchProducts</Method>
                 <Method>GetAutocompleteSuggestions</Method>
@@ -122,10 +210,11 @@
             </Methods>
         </Contract>
         <Contract type="event"
-            path="api-contracts/src/main/proto/kanokna/catalog/v1/catalog_events.proto">
-            <Description>Consumed events for indexing</Description>
+            path="api-contracts/src/main/proto/kanokna/catalog/v1/catalog_events.proto"
+            version="1.1.0">
+            <Description>Consumed events for indexing (UPDATED: ISS-SEARCH-004)</Description>
             <Events>
-                <Event>ProductTemplatePublishedEvent</Event>
+                <Event>ProductTemplatePublishedEvent (extended with all search fields)</Event>
                 <Event>ProductTemplateUnpublishedEvent</Event>
                 <Event>ProductTemplateUpdatedEvent</Event>
             </Events>
@@ -167,6 +256,7 @@
                 <Package>com.kanokna.search.adapters.in.grpc</Package>
                 <Package>com.kanokna.search.adapters.in.kafka</Package>
                 <Package>com.kanokna.search.adapters.out.elasticsearch</Package>
+                <Package>com.kanokna.search.adapters.out.catalog</Package>
                 <Package>com.kanokna.search.adapters.config</Package>
             </Layer>
         </PackageLayout>
@@ -209,70 +299,6 @@
     </ElasticsearchIndexMapping>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- DECISIONS SNAPSHOT: Architectural decisions for this task               -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <DecisionsSnapshot>
-        <Decision id="DEC-SEARCH-INDEX-MAPPING" status="APPROVED">
-            <Title>Elasticsearch Index Mapping Strategy</Title>
-            <Selected>Flat mapping with keyword facet fields</Selected>
-            <Alternatives>
-                <Alternative>Nested mapping for hierarchical attributes</Alternative>
-            </Alternatives>
-            <Rationale>
-                Flat mapping is simpler, provides faster query performance, and is sufficient
-                for current faceting requirements. Nested mapping adds complexity and is only
-                needed for complex parent-child relationships within a document.
-            </Rationale>
-        </Decision>
-
-        <Decision id="DEC-SEARCH-REINDEX-STRATEGY" status="APPROVED">
-            <Title>Reindexing Strategy</Title>
-            <Selected>Alias swap with versioned indices</Selected>
-            <Alternatives>
-                <Alternative>In-place reindex with update-by-query</Alternative>
-                <Alternative>Delete and recreate index</Alternative>
-            </Alternatives>
-            <Rationale>
-                Alias swap provides zero-downtime reindexing. New index is built completely
-                before alias is switched. Allows rollback by pointing alias to previous version.
-                Pattern: product_templates_v1, product_templates_v2, alias: product_templates.
-            </Rationale>
-        </Decision>
-
-        <Decision id="DEC-SEARCH-CACHE-STRATEGY" status="APPROVED">
-            <Title>Search Result Caching Strategy</Title>
-            <Selected>Elasticsearch query cache only (no Redis cache)</Selected>
-            <Alternatives>
-                <Alternative>Redis cache for hot queries</Alternative>
-                <Alternative>Application-level cache with TTL</Alternative>
-            </Alternatives>
-            <Rationale>
-                Elasticsearch's built-in query cache is efficient for repeated queries.
-                Adding Redis introduces complexity and potential cache invalidation issues.
-                Can be added later if P95 latency targets are not met.
-            </Rationale>
-        </Decision>
-
-        <Decision id="DEC-SEARCH-ES-CLIENT" status="APPROVED">
-            <Title>Elasticsearch Client Library</Title>
-            <Selected>Elasticsearch Java Client (new client, not deprecated RestHighLevelClient)</Selected>
-            <Alternatives>
-                <Alternative>Spring Data Elasticsearch</Alternative>
-                <Alternative>RestHighLevelClient (deprecated)</Alternative>
-            </Alternatives>
-            <Rationale>
-                The new Elasticsearch Java Client is the recommended approach for ES 8.x.
-                Spring Data Elasticsearch adds abstraction but may lag behind ES releases.
-                Direct client provides full control and access to latest features.
-            </Rationale>
-        </Decision>
-
-        <!-- References to global decisions -->
-        <DecisionRef ref="Technology.xml#DEC-SEARCH-ENGINE" note="Elasticsearch 8.x selected" />
-        <DecisionRef ref="Technology.xml#DEC-EVENT-SERIALIZATION" note="Protobuf for Kafka events" />
-    </DecisionsSnapshot>
-
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <!-- KAFKA CONSUMER CONFIGURATION                                            -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <KafkaConfiguration>
@@ -300,7 +326,7 @@
         <ErrorHandling>
             <Item>Retry transient failures with exponential backoff</Item>
             <Item>Dead letter topic for poison messages after 3 retries</Item>
-            <Item>Log and skip invalid events (don't block consumer)</Item>
+            <Item>Log and skip invalid events (do not block consumer)</Item>
         </ErrorHandling>
     </KafkaConfiguration>
 
@@ -309,30 +335,38 @@
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <Verification>
         <TestCounts>
-            <Unit minimum="15">Domain and application service tests</Unit>
-            <Slice minimum="5">Elasticsearch integration tests</Slice>
+            <Unit minimum="25">Domain and application service tests (increased for new FCs)</Unit>
+            <Slice minimum="7">Elasticsearch integration tests</Slice>
             <Integration minimum="5">Testcontainers with Elasticsearch + Kafka</Integration>
             <Contract minimum="2">gRPC contract validation against proto</Contract>
         </TestCounts>
 
         <TestCases>
-            <!-- From MODULE_CONTRACT -->
-            <TestCaseRef id="TC-SEARCH-001" through="TC-SEARCH-010" />
-            <TestCaseRef id="TC-AUTO-001" through="TC-AUTO-003" />
-            <TestCaseRef id="TC-INDEX-001" through="TC-INDEX-003" />
-            <!-- From FUNCTION_CONTRACTs -->
+            <!-- FC-search-searchProducts -->
             <TestCaseRef id="TC-FUNC-SEARCH-001" through="TC-FUNC-SEARCH-010" />
+            <!-- FC-search-autocomplete -->
             <TestCaseRef id="TC-FUNC-AUTO-001" through="TC-FUNC-AUTO-005" />
+            <!-- FC-search-indexProduct -->
             <TestCaseRef id="TC-FUNC-INDEX-001" through="TC-FUNC-INDEX-005" />
+            <!-- FC-search-deleteProduct -->
             <TestCaseRef id="TC-FUNC-DELETE-001" through="TC-FUNC-DELETE-003" />
+            <!-- FC-search-getFacetValues (NEW) -->
+            <TestCaseRef id="TC-FUNC-FACET-001" through="TC-FUNC-FACET-005" />
+            <!-- FC-search-getProductById (NEW) -->
+            <TestCaseRef id="TC-FUNC-GET-001" through="TC-FUNC-GET-004" />
+            <!-- FC-search-reindexCatalog (NEW) -->
+            <TestCaseRef id="TC-FUNC-REINDEX-001" through="TC-FUNC-REINDEX-006" />
         </TestCases>
 
         <AcceptanceGates>
-            <Gate>All unit tests pass (15+ tests)</Gate>
+            <Gate>All unit tests pass (25+ tests)</Gate>
             <Gate>gRPC adapter implements all proto methods correctly</Gate>
             <Gate>ArchUnit rules pass (domain layer framework-free)</Gate>
             <Gate>Integration test: index product from Kafka event</Gate>
             <Gate>Integration test: search returns indexed products</Gate>
+            <Gate>Integration test: GetFacetValues returns facet buckets</Gate>
+            <Gate>Integration test: GetProductById returns single document</Gate>
+            <Gate>Integration test: reindex swaps alias atomically</Gate>
             <Gate>P95 search latency &lt; 200ms (load test with 100 concurrent queries)</Gate>
             <Gate>Kafka consumer processes events without errors</Gate>
             <Gate>Health check includes Elasticsearch cluster status</Gate>
@@ -340,83 +374,21 @@
     </Verification>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- IMPLEMENTATION GUIDANCE                                                 -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <ImplementationGuidance>
-        <Pattern>Follow existing catalog-configuration-service and pricing-service structure</Pattern>
-        <Pattern>Use shared-kernel value objects: Money, Language</Pattern>
-        <Pattern>Domain layer must be framework-free (ArchUnit enforced)</Pattern>
-        <Pattern>Elasticsearch client: Use new Elasticsearch Java Client (co.elastic.clients)</Pattern>
-        <Pattern>Kafka consumer: Spring Kafka with Protobuf deserializer</Pattern>
-        <Pattern>Index alias pattern: product_templates_v1, product_templates_v2, alias:
-            product_templates</Pattern>
-        <Pattern>Use filter context for non-scoring filters (facets, status) for better caching</Pattern>
-
-        <Logging
-            format="[SVC=search-service][UC=...][BLOCK=...][STATE=...] eventType=... keyValues=...">
-            <Item>Include traceId, spanId, correlationId from MDC</Item>
-            <Item>Use structured JSON logging (Logstash encoder)</Item>
-            <Item>Log query execution time for all search operations</Item>
-        </Logging>
-
-        <Dependencies>
-            <Item>shared-kernel (compile): Value objects (Money, Language)</Item>
-            <Item>api-contracts (compile): gRPC stubs from search_service.proto</Item>
-            <Item>api-contracts (compile): Protobuf events from catalog_events.proto</Item>
-            <Item>External: Elasticsearch 8.x cluster</Item>
-            <Item>External: Kafka for event consumption</Item>
-        </Dependencies>
-
-        <PerformanceOptimizations>
-            <Item>Elasticsearch query caching enabled</Item>
-            <Item>Use filter context for status=ACTIVE filter (always applied)</Item>
-            <Item>Limit returned fields via source filtering</Item>
-            <Item>Connection pooling for Elasticsearch client</Item>
-            <Item>Async bulk indexing for batch operations</Item>
-        </PerformanceOptimizations>
-    </ImplementationGuidance>
-
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- OPEN ITEMS: Requiring attention during implementation                   -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <OpenItems>
-        <Item id="OPEN-SEARCH-01" priority="LOW">
-            Localization strategy for name/description: Current design stores single language.
-            If multi-language support needed, consider separate fields per language or
-            separate indices per language.
-        </Item>
-        <Item id="OPEN-SEARCH-02" priority="LOW">
-            Popularity score calculation: Currently expects popularity field from catalog event.
-            If not provided, implementation should default to 0 or calculate from view/order counts
-            (requires additional event consumption).
-        </Item>
-    </OpenItems>
-
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- ASSUMPTIONS                                                             -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <Assumptions>
-        <Item id="A-SEARCH-01">Elasticsearch 8.x cluster is provisioned and accessible</Item>
-        <Item id="A-SEARCH-02">Kafka topics (catalog.product.*) are already created</Item>
-        <Item id="A-SEARCH-03">ProductTemplatePublishedEvent contains all fields needed for indexing</Item>
-        <Item id="A-SEARCH-04">Search is public (no authentication required for browsing)</Item>
-        <Item id="A-SEARCH-05">Admin operations (reindex) require ADMIN role</Item>
-    </Assumptions>
-
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <!-- CONSISTENCY CHECKLIST                                                   -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <ConsistencyChecklist>
+        <Item status="PASS">ISS-SEARCH-001: Flow-ProductSearch exists in DevelopmentPlan.xml</Item>
+        <Item status="PASS">ISS-SEARCH-002: All gRPC methods have corresponding FUNCTION_CONTRACTs</Item>
+        <Item status="PASS">ISS-SEARCH-003: FC-search-reindexCatalog defined with alias swap block
+            anchors</Item>
+        <Item status="PASS">ISS-SEARCH-004: ProductTemplatePublishedEvent contains all fields for
+            indexing</Item>
+        <Item status="PASS">ISS-SEARCH-005: Flow-Event-Driven includes all 3 consumed events</Item>
         <Item status="PASS">IDs follow conventions (UC-/NFR-/DP-SVC-/MC-/FC-/BA-)</Item>
         <Item status="PASS">All Link ref targets exist in canonical artifacts</Item>
-        <Item status="PASS">No "or" ambiguity in canonical artifacts; decisions recorded</Item>
-        <Item status="PASS">Uncertainty captured in Assumptions section</Item>
-        <Item status="PASS">gRPC contract defined and placed in api-contracts</Item>
-        <Item status="PASS">No database ownership (stateless, Elasticsearch only)</Item>
-        <Item status="PASS">Kafka event consumption defined with topics and actions</Item>
-        <Item status="PASS">Elasticsearch index mapping fully defined</Item>
-        <Item status="PASS">NFR-PERF-SEARCH-LATENCY addressed in design and acceptance gates</Item>
-        <Item status="PASS">Traceability: UC → Flow → FC/MC → BA → TC is complete</Item>
+        <Item status="PASS">No ambiguity in canonical artifacts; decisions recorded</Item>
+        <Item status="PASS">Traceability: UC → Flow → FC/MC → BA → TC is complete (28 block anchors)</Item>
+        <Item status="PASS">Test case count: 38 test cases across 7 function contracts</Item>
     </ConsistencyChecklist>
 
 </GRACE_HANDOFF>
@@ -429,7 +401,7 @@
   To approve this handoff, add the following entry to approvals.log:
   
   <GRACE_APPROVAL
-    ref="Handoff-20260108-02-W1-T5-SearchService"
+    ref="Handoff-20260108-02-v2-W1-T5-SearchService"
     status="APPROVED"
     approved="2026-01-08T##:##:##±##:##"
     approver="Human"

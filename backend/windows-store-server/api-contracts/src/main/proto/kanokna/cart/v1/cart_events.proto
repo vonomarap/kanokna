@@ -1,0 +1,446 @@
+// cart_events.proto v1.0.0 - Domain events for cart operations
+// GRACE Handoff: Handoff-20260109-01-W1-T6-CartService
+//
+// These events are published to Kafka for:
+//   - Analytics and reporting (conversion funnel)
+//   - Notification triggers (abandoned cart reminders)
+//   - Audit trail
+//
+// Topic naming convention: cart.{event_type}
+// Consumer groups: notification-service, reporting-service
+syntax = "proto3";
+
+package kanokna.cart.v1.event;
+
+import "google/protobuf/timestamp.proto";
+import "kanokna/common/v1/money.proto";
+
+option java_package = "com.kanokna.cart.v1.event";
+option java_outer_classname = "CartEventsProto";
+option java_multiple_files = true;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CART LIFECYCLE EVENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Event: New cart created
+// Topic: cart.created
+// Consumers: reporting-service
+message CartCreatedEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Cart identifier
+  string cart_id = 2;
+
+  // Customer identifier (null for anonymous carts)
+  string customer_id = 3;
+
+  // Session identifier (null for authenticated carts)
+  string session_id = 4;
+
+  // When the cart was created
+  google.protobuf.Timestamp created_at = 5;
+
+  // Whether this is an anonymous cart
+  bool is_anonymous = 6;
+
+  // Trace context for distributed tracing
+  string trace_id = 7;
+}
+
+// Event: Cart abandoned (inactivity threshold exceeded)
+// Topic: cart.abandoned
+// Consumers: notification-service (abandoned cart reminder), reporting-service
+message CartAbandonedEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Cart identifier
+  string cart_id = 2;
+
+  // Customer identifier (may be null for anonymous)
+  string customer_id = 3;
+
+  // Customer email for notification (if available)
+  string customer_email = 4;
+
+  // Customer's preferred language for notification
+  string language = 5;
+
+  // Last activity timestamp
+  google.protobuf.Timestamp last_activity = 6;
+
+  // Number of items in abandoned cart
+  int32 item_count = 7;
+
+  // Cart subtotal
+  kanokna.common.v1.Money subtotal = 8;
+
+  // When this event occurred
+  google.protobuf.Timestamp occurred_at = 9;
+
+  // Hours since last activity
+  int32 hours_inactive = 10;
+
+  // Trace context
+  string trace_id = 11;
+}
+
+// Event: Cart checked out (snapshot created for order)
+// Topic: cart.checkout
+// Consumers: reporting-service (conversion funnel)
+message CartCheckedOutEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Cart identifier
+  string cart_id = 2;
+
+  // Snapshot identifier (for order creation)
+  string snapshot_id = 3;
+
+  // Customer identifier
+  string customer_id = 4;
+
+  // Number of items checked out
+  int32 item_count = 5;
+
+  // Total amount
+  kanokna.common.v1.Money total = 6;
+
+  // Applied promo code (if any)
+  string applied_promo_code = 7;
+
+  // Discount amount (if promo applied)
+  kanokna.common.v1.Money discount_amount = 8;
+
+  // When checkout occurred
+  google.protobuf.Timestamp occurred_at = 9;
+
+  // Time from cart creation to checkout (seconds)
+  int64 cart_age_seconds = 10;
+
+  // Trace context
+  string trace_id = 11;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CART ITEM EVENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Event: Item added to cart
+// Topic: cart.item.added
+// Consumers: reporting-service (product analytics)
+message CartItemAddedEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Cart identifier
+  string cart_id = 2;
+
+  // Customer identifier (may be null for anonymous)
+  string customer_id = 3;
+
+  // Cart item identifier
+  string item_id = 4;
+
+  // Product template identifier
+  string product_template_id = 5;
+
+  // Product name
+  string product_name = 6;
+
+  // Product family (window, door, etc.)
+  string product_family = 7;
+
+  // Quantity added
+  int32 quantity = 8;
+
+  // Unit price
+  kanokna.common.v1.Money unit_price = 9;
+
+  // Line total
+  kanokna.common.v1.Money line_total = 10;
+
+  // Configuration hash for deduplication analysis
+  string configuration_hash = 11;
+
+  // When the item was added
+  google.protobuf.Timestamp occurred_at = 12;
+
+  // New cart item count
+  int32 cart_item_count = 13;
+
+  // New cart subtotal
+  kanokna.common.v1.Money cart_subtotal = 14;
+
+  // Trace context
+  string trace_id = 15;
+}
+
+// Event: Item quantity updated in cart
+// Topic: cart.item.updated
+// Consumers: reporting-service
+message CartItemUpdatedEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Cart identifier
+  string cart_id = 2;
+
+  // Customer identifier
+  string customer_id = 3;
+
+  // Cart item identifier
+  string item_id = 4;
+
+  // Previous quantity
+  int32 old_quantity = 5;
+
+  // New quantity
+  int32 new_quantity = 6;
+
+  // Previous line total
+  kanokna.common.v1.Money old_line_total = 7;
+
+  // New line total
+  kanokna.common.v1.Money new_line_total = 8;
+
+  // When the update occurred
+  google.protobuf.Timestamp occurred_at = 9;
+
+  // New cart subtotal
+  kanokna.common.v1.Money cart_subtotal = 10;
+
+  // Trace context
+  string trace_id = 11;
+}
+
+// Event: Item removed from cart
+// Topic: cart.item.removed
+// Consumers: reporting-service (cart abandonment analysis)
+message CartItemRemovedEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Cart identifier
+  string cart_id = 2;
+
+  // Customer identifier
+  string customer_id = 3;
+
+  // Removed item identifier
+  string item_id = 4;
+
+  // Product template identifier
+  string product_template_id = 5;
+
+  // Product name
+  string product_name = 6;
+
+  // Quantity that was removed
+  int32 quantity_removed = 7;
+
+  // Line total that was removed
+  kanokna.common.v1.Money line_total_removed = 8;
+
+  // When the removal occurred
+  google.protobuf.Timestamp occurred_at = 9;
+
+  // Remaining cart item count
+  int32 cart_item_count = 10;
+
+  // Remaining cart subtotal
+  kanokna.common.v1.Money cart_subtotal = 11;
+
+  // Trace context
+  string trace_id = 12;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROMO CODE EVENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Event: Promotional code applied to cart
+// Topic: cart.promo.applied
+// Consumers: reporting-service (promo effectiveness), notification-service
+message PromoCodeAppliedEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Cart identifier
+  string cart_id = 2;
+
+  // Customer identifier
+  string customer_id = 3;
+
+  // Applied promotional code
+  string promo_code = 4;
+
+  // Discount amount
+  kanokna.common.v1.Money discount_amount = 5;
+
+  // Cart subtotal before discount
+  kanokna.common.v1.Money subtotal = 6;
+
+  // New total after discount
+  kanokna.common.v1.Money new_total = 7;
+
+  // Discount percentage
+  double discount_percent = 8;
+
+  // When the promo was applied
+  google.protobuf.Timestamp occurred_at = 9;
+
+  // Trace context
+  string trace_id = 10;
+}
+
+// Event: Promotional code removed from cart
+// Topic: cart.promo.removed
+// Consumers: reporting-service
+message PromoCodeRemovedEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Cart identifier
+  string cart_id = 2;
+
+  // Customer identifier
+  string customer_id = 3;
+
+  // Removed promotional code
+  string promo_code = 4;
+
+  // Discount amount that was removed
+  kanokna.common.v1.Money discount_removed = 5;
+
+  // New total after promo removal
+  kanokna.common.v1.Money new_total = 6;
+
+  // When the promo was removed
+  google.protobuf.Timestamp occurred_at = 7;
+
+  // Trace context
+  string trace_id = 8;
+}
+
+// Event: Promotional code validation failed
+// Topic: cart.promo.failed
+// Consumers: reporting-service (promo issue tracking)
+message PromoCodeFailedEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Cart identifier
+  string cart_id = 2;
+
+  // Customer identifier
+  string customer_id = 3;
+
+  // Attempted promotional code
+  string promo_code = 4;
+
+  // Failure reason code
+  string failure_code = 5;
+
+  // Failure message
+  string failure_message = 6;
+
+  // Cart subtotal at time of attempt
+  kanokna.common.v1.Money cart_subtotal = 7;
+
+  // When the attempt occurred
+  google.protobuf.Timestamp occurred_at = 8;
+
+  // Trace context
+  string trace_id = 9;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CART MERGE EVENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Event: Anonymous cart merged into authenticated cart
+// Topic: cart.merged
+// Consumers: reporting-service (user journey analysis)
+message CartMergedEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Source cart identifier (anonymous, now deleted)
+  string source_cart_id = 2;
+
+  // Target cart identifier (authenticated, merged into)
+  string target_cart_id = 3;
+
+  // Customer identifier
+  string customer_id = 4;
+
+  // Total items merged from anonymous cart
+  int32 items_merged_count = 5;
+
+  // Items that were quantity-summed (same configuration)
+  int32 items_quantity_summed = 6;
+
+  // Items that were added as new
+  int32 items_added_new = 7;
+
+  // Source of promo code after merge (AUTHENTICATED, ANONYMOUS, NONE)
+  string promo_code_source = 8;
+
+  // Promo code (if preserved)
+  string promo_code = 9;
+
+  // Final cart total after merge
+  kanokna.common.v1.Money final_total = 10;
+
+  // When the merge occurred
+  google.protobuf.Timestamp occurred_at = 11;
+
+  // Trace context
+  string trace_id = 12;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PRICE REFRESH EVENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Event: Cart prices refreshed
+// Topic: cart.prices.refreshed
+// Consumers: reporting-service (price change analysis)
+message CartPricesRefreshedEvent {
+  // Unique event identifier
+  string event_id = 1;
+
+  // Cart identifier
+  string cart_id = 2;
+
+  // Customer identifier
+  string customer_id = 3;
+
+  // Number of items with price changes
+  int32 items_with_changes = 4;
+
+  // Previous total
+  kanokna.common.v1.Money previous_total = 5;
+
+  // New total
+  kanokna.common.v1.Money new_total = 6;
+
+  // Total change amount (can be negative)
+  kanokna.common.v1.Money total_change = 7;
+
+  // Percentage change
+  double change_percent = 8;
+
+  // Trigger for refresh (MANUAL, CHECKOUT, SCHEDULED)
+  string refresh_trigger = 9;
+
+  // When the refresh occurred
+  google.protobuf.Timestamp occurred_at = 10;
+
+  // Trace context
+  string trace_id = 11;
+}

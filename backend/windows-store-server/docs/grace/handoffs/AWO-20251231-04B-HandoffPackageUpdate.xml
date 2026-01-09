@@ -8,12 +8,13 @@
   Issued by: GRACE-COORDINATOR
   User Preference: Maintain pricing_service naming convention
 -->
-<ARCHITECT_WORK_ORDER id="AWO-20251231-04B" status="PROPOSED">
+<ARCHITECT_WORK_ORDER id="AWO-20251231-04B" status="APPROVED">
 
   <Task>
     <WaveRef>W1</WaveRef>
     <TaskRef>W1-T3,W1-T4</TaskRef>
-    <UserRequest>Update handoff to use pricing_service package naming (maintain DevelopmentPlan.xml pattern)</UserRequest>
+    <UserRequest>Update handoff to use pricing_service package naming (maintain DevelopmentPlan.xml
+      pattern)</UserRequest>
     <PrimaryGoal>
       Update Handoff-20251231-02 to use com.kanokna.pricing_service.* package naming
       throughout all file paths, configurations, and embedded contracts to align with
@@ -28,8 +29,9 @@
   </Task>
 
   <KnownArtifacts>
-    <Artifact name="DevelopmentPlan.xml" provided="yes" version="1.3.0" authoritative="YES"/>
-    <Artifact name="Handoff-20251231-02-W1-T3-T4-PricingService.xml" provided="yes" status="APPROVED (will be superseded)"/>
+    <Artifact name="DevelopmentPlan.xml" provided="yes" version="1.3.0" authoritative="YES" />
+    <Artifact name="Handoff-20251231-02-W1-T3-T4-PricingService.xml" provided="yes"
+      status="APPROVED (will be superseded)" />
   </KnownArtifacts>
 
   <BlockingIssues>
@@ -64,13 +66,12 @@
           <Change>Update ALL ~80 file paths</Change>
           <Pattern>
             FROM: pricing-service/src/main/java/com/kanokna/pricing/domain/model/...
-            TO:   pricing-service/src/main/java/com/kanokna/pricing_service/domain/model/...
+            TO: pricing-service/src/main/java/com/kanokna/pricing_service/domain/model/...
 
             FROM: pricing-service/src/main/java/com/kanokna/pricing/application/port/in/...
-            TO:   pricing-service/src/main/java/com/kanokna/pricing_service/application/port/in/...
-
+            TO: pricing-service/src/main/java/com/kanokna/pricing_service/application/port/in/...
             FROM: pricing-service/src/main/java/com/kanokna/pricing/adapters/in/web/...
-            TO:   pricing-service/src/main/java/com/kanokna/pricing_service/adapters/in/web/...
+            TO: pricing-service/src/main/java/com/kanokna/pricing_service/adapters/in/web/...
 
             (Apply to all file paths consistently)
           </Pattern>
@@ -80,17 +81,18 @@
         <Section name="SemanticContractsAndAnchors" lines="526-898">
           <Change>Update EmbedInFile paths in MODULE_CONTRACT and FUNCTION_CONTRACTs</Change>
           <Pattern>
-            FROM: &lt;EmbedInFile&gt;pricing-service/src/main/java/com/kanokna/pricing/domain/service/PriceCalculationService.java&lt;/EmbedInFile&gt;
-            TO:   &lt;EmbedInFile&gt;pricing-service/src/main/java/com/kanokna/pricing_service/domain/service/PriceCalculationService.java&lt;/EmbedInFile&gt;
-
+            FROM:
+            &lt;EmbedInFile&gt;pricing-service/src/main/java/com/kanokna/pricing/domain/service/PriceCalculationService.java&lt;/EmbedInFile&gt;
+            TO:
+            &lt;EmbedInFile&gt;pricing-service/src/main/java/com/kanokna/pricing_service/domain/service/PriceCalculationService.java&lt;/EmbedInFile&gt;
             (Apply to all 5 contract EmbedInFile declarations)
           </Pattern>
           <AffectedContracts>
-            <Contract id="MC-pricing-service-domain-PriceCalculation" line="532"/>
-            <Contract id="FC-pricing-service-UC-PRICING-QUOTE-calculateQuote" line="639"/>
-            <Contract id="FC-pricing-service-UC-PRICING-QUOTE-validatePromoCode" line="720"/>
-            <Contract id="FC-pricing-service-UC-PRICING-ADMIN-MANAGE-createPriceBook" line="769"/>
-            <Contract id="FC-pricing-service-UC-PRICING-ADMIN-MANAGE-publishPriceBook" line="816"/>
+            <Contract id="MC-pricing-service-domain-PriceCalculation" line="532" />
+            <Contract id="FC-pricing-service-UC-PRICING-QUOTE-calculateQuote" line="639" />
+            <Contract id="FC-pricing-service-UC-PRICING-QUOTE-validatePromoCode" line="720" />
+            <Contract id="FC-pricing-service-UC-PRICING-ADMIN-MANAGE-createPriceBook" line="769" />
+            <Contract id="FC-pricing-service-UC-PRICING-ADMIN-MANAGE-publishPriceBook" line="816" />
           </AffectedContracts>
         </Section>
 
@@ -98,7 +100,7 @@
           <Change>Update logging package configuration</Change>
           <Pattern>
             FROM: com.kanokna.pricing: DEBUG
-            TO:   com.kanokna.pricing_service: DEBUG
+            TO: com.kanokna.pricing_service: DEBUG
           </Pattern>
         </Section>
 
@@ -145,17 +147,20 @@
 
   <PostDeliverySteps>
     <Step order="1">Return updated handoff to human</Step>
-    <Step order="2">Human submits to GRACE-COORDINATOR: "Handoff-20251231-02-v2: Updated to pricing_service pattern"</Step>
+    <Step order="2">Human submits to GRACE-COORDINATOR: "Handoff-20251231-02-v2: Updated to
+      pricing_service pattern"</Step>
     <Step order="3">GRACE-COORDINATOR re-runs Blueprint Validation Gates</Step>
     <Step order="4">If PASS, GRACE-COORDINATOR issues approval instruction</Step>
     <Step order="5">Human adds approval to approvals.log</Step>
     <Step order="6">GRACE-COORDINATOR issues updated CODER_WORK_ORDER</Step>
   </PostDeliverySteps>
 
-  <EstimatedComplexity>MEDIUM (bulk find-replace across ~80+ occurrences; requires careful validation)</EstimatedComplexity>
+  <EstimatedComplexity>MEDIUM (bulk find-replace across ~80+ occurrences; requires careful
+    validation)</EstimatedComplexity>
 
   <ImportantNotes>
-    <Note>This creates a NEW handoff version; original Handoff-20251231-02 remains approved but superseded</Note>
+    <Note>This creates a NEW handoff version; original Handoff-20251231-02 remains approved but
+      superseded</Note>
     <Note>New approval required for Handoff-20251231-02-v2</Note>
     <Note>DevelopmentPlan.xml does NOT change (it is already correct)</Note>
     <Note>This choice maintains consistency with catalog-configuration-service pattern</Note>

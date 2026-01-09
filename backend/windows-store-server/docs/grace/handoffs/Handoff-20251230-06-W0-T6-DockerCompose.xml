@@ -3,13 +3,13 @@
   GRACE Handoff Document: Docker Compose for Local Development
   Handoff ID: Handoff-20251230-06
   Scope: W0-T6 (Docker Compose for local dev)
-  Status: PROPOSED
+  Status: APPROVED
   Created: 2025-12-30
   Author: GRACE-ARCHITECT
 -->
 <GRACE_HANDOFF
   id="Handoff-20251230-06"
-  status="PROPOSED"
+  status="APPROVED"
   schemaVersion="grace-markup-v2"
   created="2025-12-30T00:00:00+00:00"
   author="GRACE-ARCHITECT"
@@ -40,8 +40,8 @@
       - Sample data seeding
     </TechnicalIntent>
     <Scope>
-      <Task ref="DevelopmentExecutionPlan.xml#W0-T6"/>
-      <Wave ref="DevelopmentExecutionPlan.xml#WAVE-0"/>
+      <Task ref="DevelopmentExecutionPlan.xml#W0-T6" />
+      <Wave ref="DevelopmentExecutionPlan.xml#WAVE-0" />
     </Scope>
   </IntentSummary>
 
@@ -161,10 +161,11 @@
     </ModuleContract>
 
     <BlockAnchorRegistry>
-      <BlockAnchor id="BA-DC-START-01" service="docker-compose" purpose="Start all containers"/>
-      <BlockAnchor id="BA-DC-INIT-01" service="docker-compose" purpose="Initialize PostgreSQL databases"/>
-      <BlockAnchor id="BA-DC-INIT-02" service="docker-compose" purpose="Import Keycloak realm"/>
-      <BlockAnchor id="BA-DC-HEALTH-01" service="docker-compose" purpose="Check service health"/>
+      <BlockAnchor id="BA-DC-START-01" service="docker-compose" purpose="Start all containers" />
+      <BlockAnchor id="BA-DC-INIT-01" service="docker-compose"
+        purpose="Initialize PostgreSQL databases" />
+      <BlockAnchor id="BA-DC-INIT-02" service="docker-compose" purpose="Import Keycloak realm" />
+      <BlockAnchor id="BA-DC-HEALTH-01" service="docker-compose" purpose="Check service health" />
     </BlockAnchorRegistry>
 
   </SemanticContractsAndAnchors>
@@ -523,15 +524,17 @@ echo "  admin@example.com (admin123)"
   </AcceptanceCriteria>
 
   <Scope>
-    <Tasks><TaskRef ref="DevelopmentExecutionPlan.xml#W0-T6"/></Tasks>
+    <Tasks>
+      <TaskRef ref="DevelopmentExecutionPlan.xml#W0-T6" />
+    </Tasks>
   </Scope>
 
   <Contracts>
-    <ModuleContractRef id="MC-docker-compose-dev"/>
-    <BlockAnchorRef id="BA-DC-START-01"/>
-    <BlockAnchorRef id="BA-DC-INIT-01"/>
-    <BlockAnchorRef id="BA-DC-INIT-02"/>
-    <BlockAnchorRef id="BA-DC-HEALTH-01"/>
+    <ModuleContractRef id="MC-docker-compose-dev" />
+    <BlockAnchorRef id="BA-DC-START-01" />
+    <BlockAnchorRef id="BA-DC-INIT-01" />
+    <BlockAnchorRef id="BA-DC-INIT-02" />
+    <BlockAnchorRef id="BA-DC-HEALTH-01" />
   </Contracts>
 
 

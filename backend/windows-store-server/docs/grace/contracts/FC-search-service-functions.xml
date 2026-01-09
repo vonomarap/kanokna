@@ -5,7 +5,8 @@
   ═══════════════════════════════════════════════════════════════════════════════
   Service:         search-service
   Created:         2026-01-08T18:41:00+03:00
-  Purpose:         Function contracts for search operations
+  Updated:         2026-01-08T23:25:00+03:00
+  Purpose:         Function contracts for search operations (v3 - ISS-SEARCH-BLUEPRINT fixes)
   ═══════════════════════════════════════════════════════════════════════════════
 -->
 <FunctionContracts service="search-service">
@@ -139,7 +140,7 @@
 
         <TESTS>
             <Case id="TC-FUNC-AUTO-001">Valid prefix returns relevant suggestions</Case>
-            <Case id="TC-FUNC-AUTO-002">Prefix &lt;2 chars returns empty or error</Case>
+            <Case id="TC-FUNC-AUTO-002">Prefix less than 2 chars returns empty or error</Case>
             <Case id="TC-FUNC-AUTO-003">Family filter restricts suggestions</Case>
             <Case id="TC-FUNC-AUTO-004">Limit parameter controls max suggestions</Case>
             <Case id="TC-FUNC-AUTO-005">Archived products excluded from suggestions</Case>
@@ -153,14 +154,15 @@
         id="FC-search-indexProduct"
         LAYER="application.service"
         INTENT="Index or update a product document in Elasticsearch when catalog event is received"
-        INPUT="ProductTemplatePublishedEvent (from Kafka)"
+        INPUT="ProductTemplatePublishedEvent OR ProductTemplateUpdatedEvent (from Kafka)"
         OUTPUT="IndexResult (success/failure, documentId)"
         SIDE_EFFECTS="Creates or updates document in Elasticsearch index"
         LINKS="DevelopmentPlan.xml#Flow-Event-Driven">
 
         <PRECONDITIONS>
-            <Item>ProductTemplatePublishedEvent is valid and deserialized</Item>
-            <Item>Event contains required fields: product_template_id, name, product_family</Item>
+            <Item>Event (Published or Updated) is valid and deserialized</Item>
+            <Item>Event contains required fields: product_template_id, name, product_family, all
+                search fields</Item>
             <Item>Elasticsearch cluster is available</Item>
         </PRECONDITIONS>
 
@@ -177,7 +179,7 @@
 
         <ERROR_HANDLING>
             <Item type="TECHNICAL" code="ERR-INDEX-ES-UNAVAILABLE">Elasticsearch cluster unreachable</Item>
-            <Item type="TECHNICAL" code="ERR-INDEX-MAPPING-ERROR">Document doesn't match index
+            <Item type="TECHNICAL" code="ERR-INDEX-MAPPING-ERROR">Document does not match index
                 mapping</Item>
             <Item type="BUSINESS" code="ERR-INDEX-INVALID-EVENT">Event missing required fields</Item>
         </ERROR_HANDLING>
@@ -202,7 +204,8 @@
 
         <TESTS>
             <Case id="TC-FUNC-INDEX-001">Published event creates new document</Case>
-            <Case id="TC-FUNC-INDEX-002">Updated event updates existing document</Case>
+            <Case id="TC-FUNC-INDEX-002">Updated event updates existing document (uses extended
+                payload v1.2.0)</Case>
             <Case id="TC-FUNC-INDEX-003">Same event reprocessed is idempotent</Case>
             <Case id="TC-FUNC-INDEX-004">Invalid event logged and skipped</Case>
             <Case id="TC-FUNC-INDEX-005">Elasticsearch failure triggers retry</Case>
@@ -258,6 +261,214 @@
             <Case id="TC-FUNC-DELETE-001">Unpublished event removes document</Case>
             <Case id="TC-FUNC-DELETE-002">Delete non-existent document succeeds (idempotent)</Case>
             <Case id="TC-FUNC-DELETE-003">Elasticsearch failure triggers retry</Case>
+        </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <!-- FC-search-getFacetValues: Get facet values for filtering (ISS-SEARCH-002)  -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <FUNCTION_CONTRACT
+        id="FC-search-getFacetValues"
+        LAYER="application.service"
+        INTENT="Retrieve available facet values for filtering UI dropdowns"
+        INPUT="GetFacetValuesQuery (fields, language)"
+        OUTPUT="FacetValuesResult (facets with counts)"
+        SIDE_EFFECTS="None (read-only)"
+        LINKS="RequirementsAnalysis.xml#UC-CATALOG-BROWSE">
+
+        <PRECONDITIONS>
+            <Item>Elasticsearch cluster is available</Item>
+            <Item>At least one facet field is specified</Item>
+            <Item>Requested fields are valid facet fields (family, profileSystem, materials, colors,
+                openingTypes)</Item>
+        </PRECONDITIONS>
+
+        <POSTCONDITIONS>
+            <Item>FacetValuesResult contains requested facet fields</Item>
+            <Item>Each facet includes all distinct values with document counts</Item>
+            <Item>Only values from ACTIVE products are included</Item>
+        </POSTCONDITIONS>
+
+        <INVARIANTS>
+            <Item>Query is read-only</Item>
+            <Item>Facet values are sorted by count (descending) or alphabetically</Item>
+        </INVARIANTS>
+
+        <ERROR_HANDLING>
+            <Item type="TECHNICAL" code="ERR-FACET-ES-UNAVAILABLE">Elasticsearch cluster unreachable</Item>
+            <Item type="BUSINESS" code="ERR-FACET-INVALID-FIELD">Unknown facet field requested</Item>
+        </ERROR_HANDLING>
+
+        <BLOCK_ANCHORS>
+            <Item id="BA-FACET-01">Validate requested facet fields</Item>
+            <Item id="BA-FACET-02">Build aggregation query</Item>
+            <Item id="BA-FACET-03">Execute aggregation query</Item>
+            <Item id="BA-FACET-04">Map aggregations to FacetValuesResult</Item>
+        </BLOCK_ANCHORS>
+
+        <LOGGING>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-FACET-01][STATE=VALIDATE_FIELDS]
+                eventType=FACET_REQUEST keyValues=fieldCount,fields</Item>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-FACET-03][STATE=EXECUTE_AGGREGATION]
+                eventType=ES_AGGREGATION_START keyValues=fieldCount</Item>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-FACET-04][STATE=RESULT_READY]
+                eventType=FACET_VALUES_READY keyValues=facetCount,queryTimeMs</Item>
+        </LOGGING>
+
+        <TESTS>
+            <Case id="TC-FUNC-FACET-001">Request single facet field returns values</Case>
+            <Case id="TC-FUNC-FACET-002">Request multiple facet fields returns all</Case>
+            <Case id="TC-FUNC-FACET-003">Invalid field name returns error</Case>
+            <Case id="TC-FUNC-FACET-004">Archived products excluded from counts</Case>
+            <Case id="TC-FUNC-FACET-005">Empty index returns empty facets</Case>
+        </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <!-- FC-search-getProductById: Get single product by ID (ISS-SEARCH-002)        -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <FUNCTION_CONTRACT
+        id="FC-search-getProductById"
+        LAYER="application.service"
+        INTENT="Retrieve a single product document from the search index by ID"
+        INPUT="GetProductByIdQuery (productId, language)"
+        OUTPUT="ProductSearchDocument or NOT_FOUND"
+        SIDE_EFFECTS="None (read-only)"
+        LINKS="RequirementsAnalysis.xml#UC-CATALOG-BROWSE">
+
+        <PRECONDITIONS>
+            <Item>productId is provided and non-empty</Item>
+            <Item>Elasticsearch cluster is available</Item>
+        </PRECONDITIONS>
+
+        <POSTCONDITIONS>
+            <Item>If document exists, return ProductSearchDocument with all fields</Item>
+            <Item>If document does not exist, return NOT_FOUND result</Item>
+        </POSTCONDITIONS>
+
+        <INVARIANTS>
+            <Item>Query is read-only</Item>
+            <Item>Returns document regardless of status (ACTIVE/DRAFT/ARCHIVED)</Item>
+        </INVARIANTS>
+
+        <ERROR_HANDLING>
+            <Item type="TECHNICAL" code="ERR-GET-ES-UNAVAILABLE">Elasticsearch cluster unreachable</Item>
+            <Item type="BUSINESS" code="ERR-GET-PRODUCT-NOT-FOUND">Product not found in index</Item>
+        </ERROR_HANDLING>
+
+        <BLOCK_ANCHORS>
+            <Item id="BA-GET-01">Validate productId</Item>
+            <Item id="BA-GET-02">Execute get-by-id query</Item>
+            <Item id="BA-GET-03">Map document to ProductSearchDocument</Item>
+        </BLOCK_ANCHORS>
+
+        <LOGGING>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-GET-01][STATE=VALIDATE_ID]
+                eventType=GET_PRODUCT_REQUEST keyValues=productId</Item>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-GET-02][STATE=EXECUTE_GET]
+                eventType=ES_GET_REQUEST keyValues=productId</Item>
+            <Item>[SVC=search-service][UC=UC-CATALOG-BROWSE][BLOCK=BA-GET-03][STATE=RESULT_READY]
+                eventType=GET_PRODUCT_COMPLETE decision=FOUND|NOT_FOUND keyValues=productId</Item>
+        </LOGGING>
+
+        <TESTS>
+            <Case id="TC-FUNC-GET-001">Existing product ID returns document</Case>
+            <Case id="TC-FUNC-GET-002">Non-existent product ID returns NOT_FOUND</Case>
+            <Case id="TC-FUNC-GET-003">Empty product ID returns validation error</Case>
+            <Case id="TC-FUNC-GET-004">Archived product is still retrievable by ID</Case>
+        </TESTS>
+    </FUNCTION_CONTRACT>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <!-- FC-search-reindexCatalog: Full reindex with alias swap                      -->
+    <!-- UPDATED: 2026-01-08 v3 - Added DEPENDENCIES (ISS-SEARCH-BLUEPRINT-002/003) -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+    <FUNCTION_CONTRACT
+        id="FC-search-reindexCatalog"
+        LAYER="application.service"
+        INTENT="Perform full reindex of product catalog with zero-downtime alias swap"
+        INPUT="ReindexCommand (optional: sourceIndex)"
+        OUTPUT="ReindexResult (newIndexName, documentCount, durationMs)"
+        SIDE_EFFECTS="Creates new index, populates from catalog-service, swaps alias"
+        LINKS="DevelopmentPlan.xml#Flow-Event-Driven;Technology.xml#TECH-elasticsearch;Technology.xml#DEC-DISTRIBUTED-LOCK"
+        SECURITY="Requires ADMIN role">
+
+        <DEPENDENCIES note="Added per ISS-SEARCH-BLUEPRINT-002/003">
+            <Item type="infrastructure">TECH-redis: Distributed lock via Redisson
+                (DEC-DISTRIBUTED-LOCK)</Item>
+            <Item type="grpc">catalog-configuration-service: ListProductTemplates RPC
+                (ProductTemplate v1.2.0 with search fields)</Item>
+            <Item type="infrastructure">TECH-elasticsearch: Bulk indexing, alias swap</Item>
+        </DEPENDENCIES>
+
+        <PRECONDITIONS>
+            <Item>Caller has ADMIN role</Item>
+            <Item>Elasticsearch cluster is available and healthy</Item>
+            <Item>catalog-configuration-service is reachable (for bulk fetch via
+                ListProductTemplates)</Item>
+            <Item>Redis is available for distributed lock acquisition</Item>
+        </PRECONDITIONS>
+
+        <POSTCONDITIONS>
+            <Item>New versioned index created (e.g., product_templates_v2)</Item>
+            <Item>All active products indexed in new index</Item>
+            <Item>Alias product_templates now points to new index</Item>
+            <Item>Previous index retained for rollback (until manually deleted)</Item>
+        </POSTCONDITIONS>
+
+        <INVARIANTS>
+            <Item>Alias swap is atomic (no downtime)</Item>
+            <Item>Previous index remains valid until explicit cleanup</Item>
+            <Item>Only one reindex operation can run at a time (Redis distributed lock)</Item>
+        </INVARIANTS>
+
+        <ERROR_HANDLING>
+            <Item type="TECHNICAL" code="ERR-REINDEX-ES-UNAVAILABLE">Elasticsearch cluster
+                unreachable</Item>
+            <Item type="TECHNICAL" code="ERR-REINDEX-CATALOG-UNAVAILABLE">catalog-configuration-service
+                unreachable</Item>
+            <Item type="TECHNICAL" code="ERR-REINDEX-IN-PROGRESS">Another reindex operation is
+                already running (lock held)</Item>
+            <Item type="TECHNICAL" code="ERR-REINDEX-ALIAS-SWAP-FAILED">Alias swap operation failed</Item>
+            <Item type="TECHNICAL" code="ERR-REINDEX-LOCK-UNAVAILABLE">Redis unavailable for lock
+                acquisition</Item>
+        </ERROR_HANDLING>
+
+        <BLOCK_ANCHORS>
+            <Item id="BA-REINDEX-01">Acquire distributed lock for reindex (Redis via Redisson)</Item>
+            <Item id="BA-REINDEX-02">Create new versioned index with mapping</Item>
+            <Item id="BA-REINDEX-03">Fetch all products from catalog-configuration-service
+                (ListProductTemplates gRPC)</Item>
+            <Item id="BA-REINDEX-04">Bulk index products into new index</Item>
+            <Item id="BA-REINDEX-05">Swap alias to new index (atomic)</Item>
+            <Item id="BA-REINDEX-06">Release lock and log completion</Item>
+        </BLOCK_ANCHORS>
+
+        <LOGGING>
+            <Item>[SVC=search-service][UC=ADMIN-REINDEX][BLOCK=BA-REINDEX-01][STATE=ACQUIRE_LOCK]
+                eventType=REINDEX_STARTED keyValues=requestedBy</Item>
+            <Item>[SVC=search-service][UC=ADMIN-REINDEX][BLOCK=BA-REINDEX-02][STATE=CREATE_INDEX]
+                eventType=NEW_INDEX_CREATED keyValues=indexName</Item>
+            <Item>[SVC=search-service][UC=ADMIN-REINDEX][BLOCK=BA-REINDEX-03][STATE=FETCH_PRODUCTS]
+                eventType=CATALOG_FETCH_START keyValues=batchSize</Item>
+            <Item>[SVC=search-service][UC=ADMIN-REINDEX][BLOCK=BA-REINDEX-04][STATE=BULK_INDEX]
+                eventType=BULK_INDEX_PROGRESS keyValues=indexedCount,failedCount</Item>
+            <Item>[SVC=search-service][UC=ADMIN-REINDEX][BLOCK=BA-REINDEX-05][STATE=SWAP_ALIAS]
+                eventType=ALIAS_SWAP keyValues=oldIndex,newIndex</Item>
+            <Item>[SVC=search-service][UC=ADMIN-REINDEX][BLOCK=BA-REINDEX-06][STATE=COMPLETE]
+                eventType=REINDEX_COMPLETE decision=SUCCESS|FAILURE
+                keyValues=documentCount,durationMs</Item>
+        </LOGGING>
+
+        <TESTS>
+            <Case id="TC-FUNC-REINDEX-001">Successful reindex creates new index and swaps alias</Case>
+            <Case id="TC-FUNC-REINDEX-002">Reindex populates all active products from catalog gRPC</Case>
+            <Case id="TC-FUNC-REINDEX-003">Concurrent reindex requests are rejected (lock
+                contention)</Case>
+            <Case id="TC-FUNC-REINDEX-004">Failed reindex does not swap alias</Case>
+            <Case id="TC-FUNC-REINDEX-005">Previous index remains after successful swap</Case>
+            <Case id="TC-FUNC-REINDEX-006">Non-admin user is rejected</Case>
+            <Case id="TC-FUNC-REINDEX-007">Redis unavailable returns ERR-REINDEX-LOCK-UNAVAILABLE</Case>
         </TESTS>
     </FUNCTION_CONTRACT>
 
