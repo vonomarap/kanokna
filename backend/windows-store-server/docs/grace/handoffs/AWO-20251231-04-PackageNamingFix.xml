@@ -7,7 +7,7 @@
   Created: 2025-12-31T15:35:00+03:00
   Issued by: GRACE-COORDINATOR
 -->
-<ARCHITECT_WORK_ORDER id="AWO-20251231-04" status="PROPOSED">
+<ARCHITECT_WORK_ORDER id="AWO-20251231-04" status="APPROVED">
 
   <Task>
     <WaveRef>W1</WaveRef>
@@ -28,11 +28,13 @@
   </Task>
 
   <KnownArtifacts>
-    <Artifact name="RequirementsAnalysis.xml" provided="yes"/>
-    <Artifact name="Technology.xml" provided="yes" version="1.2.0"/>
-    <Artifact name="DevelopmentPlan.xml" provided="yes" version="1.3.0"/>
-    <Artifact name="Handoff-20251231-02-W1-T3-T4-PricingService.xml" provided="yes" status="APPROVED"/>
-    <Artifact name="approvals.log" provided="yes" entry="lines 77-82 (APPROVED 2025-12-31T15:00:00+03:00)"/>
+    <Artifact name="RequirementsAnalysis.xml" provided="yes" />
+    <Artifact name="Technology.xml" provided="yes" version="1.2.0" />
+    <Artifact name="DevelopmentPlan.xml" provided="yes" version="1.3.0" />
+    <Artifact name="Handoff-20251231-02-W1-T3-T4-PricingService.xml" provided="yes"
+      status="APPROVED" />
+    <Artifact name="approvals.log" provided="yes"
+      entry="lines 77-82 (APPROVED 2025-12-31T15:00:00+03:00)" />
   </KnownArtifacts>
 
   <BlockingIssues>
@@ -59,8 +61,8 @@
 
           application.yml (line 1059) specifies:
           logging:
-            level:
-              com.kanokna.pricing: DEBUG
+          level:
+          com.kanokna.pricing: DEBUG
         </Handoff>
         <Comparison>
           catalog-configuration-service in DevelopmentPlan.xml (lines 205-219) uses:
@@ -101,12 +103,11 @@
       <Location>DevelopmentPlan.xml lines 270-283</Location>
       <ChangePattern>
         Replace all instances of "pricing_service" with "pricing" in PackageLayout package names.
-
         FROM: com.kanokna.pricing_service.domain.model
-        TO:   com.kanokna.pricing.domain.model
+        TO: com.kanokna.pricing.domain.model
 
         FROM: com.kanokna.pricing_service.adapters.in.web
-        TO:   com.kanokna.pricing.adapters.in.web
+        TO: com.kanokna.pricing.adapters.in.web
 
         (Apply to all 13 package declarations)
       </ChangePattern>
@@ -138,7 +139,8 @@
             <Pattern>com.kanokna.{short-name}.*</Pattern>
             <Examples>
               <Example service="pricing-service">com.kanokna.pricing.*</Example>
-              <Example service="catalog-configuration-service">com.kanokna.catalog.* OR com.kanokna.catalog_config.*</Example>
+              <Example service="catalog-configuration-service">com.kanokna.catalog.* OR
+                com.kanokna.catalog_config.*</Example>
               <Example service="cart-service">com.kanokna.cart.*</Example>
               <Example service="order-service">com.kanokna.order.*</Example>
             </Examples>
@@ -149,7 +151,8 @@
               <Item>Standard industry practice (service name != package name)</Item>
             </Pros>
             <Cons>
-              <Item>Requires migration plan for catalog-configuration-service (already uses underscores)</Item>
+              <Item>Requires migration plan for catalog-configuration-service (already uses
+                underscores)</Item>
               <Item>Need to define mapping rules for multi-word services</Item>
             </Cons>
           </Option>
@@ -158,7 +161,8 @@
             <Pattern>com.kanokna.{service-name-with-underscores}.*</Pattern>
             <Examples>
               <Example service="pricing-service">com.kanokna.pricing_service.*</Example>
-              <Example service="catalog-configuration-service">com.kanokna.catalog_configuration_service.*</Example>
+              <Example service="catalog-configuration-service">
+                com.kanokna.catalog_configuration_service.*</Example>
               <Example service="cart-service">com.kanokna.cart_service.*</Example>
             </Examples>
             <Pros>
@@ -193,10 +197,10 @@
         Add assumption to DevelopmentPlan.xml Assumptions section:
 
         &lt;Assumption id="DP-ASSUM-005"&gt;
-          Package naming convention: services use shortened names (com.kanokna.pricing.*)
-          rather than full service names with underscores (com.kanokna.pricing_service.*).
-          Approved in Handoff-20251231-02; may require migration of catalog-configuration-service
-          for consistency (deferred to future wave).
+        Package naming convention: services use shortened names (com.kanokna.pricing.*)
+        rather than full service names with underscores (com.kanokna.pricing_service.*).
+        Approved in Handoff-20251231-02; may require migration of catalog-configuration-service
+        for consistency (deferred to future wave).
         &lt;/Assumption&gt;
       </Item>
       <Item>
@@ -209,7 +213,8 @@
 
   <AcceptanceCriteria>
     <Item>DevelopmentPlan.xml version incremented to 1.3.1</Item>
-    <Item>DevelopmentPlan.xml lines 270-283 pricing-service PackageLayout updated to com.kanokna.pricing.*</Item>
+    <Item>DevelopmentPlan.xml lines 270-283 pricing-service PackageLayout updated to
+      com.kanokna.pricing.*</Item>
     <Item>All 13 package declarations updated consistently (no pricing_service remains)</Item>
     <Item>Changelog entry added to DevelopmentPlan.xml header explaining v1.3.1 change</Item>
     <Item>Handoff-20251231-02 remains unchanged and valid (already approved)</Item>
@@ -218,7 +223,8 @@
   </AcceptanceCriteria>
 
   <NonGoals>
-    <Item>Do NOT update catalog-configuration-service package layout (out of scope for this work order)</Item>
+    <Item>Do NOT update catalog-configuration-service package layout (out of scope for this work
+      order)</Item>
     <Item>Do NOT modify Handoff-20251231-02 (handoff is correct; blueprint must align to it)</Item>
     <Item>Do NOT require re-approval of Handoff-20251231-02 (approval remains valid)</Item>
     <Item>Do NOT implement pricing-service code (GRACE-CODER task, unblocked after this fix)</Item>
@@ -228,10 +234,10 @@
     1. Read DevelopmentPlan.xml v1.3.0 (focus on lines 270-283)
     2. Make architectural decision on DEC-PACKAGE-NAMING-CONVENTION (recommend OPTION-SHORT)
     3. Update DevelopmentPlan.xml:
-       - Replace "pricing_service" with "pricing" in PackageLayout (13 occurrences)
-       - Update version to 1.3.1
-       - Add changelog entry in header comments
-       - Add DP-ASSUM-005 to Assumptions section
+    - Replace "pricing_service" with "pricing" in PackageLayout (13 occurrences)
+    - Update version to 1.3.1
+    - Add changelog entry in header comments
+    - Add DP-ASSUM-005 to Assumptions section
     4. (Optional) Add DEC-PACKAGE-NAMING-CONVENTION to Technology.xml if deemed cross-cutting
     5. Return updated DevelopmentPlan.xml to human for review
     6. Human will inform GRACE-COORDINATOR of completion
