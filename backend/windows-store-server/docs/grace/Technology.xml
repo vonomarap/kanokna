@@ -2,14 +2,15 @@
 <!--
   GRACE Canonical Artifact: Technology.xml
   Purpose: Define approved technology stack, versions, and cross-cutting technical decisions
-  Version: 1.3.0
-  Last Updated: 2026-01-08T23:20:00+03:00
-  Changes: v1.3.0 - Added DEC-DISTRIBUTED-LOCK for search-service reindex (ISS-SEARCH-BLUEPRINT-002)
+  Version: 1.4.0
+  Last Updated: 2026-01-09T16:00:00+03:00
+  Changes: v1.4.0 - Added DEC-CART-* decisions from Handoff-20260109-01-W1-T6-CartService
+           v1.3.0 - Added DEC-DISTRIBUTED-LOCK for search-service reindex (ISS-SEARCH-BLUEPRINT-002)
            v1.2.0 - Added DEC-PRICING-* decisions from Handoff-20251231-02
            v1.1.0 - Promoted DEC-CATALOG-RULE-ENGINE and DEC-CATALOG-VERSIONING from Handoff-20251230-07
            as architectural patterns DEC-ARCH-RULE-ENGINE-STRATEGY and DEC-ARCH-ENTITY-VERSIONING
 -->
-<Technology version="1.3.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<Technology version="1.4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
        LANGUAGES
@@ -982,6 +983,190 @@
       <Links>
         <Link ref="Technology.xml#TECH-redis" />
         <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
+      </Links>
+    </Decision>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         CART SERVICE DECISIONS (Promoted from Handoff-20260109-01-W1-T6-CartService)
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <Decision id="DEC-CART-ANONYMOUS" status="APPROVED">
+      <Title>Anonymous Cart Identification Strategy</Title>
+      <Selected>Session-based cart ID stored in HTTP-only cookie with Redis session storage</Selected>
+      <Alternatives>
+        <Alternative>Redis key only (no cookie, stateless lookup by client ID)</Alternative>
+        <Alternative>Database-only anonymous carts (no Redis)</Alternative>
+        <Alternative>Local storage cart ID (client-generated)</Alternative>
+      </Alternatives>
+      <Rationale>
+        HTTP-only cookie provides secure session binding. Redis session storage enables
+        fast cart retrieval and automatic TTL management. Cookie name: KANOKNA_CART_SESSION.
+        Server generates cart_id on first add-to-cart for anonymous users.
+        Authenticated users have cart_id derived from customer_id (deterministic).
+      </Rationale>
+      <Configuration>
+        <Item>Cookie name: KANOKNA_CART_SESSION</Item>
+        <Item>Cookie attributes: HttpOnly, Secure (prod), SameSite=Lax</Item>
+        <Item>Cookie max-age: 7 days (aligned with anonymous cart TTL)</Item>
+        <Item>Redis key pattern: cart:session:{session_id}</Item>
+        <Item>Redis key pattern (auth): cart:customer:{customer_id}</Item>
+      </Configuration>
+      <PromotedFrom handoff="Handoff-20260109-01-W1-T6-CartService" />
+      <Links>
+        <Link ref="Technology.xml#TECH-redis" />
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-TTL" status="APPROVED">
+      <Title>Cart Expiration Policy</Title>
+      <Selected>7 days for anonymous carts; indefinite for authenticated carts</Selected>
+      <Alternatives>
+        <Alternative>30 days for all carts</Alternative>
+        <Alternative>24 hours for anonymous, 30 days for authenticated</Alternative>
+        <Alternative>No expiration (manual cleanup only)</Alternative>
+      </Alternatives>
+      <Rationale>
+        7-day TTL for anonymous carts balances user convenience with storage efficiency.
+        Authenticated carts persist indefinitely to support long sales cycles common in
+        windows/doors purchases. Carts transition to ABANDONED status after inactivity
+        threshold for notification-service abandoned cart reminders (separate from TTL).
+      </Rationale>
+      <Configuration>
+        <Item>Anonymous cart TTL: 7 days (168 hours)</Item>
+        <Item>Authenticated cart TTL: Indefinite (no automatic expiration)</Item>
+        <Item>Abandoned cart threshold: 72 hours inactivity (for notification triggers)</Item>
+        <Item>Redis TTL applied to session key for anonymous carts</Item>
+        <Item>Database soft-delete for authenticated carts after 365 days inactivity</Item>
+      </Configuration>
+      <PromotedFrom handoff="Handoff-20260109-01-W1-T6-CartService" />
+      <Links>
+        <Link ref="Technology.xml#TECH-redis" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-notification-service" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-MERGE" status="APPROVED">
+      <Title>Anonymous to Authenticated Cart Merge Strategy</Title>
+      <Selected>Merge items into authenticated cart with conflict resolution (keep both, sum
+        quantities)</Selected>
+      <Alternatives>
+        <Alternative>Replace authenticated cart with anonymous cart</Alternative>
+        <Alternative>Discard anonymous cart on login</Alternative>
+        <Alternative>Prompt user to choose which cart to keep</Alternative>
+      </Alternatives>
+      <Rationale>
+        Merge strategy preserves user work from both sessions. When same product+configuration
+        exists in both carts, quantities are summed. After merge, anonymous cart is deleted.
+        Price quotes are refreshed during merge to ensure current pricing. Merge is triggered
+        automatically on successful authentication (login/signup) when anonymous cart exists.
+      </Rationale>
+      <MergeRules>
+        <Rule id="MERGE-001">Items with identical configuration hash are merged (quantities summed)</Rule>
+        <Rule id="MERGE-002">Items with different configurations are both kept</Rule>
+        <Rule id="MERGE-003">Applied promo code from authenticated cart takes precedence</Rule>
+        <Rule id="MERGE-004">If no promo code on auth cart, anonymous cart promo is preserved</Rule>
+        <Rule id="MERGE-005">All prices are refreshed after merge</Rule>
+        <Rule id="MERGE-006">Anonymous cart is deleted after successful merge</Rule>
+      </MergeRules>
+      <PromotedFrom handoff="Handoff-20260109-01-W1-T6-CartService" />
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-PRICE-LOCK" status="APPROVED">
+      <Title>Quote Validity and Price Lock Strategy</Title>
+      <Selected>Prices cached per item with 5-minute quote TTL; warn on stale, auto-refresh on
+        checkout</Selected>
+      <Alternatives>
+        <Alternative>Always fetch fresh prices (no caching)</Alternative>
+        <Alternative>Lock prices at add-to-cart time until checkout</Alternative>
+        <Alternative>Lock prices for 24 hours</Alternative>
+      </Alternatives>
+      <Rationale>
+        Cart items store quote_id from pricing-service with 5-minute TTL (per
+        DEC-PRICING-QUOTE-TTL).
+        On GetCart, system checks quote validity. If stale, items marked as price_stale=true.
+        Frontend displays staleness warning. CreateSnapshot always refreshes all prices
+        to ensure checkout uses current pricing. Customer must acknowledge price changes
+        before checkout proceeds.
+      </Rationale>
+      <Configuration>
+        <Item>Quote TTL: 5 minutes (from pricing-service cache)</Item>
+        <Item>Staleness check: Compare quote valid_until with current time</Item>
+        <Item>Auto-refresh: On CreateSnapshot (checkout)</Item>
+        <Item>User notification: Frontend shows "Prices may have changed" badge</Item>
+        <Item>Price change acknowledgement required if total differs > 1%</Item>
+      </Configuration>
+      <PromotedFrom handoff="Handoff-20260109-01-W1-T6-CartService" />
+      <Links>
+        <Link ref="Technology.xml#DEC-PRICING-QUOTE-TTL" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-STATE-MACHINE" status="APPROVED">
+      <Title>Cart State Lifecycle</Title>
+      <Selected>Four states: ACTIVE, CHECKED_OUT, ABANDONED, MERGED</Selected>
+      <Alternatives>
+        <Alternative>Only ACTIVE state (no state machine)</Alternative>
+        <Alternative>ACTIVE, LOCKED, COMPLETED states</Alternative>
+      </Alternatives>
+      <Rationale>
+        Cart state machine tracks lifecycle for analytics and operations:
+        - ACTIVE: Default state, accepts modifications
+        - CHECKED_OUT: Snapshot created, cart cleared, items moved to order
+        - ABANDONED: Inactivity threshold exceeded (notification trigger)
+        - MERGED: Anonymous cart merged into authenticated (terminal, soft-deleted)
+        State changes are audited for analytics (abandoned cart rate, checkout conversion).
+      </Rationale>
+      <StateMachine>
+        <State name="ACTIVE" initial="true">Cart accepts modifications</State>
+        <State name="CHECKED_OUT" terminal="true">Snapshot created for order</State>
+        <State name="ABANDONED">Inactive past threshold (notification trigger)</State>
+        <State name="MERGED" terminal="true">Anonymous cart merged</State>
+        <Transition from="ACTIVE" to="CHECKED_OUT" event="SNAPSHOT_CREATED" />
+        <Transition from="ACTIVE" to="ABANDONED" event="INACTIVITY_THRESHOLD" />
+        <Transition from="ABANDONED" to="ACTIVE" event="CART_MODIFIED" />
+        <Transition from="ACTIVE" to="MERGED" event="CART_MERGED" />
+        <Transition from="ABANDONED" to="MERGED" event="CART_MERGED" />
+      </StateMachine>
+      <PromotedFrom handoff="Handoff-20260109-01-W1-T6-CartService" />
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-VALIDATION" status="APPROVED">
+      <Title>Configuration Revalidation Strategy</Title>
+      <Selected>Validate on add-to-cart and on GetCart (lazy revalidation)</Selected>
+      <Alternatives>
+        <Alternative>Validate only on add-to-cart</Alternative>
+        <Alternative>Validate only on checkout</Alternative>
+        <Alternative>No revalidation (trust stored configuration)</Alternative>
+      </Alternatives>
+      <Rationale>
+        Product configurations may become invalid if catalog rules change after item was added.
+        On GetCart, cart-service calls catalog-configuration-service.ValidateConfiguration for
+        each item and marks items as validation_status=VALID|INVALID|UNKNOWN.
+        Invalid items display warning; customer can reconfigure or remove.
+        CreateSnapshot fails if any item is INVALID (customer must resolve first).
+      </Rationale>
+      <ValidationBehavior>
+        <Item>Add-to-cart: Full validation required (reject invalid configurations)</Item>
+        <Item>GetCart: Lazy revalidation with status flag (allow display of invalid items)</Item>
+        <Item>CreateSnapshot: Full validation required (reject if any item invalid)</Item>
+        <Item>Validation timeout: 2 seconds (use last known status on timeout)</Item>
+      </ValidationBehavior>
+      <PromotedFrom handoff="Handoff-20260109-01-W1-T6-CartService" />
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
       </Links>
     </Decision>
   </Decisions>
