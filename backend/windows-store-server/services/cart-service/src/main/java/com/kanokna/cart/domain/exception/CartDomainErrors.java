@@ -14,12 +14,20 @@ public final class CartDomainErrors {
         return new DomainException("ERR-CART-UNAUTHORIZED", message);
     }
 
+    public static DomainException cartNotFound(String message) {
+        return new DomainException("ERR-CART-NOT-FOUND", message);
+    }
+
     public static DomainException catalogUnavailable(String message, Throwable cause) {
         return new DomainException("ERR-CART-CATALOG-UNAVAILABLE", message, cause);
     }
 
     public static DomainException pricingUnavailable(String message, Throwable cause) {
         return new DomainException("ERR-CART-PRICING-UNAVAILABLE", message, cause);
+    }
+
+    public static DomainException pricingPartial(String message) {
+        return new DomainException("ERR-CART-PRICING-PARTIAL", message);
     }
 
     public static DomainException invalidConfiguration(String message) {

@@ -17,9 +17,11 @@ public record CartItemUpdatedEvent(
     String itemId,
     int oldQuantity,
     int newQuantity,
-    Money newLineTotal
+    Money oldLineTotal,
+    Money newLineTotal,
+    Money cartSubtotal
 ) implements DomainEvent {
-    public static CartItemUpdatedEvent create(Cart cart, CartItem item, int oldQuantity) {
+    public static CartItemUpdatedEvent create(Cart cart, CartItem item, int oldQuantity, Money oldLineTotal) {
         return new CartItemUpdatedEvent(
             UUID.randomUUID().toString(),
             Instant.now(),
@@ -30,7 +32,9 @@ public record CartItemUpdatedEvent(
             item.itemId().toString(),
             oldQuantity,
             item.quantity(),
-            item.lineTotal()
+            oldLineTotal,
+            item.lineTotal(),
+            cart.totals().subtotal()
         );
     }
 

@@ -16,9 +16,15 @@ public record CartCheckedOutEvent(
     String snapshotId,
     String customerId,
     int itemCount,
-    Money total
+    Money total,
+    String appliedPromoCode,
+    Money discountAmount,
+    long cartAgeSeconds
 ) implements DomainEvent {
     public static CartCheckedOutEvent create(Cart cart, CartSnapshot snapshot) {
+        Money discount = cart.appliedPromoCode() == null
+            ? Money.zero(cart.totals().subtotal().getCurrency())
+            : cart.appliedPromoCode().discountAmount();
         return new CartCheckedOutEvent(
             UUID.randomUUID().toString(),
             Instant.now(),
@@ -28,7 +34,10 @@ public record CartCheckedOutEvent(
             snapshot.snapshotId().toString(),
             cart.customerId(),
             cart.totals().itemCount(),
-            cart.totals().total()
+            cart.totals().total(),
+            cart.appliedPromoCode() == null ? null : cart.appliedPromoCode().code(),
+            discount,
+            java.time.Duration.between(cart.createdAt(), snapshot.createdAt()).getSeconds()
         );
     }
 

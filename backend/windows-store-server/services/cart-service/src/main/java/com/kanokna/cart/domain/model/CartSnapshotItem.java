@@ -10,12 +10,14 @@ public record CartSnapshotItem(
     String itemId,
     String productTemplateId,
     String productName,
+    String productFamily,
     ConfigurationSnapshot configurationSnapshot,
     String configurationHash,
     int quantity,
     Money unitPrice,
     Money lineTotal,
-    PriceQuoteReference quoteReference
+    PriceQuoteReference quoteReference,
+    String thumbnailUrl
 ) {
     public CartSnapshotItem {
         Objects.requireNonNull(itemId, "itemId cannot be null");
@@ -33,12 +35,14 @@ public record CartSnapshotItem(
             item.itemId().toString(),
             item.productTemplateId(),
             item.productName(),
+            item.productFamily(),
             item.configurationSnapshot(),
             item.configurationHash(),
             item.quantity(),
             item.unitPrice(),
             item.lineTotal(),
-            item.quoteReference()
+            item.quoteReference(),
+            item.thumbnailUrl()
         );
     }
 }

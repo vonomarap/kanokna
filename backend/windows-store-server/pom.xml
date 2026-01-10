@@ -29,19 +29,11 @@
         <module>shared/shared-kernel</module>
         <module>api-contracts</module>
         <module>gateway</module>
-        <module>pricing-service</module>
-        <!-- Modules below are not yet implemented
-        <module>services/catalog-configuration-service</module>
-        <module>services/cart-service</module>
-        <module>services/order-service</module>
-        <module>services/media-service</module>
         <module>services/account-service</module>
-        <module>services/notification-service</module>
-        <module>services/reporting-service</module>
+        <module>services/cart-service</module>
+        <module>services/catalog-configuration-service</module>
+        <module>services/pricing-service</module>
         <module>services/search-service</module>
-        <module>services/installation-service</module>
-        <module>services/product-service</module>
-        -->
 	</modules>
 
 
@@ -129,6 +121,11 @@
                 <version>${testcontainers.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.redis.testcontainers</groupId>
+                <artifactId>testcontainers-redis-junit</artifactId>
+                <version>2.1</version>
             </dependency>
 
             <!-- ArchUnit -->

@@ -1,0 +1,836 @@
+openapi: 3.1.0
+info:
+  title: Kanokna Windows & Doors - Cart API
+  description: |
+    REST API for shopping cart management. Supports both anonymous (session-based) 
+    and authenticated (customer-based) carts.
+    
+    ## Authentication
+    - Anonymous users: Pass `X-Session-ID` header
+    - Authenticated users: Pass `Authorization: Bearer <token>` header
+    
+    ## GRACE Traceability
+    - Handoff: Handoff-20260109-01-W1-T6-CartService
+    - Use Cases: UC-CART-MANAGE, UC-CART-APPLY-PROMO, UC-ORDER-PLACE
+  version: 1.1.0
+  contact:
+    name: GRACE Architect
+    email: architect@kanokna.com
+  license:
+    name: Proprietary
+    url: https://kanokna.com/licenses
+
+servers:
+  - url: https://api.kanokna.com/v1
+    description: Production
+  - url: https://api.staging.kanokna.com/v1
+    description: Staging
+  - url: http://localhost:8080/api/v1
+    description: Local Development
+
+tags:
+  - name: Cart
+    description: Cart retrieval and management
+  - name: Cart Items
+    description: Operations on cart items
+  - name: Promo Codes
+    description: Promotional code operations
+  - name: Checkout
+    description: Checkout and snapshot operations
+
+paths:
+  /cart:
+    get:
+      operationId: getCart
+      summary: Get current cart
+      description: |
+        Retrieve the current shopping cart. Creates an empty cart if none exists.
+        Returns cart with validation status and price staleness flags for each item.
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Cart retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    delete:
+      operationId: clearCart
+      summary: Clear all items from cart
+      description: |
+        Remove all items from the cart. Removes any applied promo code and 
+        resets totals to zero. Cart entity is preserved with ACTIVE status.
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Cart cleared successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cart/items:
+    post:
+      operationId: addItem
+      summary: Add item to cart
+      description: |
+        Add a configured item to the cart with price from pricing-service.
+        Creates cart if not exists. Validates configuration and stores snapshot.
+      tags: [Cart Items]
+      security:
+        - bearerAuth: []
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddItemRequest'
+      responses:
+        '201':
+          description: Item added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddItemResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cart/items/{itemId}:
+    patch:
+      operationId: updateItem
+      summary: Update cart item quantity
+      description: Update the quantity of an existing cart item. Recalculates totals.
+      tags: [Cart Items]
+      security:
+        - bearerAuth: []
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateItemRequest'
+      responses:
+        '200':
+          description: Item updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      operationId: removeItem
+      summary: Remove item from cart
+      description: Remove an item from the cart entirely. Recalculates cart totals.
+      tags: [Cart Items]
+      security:
+        - bearerAuth: []
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: Item removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cart/promo-code:
+    post:
+      operationId: applyPromoCode
+      summary: Apply promotional code
+      description: |
+        Validate and apply a promotional code to the cart.
+        Validates via pricing-service and applies discount.
+        Only one promo code can be active at a time (replaces existing).
+      tags: [Promo Codes]
+      security:
+        - bearerAuth: []
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyPromoCodeRequest'
+      responses:
+        '200':
+          description: Promo code processed (check 'applied' field)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplyPromoCodeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      operationId: removePromoCode
+      summary: Remove promotional code
+      description: |
+        Remove the applied promotional code from the cart.
+        Resets discount to zero and recalculates cart totals.
+      tags: [Promo Codes]
+      security:
+        - bearerAuth: []
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Promo code removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cart/refresh-prices:
+    post:
+      operationId: refreshPrices
+      summary: Refresh all item prices
+      description: |
+        Refresh price quotes for all cart items from pricing-service.
+        Clears staleness flags, updates quote IDs and validity timestamps.
+        If promo code is applied, recalculates discount with new subtotal.
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Prices refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshPricesResponse'
+        '400':
+          description: Cart is empty
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Pricing service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cart/merge:
+    post:
+      operationId: mergeCarts
+      summary: Merge anonymous cart into authenticated cart
+      description: |
+        Merge an anonymous (session-based) cart into an authenticated (customer) cart.
+        Called after successful login when anonymous session has cart items.
+        Items with matching configuration are quantity-summed.
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MergeCartsRequest'
+      responses:
+        '200':
+          description: Carts merged successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MergeCartsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Anonymous cart not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cart/snapshot:
+    post:
+      operationId: createSnapshot
+      summary: Create checkout snapshot
+      description: |
+        Create an immutable snapshot of the cart for checkout.
+        Validates all configurations, refreshes all prices, creates time-limited snapshot.
+        Cart is transitioned to CHECKED_OUT state.
+        **Requires authenticated user.**
+      tags: [Checkout]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSnapshotRequest'
+      responses:
+        '201':
+          description: Snapshot created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSnapshotResponse'
+        '400':
+          description: Cart is empty or contains invalid items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Prices changed and not acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceChangedResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from authentication service
+    sessionAuth:
+      type: apiKey
+      in: header
+      name: X-Session-ID
+      description: Anonymous session identifier (UUID)
+
+  parameters:
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      description: Cart item identifier
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440001"
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    # ═══════════════════════════════════════════════════════════════════════════
+    # COMMON TYPES
+    # ═══════════════════════════════════════════════════════════════════════════
+    
+    Money:
+      type: object
+      description: Monetary amount with currency
+      properties:
+        amount:
+          type: string
+          description: Decimal amount (e.g., "1234.56")
+          example: "15999.99"
+        currency:
+          type: string
+          enum: [RUB, EUR, USD]
+          description: ISO 4217 currency code
+          example: "RUB"
+      required: [amount, currency]
+
+    Dimensions:
+      type: object
+      description: Product dimensions
+      properties:
+        widthCm:
+          type: integer
+          description: Width in centimeters
+          minimum: 1
+          example: 120
+        heightCm:
+          type: integer
+          description: Height in centimeters
+          minimum: 1
+          example: 150
+      required: [widthCm, heightCm]
+
+    SelectedOption:
+      type: object
+      description: A selected configuration option
+      properties:
+        optionGroupId:
+          type: string
+          description: Option group identifier
+          example: "glass-type"
+        optionId:
+          type: string
+          description: Selected option identifier
+          example: "double-glazed"
+      required: [optionGroupId, optionId]
+
+    BomLine:
+      type: object
+      description: Bill of materials line item
+      properties:
+        sku:
+          type: string
+          example: "REHAU-PROFILE-70MM"
+        description:
+          type: string
+          example: "REHAU 70mm Profile"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 4
+
+    BillOfMaterials:
+      type: object
+      description: Resolved bill of materials
+      properties:
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/BomLine'
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # CART MODELS
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    CartStatus:
+      type: string
+      enum: [ACTIVE, CHECKED_OUT, ABANDONED, MERGED]
+      description: Current cart status
+      example: "ACTIVE"
+
+    ValidationStatus:
+      type: string
+      enum: [VALID, INVALID, UNKNOWN]
+      description: Configuration validation status
+      example: "VALID"
+
+    AppliedPromoCode:
+      type: object
+      description: Applied promotional code details
+      properties:
+        code:
+          type: string
+          description: The promotional code string
+          example: "SUMMER20"
+        discountAmount:
+          $ref: '#/components/schemas/Money'
+        description:
+          type: string
+          description: Human-readable discount description
+          example: "20% off summer sale"
+        appliedAt:
+          type: string
+          format: date-time
+          description: When the promo code was applied
+
+    CartItem:
+      type: object
+      description: A cart line item
+      properties:
+        itemId:
+          type: string
+          format: uuid
+          description: Unique cart item identifier
+        productTemplateId:
+          type: string
+          description: Product template identifier
+          example: "rehau-delight-2sash"
+        productName:
+          type: string
+          description: Product display name
+          example: "REHAU Delight 2-Sash Window"
+        thumbnailUrl:
+          type: string
+          format: uri
+          description: Product thumbnail image URL
+          example: "https://cdn.kanokna.com/products/rehau-delight.jpg"
+        dimensions:
+          $ref: '#/components/schemas/Dimensions'
+        selectedOptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SelectedOption'
+        resolvedBom:
+          $ref: '#/components/schemas/BillOfMaterials'
+        quantity:
+          type: integer
+          minimum: 1
+          description: Item quantity
+          example: 2
+        unitPrice:
+          $ref: '#/components/schemas/Money'
+        lineTotal:
+          $ref: '#/components/schemas/Money'
+        quoteId:
+          type: string
+          description: Price quote identifier for audit
+        validationStatus:
+          $ref: '#/components/schemas/ValidationStatus'
+        validationMessage:
+          type: string
+          description: Validation error message (if status is INVALID)
+        priceStale:
+          type: boolean
+          description: True if the price quote has expired
+          example: false
+        configurationHash:
+          type: string
+          description: SHA-256 hash of configuration for merge comparison
+        quoteValidUntil:
+          type: string
+          format: date-time
+          description: When the price quote expires
+      required:
+        - itemId
+        - productTemplateId
+        - productName
+        - dimensions
+        - quantity
+        - unitPrice
+        - lineTotal
+        - validationStatus
+
+    Cart:
+      type: object
+      description: Shopping cart with items
+      properties:
+        cartId:
+          type: string
+          format: uuid
+          description: Unique cart identifier
+        customerId:
+          type: string
+          description: Customer identifier (for authenticated carts)
+        sessionId:
+          type: string
+          description: Session identifier (for anonymous carts)
+        status:
+          $ref: '#/components/schemas/CartStatus'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        itemCount:
+          type: integer
+          description: Total number of items in cart
+          example: 3
+        subtotal:
+          $ref: '#/components/schemas/Money'
+        appliedPromoCode:
+          $ref: '#/components/schemas/AppliedPromoCode'
+        discount:
+          $ref: '#/components/schemas/Money'
+        tax:
+          $ref: '#/components/schemas/Money'
+        total:
+          $ref: '#/components/schemas/Money'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - cartId
+        - status
+        - items
+        - itemCount
+        - subtotal
+        - total
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # REQUEST/RESPONSE MODELS
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    CartResponse:
+      type: object
+      properties:
+        cart:
+          $ref: '#/components/schemas/Cart'
+      required: [cart]
+
+    AddItemRequest:
+      type: object
+      description: Request to add item to cart
+      properties:
+        productTemplateId:
+          type: string
+          description: Product template identifier
+          example: "rehau-delight-2sash"
+        productName:
+          type: string
+          description: Product display name
+          example: "REHAU Delight 2-Sash Window"
+        thumbnailUrl:
+          type: string
+          format: uri
+          description: Product thumbnail URL
+        productFamily:
+          type: string
+          enum: [WINDOW, DOOR, ACCESSORY]
+          description: Product family for analytics
+          example: "WINDOW"
+        dimensions:
+          $ref: '#/components/schemas/Dimensions'
+        selectedOptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SelectedOption'
+        quantity:
+          type: integer
+          minimum: 1
+          default: 1
+          description: Quantity to add
+          example: 2
+        quoteId:
+          type: string
+          description: Price quote ID from pricing-service (optional)
+        resolvedBom:
+          $ref: '#/components/schemas/BillOfMaterials'
+      required:
+        - productTemplateId
+        - productName
+        - productFamily
+        - dimensions
+        - selectedOptions
+
+    AddItemResponse:
+      type: object
+      properties:
+        cart:
+          $ref: '#/components/schemas/Cart'
+        addedItemId:
+          type: string
+          format: uuid
+          description: ID of the newly added item
+      required: [cart, addedItemId]
+
+    UpdateItemRequest:
+      type: object
+      description: Request to update item quantity
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          description: New quantity (must be >= 1)
+          example: 3
+      required: [quantity]
+
+    ApplyPromoCodeRequest:
+      type: object
+      description: Request to apply promotional code
+      properties:
+        promoCode:
+          type: string
+          description: Promotional code to apply
+          example: "SUMMER20"
+          minLength: 1
+          maxLength: 50
+      required: [promoCode]
+
+    ApplyPromoCodeResponse:
+      type: object
+      properties:
+        cart:
+          $ref: '#/components/schemas/Cart'
+        applied:
+          type: boolean
+          description: Whether the promo code was successfully applied
+        errorMessage:
+          type: string
+          description: Error message if not applied
+        errorCode:
+          type: string
+          description: Error code for programmatic handling
+          enum:
+            - ERR-CART-PROMO-INVALID
+            - ERR-CART-PROMO-EXPIRED
+            - ERR-CART-PROMO-MIN-NOT-MET
+            - ERR-CART-PROMO-USAGE-EXCEEDED
+            - ERR-CART-EMPTY
+      required: [cart, applied]
+
+    RefreshPricesResponse:
+      type: object
+      properties:
+        cart:
+          $ref: '#/components/schemas/Cart'
+        itemsUpdated:
+          type: integer
+          description: Number of items whose prices were updated
+          example: 3
+        totalChanged:
+          type: boolean
+          description: Whether the total changed after refresh
+        previousTotal:
+          $ref: '#/components/schemas/Money'
+        priceChangePercent:
+          type: number
+          format: double
+          description: Price change percentage (positive = increase)
+          example: 2.5
+      required: [cart, itemsUpdated, totalChanged]
+
+    MergeCartsRequest:
+      type: object
+      description: Request to merge anonymous cart
+      properties:
+        anonymousSessionId:
+          type: string
+          description: Session ID of the anonymous cart to merge
+          example: "550e8400-e29b-41d4-a716-446655440002"
+      required: [anonymousSessionId]
+
+    MergeCartsResponse:
+      type: object
+      properties:
+        mergedCart:
+          $ref: '#/components/schemas/Cart'
+        itemsFromAnonymous:
+          type: integer
+          description: Number of items from anonymous cart
+        itemsMerged:
+          type: integer
+          description: Number of items that were quantity-summed
+        itemsAdded:
+          type: integer
+          description: Number of new items added
+        promoCodePreserved:
+          type: boolean
+          description: Whether a promo code was preserved
+        promoCodeSource:
+          type: string
+          enum: [AUTHENTICATED, ANONYMOUS]
+          description: Source of the preserved promo code
+      required: [mergedCart, itemsFromAnonymous, itemsMerged, itemsAdded]
+
+    CreateSnapshotRequest:
+      type: object
+      description: Request to create checkout snapshot
+      properties:
+        acknowledgePriceChanges:
+          type: boolean
+          default: false
+          description: Acknowledge price changes if total differs
+
+    CreateSnapshotResponse:
+      type: object
+      properties:
+        snapshotId:
+          type: string
+          format: uuid
+          description: Unique snapshot identifier for order creation
+        cartSnapshot:
+          $ref: '#/components/schemas/Cart'
+        validUntil:
+          type: string
+          format: date-time
+          description: Snapshot expiration (order must be created before)
+        pricesChanged:
+          type: boolean
+          description: Whether prices changed during snapshot creation
+        previousTotal:
+          $ref: '#/components/schemas/Money'
+      required: [snapshotId, cartSnapshot, validUntil, pricesChanged]
+
+    PriceChangedResponse:
+      type: object
+      description: Response when prices have changed
+      properties:
+        error:
+          type: string
+          example: "PRICES_CHANGED"
+        message:
+          type: string
+          example: "Cart prices have changed since last viewed"
+        previousTotal:
+          $ref: '#/components/schemas/Money'
+        currentTotal:
+          $ref: '#/components/schemas/Money'
+        changePercent:
+          type: number
+          format: double
+          example: 5.2
+
+    ErrorResponse:
+      type: object
+      description: Standard error response
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: "NOT_FOUND"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Cart not found"
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error details
+        timestamp:
+          type: string
+          format: date-time
+        traceId:
+          type: string
+          description: Request trace ID for debugging
+      required: [error, message, timestamp]

@@ -17,6 +17,8 @@ public class CartMergeService {
             throw new IllegalArgumentException("Cannot merge cart into itself");
         }
 
+        AppliedPromoCode targetPromo = target.appliedPromoCode();
+        AppliedPromoCode sourcePromo = source.appliedPromoCode();
         int itemsFromAnonymous = source.items().size();
         int itemsMerged = 0;
         int itemsAdded = 0;
@@ -25,19 +27,19 @@ public class CartMergeService {
             CartItem existing = target.findItemByHash(item.configurationHash()).orElse(null);
             if (existing != null) {
                 // BA-CART-MERGE-SUM: Sum quantities for matching items
-                existing.increaseQuantity(item.quantity());
                 itemsMerged++;
             } else {
                 // BA-CART-MERGE-ADD: Add non-matching items as new
-                target.addItem(cloneItem(item), calculator, null);
                 itemsAdded++;
             }
+            target.addItem(cloneItem(item), calculator, null);
         }
 
         AppliedPromoCode preserved = resolvePromoCode(source, target, calculator);
-        String promoSource = preserved == null
-            ? "NONE"
-            : preserved.equals(target.appliedPromoCode()) ? "AUTHENTICATED" : "ANONYMOUS";
+        String promoSource = "NONE";
+        if (preserved != null) {
+            promoSource = targetPromo != null ? "AUTHENTICATED" : sourcePromo != null ? "ANONYMOUS" : "NONE";
+        }
         boolean promoPreserved = preserved != null;
 
         return new MergeResult(itemsFromAnonymous, itemsMerged, itemsAdded, promoPreserved, promoSource);
@@ -59,6 +61,7 @@ public class CartMergeService {
             item.itemId(),
             item.productTemplateId(),
             item.productName(),
+            item.productFamily(),
             item.configurationSnapshot(),
             item.configurationHash(),
             item.quantity(),
@@ -67,6 +70,7 @@ public class CartMergeService {
             item.validationStatus(),
             item.validationMessage(),
             item.thumbnailUrl(),
+            item.priceStale(),
             item.createdAt(),
             item.updatedAt()
         );

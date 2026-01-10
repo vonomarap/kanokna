@@ -35,9 +35,11 @@ CREATE INDEX IF NOT EXISTS idx_carts_updated
 
 CREATE TABLE IF NOT EXISTS cart.cart_items (
     item_id UUID PRIMARY KEY,
-    cart_id UUID NOT NULL REFERENCES cart.carts (cart_id) ON DELETE CASCADE,
+    cart_id UUID NOT NULL REFERENCES cart.carts (cart_id) ON DELETE CASCADE,    
     product_template_id VARCHAR(255) NOT NULL,
     product_name VARCHAR(500) NOT NULL,
+    product_family VARCHAR(50),
+    thumbnail_url TEXT,
     configuration_snapshot JSONB NOT NULL,
     configuration_hash VARCHAR(64) NOT NULL,
     quantity INT NOT NULL CHECK (quantity >= 1),

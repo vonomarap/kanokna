@@ -1,0 +1,482 @@
+openapi: 3.1.0
+info:
+  title: Kanokna Windows & Doors - Catalog Configuration API
+  description: |
+    REST API for product catalog and configuration validation.
+    Provides product templates, configuration options, and BOM resolution.
+    
+    ## Use Cases
+    - Browse product templates (windows, doors, accessories)
+    - Configure products with dimensions and options
+    - Validate configurations against business rules
+    - Get resolved bill of materials for valid configurations
+    
+    ## GRACE Traceability
+    - Use Cases: UC-CATALOG-BROWSE, UC-CATALOG-CONFIGURE-ITEM
+  version: 1.2.0
+  contact:
+    name: GRACE Architect
+    email: architect@kanokna.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.kanokna.com/v1
+    description: Production
+  - url: https://api.staging.kanokna.com/v1
+    description: Staging
+  - url: http://localhost:8080/api/v1
+    description: Local Development
+
+tags:
+  - name: Products
+    description: Product template operations
+  - name: Configuration
+    description: Configuration validation
+
+paths:
+  /products:
+    get:
+      operationId: listProducts
+      summary: List product templates
+      description: |
+        List product templates with pagination and optional filtering.
+        Used for browsing the product catalog.
+      tags: [Products]
+      parameters:
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of products per page
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+          description: Page token from previous response
+        - name: productFamily
+          in: query
+          schema:
+            type: string
+            enum: [WINDOW, DOOR, ACCESSORY]
+          description: Filter by product family
+        - name: profileSystem
+          in: query
+          schema:
+            type: string
+          description: Filter by profile system (e.g., REHAU, VEKA, KBE)
+        - name: minPrice
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+          description: Minimum base price (in minor currency units)
+        - name: maxPrice
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+          description: Maximum base price (in minor currency units)
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProductsResponse'
+
+  /products/{productTemplateId}:
+    get:
+      operationId: getProduct
+      summary: Get product template details
+      description: |
+        Get a single product template with all available configuration options,
+        dimension constraints, and pricing information.
+      tags: [Products]
+      parameters:
+        - $ref: '#/components/parameters/ProductTemplateId'
+      responses:
+        '200':
+          description: Product retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductTemplateResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /products/{productTemplateId}/validate:
+    post:
+      operationId: validateConfiguration
+      summary: Validate product configuration
+      description: |
+        Validate a product configuration against business rules.
+        Returns validation errors if invalid, or resolved BOM if valid.
+        
+        **Use this before adding to cart to ensure configuration is valid.**
+      tags: [Configuration]
+      parameters:
+        - $ref: '#/components/parameters/ProductTemplateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateConfigurationRequest'
+      responses:
+        '200':
+          description: Validation completed (check 'valid' field)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateConfigurationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    ProductTemplateId:
+      name: productTemplateId
+      in: path
+      required: true
+      description: Product template identifier
+      schema:
+        type: string
+        example: "rehau-delight-2sash"
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    # ═══════════════════════════════════════════════════════════════════════════
+    # COMMON TYPES
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    Money:
+      type: object
+      description: Monetary amount with currency
+      properties:
+        amount:
+          type: string
+          description: Decimal amount
+          example: "15999.99"
+        currency:
+          type: string
+          enum: [RUB, EUR, USD]
+          example: "RUB"
+      required: [amount, currency]
+
+    Dimensions:
+      type: object
+      description: Product dimensions
+      properties:
+        widthCm:
+          type: integer
+          minimum: 1
+          example: 120
+        heightCm:
+          type: integer
+          minimum: 1
+          example: 150
+      required: [widthCm, heightCm]
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PRODUCT MODELS
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    ProductTemplateStatus:
+      type: string
+      enum: [ACTIVE, DRAFT, ARCHIVED]
+      example: "ACTIVE"
+
+    DimensionConstraints:
+      type: object
+      description: Allowed dimension ranges
+      properties:
+        minWidthCm:
+          type: integer
+          example: 50
+        maxWidthCm:
+          type: integer
+          example: 300
+        minHeightCm:
+          type: integer
+          example: 50
+        maxHeightCm:
+          type: integer
+          example: 250
+      required: [minWidthCm, maxWidthCm, minHeightCm, maxHeightCm]
+
+    Option:
+      type: object
+      description: A configuration option
+      properties:
+        id:
+          type: string
+          example: "double-glazed"
+        name:
+          type: string
+          example: "Double Glazed"
+        description:
+          type: string
+          example: "Two panes of glass with air gap"
+        basePremium:
+          $ref: '#/components/schemas/Money'
+      required: [id, name]
+
+    OptionGroup:
+      type: object
+      description: A group of related configuration options
+      properties:
+        id:
+          type: string
+          example: "glass-type"
+        name:
+          type: string
+          example: "Glass Type"
+        required:
+          type: boolean
+          description: Whether selection is mandatory
+          example: true
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/Option'
+      required: [id, name, required, options]
+
+    ProductTemplate:
+      type: object
+      description: A configurable product template
+      properties:
+        id:
+          type: string
+          example: "rehau-delight-2sash"
+        name:
+          type: string
+          example: "REHAU Delight 2-Sash Window"
+        description:
+          type: string
+          example: "Premium 2-sash window with REHAU 70mm profile"
+        productFamily:
+          type: string
+          enum: [WINDOW, DOOR, ACCESSORY]
+          example: "WINDOW"
+        profileSystem:
+          type: string
+          example: "REHAU"
+        openingTypes:
+          type: array
+          items:
+            type: string
+          example: ["tilt", "turn", "tilt-turn", "fixed"]
+        materials:
+          type: array
+          items:
+            type: string
+          example: ["PVC"]
+        colors:
+          type: array
+          items:
+            type: string
+          example: ["white", "anthracite", "golden_oak"]
+        basePrice:
+          $ref: '#/components/schemas/Money'
+        maxPrice:
+          $ref: '#/components/schemas/Money'
+        thumbnailUrl:
+          type: string
+          format: uri
+          example: "https://cdn.kanokna.com/products/rehau-delight.jpg"
+        status:
+          $ref: '#/components/schemas/ProductTemplateStatus'
+        popularity:
+          type: integer
+          description: Popularity score for sorting
+          example: 85
+        dimensionConstraints:
+          $ref: '#/components/schemas/DimensionConstraints'
+        optionGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/OptionGroup'
+        optionGroupCount:
+          type: integer
+          example: 5
+      required:
+        - id
+        - name
+        - productFamily
+        - status
+        - dimensionConstraints
+        - optionGroups
+
+    ProductTemplateSummary:
+      type: object
+      description: Product template summary for list views
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        productFamily:
+          type: string
+        profileSystem:
+          type: string
+        basePrice:
+          $ref: '#/components/schemas/Money'
+        thumbnailUrl:
+          type: string
+          format: uri
+        status:
+          $ref: '#/components/schemas/ProductTemplateStatus'
+        popularity:
+          type: integer
+        optionGroupCount:
+          type: integer
+      required: [id, name, productFamily, status]
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # CONFIGURATION VALIDATION
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    SelectedOption:
+      type: object
+      description: A selected configuration option
+      properties:
+        optionGroupId:
+          type: string
+          example: "glass-type"
+        optionId:
+          type: string
+          example: "double-glazed"
+      required: [optionGroupId, optionId]
+
+    ValidationError:
+      type: object
+      description: Configuration validation error
+      properties:
+        code:
+          type: string
+          example: "DIMENSION_OUT_OF_RANGE"
+        message:
+          type: string
+          example: "Width 400cm exceeds maximum of 300cm"
+        field:
+          type: string
+          example: "dimensions.widthCm"
+      required: [code, message]
+
+    BomLine:
+      type: object
+      description: Bill of materials line item
+      properties:
+        sku:
+          type: string
+          example: "REHAU-PROFILE-70MM"
+        description:
+          type: string
+          example: "REHAU 70mm Profile"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 4
+      required: [sku, description, quantity]
+
+    BillOfMaterials:
+      type: object
+      description: Resolved bill of materials for a configuration
+      properties:
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/BomLine'
+      required: [lines]
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # REQUEST/RESPONSE MODELS
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    ListProductsResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductTemplateSummary'
+        nextPageToken:
+          type: string
+          description: Token for fetching next page
+        totalCount:
+          type: integer
+          description: Total number of matching products
+      required: [products]
+
+    ProductTemplateResponse:
+      type: object
+      properties:
+        product:
+          $ref: '#/components/schemas/ProductTemplate'
+      required: [product]
+
+    ValidateConfigurationRequest:
+      type: object
+      description: Request to validate a configuration
+      properties:
+        dimensions:
+          $ref: '#/components/schemas/Dimensions'
+        selectedOptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SelectedOption'
+          description: Selected options for each required option group
+      required: [dimensions, selectedOptions]
+
+    ValidateConfigurationResponse:
+      type: object
+      description: Configuration validation result
+      properties:
+        valid:
+          type: boolean
+          description: Whether the configuration is valid
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          description: Validation errors (if invalid)
+        resolvedBom:
+          $ref: '#/components/schemas/BillOfMaterials'
+      required: [valid]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "NOT_FOUND"
+        message:
+          type: string
+          example: "Product template not found"
+        timestamp:
+          type: string
+          format: date-time
+        traceId:
+          type: string
+      required: [error, message, timestamp]

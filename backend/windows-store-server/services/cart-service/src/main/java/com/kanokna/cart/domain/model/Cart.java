@@ -175,6 +175,7 @@ public class Cart {
         }
         recalculateTotals(calculator, taxOverride);
         updatedAt = Instant.now();
+        version++;
         return merged;
     }
 
@@ -184,9 +185,12 @@ public class Cart {
         Objects.requireNonNull(calculator, "calculator cannot be null");
         CartItem item = findItem(itemId).orElseThrow(() ->
             new IllegalArgumentException("Item not found: " + itemId));
+        // BA-CART-UPDATE-03: Update quantity and line total
         item.updateQuantity(quantity);
+        // BA-CART-UPDATE-04: Recalculate cart totals
         recalculateTotals(calculator, taxOverride);
         updatedAt = Instant.now();
+        version++;
     }
 
     public void removeItem(CartItemId itemId, CartTotalsCalculator calculator, Money taxOverride) {
@@ -199,15 +203,21 @@ public class Cart {
         }
         recalculateTotals(calculator, taxOverride);
         updatedAt = Instant.now();
+        version++;
     }
 
     public void clear(CartTotalsCalculator calculator) {
         ensureModifiable();
         Objects.requireNonNull(calculator, "calculator cannot be null");
+        // BA-CART-CLEAR-03: Remove all items from cart
         items.clear();
+        // BA-CART-CLEAR-04: Remove applied promo code
         appliedPromoCode = null;
+        status = CartStatus.ACTIVE;
+        // BA-CART-CLEAR-05: Reset cart totals to zero
         recalculateTotals(calculator, null);
         updatedAt = Instant.now();
+        version++;
     }
 
     public void applyPromoCode(AppliedPromoCode promo, CartTotalsCalculator calculator, Money taxOverride) {
@@ -217,6 +227,7 @@ public class Cart {
         this.appliedPromoCode = promo;
         recalculateTotals(calculator, taxOverride);
         updatedAt = Instant.now();
+        version++;
     }
 
     public void removePromoCode(CartTotalsCalculator calculator, Money taxOverride) {
@@ -225,9 +236,28 @@ public class Cart {
         this.appliedPromoCode = null;
         recalculateTotals(calculator, taxOverride);
         updatedAt = Instant.now();
+        version++;
+    }
+
+    public void recalculatePromoDiscount(AppliedPromoCode promo, CartTotalsCalculator calculator, Money taxOverride) {
+        // BA-CART-REFRESH-06: Recalculate promo discount if applied
+        Objects.requireNonNull(calculator, "calculator cannot be null");
+        this.appliedPromoCode = promo;
+        recalculateTotals(calculator, taxOverride);
+        updatedAt = Instant.now();
+        version++;
+    }
+
+    public void calculateTotals(CartTotalsCalculator calculator, Money taxOverride) {
+        // BA-CART-REFRESH-05: Recalculate cart totals
+        Objects.requireNonNull(calculator, "calculator cannot be null");
+        recalculateTotals(calculator, taxOverride);
+        updatedAt = Instant.now();
+        version++;
     }
 
     public CartSnapshot createSnapshot(SnapshotId snapshotId, Duration validity, Instant now) {
+        // BA-CART-SNAP-04: Create immutable snapshot
         Objects.requireNonNull(snapshotId, "snapshotId cannot be null");
         Objects.requireNonNull(validity, "validity cannot be null");
         Objects.requireNonNull(now, "now cannot be null");
@@ -247,18 +277,22 @@ public class Cart {
     }
 
     public void markCheckedOut() {
+        // BA-CART-SNAP-05: Clear original cart (set status CHECKED_OUT)
         status = CartStatus.CHECKED_OUT;
         updatedAt = Instant.now();
+        version++;
     }
 
     public void markMerged() {
         status = CartStatus.MERGED;
         updatedAt = Instant.now();
+        version++;
     }
 
     public void markAbandoned() {
         status = CartStatus.ABANDONED;
         updatedAt = Instant.now();
+        version++;
     }
 
     private void recalculateTotals(CartTotalsCalculator calculator, Money taxOverride) {
