@@ -2,6 +2,7 @@ package com.kanokna.cart.domain.event;
 
 import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.shared.event.DomainEvent;
+import com.kanokna.shared.money.Money;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -12,9 +13,11 @@ public record PromoCodeRemovedEvent(
     long version,
     String cartId,
     String customerId,
-    String promoCode
+    String promoCode,
+    Money discountRemoved,
+    Money newTotal
 ) implements DomainEvent {
-    public static PromoCodeRemovedEvent create(Cart cart, String promoCode) {
+    public static PromoCodeRemovedEvent create(Cart cart, String promoCode, Money discountRemoved) {
         return new PromoCodeRemovedEvent(
             UUID.randomUUID().toString(),
             Instant.now(),
@@ -22,7 +25,9 @@ public record PromoCodeRemovedEvent(
             cart.version(),
             cart.cartId().toString(),
             cart.customerId(),
-            promoCode
+            promoCode,
+            discountRemoved,
+            cart.totals().total()
         );
     }
 

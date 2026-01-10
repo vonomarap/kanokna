@@ -12,6 +12,7 @@ public class CartItem {
     private final CartItemId itemId;
     private final String productTemplateId;
     private final String productName;
+    private final String productFamily;
     private final ConfigurationSnapshot configurationSnapshot;
     private final String configurationHash;
     private int quantity;
@@ -21,12 +22,14 @@ public class CartItem {
     private ValidationStatus validationStatus;
     private String validationMessage;
     private String thumbnailUrl;
+    private boolean priceStale;
     private final Instant createdAt;
     private Instant updatedAt;
 
     private CartItem(CartItemId itemId,
                      String productTemplateId,
                      String productName,
+                     String productFamily,
                      ConfigurationSnapshot configurationSnapshot,
                      String configurationHash,
                      int quantity,
@@ -35,11 +38,13 @@ public class CartItem {
                      ValidationStatus validationStatus,
                      String validationMessage,
                      String thumbnailUrl,
+                     boolean priceStale,
                      Instant createdAt,
                      Instant updatedAt) {
         this.itemId = Objects.requireNonNull(itemId, "itemId cannot be null");
         this.productTemplateId = Objects.requireNonNull(productTemplateId, "productTemplateId cannot be null");
         this.productName = Objects.requireNonNull(productName, "productName cannot be null");
+        this.productFamily = productFamily;
         this.configurationSnapshot = Objects.requireNonNull(configurationSnapshot, "configurationSnapshot cannot be null");
         this.configurationHash = Objects.requireNonNull(configurationHash, "configurationHash cannot be null");
         this.unitPrice = Objects.requireNonNull(unitPrice, "unitPrice cannot be null");
@@ -47,6 +52,7 @@ public class CartItem {
         this.validationStatus = Objects.requireNonNull(validationStatus, "validationStatus cannot be null");
         this.validationMessage = validationMessage;
         this.thumbnailUrl = thumbnailUrl;
+        this.priceStale = priceStale;
         if (quantity < 1) {
             throw new IllegalArgumentException("quantity must be >= 1");
         }
@@ -58,6 +64,7 @@ public class CartItem {
 
     public static CartItem create(String productTemplateId,
                                   String productName,
+                                  String productFamily,
                                   ConfigurationSnapshot configurationSnapshot,
                                   String configurationHash,
                                   int quantity,
@@ -66,11 +73,13 @@ public class CartItem {
                                   ValidationStatus validationStatus,
                                   String validationMessage,
                                   String thumbnailUrl,
+                                  boolean priceStale,
                                   Instant now) {
         return new CartItem(
             CartItemId.generate(),
             productTemplateId,
             productName,
+            productFamily,
             configurationSnapshot,
             configurationHash,
             quantity,
@@ -79,6 +88,7 @@ public class CartItem {
             validationStatus,
             validationMessage,
             thumbnailUrl,
+            priceStale,
             now,
             now
         );
@@ -87,6 +97,7 @@ public class CartItem {
     public static CartItem rehydrate(CartItemId itemId,
                                      String productTemplateId,
                                      String productName,
+                                     String productFamily,
                                      ConfigurationSnapshot configurationSnapshot,
                                      String configurationHash,
                                      int quantity,
@@ -95,12 +106,14 @@ public class CartItem {
                                      ValidationStatus validationStatus,
                                      String validationMessage,
                                      String thumbnailUrl,
+                                     boolean priceStale,
                                      Instant createdAt,
                                      Instant updatedAt) {
         return new CartItem(
             itemId,
             productTemplateId,
             productName,
+            productFamily,
             configurationSnapshot,
             configurationHash,
             quantity,
@@ -109,6 +122,7 @@ public class CartItem {
             validationStatus,
             validationMessage,
             thumbnailUrl,
+            priceStale,
             createdAt,
             updatedAt
         );
@@ -124,6 +138,10 @@ public class CartItem {
 
     public String productName() {
         return productName;
+    }
+
+    public String productFamily() {
+        return productFamily;
     }
 
     public ConfigurationSnapshot configurationSnapshot() {
@@ -162,6 +180,10 @@ public class CartItem {
         return thumbnailUrl;
     }
 
+    public boolean priceStale() {
+        return priceStale;
+    }
+
     public Instant createdAt() {
         return createdAt;
     }
@@ -187,15 +209,28 @@ public class CartItem {
     }
 
     public void updatePrice(Money unitPrice, PriceQuoteReference quoteReference) {
+        // BA-CART-REFRESH-03: Update item prices, quote_id, quote_valid_until
         this.unitPrice = Objects.requireNonNull(unitPrice, "unitPrice cannot be null");
         this.quoteReference = Objects.requireNonNull(quoteReference, "quoteReference cannot be null");
         this.lineTotal = unitPrice.multiplyBy(BigDecimal.valueOf(quantity));
+        this.priceStale = false;
         this.updatedAt = Instant.now();
     }
 
     public void updateValidationStatus(ValidationStatus status, String message) {
         this.validationStatus = Objects.requireNonNull(status, "status cannot be null");
         this.validationMessage = message;
+        this.updatedAt = Instant.now();
+    }
+
+    public void markPriceStale(boolean stale) {
+        this.priceStale = stale;
+        this.updatedAt = Instant.now();
+    }
+
+    public void clearPriceStale() {
+        // BA-CART-REFRESH-04: Clear price_stale flags
+        this.priceStale = false;
         this.updatedAt = Instant.now();
     }
 }

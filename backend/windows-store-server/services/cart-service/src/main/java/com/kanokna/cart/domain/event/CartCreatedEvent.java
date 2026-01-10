@@ -13,7 +13,8 @@ public record CartCreatedEvent(
     String cartId,
     String customerId,
     String sessionId,
-    boolean anonymous
+    boolean anonymous,
+    Instant cartCreatedAt
 ) implements DomainEvent {
     public static CartCreatedEvent create(Cart cart) {
         return new CartCreatedEvent(
@@ -24,7 +25,8 @@ public record CartCreatedEvent(
             cart.cartId().toString(),
             cart.customerId(),
             cart.sessionId(),
-            cart.customerId() == null || cart.customerId().isBlank()
+            cart.customerId() == null || cart.customerId().isBlank(),
+            cart.createdAt()
         );
     }
 

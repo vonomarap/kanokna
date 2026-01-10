@@ -16,9 +16,18 @@ public record PromoCodeAppliedEvent(
     String customerId,
     String promoCode,
     Money discountAmount,
-    Money newTotal
+    Money subtotal,
+    Money newTotal,
+    double discountPercent
 ) implements DomainEvent {
     public static PromoCodeAppliedEvent create(Cart cart, AppliedPromoCode promo) {
+        Money subtotal = cart.totals().subtotal();
+        double discountPercent = subtotal.isZero()
+            ? 0.0
+            : promo.discountAmount().getAmount()
+                .divide(subtotal.getAmount(), java.math.MathContext.DECIMAL64)
+                .multiply(java.math.BigDecimal.valueOf(100))
+                .doubleValue();
         return new PromoCodeAppliedEvent(
             UUID.randomUUID().toString(),
             Instant.now(),
@@ -28,7 +37,9 @@ public record PromoCodeAppliedEvent(
             cart.customerId(),
             promo.code(),
             promo.discountAmount(),
-            cart.totals().total()
+            subtotal,
+            cart.totals().total(),
+            discountPercent
         );
     }
 

@@ -17,10 +17,13 @@ public record CartItemAddedEvent(
     String itemId,
     String productTemplateId,
     String productName,
+    String productFamily,
     int quantity,
     Money unitPrice,
     Money lineTotal,
-    String configurationHash
+    String configurationHash,
+    int cartItemCount,
+    Money cartSubtotal
 ) implements DomainEvent {
     public static CartItemAddedEvent create(Cart cart, CartItem item) {
         return new CartItemAddedEvent(
@@ -33,10 +36,13 @@ public record CartItemAddedEvent(
             item.itemId().toString(),
             item.productTemplateId(),
             item.productName(),
+            item.productFamily(),
             item.quantity(),
             item.unitPrice(),
             item.lineTotal(),
-            item.configurationHash()
+            item.configurationHash(),
+            cart.totals().itemCount(),
+            cart.totals().subtotal()
         );
     }
 
