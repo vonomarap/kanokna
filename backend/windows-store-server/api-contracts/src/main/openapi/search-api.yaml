@@ -1,0 +1,478 @@
+openapi: 3.1.0
+info:
+  title: Kanokna Windows & Doors - Search API
+  description: |
+    REST API for product search with full-text search, faceted filtering, 
+    and autocomplete capabilities. Backed by Elasticsearch.
+    
+    ## Features
+    - Full-text search across product names and descriptions
+    - Faceted filtering (family, material, color, price range)
+    - Autocomplete suggestions as user types
+    - Sorting by relevance, popularity, price, or name
+    - Multi-language support (Russian, English)
+    
+    ## Performance Targets
+    - Search P95 latency: < 200ms
+    - Autocomplete P95 latency: < 100ms
+    
+    ## GRACE Traceability
+    - Use Cases: UC-CATALOG-BROWSE, NFR-PERF-SEARCH-LATENCY
+  version: 1.0.0
+  contact:
+    name: GRACE Architect
+    email: architect@kanokna.com
+
+servers:
+  - url: https://api.kanokna.com/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Local Development
+
+tags:
+  - name: Search
+    description: Product search operations
+  - name: Autocomplete
+    description: Search suggestions
+  - name: Facets
+    description: Filter facet operations
+
+paths:
+  /search/products:
+    get:
+      operationId: searchProducts
+      summary: Search products
+      description: |
+        Search products with full-text query and faceted filtering.
+        
+        Supports:
+        - Full-text search across name and description
+        - Multiple facet filters (AND between groups, OR within group)
+        - Price range filtering
+        - Multiple sort options
+        - Pagination
+      tags: [Search]
+      parameters:
+        - name: q
+          in: query
+          description: Search query (empty returns all products)
+          schema:
+            type: string
+            example: "двухстворчатое окно REHAU"
+        - name: page
+          in: query
+          description: Page number (0-indexed)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: pageSize
+          in: query
+          description: Results per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sortBy
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [relevance, popularity, price_asc, price_desc, newest, name]
+            default: relevance
+        - name: family
+          in: query
+          description: Filter by product family (multiple allowed)
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [WINDOW, DOOR, ACCESSORY]
+          style: form
+          explode: true
+        - name: profileSystem
+          in: query
+          description: Filter by profile system (multiple allowed)
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          example: ["REHAU", "VEKA"]
+        - name: material
+          in: query
+          description: Filter by material (multiple allowed)
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          example: ["PVC", "aluminum"]
+        - name: color
+          in: query
+          description: Filter by color (multiple allowed)
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          example: ["white", "anthracite"]
+        - name: minPrice
+          in: query
+          description: Minimum price in minor units
+          schema:
+            type: integer
+            minimum: 0
+        - name: maxPrice
+          in: query
+          description: Maximum price in minor units
+          schema:
+            type: integer
+            minimum: 0
+        - name: currency
+          in: query
+          description: Currency for price filter
+          schema:
+            type: string
+            enum: [RUB, EUR, USD]
+            default: RUB
+        - name: lang
+          in: query
+          description: Language for localized content (BCP-47)
+          schema:
+            type: string
+            default: ru
+            example: ru
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchProductsResponse'
+
+  /search/autocomplete:
+    get:
+      operationId: getAutocomplete
+      summary: Get autocomplete suggestions
+      description: |
+        Get autocomplete suggestions as user types.
+        Returns product name suggestions and category suggestions.
+        
+        Minimum prefix length: 2 characters.
+      tags: [Autocomplete]
+      parameters:
+        - name: prefix
+          in: query
+          required: true
+          description: Partial query text (minimum 2 characters)
+          schema:
+            type: string
+            minLength: 2
+            example: "рех"
+        - name: limit
+          in: query
+          description: Maximum suggestions to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+        - name: family
+          in: query
+          description: Limit to specific product family
+          schema:
+            type: string
+            enum: [WINDOW, DOOR, ACCESSORY]
+        - name: lang
+          in: query
+          description: Language for suggestions
+          schema:
+            type: string
+            default: ru
+      responses:
+        '200':
+          description: Autocomplete suggestions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutocompleteResponse'
+
+  /search/facets:
+    get:
+      operationId: getFacetValues
+      summary: Get available facet values
+      description: |
+        Get all available facet values for building filter UI.
+        Returns counts for each facet value.
+      tags: [Facets]
+      parameters:
+        - name: fields
+          in: query
+          description: Facet fields to retrieve
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [family, profileSystem, material, color, openingType]
+          style: form
+          explode: true
+        - name: lang
+          in: query
+          description: Language for labels
+          schema:
+            type: string
+            default: ru
+      responses:
+        '200':
+          description: Facet values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetFacetValuesResponse'
+
+  /search/products/{productId}:
+    get:
+      operationId: getProductById
+      summary: Get product by ID from search index
+      description: Get a single product document from the search index.
+      tags: [Search]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "rehau-delight-2sash"
+        - name: lang
+          in: query
+          description: Language for localized content
+          schema:
+            type: string
+            default: ru
+      responses:
+        '200':
+          description: Product document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDocument'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Money:
+      type: object
+      properties:
+        amount:
+          type: string
+          example: "15999.99"
+        currency:
+          type: string
+          enum: [RUB, EUR, USD]
+      required: [amount, currency]
+
+    ProductStatus:
+      type: string
+      enum: [ACTIVE, DRAFT, ARCHIVED]
+
+    ProductDocument:
+      type: object
+      description: Product document from search index
+      properties:
+        id:
+          type: string
+          example: "rehau-delight-2sash"
+        name:
+          type: string
+          example: "REHAU Delight 2-Sash Window"
+        description:
+          type: string
+        family:
+          type: string
+          enum: [WINDOW, DOOR, ACCESSORY]
+          example: "WINDOW"
+        profileSystem:
+          type: string
+          example: "REHAU"
+        openingTypes:
+          type: array
+          items:
+            type: string
+          example: ["tilt", "turn", "tilt-turn"]
+        materials:
+          type: array
+          items:
+            type: string
+          example: ["PVC"]
+        colors:
+          type: array
+          items:
+            type: string
+          example: ["white", "anthracite", "golden_oak"]
+        minPrice:
+          $ref: '#/components/schemas/Money'
+        maxPrice:
+          $ref: '#/components/schemas/Money'
+        popularity:
+          type: integer
+          description: Popularity score
+          example: 85
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        publishedAt:
+          type: string
+          format: date-time
+        thumbnailUrl:
+          type: string
+          format: uri
+          example: "https://cdn.kanokna.com/products/rehau-delight.jpg"
+        optionCount:
+          type: integer
+          description: Number of configuration options
+          example: 5
+        score:
+          type: number
+          format: float
+          description: Search relevance score
+        highlights:
+          type: object
+          additionalProperties:
+            type: string
+          description: Highlighted search matches
+          example:
+            name: "<em>REHAU</em> Delight 2-Sash Window"
+
+    FacetBucket:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Facet value
+          example: "REHAU"
+        label:
+          type: string
+          description: Display label (localized)
+          example: "REHAU"
+        count:
+          type: integer
+          description: Number of products with this value
+          example: 42
+        selected:
+          type: boolean
+          description: Whether currently selected in filter
+          example: false
+
+    FacetAggregation:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "profileSystem"
+        displayName:
+          type: string
+          example: "Profile System"
+        type:
+          type: string
+          enum: [TERMS, RANGE, BOOLEAN]
+          example: "TERMS"
+        buckets:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetBucket'
+
+    SearchProductsResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductDocument'
+        totalCount:
+          type: integer
+          format: int64
+          description: Total matching products
+          example: 156
+        page:
+          type: integer
+          description: Current page (0-indexed)
+          example: 0
+        pageSize:
+          type: integer
+          example: 20
+        totalPages:
+          type: integer
+          example: 8
+        facets:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetAggregation'
+        queryTimeMs:
+          type: integer
+          description: Query execution time
+          example: 45
+
+    Suggestion:
+      type: object
+      properties:
+        text:
+          type: string
+          example: "REHAU Delight"
+        type:
+          type: string
+          enum: [PRODUCT, CATEGORY, BRAND]
+          example: "PRODUCT"
+        productId:
+          type: string
+          description: Product ID (for product suggestions)
+          example: "rehau-delight-2sash"
+        count:
+          type: integer
+          description: Document count (for category suggestions)
+        highlighted:
+          type: string
+          description: Text with matched prefix highlighted
+          example: "<em>РЕХ</em>АУ Delight"
+
+    AutocompleteResponse:
+      type: object
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Suggestion'
+        categorySuggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Suggestion'
+        queryTimeMs:
+          type: integer
+          example: 15
+
+    GetFacetValuesResponse:
+      type: object
+      properties:
+        facets:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetAggregation'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

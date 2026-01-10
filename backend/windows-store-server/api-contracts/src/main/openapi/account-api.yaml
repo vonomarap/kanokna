@@ -1,0 +1,404 @@
+openapi: 3.1.0
+info:
+  title: Kanokna Windows & Doors - Account API
+  description: |
+    REST API for user account management.
+    
+    ## Features
+    - User profile management
+    - Shipping address management
+    - Order history
+    
+    ## Authentication
+    All endpoints require Bearer token authentication.
+    
+    ## GRACE Traceability
+    - Use Cases: UC-ACCOUNT-PROFILE, UC-ACCOUNT-ADDRESSES
+  version: 1.0.0
+  contact:
+    name: GRACE Architect
+    email: architect@kanokna.com
+
+servers:
+  - url: https://api.kanokna.com/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Local Development
+
+tags:
+  - name: Profile
+    description: User profile operations
+  - name: Addresses
+    description: Shipping address management
+  - name: Orders
+    description: Order history
+
+security:
+  - bearerAuth: []
+
+paths:
+  /account/profile:
+    get:
+      operationId: getProfile
+      summary: Get current user profile
+      description: Get the profile of the authenticated user.
+      tags: [Profile]
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    patch:
+      operationId: updateProfile
+      summary: Update user profile
+      description: Update profile fields for the authenticated user.
+      tags: [Profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /account/addresses:
+    get:
+      operationId: listAddresses
+      summary: List shipping addresses
+      description: List all saved shipping addresses for the authenticated user.
+      tags: [Addresses]
+      responses:
+        '200':
+          description: Addresses retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAddressesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    post:
+      operationId: addAddress
+      summary: Add shipping address
+      description: Add a new shipping address.
+      tags: [Addresses]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddAddressRequest'
+      responses:
+        '201':
+          description: Address added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedAddressResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /account/addresses/{addressId}:
+    patch:
+      operationId: updateAddress
+      summary: Update shipping address
+      description: Update an existing shipping address.
+      tags: [Addresses]
+      parameters:
+        - $ref: '#/components/parameters/AddressId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAddressRequest'
+      responses:
+        '200':
+          description: Address updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedAddressResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      operationId: deleteAddress
+      summary: Delete shipping address
+      description: Delete a saved shipping address.
+      tags: [Addresses]
+      parameters:
+        - $ref: '#/components/parameters/AddressId'
+      responses:
+        '204':
+          description: Address deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /account/orders:
+    get:
+      operationId: getOrderHistory
+      summary: Get order history
+      description: Get paginated order history for the authenticated user.
+      tags: [Orders]
+      parameters:
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    AddressId:
+      name: addressId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    UserProfile:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        firstName:
+          type: string
+          example: "Иван"
+        lastName:
+          type: string
+          example: "Иванов"
+        phoneNumber:
+          type: string
+          example: "+7 (999) 123-45-67"
+        preferredLanguage:
+          type: string
+          description: BCP-47 language tag
+          example: "ru"
+        preferredCurrency:
+          type: string
+          enum: [RUB, EUR, USD]
+          example: "RUB"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Address:
+      type: object
+      properties:
+        country:
+          type: string
+          example: "RU"
+        region:
+          type: string
+          example: "Московская область"
+        city:
+          type: string
+          example: "Москва"
+        street:
+          type: string
+          example: "ул. Ленина"
+        building:
+          type: string
+          example: "д. 10"
+        apartment:
+          type: string
+          example: "кв. 25"
+        postalCode:
+          type: string
+          example: "123456"
+        additionalInfo:
+          type: string
+          description: Delivery instructions
+      required: [country, city, street, building, postalCode]
+
+    SavedAddress:
+      type: object
+      properties:
+        addressId:
+          type: string
+          format: uuid
+        address:
+          $ref: '#/components/schemas/Address'
+        label:
+          type: string
+          description: Address label (e.g., "Home", "Work")
+          example: "Дом"
+        isDefault:
+          type: boolean
+          description: Whether this is the default address
+
+    OrderSummary:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED]
+          example: "DELIVERED"
+        totalDisplay:
+          type: string
+          description: Formatted total amount
+          example: "45 999 ₽"
+        itemCount:
+          type: integer
+          example: 3
+        createdAt:
+          type: string
+          format: date-time
+
+    # Request/Response schemas
+    ProfileResponse:
+      type: object
+      properties:
+        profile:
+          $ref: '#/components/schemas/UserProfile'
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phoneNumber:
+          type: string
+        preferredLanguage:
+          type: string
+        preferredCurrency:
+          type: string
+          enum: [RUB, EUR, USD]
+
+    ListAddressesResponse:
+      type: object
+      properties:
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavedAddress'
+
+    AddAddressRequest:
+      type: object
+      properties:
+        address:
+          $ref: '#/components/schemas/Address'
+        label:
+          type: string
+          example: "Дом"
+        setAsDefault:
+          type: boolean
+          default: false
+      required: [address]
+
+    UpdateAddressRequest:
+      type: object
+      properties:
+        address:
+          $ref: '#/components/schemas/Address'
+        label:
+          type: string
+        setAsDefault:
+          type: boolean
+
+    SavedAddressResponse:
+      type: object
+      properties:
+        address:
+          $ref: '#/components/schemas/SavedAddress'
+
+    OrderHistoryResponse:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderSummary'
+        nextPageToken:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

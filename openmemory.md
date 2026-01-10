@@ -45,6 +45,7 @@
 - gateway and config-server: Spring Boot starters present as scaffolding.
 - gateway module implemented: GatewayApplication + configs (GatewayConfig routes, SecurityConfig, RateLimitConfig, CircuitBreakerConfig, CorsConfig), filters (CorrelationIdFilter, RequestLoggingFilter, AuthenticationLoggingFilter), fallback handler, logback JSON logging, application.yml/profile configs, and tests covering TC-GW/TC-SEC/TC-CORR/TC-ROUTE/TC-RATE; routes target lb:// services and rate limiting uses Redis with in-memory fallback.
 - frontend/windows-store-client: Angular 21 app with SSR setup and extensive UI component libraries.
+- services/cart-service: Application service (CartApplicationService) implemented with GRACE function contracts for cart CRUD, promo, merge, refresh, and snapshot flows; canonical logs + Kafka event publishing; added CartProperties and CartServiceConfig for cart settings and domain service beans; tests now include CartServiceTestFixture-driven domain/application coverage with TC-FUNC IDs, JPA slice tests, gRPC mapper/service integration tests, Spring Boot Testcontainers integration (Postgres/Redis/Kafka), and ArchUnit hexagonal checks.
 
 ## Patterns
 - Security: OAuth2/OIDC JWT with BUYER/ADMIN/INSTALLER roles; method-level authorization expected.

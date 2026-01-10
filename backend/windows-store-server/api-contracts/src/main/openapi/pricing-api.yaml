@@ -1,0 +1,261 @@
+openapi: 3.1.0
+info:
+  title: Kanokna Windows & Doors - Pricing API
+  description: |
+    REST API for price calculations and promotional code validation.
+    
+    ## Use Cases
+    - Calculate price quotes for configured products
+    - Validate promotional codes
+    - Get price breakdowns with audit trail
+    
+    ## GRACE Traceability
+    - Use Cases: UC-PRICING-QUOTE, UC-CART-APPLY-PROMO
+  version: 1.0.0
+  contact:
+    name: GRACE Architect
+    email: architect@kanokna.com
+
+servers:
+  - url: https://api.kanokna.com/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Local Development
+
+tags:
+  - name: Pricing
+    description: Price quote operations
+  - name: Promo Codes
+    description: Promotional code validation
+
+paths:
+  /pricing/quote:
+    post:
+      operationId: calculateQuote
+      summary: Calculate price quote
+      description: |
+        Calculate a price quote for a validated configuration.
+        Returns detailed price breakdown with optional audit trace.
+        
+        Quote is valid for a limited time (typically 15 minutes).
+      tags: [Pricing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculateQuoteRequest'
+      responses:
+        '200':
+          description: Quote calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculateQuoteResponse'
+        '400':
+          description: Invalid configuration or currency
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No price book for product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pricing/promo-codes/validate:
+    post:
+      operationId: validatePromoCode
+      summary: Validate promotional code
+      description: |
+        Validate a promotional code for a given subtotal.
+        Returns discount amount if valid.
+      tags: [Promo Codes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidatePromoCodeRequest'
+      responses:
+        '200':
+          description: Validation completed (check 'valid' field)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidatePromoCodeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    Money:
+      type: object
+      properties:
+        amount:
+          type: string
+          example: "15999.99"
+        currency:
+          type: string
+          enum: [RUB, EUR, USD]
+          example: "RUB"
+      required: [amount, currency]
+
+    Dimensions:
+      type: object
+      properties:
+        widthCm:
+          type: integer
+          minimum: 1
+          example: 120
+        heightCm:
+          type: integer
+          minimum: 1
+          example: 150
+      required: [widthCm, heightCm]
+
+    BomLine:
+      type: object
+      properties:
+        sku:
+          type: string
+        description:
+          type: string
+        quantity:
+          type: integer
+
+    BillOfMaterials:
+      type: object
+      properties:
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/BomLine'
+
+    PremiumLine:
+      type: object
+      description: Price premium for a selected option
+      properties:
+        optionId:
+          type: string
+          example: "triple-glazed"
+        optionName:
+          type: string
+          example: "Triple Glazed Glass"
+        amount:
+          $ref: '#/components/schemas/Money'
+
+    PricingDecision:
+      type: object
+      description: Audit trail entry for pricing decision
+      properties:
+        step:
+          type: string
+          example: "base_price"
+        ruleApplied:
+          type: string
+          example: "REHAU-70MM-BASE-RULE"
+        result:
+          type: string
+          example: "12000.00 RUB"
+
+    CalculateQuoteRequest:
+      type: object
+      properties:
+        productTemplateId:
+          type: string
+          example: "rehau-delight-2sash"
+        dimensions:
+          $ref: '#/components/schemas/Dimensions'
+        resolvedBom:
+          $ref: '#/components/schemas/BillOfMaterials'
+        currency:
+          type: string
+          enum: [RUB, EUR, USD]
+          default: "RUB"
+        promoCode:
+          type: string
+          description: Optional promotional code
+        region:
+          type: string
+          description: Region for tax calculation
+          example: "RU"
+      required:
+        - productTemplateId
+        - dimensions
+        - resolvedBom
+        - currency
+
+    CalculateQuoteResponse:
+      type: object
+      properties:
+        quoteId:
+          type: string
+          format: uuid
+          description: Unique quote identifier
+        basePrice:
+          $ref: '#/components/schemas/Money'
+        optionPremiums:
+          type: array
+          items:
+            $ref: '#/components/schemas/PremiumLine'
+        discount:
+          $ref: '#/components/schemas/Money'
+        subtotal:
+          $ref: '#/components/schemas/Money'
+        tax:
+          $ref: '#/components/schemas/Money'
+        total:
+          $ref: '#/components/schemas/Money'
+        validUntil:
+          type: string
+          format: date-time
+          description: Quote expiration timestamp
+        decisionTrace:
+          type: array
+          items:
+            $ref: '#/components/schemas/PricingDecision'
+          description: Pricing audit trail
+
+    ValidatePromoCodeRequest:
+      type: object
+      properties:
+        promoCode:
+          type: string
+          example: "SUMMER20"
+        subtotal:
+          $ref: '#/components/schemas/Money'
+      required: [promoCode, subtotal]
+
+    ValidatePromoCodeResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: Whether the promo code is valid
+        errorMessage:
+          type: string
+          description: Error message if invalid
+        discountAmount:
+          $ref: '#/components/schemas/Money'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
