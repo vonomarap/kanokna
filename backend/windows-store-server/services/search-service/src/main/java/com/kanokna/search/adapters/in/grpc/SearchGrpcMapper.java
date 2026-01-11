@@ -1,5 +1,12 @@
 package com.kanokna.search.adapters.in.grpc;
 
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.util.List;
+import java.util.Locale;
+
+import org.springframework.stereotype.Component;
+
 import com.google.protobuf.Timestamp;
 import com.kanokna.search.application.dto.FacetValuesResult;
 import com.kanokna.search.application.dto.GetFacetValuesQuery;
@@ -31,12 +38,6 @@ import com.kanokna.shared.i18n.Language;
 import com.kanokna.shared.i18n.LocalizedString;
 import com.kanokna.shared.money.Currency;
 import com.kanokna.shared.money.Money;
-import org.springframework.stereotype.Component;
-
-import java.math.RoundingMode;
-import java.time.Instant;
-import java.util.List;
-import java.util.Locale;
 
 /**
  * Mapper between search domain models and gRPC messages.
@@ -223,7 +224,7 @@ public class SearchGrpcMapper {
             case SORT_FIELD_PRICE_DESC -> SortField.PRICE_DESC;
             case SORT_FIELD_NEWEST -> SortField.NEWEST;
             case SORT_FIELD_NAME -> SortField.NAME;
-            case SORT_FIELD_UNSPECIFIED -> SortField.UNSPECIFIED;
+            case SORT_FIELD_UNSPECIFIED, UNRECOGNIZED -> SortField.UNSPECIFIED;
         };
     }
 
@@ -234,7 +235,7 @@ public class SearchGrpcMapper {
         return switch (sortOrder) {
             case SORT_ORDER_ASC -> SortOrder.ASC;
             case SORT_ORDER_DESC -> SortOrder.DESC;
-            case SORT_ORDER_UNSPECIFIED -> SortOrder.UNSPECIFIED;
+            case SORT_ORDER_UNSPECIFIED, UNRECOGNIZED -> SortOrder.UNSPECIFIED;
         };
     }
 

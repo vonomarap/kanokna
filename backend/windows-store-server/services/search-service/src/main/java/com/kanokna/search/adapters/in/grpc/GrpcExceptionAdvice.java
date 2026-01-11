@@ -1,29 +1,52 @@
 package com.kanokna.search.adapters.in.grpc;
 
+import org.springframework.core.annotation.Order;
+import org.springframework.grpc.server.GlobalServerInterceptor;
+import org.springframework.stereotype.Component;
+
 import com.kanokna.shared.core.DomainException;
+
+import io.grpc.ForwardingServerCallListener;
+import io.grpc.Metadata;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import net.devh.boot.grpc.server.advice.GrpcAdvice;
-import net.devh.boot.grpc.server.advice.GrpcExceptionHandler;
 
 /**
- * gRPC exception handler for search service.
+ * gRPC exception interceptor for search service.
+ * Converts domain and application exceptions to appropriate gRPC Status codes.
+ * 
+ * Spring gRPC uses ServerInterceptor for exception handling instead of @GrpcAdvice.
  */
-@GrpcAdvice
-public class GrpcExceptionAdvice {
-    @GrpcExceptionHandler(DomainException.class)
-    public StatusRuntimeException handleDomainException(DomainException ex) {
-        return mapDomainException(ex).asRuntimeException();
-    }
+@Component
+@GlobalServerInterceptor
+@Order(1)
+public class GrpcExceptionAdvice implements ServerInterceptor {
 
-    @GrpcExceptionHandler(IllegalArgumentException.class)
-    public StatusRuntimeException handleIllegalArgument(IllegalArgumentException ex) {
-        return Status.INVALID_ARGUMENT.withDescription(ex.getMessage()).asRuntimeException();
-    }
-
-    @GrpcExceptionHandler(Exception.class)
-    public StatusRuntimeException handleUnexpected(Exception ex) {
-        return Status.INTERNAL.withDescription("Search service error").withCause(ex).asRuntimeException();
+    @Override
+    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+            ServerCall<ReqT, RespT> call,
+            Metadata headers,
+            ServerCallHandler<ReqT, RespT> next) {
+        
+        ServerCall.Listener<ReqT> listener = next.startCall(call, headers);
+        
+        return new ForwardingServerCallListener.SimpleForwardingServerCallListener<>(listener) {
+            @Override
+            public void onHalfClose() {
+                try {
+                    super.onHalfClose();
+                } catch (DomainException ex) {
+                    Status status = mapDomainException(ex);
+                    call.close(status, new Metadata());
+                } catch (IllegalArgumentException ex) {
+                    call.close(Status.INVALID_ARGUMENT.withDescription(ex.getMessage()), new Metadata());
+                } catch (Exception ex) {
+                    call.close(Status.INTERNAL.withDescription("Search service error").withCause(ex), new Metadata());
+                }
+            }
+        };
     }
 
     private Status mapDomainException(DomainException ex) {
@@ -51,3 +74,4 @@ public class GrpcExceptionAdvice {
         };
     }
 }
+

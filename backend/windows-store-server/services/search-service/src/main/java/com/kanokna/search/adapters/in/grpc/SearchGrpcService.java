@@ -1,5 +1,7 @@
 package com.kanokna.search.adapters.in.grpc;
 
+import org.springframework.grpc.server.service.GrpcService;
+
 import com.kanokna.search.application.dto.FacetValuesResult;
 import com.kanokna.search.application.dto.GetFacetValuesQuery;
 import com.kanokna.search.application.dto.GetProductByIdQuery;
@@ -22,8 +24,8 @@ import com.kanokna.search.v1.SearchProductsRequest;
 import com.kanokna.search.v1.SearchProductsResponse;
 import com.kanokna.search.v1.SearchServiceGrpc;
 import com.kanokna.shared.i18n.Language;
+
 import io.grpc.stub.StreamObserver;
-import net.devh.boot.grpc.server.service.GrpcService;
 
 /**
  * gRPC service for search operations.
