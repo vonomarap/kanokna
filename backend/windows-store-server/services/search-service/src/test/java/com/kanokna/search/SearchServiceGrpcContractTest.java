@@ -22,6 +22,7 @@ import com.kanokna.search.v1.SearchProductsResponse;
 import com.kanokna.search.v1.SearchServiceGrpc;
 import com.kanokna.shared.i18n.Language;
 import io.grpc.MethodDescriptor;
+import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -51,22 +52,22 @@ class SearchServiceGrpcContractTest {
         Method searchProducts = SearchGrpcService.class.getMethod(
             "searchProducts",
             com.kanokna.search.v1.SearchProductsRequest.class,
-            io.grpc.stub.StreamObserver.class
+            StreamObserver.class
         );
         Method autocomplete = SearchGrpcService.class.getMethod(
             "getAutocompleteSuggestions",
             com.kanokna.search.v1.AutocompleteRequest.class,
-            io.grpc.stub.StreamObserver.class
+            StreamObserver.class
         );
         Method facetValues = SearchGrpcService.class.getMethod(
             "getFacetValues",
             com.kanokna.search.v1.GetFacetValuesRequest.class,
-            io.grpc.stub.StreamObserver.class
+            StreamObserver.class
         );
         Method getById = SearchGrpcService.class.getMethod(
             "getProductById",
             com.kanokna.search.v1.GetProductByIdRequest.class,
-            io.grpc.stub.StreamObserver.class
+            StreamObserver.class
         );
 
         assertNotNull(searchProducts);

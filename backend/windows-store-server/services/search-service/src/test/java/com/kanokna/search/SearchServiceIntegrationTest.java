@@ -32,6 +32,7 @@ import com.kanokna.search.support.SearchTestFixture;
 import com.kanokna.search.support.TestContainersConfig;
 import com.kanokna.shared.core.DomainException;
 import com.kanokna.shared.i18n.Language;
+import com.kanokna.shared.i18n.LocalizedString;
 import com.kanokna.shared.money.Currency;
 import com.kanokna.shared.money.Money;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,9 +41,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.kafka.core.KafkaTemplate;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -80,7 +82,7 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
 
-    @MockBean
+    @MockitoBean
     private CatalogConfigurationPort catalogConfigurationPort;
 
     @Value("${kafka.topics.product-published}")
@@ -93,7 +95,7 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
     private String productUnpublishedTopic;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws IOException {
         resetIndices();
     }
 
@@ -104,7 +106,7 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
 
         SearchResult result = awaitSearch("", 1);
 
-        assertTrue(result.getProducts().stream().anyMatch(doc -> doc.getId().equals("p1")));
+        assertTrue(result.products().stream().anyMatch(doc -> doc.getId().equals("p1")));
     }
 
     @Test
@@ -140,9 +142,9 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
 
         ReindexResult result = searchApplicationService.reindexCatalog(new ReindexCommand(null));
 
-        assertEquals(searchProperties.getIndex().getVersionPrefix() + "2", result.getNewIndexName());
+        assertEquals(searchProperties.getIndex().getVersionPrefix() + "2", result.newIndexName());
         assertTrue(searchIndexAdminPort.resolveAlias(searchProperties.getIndex().getAlias())
-            .contains(result.getNewIndexName()));
+            .contains(result.newIndexName()));
     }
 
     @Test
@@ -164,7 +166,7 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
 
     @Test
     @DisplayName("TC-FUNC-SEARCH-005: search_withFacetFilters_returnsFilteredResults")
-    void search_withFacetFilters_returnsFilteredResults() {
+    void search_withFacetFilters_returnsFilteredResults() throws IOException {
         searchRepository.index(buildDocument("p20", "Window Prime", "WINDOW", "PVC"));
         searchRepository.index(buildDocument("p21", "Door Prime", "DOOR", "WOOD"));
         refreshAlias();
@@ -182,13 +184,13 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
 
         SearchResult result = searchApplicationService.searchProducts(query);
 
-        assertEquals(1, result.getProducts().size());
-        assertEquals("WINDOW", result.getProducts().get(0).getFamily());
+        assertEquals(1, result.products().size());
+        assertEquals("WINDOW", result.products().get(0).getFamily());
     }
 
     @Test
     @DisplayName("TC-FUNC-AUTO-001: autocomplete_returnsMatchingSuggestions")
-    void autocomplete_returnsMatchingSuggestions() {
+    void autocomplete_returnsMatchingSuggestions() throws IOException {
         searchRepository.index(buildDocument("p30", "Window Spark", "WINDOW", "PVC"));
         refreshAlias();
 
@@ -196,13 +198,13 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
             new AutocompleteQuery("Win", 10, Language.RU, null)
         );
 
-        assertFalse(result.getSuggestions().isEmpty());
-        assertEquals("Window Spark", result.getSuggestions().get(0).getText());
+        assertFalse(result.suggestions().isEmpty());
+        assertEquals("Window Spark", result.suggestions().get(0).text());
     }
 
     @Test
     @DisplayName("TC-FUNC-FACET-002: getFacetValues_returnsAllFacetBuckets")
-    void getFacetValues_returnsAllFacetBuckets() {
+    void getFacetValues_returnsAllFacetBuckets() throws IOException {
         searchRepository.index(buildDocument("p40", "Window Core", "WINDOW", "PVC"));
         searchRepository.index(buildDocument("p41", "Door Core", "DOOR", "WOOD"));
         refreshAlias();
@@ -211,14 +213,14 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
             new GetFacetValuesQuery(List.of("family", "materials"), Language.RU)
         );
 
-        assertEquals(2, result.getFacets().size());
-        assertTrue(result.getFacets().stream().anyMatch(facet -> "family".equals(facet.getField())));
-        assertTrue(result.getFacets().stream().anyMatch(facet -> "materials".equals(facet.getField())));
+        assertEquals(2, result.facets().size());
+        assertTrue(result.facets().stream().anyMatch(facet -> "family".equals(facet.field())));
+        assertTrue(result.facets().stream().anyMatch(facet -> "materials".equals(facet.field())));
     }
 
     @Test
     @DisplayName("TC-FUNC-GET-001: getProductById_returnsDocument")
-    void getProductById_returnsDocument() {
+    void getProductById_returnsDocument() throws IOException {
         searchRepository.index(buildDocument("p50", "Window Get", "WINDOW", "PVC"));
         refreshAlias();
 
@@ -229,7 +231,7 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
         assertEquals("p50", document.getId());
     }
 
-    private void resetIndices() {
+    private void resetIndices() throws IOException {
         String alias = searchProperties.getIndex().getAlias();
         String versionPrefix = searchProperties.getIndex().getVersionPrefix();
         deleteIndex(alias);
@@ -253,7 +255,7 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
         }
     }
 
-    private void refreshAlias() {
+    private void refreshAlias() throws IOException {
         elasticsearchClient.indices().refresh(r -> r.index(searchProperties.getIndex().getAlias()));
     }
 
@@ -280,13 +282,15 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
                         Language.RU
                     )
                 );
-                if (result.getProducts().size() >= expectedMin) {
+                if (result.products().size() >= expectedMin) {
                     return result;
                 }
             } catch (RuntimeException ex) {
                 lastError = ex;
+            } catch (IOException e) {
+              throw new RuntimeException(e);
             }
-            sleep(200);
+          sleep(200);
         }
         if (lastError != null) {
             throw lastError;
@@ -306,8 +310,10 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
                 );
             } catch (RuntimeException ex) {
                 lastError = ex;
+            } catch (IOException e) {
+              throw new RuntimeException(e);
             }
-            sleep(200);
+          sleep(200);
         }
         if (lastError != null) {
             throw lastError;
@@ -326,8 +332,10 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
                 if ("ERR-GET-PRODUCT-NOT-FOUND".equals(ex.getCode())) {
                     return;
                 }
+            } catch (IOException e) {
+              throw new RuntimeException(e);
             }
-            sleep(200);
+          sleep(200);
         }
         fail("Timed out waiting for product deletion " + productId);
     }
@@ -348,8 +356,8 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
         String material
     ) {
         return ProductSearchDocument.builder(id)
-            .name(com.kanokna.shared.i18n.LocalizedString.of(Language.RU, name))
-            .description(com.kanokna.shared.i18n.LocalizedString.of(Language.RU, name + " desc"))
+            .name(LocalizedString.of(Language.RU, name))
+            .description(LocalizedString.of(Language.RU, name + " desc"))
             .family(family)
             .profileSystem("REHAU")
             .openingTypes(List.of("TILT"))

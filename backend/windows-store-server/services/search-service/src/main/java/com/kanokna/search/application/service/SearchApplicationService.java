@@ -179,14 +179,14 @@ public class SearchApplicationService implements
         Objects.requireNonNull(query, "query");
 
         SearchQuery normalized = normalizeSearchQuery(query);
-        validateFacetFilters(normalized.getFilters());
+        validateFacetFilters(normalized.filters());
 
         // BA-SEARCH-QUERY-01: Build Elasticsearch query from SearchQuery
         log.info(logLine(USE_CASE_BROWSE, "BA-SEARCH-QUERY-01", "BUILD_QUERY",
             "QUERY_BUILDING", "NORMALIZE",
-            "queryText=" + safeValue(normalized.getQueryText())
-                + ",filterCount=" + normalized.getFilters().size()
-                + ",sortField=" + normalized.getSortField()));
+            "queryText=" + safeValue(normalized.queryText())
+                + ",filterCount=" + normalized.filters().size()
+                + ",sortField=" + normalized.sortField()));
 
         // BA-SEARCH-QUERY-02: Execute query and collect results
         log.info(logLine(USE_CASE_BROWSE, "BA-SEARCH-QUERY-02", "EXECUTE_QUERY",
@@ -197,18 +197,18 @@ public class SearchApplicationService implements
 
         log.info(logLine(USE_CASE_BROWSE, "BA-SEARCH-QUERY-02", "QUERY_COMPLETE",
             "ELASTICSEARCH_QUERY_END", "SUCCESS",
-            "took_ms=" + result.getQueryTimeMs() + ",total_hits=" + result.getTotalCount()));
+            "took_ms=" + result.queryTimeMs() + ",total_hits=" + result.totalCount()));
 
         // BA-SEARCH-QUERY-03: Process facet aggregations
         log.info(logLine(USE_CASE_BROWSE, "BA-SEARCH-QUERY-03", "PROCESS_FACETS",
             "FACET_AGGREGATION", "COLLECT",
-            "facetCount=" + result.getFacets().size()));
+            "facetCount=" + result.facets().size()));
 
         // BA-SEARCH-QUERY-04: Map Elasticsearch response to SearchResult
         log.info(logLine(USE_CASE_BROWSE, "BA-SEARCH-QUERY-04", "MAPPING_COMPLETE",
             "SEARCH_RESULT_READY", "READY",
-            "resultCount=" + result.getProducts().size()
-                + ",facetCount=" + result.getFacets().size()));
+            "resultCount=" + result.products().size()
+                + ",facetCount=" + result.facets().size()));
 
         return result;
     }
@@ -275,7 +275,7 @@ public class SearchApplicationService implements
         Objects.requireNonNull(query, "query");
 
         AutocompleteQuery normalized = normalizeAutocompleteQuery(query);
-        String prefix = normalized.getPrefix() == null ? "" : normalized.getPrefix();
+        String prefix = normalized.prefix() == null ? "" : normalized.prefix();
         int prefixLength = prefix.length();
 
         // BA-AUTO-01: Validate prefix length constraint
@@ -292,15 +292,15 @@ public class SearchApplicationService implements
         // BA-AUTO-03: Execute suggestion query
         log.info(logLine(USE_CASE_BROWSE, "BA-AUTO-03", "EXECUTE_SUGGEST",
             "SUGGEST_QUERY_START", "START",
-            "limit=" + normalized.getLimit()));
+            "limit=" + normalized.limit()));
 
         AutocompleteResult result = searchRepository.autocomplete(normalized);
 
         // BA-AUTO-04: Map suggestions to result
         log.info(logLine(USE_CASE_BROWSE, "BA-AUTO-04", "RESULT_READY",
             "AUTOCOMPLETE_COMPLETE", "SUCCESS",
-            "suggestionCount=" + result.getSuggestions().size()
-                + ",queryTimeMs=" + result.getQueryTimeMs()));
+            "suggestionCount=" + result.suggestions().size()
+                + ",queryTimeMs=" + result.queryTimeMs()));
 
         return result;
     }
@@ -370,9 +370,9 @@ public class SearchApplicationService implements
     public IndexResult indexProduct(CatalogProductEvent event) {
         Objects.requireNonNull(event, "event");
 
-        String productId = safeValue(event.getProductId());
-        String eventId = safeValue(event.getEventId());
-        String eventType = safeValue(event.getEventType());
+        String productId = safeValue(event.productId());
+        String eventId = safeValue(event.eventId());
+        String eventType = safeValue(event.eventType());
 
         // BA-INDEX-01: Validate and extract event payload
         log.info(logLine(USE_CASE_INDEX, "BA-INDEX-01", "EVENT_RECEIVED",
@@ -396,8 +396,8 @@ public class SearchApplicationService implements
 
         // BA-INDEX-04: Confirm indexing success
         log.info(logLine(USE_CASE_INDEX, "BA-INDEX-04", "INDEX_COMPLETE",
-            "PRODUCT_INDEXED", result.isSuccess() ? "SUCCESS" : "FAILURE",
-            "productId=" + productId + ",took_ms=" + result.getTookMs()));
+            "PRODUCT_INDEXED", result.success() ? "SUCCESS" : "FAILURE",
+            "productId=" + productId + ",took_ms=" + result.tookMs()));
 
         return result;
     }
@@ -453,7 +453,7 @@ public class SearchApplicationService implements
     @Override
     public DeleteResult deleteProduct(CatalogProductDeleteEvent event) {
         Objects.requireNonNull(event, "event");
-        String productId = safeValue(event.getProductId());
+        String productId = safeValue(event.productId());
 
         // BA-DELETE-01: Extract productId from event
         log.info(logLine(USE_CASE_DELETE, "BA-DELETE-01", "EVENT_RECEIVED",
@@ -473,7 +473,7 @@ public class SearchApplicationService implements
 
         // BA-DELETE-03: Log outcome
         log.info(logLine(USE_CASE_DELETE, "BA-DELETE-03", "DELETE_COMPLETE",
-            "PRODUCT_DELETED", result.isDeleted() ? "DELETED" : "NOT_FOUND",
+            "PRODUCT_DELETED", result.deleted() ? "DELETED" : "NOT_FOUND",
             "productId=" + productId));
 
         return result;
@@ -541,27 +541,27 @@ public class SearchApplicationService implements
         Objects.requireNonNull(query, "query");
 
         GetFacetValuesQuery normalized = normalizeFacetValuesQuery(query);
-        validateFacetValueFields(normalized.getFields());
+        validateFacetValueFields(normalized.fields());
 
         // BA-FACET-01: Validate requested facet fields
         log.info(logLine(USE_CASE_BROWSE, "BA-FACET-01", "VALIDATE_FIELDS",
             "FACET_REQUEST", "VALIDATE",
-            "fieldCount=" + normalized.getFields().size() + ",fields=" + normalized.getFields()));
+            "fieldCount=" + normalized.fields().size() + ",fields=" + normalized.fields()));
 
         // BA-FACET-02: Build aggregation query
 
         // BA-FACET-03: Execute aggregation query
         log.info(logLine(USE_CASE_BROWSE, "BA-FACET-03", "EXECUTE_AGGREGATION",
             "ES_AGGREGATION_START", "START",
-            "fieldCount=" + normalized.getFields().size()));
+            "fieldCount=" + normalized.fields().size()));
 
         FacetValuesResult result = searchRepository.facetValues(normalized);
 
         // BA-FACET-04: Map aggregations to FacetValuesResult
         log.info(logLine(USE_CASE_BROWSE, "BA-FACET-04", "RESULT_READY",
             "FACET_VALUES_READY", "SUCCESS",
-            "facetCount=" + result.getFacets().size()
-                + ",queryTimeMs=" + result.getQueryTimeMs()));
+            "facetCount=" + result.facets().size()
+                + ",queryTimeMs=" + result.queryTimeMs()));
 
         return result;
     }
@@ -621,7 +621,7 @@ public class SearchApplicationService implements
     @Transactional(readOnly = true)
     public ProductSearchDocument getProductById(GetProductByIdQuery query) {
         Objects.requireNonNull(query, "query");
-        String productId = query.getProductId();
+        String productId = query.productId();
 
         // BA-GET-01: Validate productId
         log.info(logLine(USE_CASE_BROWSE, "BA-GET-01", "VALIDATE_ID",
@@ -809,7 +809,7 @@ public class SearchApplicationService implements
                 }
 
                 List<ProductSearchDocument> documents = new ArrayList<>();
-                for (CatalogProductEvent event : page.getProducts()) {
+                for (CatalogProductEvent event : page.products()) {
                     if (event == null) {
                         continue;
                     }
@@ -831,21 +831,21 @@ public class SearchApplicationService implements
                     } catch (DomainException ex) {
                         throw SearchDomainErrors.reindexElasticsearchUnavailable(ex.getMessage());
                     }
-                    indexedCount += bulk.getIndexedCount();
-                    failedCount += bulk.getFailedCount();
+                    indexedCount += bulk.indexedCount();
+                    failedCount += bulk.failedCount();
 
                     // BA-REINDEX-04: Bulk index products into new index
                     log.info(logLine(USE_CASE_REINDEX, "BA-REINDEX-04", "BULK_INDEX",
                         "BULK_INDEX_PROGRESS", "PROGRESS",
                         "indexedCount=" + indexedCount + ",failedCount=" + failedCount));
 
-                    if (bulk.getFailedCount() > 0) {
+                    if (bulk.failedCount() > 0) {
                         throw SearchDomainErrors.reindexElasticsearchUnavailable(
-                            "Bulk index failures: " + bulk.getFailedCount());
+                            "Bulk index failures: " + bulk.failedCount());
                     }
                 }
 
-                pageToken = page.getNextPageToken();
+                pageToken = page.nextPageToken();
             } while (pageToken != null && !pageToken.isBlank());
 
             // BA-REINDEX-05: Swap alias to new index (atomic)
@@ -878,13 +878,13 @@ public class SearchApplicationService implements
 
     private SearchQuery normalizeSearchQuery(SearchQuery query) {
         List<FacetFilter> normalizedFilters = new ArrayList<>();
-        for (FacetFilter filter : query.getFilters()) {
+        for (FacetFilter filter : query.filters()) {
             if (filter == null) {
                 continue;
             }
-            String field = normalizeFacetField(filter.getField());
+            String field = normalizeFacetField(filter.field());
             List<String> values = new ArrayList<>();
-            for (String value : filter.getValues()) {
+            for (String value : filter.values()) {
                 if (value != null && !value.isBlank()) {
                     values.add(value);
                 }
@@ -892,15 +892,15 @@ public class SearchApplicationService implements
             normalizedFilters.add(new FacetFilter(field, values));
         }
 
-        Language language = query.getLanguage() == null ? DEFAULT_LANGUAGE : query.getLanguage();
-        PriceRange priceRange = query.getPriceRange();
+        Language language = query.language() == null ? DEFAULT_LANGUAGE : query.language();
+        PriceRange priceRange = query.priceRange();
 
         return new SearchQuery(
-            query.getQueryText(),
-            query.getPage(),
-            query.getPageSize(),
-            query.getSortField(),
-            query.getSortOrder(),
+            query.queryText(),
+            query.page(),
+            query.pageSize(),
+            query.sortField(),
+            query.sortOrder(),
             normalizedFilters,
             priceRange,
             language
@@ -908,31 +908,31 @@ public class SearchApplicationService implements
     }
 
     private AutocompleteQuery normalizeAutocompleteQuery(AutocompleteQuery query) {
-        int limit = query.getLimit();
+        int limit = query.limit();
         if (limit <= 0) {
             limit = DEFAULT_AUTOCOMPLETE_LIMIT;
         }
         if (limit > MAX_AUTOCOMPLETE_LIMIT) {
             limit = MAX_AUTOCOMPLETE_LIMIT;
         }
-        return new AutocompleteQuery(query.getPrefix(), limit, query.getLanguage(), query.getFamilyFilter());
+        return new AutocompleteQuery(query.prefix(), limit, query.language(), query.familyFilter());
     }
 
     private GetFacetValuesQuery normalizeFacetValuesQuery(GetFacetValuesQuery query) {
         List<String> normalizedFields = new ArrayList<>();
-        for (String field : query.getFields()) {
+        for (String field : query.fields()) {
             if (field != null && !field.isBlank()) {
                 normalizedFields.add(normalizeFacetField(field));
             }
         }
-        return new GetFacetValuesQuery(normalizedFields, query.getLanguage());
+        return new GetFacetValuesQuery(normalizedFields, query.language());
     }
 
     private void validateFacetFilters(List<FacetFilter> filters) {
         for (FacetFilter filter : filters) {
-            String field = normalizeFacetField(filter.getField());
+            String field = normalizeFacetField(filter.field());
             if (!VALID_FACET_FIELDS.contains(field)) {
-                throw SearchDomainErrors.invalidFacetField(filter.getField());
+                throw SearchDomainErrors.invalidFacetField(filter.field());
             }
         }
     }
@@ -968,31 +968,31 @@ public class SearchApplicationService implements
     private void validateCatalogEvent(CatalogProductEvent event) {
         List<String> missing = new ArrayList<>();
 
-        if (event.getProductId() == null || event.getProductId().isBlank()) {
+        if (event.productId() == null || event.productId().isBlank()) {
             missing.add("productId");
         }
-        if (event.getName() == null || event.getName().isBlank()) {
+        if (event.name() == null || event.name().isBlank()) {
             missing.add("name");
         }
-        if (event.getFamily() == null || event.getFamily().isBlank()) {
+        if (event.family() == null || event.family().isBlank()) {
             missing.add("family");
         }
-        if (event.getDescription() == null || event.getDescription().isBlank()) {
+        if (event.description() == null || event.description().isBlank()) {
             missing.add("description");
         }
-        if (event.getProfileSystem() == null || event.getProfileSystem().isBlank()) {
+        if (event.profileSystem() == null || event.profileSystem().isBlank()) {
             missing.add("profileSystem");
         }
-        if (event.getBasePrice() == null) {
+        if (event.basePrice() == null) {
             missing.add("basePrice");
         }
-        if (event.getMaxPrice() == null) {
+        if (event.maxPrice() == null) {
             missing.add("maxPrice");
         }
-        if (event.getStatus() == null || event.getStatus() == ProductStatus.UNSPECIFIED) {
+        if (event.status() == null || event.status() == ProductStatus.UNSPECIFIED) {
             missing.add("status");
         }
-        if (event.getThumbnailUrl() == null || event.getThumbnailUrl().isBlank()) {
+        if (event.thumbnailUrl() == null || event.thumbnailUrl().isBlank()) {
             missing.add("thumbnailUrl");
         }
 
@@ -1002,27 +1002,27 @@ public class SearchApplicationService implements
     }
 
     private ProductSearchDocument toDocument(CatalogProductEvent event) {
-        String currency = resolveCurrency(event.getBasePrice(), event.getMaxPrice());
-        Instant publishedAt = event.getPublishedAt() != null ? event.getPublishedAt() : event.getUpdatedAt();
-        LocalizedString name = localizedOrNull(event.getName());
-        LocalizedString description = localizedOrNull(event.getDescription());
+        String currency = resolveCurrency(event.basePrice(), event.maxPrice());
+        Instant publishedAt = event.publishedAt() != null ? event.publishedAt() : event.updatedAt();
+        LocalizedString name = localizedOrNull(event.name());
+        LocalizedString description = localizedOrNull(event.description());
 
-        return ProductSearchDocument.builder(event.getProductId())
+        return ProductSearchDocument.builder(event.productId())
             .name(name)
             .description(description)
-            .family(event.getFamily())
-            .profileSystem(event.getProfileSystem())
-            .openingTypes(event.getOpeningTypes())
-            .materials(event.getMaterials())
-            .colors(event.getColors())
-            .minPrice(event.getBasePrice())
-            .maxPrice(event.getMaxPrice())
+            .family(event.family())
+            .profileSystem(event.profileSystem())
+            .openingTypes(event.openingTypes())
+            .materials(event.materials())
+            .colors(event.colors())
+            .minPrice(event.basePrice())
+            .maxPrice(event.maxPrice())
             .currency(currency)
-            .popularity(event.getPopularity())
-            .status(event.getStatus())
+            .popularity(event.popularity())
+            .status(event.status())
             .publishedAt(publishedAt)
-            .thumbnailUrl(event.getThumbnailUrl())
-            .optionCount(event.getOptionGroupCount())
+            .thumbnailUrl(event.thumbnailUrl())
+            .optionCount(event.optionGroupCount())
             .suggestInputs(buildSuggestInputs(event))
             .build();
     }
@@ -1046,8 +1046,8 @@ public class SearchApplicationService implements
 
     private List<String> buildSuggestInputs(CatalogProductEvent event) {
         List<String> inputs = new ArrayList<>();
-        if (event.getName() != null && !event.getName().isBlank()) {
-            inputs.add(event.getName());
+        if (event.name() != null && !event.name().isBlank()) {
+            inputs.add(event.name());
         }
         return inputs;
     }

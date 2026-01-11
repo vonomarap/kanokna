@@ -21,7 +21,7 @@ public class CartItem {
     private PriceQuoteReference quoteReference;
     private ValidationStatus validationStatus;
     private String validationMessage;
-    private String thumbnailUrl;
+    private final String thumbnailUrl;
     private boolean priceStale;
     private final Instant createdAt;
     private Instant updatedAt;

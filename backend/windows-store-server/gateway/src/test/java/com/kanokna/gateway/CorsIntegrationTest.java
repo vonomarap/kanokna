@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.Import;
 import reactor.core.publisher.Mono;
 
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,7 +18,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
     "spring.cloud.config.enabled=false"
 })
-@org.springframework.context.annotation.Import(CorsIntegrationTest.StubJwtDecoderConfig.class)
+@Import(CorsIntegrationTest.StubJwtDecoderConfig.class)
 class CorsIntegrationTest {
     @LocalServerPort
     private int port;

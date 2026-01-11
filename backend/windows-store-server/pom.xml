@@ -73,6 +73,7 @@
 		<java.version>25</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<spring-boot.version>4.0.0</spring-boot.version>
+    <spring-grpc.version>1.0.1</spring-grpc.version>
 		<lombok.version>1.18.40</lombok.version>
 		<spring-cloud.version>2024.0.0</spring-cloud.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
@@ -102,17 +103,23 @@
         <version>${project.version}</version>
       </dependency>
 
-            <!-- gRPC -->
-            <dependency>
-                <groupId>net.devh</groupId>
-                <artifactId>grpc-server-spring-boot-starter</artifactId>
-                <version>${grpc-spring-boot-starter.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>net.devh</groupId>
-                <artifactId>grpc-client-spring-boot-starter</artifactId>
-                <version>${grpc-spring-boot-starter.version}</version>
-            </dependency>
+      <!-- Spring Boot BOM -->
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>${spring-boot.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- gRPC -->
+      <dependency>
+        <groupId>org.springframework.grpc</groupId>
+        <artifactId>spring-grpc-dependencies</artifactId>
+        <version>${spring-grpc.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
 
             <!-- Testcontainers -->
             <dependency>
@@ -125,10 +132,11 @@
             <dependency>
                 <groupId>com.redis.testcontainers</groupId>
                 <artifactId>testcontainers-redis-junit</artifactId>
-                <version>2.1</version>
+                <version>1.6.4</version>
             </dependency>
 
-            <!-- ArchUnit -->
+
+      <!-- ArchUnit -->
             <dependency>
                 <groupId>com.tngtech.archunit</groupId>
                 <artifactId>archunit-junit5</artifactId>
@@ -175,8 +183,24 @@
             </dependency>
 		</dependencies> 
 	</dependencyManagement>
-	
-	<build>
+
+  <repositories>
+    <repository>
+      <id>spring-milestones</id>
+      <name>Spring Milestones</name>
+      <url>https://repo.spring.io/milestone</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>spring-releases</id>
+      <name>Spring Releases</name>
+      <url>https://repo.spring.io/release</url>
+    </repository>
+  </repositories>
+
+  <build>
         <pluginManagement>
             <plugins>
                 <plugin>

@@ -1,12 +1,35 @@
 package com.kanokna.account.adapters.in.grpc;
 
-import com.google.protobuf.Timestamp;
-import com.kanokna.account.application.dto.*;
-import com.kanokna.account.v1.*;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
-import java.util.UUID;
+import com.google.protobuf.Timestamp;
+import com.kanokna.account.application.dto.AddAddressCommand;
+import com.kanokna.account.application.dto.AddressDto;
+import com.kanokna.account.application.dto.DeleteAddressCommand;
+import com.kanokna.account.application.dto.GetProfileQuery;
+import com.kanokna.account.application.dto.ListAddressesQuery;
+import com.kanokna.account.application.dto.SavedAddressDto;
+import com.kanokna.account.application.dto.UpdateAddressCommand;
+import com.kanokna.account.application.dto.UpdateProfileCommand;
+import com.kanokna.account.application.dto.UserProfileDto;
+import com.kanokna.account.v1.AddAddressRequest;
+import com.kanokna.account.v1.AddAddressResponse;
+import com.kanokna.account.v1.DeleteAddressRequest;
+import com.kanokna.account.v1.DeleteAddressResponse;
+import com.kanokna.account.v1.GetProfileRequest;
+import com.kanokna.account.v1.GetProfileResponse;
+import com.kanokna.account.v1.ListAddressesRequest;
+import com.kanokna.account.v1.ListAddressesResponse;
+import com.kanokna.account.v1.SavedAddress;
+import com.kanokna.account.v1.UpdateAddressRequest;
+import com.kanokna.account.v1.UpdateAddressResponse;
+import com.kanokna.account.v1.UpdateProfileRequest;
+import com.kanokna.account.v1.UpdateProfileResponse;
+import com.kanokna.account.v1.UserProfile;
 
 /**
  * Mapper between account DTOs and protobuf messages.
@@ -59,25 +82,25 @@ public class AccountGrpcMapper {
         return new ListAddressesQuery(UUID.fromString(request.getUserId()));
     }
 
-    public GetProfileResponse toResponse(UserProfileDto profile) {
+    public GetProfileResponse toGetProfileResponse(UserProfileDto profile) {
         return GetProfileResponse.newBuilder()
             .setProfile(toProto(profile))
             .build();
     }
 
-    public UpdateProfileResponse toResponse(UserProfileDto profile) {
+    public UpdateProfileResponse toUpdateProfileResponse(UserProfileDto profile) {
         return UpdateProfileResponse.newBuilder()
             .setProfile(toProto(profile))
             .build();
     }
 
-    public AddAddressResponse toResponse(SavedAddressDto address) {
+    public AddAddressResponse toAddAddressResponse(SavedAddressDto address) {
         return AddAddressResponse.newBuilder()
             .setAddress(toProto(address))
             .build();
     }
 
-    public UpdateAddressResponse toResponse(SavedAddressDto address) {
+    public UpdateAddressResponse toUpdateAddressResponse(SavedAddressDto address) {
         return UpdateAddressResponse.newBuilder()
             .setAddress(toProto(address))
             .build();
@@ -89,7 +112,7 @@ public class AccountGrpcMapper {
             .build();
     }
 
-    public ListAddressesResponse toResponse(java.util.List<SavedAddressDto> addresses) {
+    public ListAddressesResponse toResponse(List<SavedAddressDto> addresses) {
         ListAddressesResponse.Builder builder = ListAddressesResponse.newBuilder();
         if (addresses != null) {
             addresses.forEach(address -> builder.addAddresses(toProto(address)));

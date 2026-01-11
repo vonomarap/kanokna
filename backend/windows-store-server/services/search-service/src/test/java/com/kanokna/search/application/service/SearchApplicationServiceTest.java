@@ -40,13 +40,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
@@ -96,7 +95,7 @@ class SearchApplicationServiceTest {
 
         SearchResult result = service.searchProducts(query);
 
-        assertEquals(1, result.getProducts().size());
+        assertEquals(1, result.products().size());
         verify(searchRepository).search(any());
     }
 
@@ -110,7 +109,7 @@ class SearchApplicationServiceTest {
 
         ArgumentCaptor<SearchQuery> captor = ArgumentCaptor.forClass(SearchQuery.class);
         verify(searchRepository).search(captor.capture());
-        assertEquals("oak", captor.getValue().getQueryText());
+        assertEquals("oak", captor.getValue().queryText());
     }
 
     @Test
@@ -123,7 +122,7 @@ class SearchApplicationServiceTest {
 
         ArgumentCaptor<SearchQuery> captor = ArgumentCaptor.forClass(SearchQuery.class);
         verify(searchRepository).search(captor.capture());
-        assertEquals("family", captor.getValue().getFilters().get(0).getField());
+        assertEquals("family", captor.getValue().filters().get(0).field());
     }
 
     @Test
@@ -140,7 +139,7 @@ class SearchApplicationServiceTest {
 
         ArgumentCaptor<SearchQuery> captor = ArgumentCaptor.forClass(SearchQuery.class);
         verify(searchRepository).search(captor.capture());
-        assertNotNull(captor.getValue().getPriceRange());
+        assertNotNull(captor.getValue().priceRange());
     }
 
     @Test
@@ -157,7 +156,7 @@ class SearchApplicationServiceTest {
 
         ArgumentCaptor<SearchQuery> captor = ArgumentCaptor.forClass(SearchQuery.class);
         verify(searchRepository).search(captor.capture());
-        assertEquals(2, captor.getValue().getFilters().size());
+        assertEquals(2, captor.getValue().filters().size());
     }
 
     @Test
@@ -180,7 +179,7 @@ class SearchApplicationServiceTest {
 
         SearchResult result = service.searchProducts(query);
 
-        assertEquals("p1", result.getProducts().get(0).getId());
+        assertEquals("p1", result.products().get(0).getId());
     }
 
     @Test
@@ -201,8 +200,8 @@ class SearchApplicationServiceTest {
 
         SearchResult result = service.searchProducts(query);
 
-        assertEquals(2, result.getPage());
-        assertEquals(10, result.getPageSize());
+        assertEquals(2, result.page());
+        assertEquals(10, result.pageSize());
     }
 
     @Test
@@ -214,7 +213,7 @@ class SearchApplicationServiceTest {
 
         SearchResult result = service.searchProducts(baseQuery(""));
 
-        assertEquals(1, result.getFacets().size());
+        assertEquals(1, result.facets().size());
     }
 
     @Test
@@ -235,7 +234,7 @@ class SearchApplicationServiceTest {
 
         SearchResult result = service.searchProducts(baseQuery(""));
 
-        assertEquals(42, result.getQueryTimeMs());
+        assertEquals(42, result.queryTimeMs());
     }
 
     @Test
@@ -248,7 +247,7 @@ class SearchApplicationServiceTest {
 
         AutocompleteResult result = service.autocomplete(query);
 
-        assertEquals(1, result.getSuggestions().size());
+        assertEquals(1, result.suggestions().size());
     }
 
     @Test
@@ -271,7 +270,7 @@ class SearchApplicationServiceTest {
 
         ArgumentCaptor<AutocompleteQuery> captor = ArgumentCaptor.forClass(AutocompleteQuery.class);
         verify(searchRepository).autocomplete(captor.capture());
-        assertEquals("WINDOW", captor.getValue().getFamilyFilter());
+        assertEquals("WINDOW", captor.getValue().familyFilter());
     }
 
     @Test
@@ -284,7 +283,7 @@ class SearchApplicationServiceTest {
 
         ArgumentCaptor<AutocompleteQuery> captor = ArgumentCaptor.forClass(AutocompleteQuery.class);
         verify(searchRepository).autocomplete(captor.capture());
-        assertEquals(20, captor.getValue().getLimit());
+        assertEquals(20, captor.getValue().limit());
     }
 
     @Test
@@ -296,7 +295,7 @@ class SearchApplicationServiceTest {
 
         AutocompleteResult result = service.autocomplete(new AutocompleteQuery("wi", 10, Language.RU, null));
 
-        assertEquals(1, result.getSuggestions().size());
+        assertEquals(1, result.suggestions().size());
     }
 
     @Test
@@ -307,7 +306,7 @@ class SearchApplicationServiceTest {
 
         IndexResult result = service.indexProduct(event);
 
-        assertEquals("p1", result.getDocumentId());
+        assertEquals("p1", result.documentId());
     }
 
     @Test
@@ -318,7 +317,7 @@ class SearchApplicationServiceTest {
 
         IndexResult result = service.indexProduct(event);
 
-        assertEquals("p2", result.getDocumentId());
+        assertEquals("p2", result.documentId());
     }
 
     @Test
@@ -330,8 +329,8 @@ class SearchApplicationServiceTest {
         service.indexProduct(event);
         IndexResult result = service.indexProduct(event);
 
-        assertEquals("p3", result.getDocumentId());
-        verify(searchRepository, org.mockito.Mockito.times(2)).index(any());
+        assertEquals("p3", result.documentId());
+        verify(searchRepository, Mockito.times(2)).index(any());
     }
 
     @Test
@@ -382,7 +381,7 @@ class SearchApplicationServiceTest {
 
         DeleteResult result = service.deleteProduct(event);
 
-        assertEquals(true, result.isDeleted());
+      assertTrue(result.deleted());
     }
 
     @Test
@@ -393,7 +392,7 @@ class SearchApplicationServiceTest {
 
         DeleteResult result = service.deleteProduct(event);
 
-        assertEquals(true, result.isDeleted());
+      assertTrue(result.deleted());
     }
 
     @Test
@@ -415,7 +414,7 @@ class SearchApplicationServiceTest {
 
         FacetValuesResult result = service.getFacetValues(new GetFacetValuesQuery(List.of("family"), Language.RU));
 
-        assertEquals(1, result.getFacets().size());
+        assertEquals(1, result.facets().size());
     }
 
     @Test
@@ -429,7 +428,7 @@ class SearchApplicationServiceTest {
 
         FacetValuesResult result = service.getFacetValues(new GetFacetValuesQuery(List.of("family", "materials"), Language.RU));
 
-        assertEquals(2, result.getFacets().size());
+        assertEquals(2, result.facets().size());
     }
 
     @Test
@@ -449,7 +448,7 @@ class SearchApplicationServiceTest {
 
         FacetValuesResult result = service.getFacetValues(new GetFacetValuesQuery(List.of("family"), Language.RU));
 
-        assertEquals(1, result.getFacets().size());
+        assertEquals(1, result.facets().size());
     }
 
     @Test
@@ -459,7 +458,7 @@ class SearchApplicationServiceTest {
 
         FacetValuesResult result = service.getFacetValues(new GetFacetValuesQuery(List.of("family"), Language.RU));
 
-        assertEquals(0, result.getFacets().size());
+        assertEquals(0, result.facets().size());
     }
 
     @Test
@@ -517,7 +516,7 @@ class SearchApplicationServiceTest {
 
         ReindexResult result = service.reindexCatalog(new ReindexCommand(null));
 
-        assertEquals("product_templates_v2", result.getNewIndexName());
+        assertEquals("product_templates_v2", result.newIndexName());
         verify(searchIndexAdminPort).swapAlias(anyString(), anyString(), any());
     }
 
@@ -535,7 +534,7 @@ class SearchApplicationServiceTest {
 
         ReindexResult result = service.reindexCatalog(new ReindexCommand(null));
 
-        assertEquals(2, result.getDocumentCount());
+        assertEquals(2, result.documentCount());
     }
 
     @Test

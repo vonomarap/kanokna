@@ -13,10 +13,10 @@ import java.util.UUID;
 public class OptionGroup {
 
     private final UUID id;
-    private String name;
+    private final String name;
     private int displayOrder;
-    private boolean required;
-    private boolean multiSelect;
+    private final boolean required;
+    private final boolean multiSelect;
     private final List<Option> options;
 
     public OptionGroup(UUID id, String name, int displayOrder, boolean required, boolean multiSelect) {

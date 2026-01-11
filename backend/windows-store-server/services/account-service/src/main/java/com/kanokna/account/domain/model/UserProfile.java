@@ -259,11 +259,11 @@ public class UserProfile {
     private LocalePreference preferredLanguage;
     private CurrencyPreference preferredCurrency;
     private NotificationPreferences notificationPreferences;
-    private Id partnerOrganizationId;
+    private final Id partnerOrganizationId;
     private List<SavedAddress> addresses;
-    private Instant createdAt;
+    private final Instant createdAt;
     private Instant updatedAt;
-    private int version;
+    private final int version;
 
     private UserProfile(Id userId,
                         Email email,
@@ -493,7 +493,7 @@ public class UserProfile {
 
     private boolean hasDuplicateAddress(Address address, Id excludeAddressId) {
         return addresses.stream()
-            .filter(existing -> excludeAddressId == null || !existing.addressId().equals(excludeAddressId))
+            .filter(existing -> !existing.addressId().equals(excludeAddressId))
             .anyMatch(existing ->
                 existing.address().line1().equals(address.line1())
                     && existing.address().city().equals(address.city())

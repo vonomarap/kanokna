@@ -54,6 +54,7 @@ id="FC-gateway-config-RateLimitConfig-rateLimiter"
 package com.kanokna.gateway.config;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -119,7 +120,7 @@ public class RateLimitConfig {
         private final Map<String, Window> inMemory = new ConcurrentHashMap<>();
 
         GatewayRateLimiter(ReactiveStringRedisTemplate redisTemplate) {
-            this(redisTemplate, () -> java.time.Instant.now().getEpochSecond());
+            this(redisTemplate, () -> Instant.now().getEpochSecond());
         }
 
         GatewayRateLimiter(ReactiveStringRedisTemplate redisTemplate, LongSupplier timeSupplier) {

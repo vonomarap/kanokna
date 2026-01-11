@@ -16,7 +16,7 @@ class PriceRangeTest {
 
         PriceRange range = new PriceRange(min, max);
 
-        assertEquals(min, range.getMinPrice());
-        assertEquals(max, range.getMaxPrice());
+        assertEquals(min, range.minPrice());
+        assertEquals(max, range.maxPrice());
     }
 }

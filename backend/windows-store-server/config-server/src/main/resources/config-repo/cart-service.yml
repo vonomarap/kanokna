@@ -16,6 +16,15 @@ server:
 grpc:
   server:
     port: 9083
+  client:
+    catalog-configuration-service:
+          address: ${CATALOG_SERVICE_GRPC_ADDRESS:static://localhost:9081}
+          negotiation-type: PLAINTEXT
+          enable-keep-alive: true
+        pricing-service:
+          address: ${PRICING_SERVICE_GRPC_ADDRESS:static://localhost:9082}
+          negotiation-type: PLAINTEXT
+          enable-keep-alive: true
 
 spring:
   datasource:
@@ -36,16 +45,6 @@ spring:
 # -----------------------------------------------------------------------------
 # gRPC Clients
 # -----------------------------------------------------------------------------
-grpc:
-  client:
-    catalog-configuration-service:
-      address: ${CATALOG_SERVICE_GRPC_ADDRESS:static://localhost:9081}
-      negotiation-type: PLAINTEXT
-      enable-keep-alive: true
-    pricing-service:
-      address: ${PRICING_SERVICE_GRPC_ADDRESS:static://localhost:9082}
-      negotiation-type: PLAINTEXT
-      enable-keep-alive: true
 
 # -----------------------------------------------------------------------------
 # Cart Domain Configuration

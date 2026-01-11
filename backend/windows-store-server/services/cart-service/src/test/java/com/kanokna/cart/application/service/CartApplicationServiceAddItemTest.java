@@ -2,6 +2,7 @@ package com.kanokna.cart.application.service;
 
 import com.kanokna.cart.application.dto.AddItemCommand;
 import com.kanokna.cart.application.dto.AddItemResult;
+import com.kanokna.cart.application.port.out.PricingPort;
 import com.kanokna.cart.domain.event.CartItemAddedEvent;
 import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.cart.domain.model.CartItem;
@@ -12,6 +13,7 @@ import com.kanokna.shared.money.Money;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -99,10 +101,10 @@ class CartApplicationServiceAddItemTest {
         CartServiceTestFixture.TestContext context = new CartServiceTestFixture.TestContext();
         context.pricingPort.queueQuote(
             "T-24",
-            new com.kanokna.cart.application.port.out.PricingPort.PriceQuote(
+            new PricingPort.PriceQuote(
                 true,
                 "QUOTE-FRESH",
-                Money.of(new java.math.BigDecimal("1200.00"), Currency.RUB),
+                Money.of(new BigDecimal("1200.00"), Currency.RUB),
                 Instant.now().plusSeconds(3600)
             )
         );

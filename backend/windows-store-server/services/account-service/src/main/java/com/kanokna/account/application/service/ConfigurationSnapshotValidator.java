@@ -50,7 +50,7 @@ public class ConfigurationSnapshotValidator {
                 errors.add("dimensions.height must be a number");
             }
             String unit = dimensions.path("unit").asText(null);
-            if (unit == null || !"mm".equals(unit)) {
+            if (!"mm".equals(unit)) {
                 errors.add("dimensions.unit must be 'mm'");
             }
         }

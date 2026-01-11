@@ -4,6 +4,8 @@ import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.cart.domain.model.CartSnapshot;
 import com.kanokna.shared.event.DomainEvent;
 import com.kanokna.shared.money.Money;
+
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -37,7 +39,7 @@ public record CartCheckedOutEvent(
             cart.totals().total(),
             cart.appliedPromoCode() == null ? null : cart.appliedPromoCode().code(),
             discount,
-            java.time.Duration.between(cart.createdAt(), snapshot.createdAt()).getSeconds()
+            Duration.between(cart.createdAt(), snapshot.createdAt()).getSeconds()
         );
     }
 

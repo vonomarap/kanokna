@@ -17,7 +17,7 @@ public class PriceBook {
     private final String productTemplateId;
     private final String currency;
     private PriceBookStatus status;
-    private BasePriceEntry basePriceEntry;
+    private final BasePriceEntry basePriceEntry;
     private final List<OptionPremium> optionPremiums;
     private long version;
     private final Instant createdAt;

@@ -11,6 +11,7 @@ import com.kanokna.search.domain.model.ProductSearchDocument;
 import com.kanokna.search.domain.model.ProductStatus;
 import com.kanokna.search.support.TestContainersConfig;
 import com.kanokna.shared.i18n.Language;
+import com.kanokna.shared.i18n.LocalizedString;
 import com.kanokna.shared.money.Currency;
 import com.kanokna.shared.money.Money;
 import org.elasticsearch.client.Request;
@@ -101,8 +102,8 @@ class ElasticsearchIntegrationTest extends TestContainersConfig {
 
         BulkIndexResult result = searchRepository.bulkIndex(indexName, documents);
 
-        assertEquals(120, result.getIndexedCount());
-        assertEquals(0, result.getFailedCount());
+        assertEquals(120, result.indexedCount());
+        assertEquals(0, result.failedCount());
     }
 
     private void deleteIndex(String name) {
@@ -134,8 +135,8 @@ class ElasticsearchIntegrationTest extends TestContainersConfig {
 
     private ProductSearchDocument buildDocument(String id, String name, String family) {
         return ProductSearchDocument.builder(id)
-            .name(com.kanokna.shared.i18n.LocalizedString.of(Language.RU, name))
-            .description(com.kanokna.shared.i18n.LocalizedString.of(Language.RU, name + " desc"))
+            .name(LocalizedString.of(Language.RU, name))
+            .description(LocalizedString.of(Language.RU, name + " desc"))
             .family(family)
             .profileSystem("REHAU")
             .openingTypes(List.of("TILT"))

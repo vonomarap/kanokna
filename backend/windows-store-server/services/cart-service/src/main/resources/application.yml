@@ -19,9 +19,6 @@ spring:
         default_schema: cart
   flyway:
     schemas: cart
-  redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -29,6 +26,10 @@ spring:
       value-serializer: io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer
     properties:
       schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+  data:
+    redis:
+      port: ${REDIS_PORT:6379}
+      host: ${REDIS_HOST:localhost}
 
 grpc:
   server:

@@ -367,8 +367,8 @@ public class ProductTemplateCommandService implements
 
         // BA-CAT-PUBLISH-06: Emit domain events
         CatalogVersionPublishedEvent catalogEvent = CatalogVersionPublishedEvent.create(
-            catalogVersion.getId(),
-            catalogVersion.getVersionNumber(),
+            catalogVersion.id(),
+            catalogVersion.versionNumber(),
             draftsToPublish.size(),
             command.publishedBy()
         );
@@ -387,7 +387,7 @@ public class ProductTemplateCommandService implements
         log.info("[SVC=catalog-configuration-service][UC=UC-CATALOG-ADMIN-MANAGE][BLOCK=BA-CAT-PUBLISH-06][STATE=EVENTS] eventType=EVENTS_PUBLISHED decision=SUCCESS keyValues=eventTypes=CatalogVersionPublished|ProductTemplatePublished,count={}",
             draftsToPublish.size() + 1);
 
-        return catalogVersion.getId();
+        return catalogVersion.id();
     }
 
     private String createSnapshot(List<ProductTemplate> templates) {

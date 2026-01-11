@@ -123,7 +123,7 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
 @SpringBootApplication
 @EnableWebFluxSecurity
 public class GatewayApplication {
-    public static void main(String[] args) {
+    static void main(String[] args) {
         SpringApplication.run(GatewayApplication.class, args);
     }
 }

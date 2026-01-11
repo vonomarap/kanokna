@@ -24,10 +24,10 @@ class SearchQueryTest {
             Language.RU
         );
 
-        assertEquals("", query.getQueryText());
-        assertTrue(query.getFilters().isEmpty());
-        assertEquals(0, query.getPage());
-        assertEquals(20, query.getPageSize());
+        assertEquals("", query.queryText());
+        assertTrue(query.filters().isEmpty());
+        assertEquals(0, query.page());
+        assertEquals(20, query.pageSize());
     }
 
     @Test
@@ -47,8 +47,8 @@ class SearchQueryTest {
             Language.EN
         );
 
-        assertEquals(2, query.getFilters().size());
-        assertEquals("family", query.getFilters().get(0).getField());
-        assertEquals("materials", query.getFilters().get(1).getField());
+        assertEquals(2, query.filters().size());
+        assertEquals("family", query.filters().get(0).field());
+        assertEquals("materials", query.filters().get(1).field());
     }
 }

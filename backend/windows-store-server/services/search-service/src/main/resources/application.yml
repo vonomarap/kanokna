@@ -12,9 +12,6 @@ spring:
     password: ${ELASTICSEARCH_PASSWORD:}
     connection-timeout: 5s
     socket-timeout: 30s
-  redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
@@ -29,14 +26,19 @@ spring:
       value-serializer: io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer
     properties:
       schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+  data:
+    redis:
+      port: ${REDIS_PORT:6379}
+      host: ${REDIS_HOST:localhost}
 
-grpc:
-  server:
-    port: 9089
-  client:
-    catalog-configuration-service:
-      address: static://localhost:9081
-      negotiationType: plaintext
+spring:
+  grpc:
+    server:
+      port: 9089
+    client:
+      channels:
+        catalog-configuration-service:
+          address: localhost:9081
 
 search:
   index:

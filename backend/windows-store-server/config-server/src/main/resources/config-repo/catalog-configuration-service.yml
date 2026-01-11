@@ -7,6 +7,14 @@ server:
 grpc:
   server:
     port: 9081
+  client:
+    pricing-service:
+          address: ${PRICING_SERVICE_GRPC_ADDRESS:static://localhost:9082}
+          negotiation-type: PLAINTEXT
+          enable-keep-alive: true
+        media-service:
+          address: ${MEDIA_SERVICE_GRPC_ADDRESS:static://localhost:9087}
+          negotiation-type: PLAINTEXT
 
 spring:
   datasource:
@@ -27,15 +35,6 @@ spring:
 # ─────────────────────────────────────────────────────────────────────────────
 # gRPC Clients
 # ─────────────────────────────────────────────────────────────────────────────
-grpc:
-  client:
-    pricing-service:
-      address: ${PRICING_SERVICE_GRPC_ADDRESS:static://localhost:9082}
-      negotiation-type: PLAINTEXT
-      enable-keep-alive: true
-    media-service:
-      address: ${MEDIA_SERVICE_GRPC_ADDRESS:static://localhost:9087}
-      negotiation-type: PLAINTEXT
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Domain Configuration

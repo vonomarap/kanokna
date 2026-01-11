@@ -116,7 +116,7 @@ class ResultTest {
         @DisplayName("Failure cannot be created with null error")
         void failureCannotBeNull() {
             assertThatNullPointerException()
-                .isThrownBy(() -> Result.failure((DomainError) null))
+                .isThrownBy(() -> Result.failure(null))
                 .withMessageContaining("null");
         }
 

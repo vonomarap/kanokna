@@ -79,11 +79,7 @@ public class PromoCode {
             return false;
         }
 
-        if (minSubtotal != null && subtotal.isLessThan(minSubtotal)) {
-            return false;
-        }
-
-        return true;
+      return minSubtotal == null || !subtotal.isLessThan(minSubtotal);
     }
 
     public Money calculateDiscount(Money subtotal) {

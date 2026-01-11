@@ -4,6 +4,9 @@ import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.cart.domain.model.AppliedPromoCode;
 import com.kanokna.shared.event.DomainEvent;
 import com.kanokna.shared.money.Money;
+
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -25,8 +28,8 @@ public record PromoCodeAppliedEvent(
         double discountPercent = subtotal.isZero()
             ? 0.0
             : promo.discountAmount().getAmount()
-                .divide(subtotal.getAmount(), java.math.MathContext.DECIMAL64)
-                .multiply(java.math.BigDecimal.valueOf(100))
+                .divide(subtotal.getAmount(), MathContext.DECIMAL64)
+                .multiply(BigDecimal.valueOf(100))
                 .doubleValue();
         return new PromoCodeAppliedEvent(
             UUID.randomUUID().toString(),

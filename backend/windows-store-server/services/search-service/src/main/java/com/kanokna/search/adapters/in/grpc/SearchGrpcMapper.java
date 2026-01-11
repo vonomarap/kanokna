@@ -93,16 +93,16 @@ public class SearchGrpcMapper {
 
     public SearchProductsResponse toResponse(SearchResult result, Language language) {
         SearchProductsResponse.Builder builder = SearchProductsResponse.newBuilder()
-            .setTotalCount(result.getTotalCount())
-            .setPage(result.getPage())
-            .setPageSize(result.getPageSize())
-            .setTotalPages(result.getTotalPages())
-            .setQueryTimeMs(result.getQueryTimeMs());
+            .setTotalCount(result.totalCount())
+            .setPage(result.page())
+            .setPageSize(result.pageSize())
+            .setTotalPages(result.totalPages())
+            .setQueryTimeMs(result.queryTimeMs());
 
-        for (ProductSearchDocument document : result.getProducts()) {
+        for (ProductSearchDocument document : result.products()) {
             builder.addProducts(toProductDocument(document, language));
         }
-        for (FacetAggregation facet : result.getFacets()) {
+        for (FacetAggregation facet : result.facets()) {
             builder.addFacets(toFacetAggregation(facet));
         }
         return builder.build();
@@ -110,12 +110,12 @@ public class SearchGrpcMapper {
 
     public AutocompleteResponse toResponse(AutocompleteResult result) {
         AutocompleteResponse.Builder builder = AutocompleteResponse.newBuilder()
-            .setQueryTimeMs(result.getQueryTimeMs());
+            .setQueryTimeMs(result.queryTimeMs());
 
-        for (Suggestion suggestion : result.getSuggestions()) {
+        for (Suggestion suggestion : result.suggestions()) {
             builder.addSuggestions(toSuggestion(suggestion));
         }
-        for (Suggestion suggestion : result.getCategorySuggestions()) {
+        for (Suggestion suggestion : result.categorySuggestions()) {
             builder.addCategorySuggestions(toSuggestion(suggestion));
         }
         return builder.build();
@@ -123,7 +123,7 @@ public class SearchGrpcMapper {
 
     public GetFacetValuesResponse toResponse(FacetValuesResult result) {
         GetFacetValuesResponse.Builder builder = GetFacetValuesResponse.newBuilder();
-        for (FacetAggregation facet : result.getFacets()) {
+        for (FacetAggregation facet : result.facets()) {
             builder.addFacets(toFacetAggregation(facet));
         }
         return builder.build();
@@ -162,16 +162,16 @@ public class SearchGrpcMapper {
 
     private com.kanokna.search.v1.FacetAggregation toFacetAggregation(FacetAggregation aggregation) {
         com.kanokna.search.v1.FacetAggregation.Builder builder = com.kanokna.search.v1.FacetAggregation.newBuilder()
-            .setField(aggregation.getField())
-            .setDisplayName(blankToEmpty(aggregation.getDisplayName()))
-            .setType(mapFacetType(aggregation.getType()));
+            .setField(aggregation.field())
+            .setDisplayName(blankToEmpty(aggregation.displayName()))
+            .setType(mapFacetType(aggregation.type()));
 
-        for (FacetBucket bucket : aggregation.getBuckets()) {
+        for (FacetBucket bucket : aggregation.buckets()) {
             builder.addBuckets(com.kanokna.search.v1.FacetBucket.newBuilder()
-                .setKey(blankToEmpty(bucket.getKey()))
-                .setLabel(blankToEmpty(bucket.getLabel()))
-                .setCount(bucket.getCount())
-                .setSelected(bucket.isSelected())
+                .setKey(blankToEmpty(bucket.key()))
+                .setLabel(blankToEmpty(bucket.label()))
+                .setCount(bucket.count())
+                .setSelected(bucket.selected())
                 .build());
         }
         return builder.build();
@@ -179,11 +179,11 @@ public class SearchGrpcMapper {
 
     private com.kanokna.search.v1.Suggestion toSuggestion(Suggestion suggestion) {
         return com.kanokna.search.v1.Suggestion.newBuilder()
-            .setText(blankToEmpty(suggestion.getText()))
-            .setType(mapSuggestionType(suggestion.getType()))
-            .setProductId(blankToEmpty(suggestion.getProductId()))
-            .setCount(suggestion.getCount())
-            .setHighlighted(blankToEmpty(suggestion.getHighlighted()))
+            .setText(blankToEmpty(suggestion.text()))
+            .setType(mapSuggestionType(suggestion.type()))
+            .setProductId(blankToEmpty(suggestion.productId()))
+            .setCount(suggestion.count())
+            .setHighlighted(blankToEmpty(suggestion.highlighted()))
             .build();
     }
 

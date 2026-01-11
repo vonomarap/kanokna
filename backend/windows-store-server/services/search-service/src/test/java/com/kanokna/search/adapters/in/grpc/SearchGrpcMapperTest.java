@@ -27,8 +27,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class SearchGrpcMapperTest {
     private final SearchGrpcMapper mapper = new SearchGrpcMapper();
@@ -56,13 +55,13 @@ class SearchGrpcMapperTest {
 
         SearchQuery query = mapper.toQuery(request);
 
-        assertEquals("window", query.getQueryText());
-        assertEquals(1, query.getPage());
-        assertEquals(10, query.getPageSize());
-        assertEquals(SortField.PRICE_ASC, query.getSortField());
-        assertEquals(SortOrder.ASC, query.getSortOrder());
-        assertEquals("family", query.getFilters().get(0).getField());
-        assertTrue(query.getPriceRange() instanceof PriceRange);
+        assertEquals("window", query.queryText());
+        assertEquals(1, query.page());
+        assertEquals(10, query.pageSize());
+        assertEquals(SortField.PRICE_ASC, query.sortField());
+        assertEquals(SortOrder.ASC, query.sortOrder());
+        assertEquals("family", query.filters().get(0).field());
+      assertInstanceOf(PriceRange.class, query.priceRange());
     }
 
     @Test
@@ -77,10 +76,10 @@ class SearchGrpcMapperTest {
 
         var query = mapper.toQuery(request);
 
-        assertEquals("wi", query.getPrefix());
-        assertEquals(5, query.getLimit());
-        assertEquals(Language.EN, query.getLanguage());
-        assertEquals("WINDOW", query.getFamilyFilter());
+        assertEquals("wi", query.prefix());
+        assertEquals(5, query.limit());
+        assertEquals(Language.EN, query.language());
+        assertEquals("WINDOW", query.familyFilter());
     }
 
     @Test

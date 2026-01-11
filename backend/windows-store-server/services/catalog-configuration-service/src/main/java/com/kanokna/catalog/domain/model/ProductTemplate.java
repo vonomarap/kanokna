@@ -16,7 +16,7 @@ public class ProductTemplate {
     private final ProductTemplateId id;
     private String name;
     private String description;
-    private ProductFamily productFamily;
+    private final ProductFamily productFamily;
     private DimensionConstraints dimensionConstraints;
     private TemplateStatus status;
     private long version;
