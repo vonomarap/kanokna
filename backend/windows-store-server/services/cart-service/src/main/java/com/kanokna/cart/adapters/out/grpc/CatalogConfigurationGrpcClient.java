@@ -6,14 +6,12 @@ import com.kanokna.cart.application.port.out.CatalogConfigurationClient;
 import com.kanokna.cart.application.port.out.CatalogConfigurationPort;
 import com.kanokna.cart.domain.model.ConfigurationSnapshot;
 import com.kanokna.catalog.v1.BillOfMaterials;
-import com.kanokna.catalog.v1.BomLine;
 import com.kanokna.catalog.v1.CatalogConfigurationServiceGrpc;
 import com.kanokna.catalog.v1.SelectedOption;
 import com.kanokna.catalog.v1.ValidateConfigurationRequest;
 import com.kanokna.catalog.v1.ValidateConfigurationResponse;
 import com.kanokna.common.v1.Dimensions;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -24,7 +22,6 @@ public class CatalogConfigurationGrpcClient implements CatalogConfigurationPort,
     private final CatalogConfigurationServiceGrpc.CatalogConfigurationServiceBlockingStub stub;
 
     public CatalogConfigurationGrpcClient(
-        @GrpcClient("catalog-configuration-service")
         CatalogConfigurationServiceGrpc.CatalogConfigurationServiceBlockingStub stub
     ) {
         this.stub = stub;

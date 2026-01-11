@@ -16,7 +16,6 @@ import com.kanokna.pricing.v1.PricingServiceGrpc;
 import com.kanokna.pricing.v1.ValidatePromoCodeRequest;
 import com.kanokna.pricing.v1.ValidatePromoCodeResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -30,7 +29,6 @@ public class PricingGrpcClient implements PricingPort, PricingClient {
     private final PricingServiceGrpc.PricingServiceBlockingStub stub;
 
     public PricingGrpcClient(
-        @GrpcClient("pricing-service")
         PricingServiceGrpc.PricingServiceBlockingStub stub
     ) {
         this.stub = stub;
@@ -38,14 +36,14 @@ public class PricingGrpcClient implements PricingPort, PricingClient {
 
     @Override
     @CircuitBreaker(name = "pricingService", fallbackMethod = "calculateQuoteFallback")
-    public PriceQuote calculateQuote(ConfigurationSnapshot snapshot, com.kanokna.shared.money.Currency currency) {
+    public PricingPort.PriceQuote calculateQuote(ConfigurationSnapshot snapshot, com.kanokna.shared.money.Currency currency) {
         CalculateQuoteRequest request = CalculateQuoteRequest.newBuilder()
             .setProductTemplateId(snapshot.productTemplateId())
             .setDimensions(Dimensions.newBuilder()
                 .setWidthCm(snapshot.widthCm())
                 .setHeightCm(snapshot.heightCm())
                 .build())
-            .setResolvedBom(toBillOfMaterials(snapshot.resolvedBom()))
+            .setResolvedBom(snapshotToBillOfMaterials(snapshot.resolvedBom()))
             .setCurrency(mapCurrency(currency))
             .setPromoCode("")
             .setRegion("")
@@ -59,7 +57,7 @@ public class PricingGrpcClient implements PricingPort, PricingClient {
 
     @Override
     @CircuitBreaker(name = "pricingService", fallbackMethod = "validatePromoFallback")
-    public PromoValidationResult validatePromoCode(String promoCode, com.kanokna.shared.money.Money subtotal) {
+    public PricingPort.PromoValidationResult validatePromoCode(String promoCode, com.kanokna.shared.money.Money subtotal) {
         ValidatePromoCodeRequest request = ValidatePromoCodeRequest.newBuilder()
             .setPromoCode(promoCode)
             .setSubtotal(toMoney(subtotal))
@@ -70,12 +68,12 @@ public class PricingGrpcClient implements PricingPort, PricingClient {
             .validatePromoCode(request);
 
         if (response == null) {
-            return PromoValidationResult.unavailable();
+            return PricingPort.PromoValidationResult.unavailable();
         }
         com.kanokna.shared.money.Money discount = response.hasDiscountAmount()
             ? toDomainMoney(response.getDiscountAmount())
             : com.kanokna.shared.money.Money.zero(subtotal.getCurrency());
-        return new PromoValidationResult(
+        return new PricingPort.PromoValidationResult(
             true,
             response.getValid(),
             discount,
@@ -90,7 +88,7 @@ public class PricingGrpcClient implements PricingPort, PricingClient {
         CalculateQuoteRequest protoRequest = CalculateQuoteRequest.newBuilder()
             .setProductTemplateId(request.productTemplateId())
             .setDimensions(toDimensions(request.dimensions()))
-            .setResolvedBom(toBillOfMaterials(request.resolvedBom()))
+            .setResolvedBom(dtoToBillOfMaterials(request.resolvedBom()))
             .setCurrency(mapCurrency(request.currency()))
             .setPromoCode(request.promoCode() == null ? "" : request.promoCode())
             .setRegion(request.region() == null ? "" : request.region())
@@ -136,20 +134,20 @@ public class PricingGrpcClient implements PricingPort, PricingClient {
         );
     }
 
-    private PriceQuote calculateQuoteFallback(
+    private PricingPort.PriceQuote calculateQuoteFallback(
         ConfigurationSnapshot snapshot,
         com.kanokna.shared.money.Currency currency,
         Throwable ex
     ) {
-        return PriceQuote.unavailable();
+        return PricingPort.PriceQuote.unavailable();
     }
 
-    private PromoValidationResult validatePromoFallback(
+    private PricingPort.PromoValidationResult validatePromoFallback(
         String promoCode,
         com.kanokna.shared.money.Money subtotal,
         Throwable ex
     ) {
-        return PromoValidationResult.unavailable();
+        return PricingPort.PromoValidationResult.unavailable();
     }
 
     private PricingClient.PriceQuote calculateQuoteClientFallback(
@@ -177,7 +175,7 @@ public class PricingGrpcClient implements PricingPort, PricingClient {
         return new PricingPort.PriceQuote(true, response.getQuoteId(), unitPrice, validUntil);
     }
 
-    private BillOfMaterials toBillOfMaterials(List<ConfigurationSnapshot.BomLineSnapshot> lines) {
+    private BillOfMaterials snapshotToBillOfMaterials(List<ConfigurationSnapshot.BomLineSnapshot> lines) {
         if (lines == null || lines.isEmpty()) {
             return BillOfMaterials.newBuilder().build();
         }
@@ -192,7 +190,7 @@ public class PricingGrpcClient implements PricingPort, PricingClient {
         return builder.build();
     }
 
-    private BillOfMaterials toBillOfMaterials(List<BomLineDto> lines) {
+    private BillOfMaterials dtoToBillOfMaterials(List<BomLineDto> lines) {
         if (lines == null || lines.isEmpty()) {
             return BillOfMaterials.newBuilder().build();
         }

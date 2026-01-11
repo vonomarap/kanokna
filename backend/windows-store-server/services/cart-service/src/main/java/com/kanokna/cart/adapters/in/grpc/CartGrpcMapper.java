@@ -1,11 +1,17 @@
 package com.kanokna.cart.adapters.in.grpc;
 
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.util.List;
+
+import org.springframework.stereotype.Component;
+
 import com.google.protobuf.Timestamp;
 import com.kanokna.cart.application.dto.AddItemCommand;
 import com.kanokna.cart.application.dto.AddItemResult;
+import com.kanokna.cart.application.dto.AppliedPromoCodeDto;
 import com.kanokna.cart.application.dto.ApplyPromoCodeCommand;
 import com.kanokna.cart.application.dto.ApplyPromoCodeResult;
-import com.kanokna.cart.application.dto.AppliedPromoCodeDto;
 import com.kanokna.cart.application.dto.BomLineDto;
 import com.kanokna.cart.application.dto.CartDto;
 import com.kanokna.cart.application.dto.CartItemDto;
@@ -53,11 +59,6 @@ import com.kanokna.catalog.v1.SelectedOption;
 import com.kanokna.common.v1.Currency;
 import com.kanokna.common.v1.Dimensions;
 import com.kanokna.common.v1.Money;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.Instant;
-import java.util.List;
-import org.springframework.stereotype.Component;
 
 @Component
 public class CartGrpcMapper {
@@ -141,7 +142,7 @@ public class CartGrpcMapper {
         );
     }
 
-    public GetCartResponse toResponse(CartDto cart) {
+    public GetCartResponse toGetCartResponse(CartDto cart) {
         return GetCartResponse.newBuilder()
             .setCart(toCart(cart))
             .build();
@@ -154,7 +155,7 @@ public class CartGrpcMapper {
             .build();
     }
 
-    public UpdateItemResponse toResponse(CartDto cart) {
+    public UpdateItemResponse toUpdateItemResponse(CartDto cart) {
         return UpdateItemResponse.newBuilder()
             .setCart(toCart(cart))
             .build();
