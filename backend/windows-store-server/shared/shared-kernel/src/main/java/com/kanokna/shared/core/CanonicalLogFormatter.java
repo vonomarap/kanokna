@@ -1,7 +1,6 @@
 package com.kanokna.shared.core;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.StringJoiner;
 
 public final class CanonicalLogFormatter {
@@ -42,7 +41,7 @@ public final class CanonicalLogFormatter {
         StringJoiner joiner = new StringJoiner(" ");
         for (Map.Entry<String, ?> entry : keyValues.entrySet()) {
             String key = requireNonBlank(entry.getKey(), "key");
-            joiner.add(key + "=" + Objects.toString(entry.getValue()));
+            joiner.add(key + "=" + entry.getValue());
         }
         return joiner.toString();
     }

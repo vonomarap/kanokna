@@ -358,6 +358,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
 import java.util.Locale;
@@ -904,7 +905,7 @@ public class AccountApplicationService implements
     }
 
     private List<String> buildAddressChangedFields(UpdateAddressCommand command) {
-        List<String> fields = new java.util.ArrayList<>();
+        List<String> fields = new ArrayList<>();
         if (command.address() != null) {
             fields.add("address");
         }
@@ -918,7 +919,7 @@ public class AccountApplicationService implements
     }
 
     private String renderUpdatedFields(UpdateProfileCommand command) {
-        List<String> fields = new java.util.ArrayList<>();
+        List<String> fields = new ArrayList<>();
         if (command.firstName() != null) {
             fields.add("firstName");
         }

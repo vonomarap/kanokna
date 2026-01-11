@@ -2,6 +2,7 @@ package com.kanokna.cart.application.service;
 
 import com.kanokna.cart.application.dto.RefreshPricesCommand;
 import com.kanokna.cart.application.dto.RefreshPricesResult;
+import com.kanokna.cart.application.port.out.PricingPort;
 import com.kanokna.cart.domain.model.AppliedPromoCode;
 import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.cart.domain.model.CartItem;
@@ -15,10 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CartApplicationServiceRefreshPricesTest {
     @Test
@@ -32,13 +30,13 @@ class CartApplicationServiceRefreshPricesTest {
             CartServiceTestFixture.item("T-71", "Door", "DOOR", 1, CartServiceTestFixture.money("2000.00"), "hash-71", Instant.now().plusSeconds(3600))
         );
         context.cartRepository.save(cart);
-        context.pricingPort.queueQuote("T-70", new com.kanokna.cart.application.port.out.PricingPort.PriceQuote(
+        context.pricingPort.queueQuote("T-70", new PricingPort.PriceQuote(
             true,
             "Q-70",
             Money.of(new BigDecimal("1100.00"), Currency.RUB),
             Instant.now().plusSeconds(3600)
         ));
-        context.pricingPort.queueQuote("T-71", new com.kanokna.cart.application.port.out.PricingPort.PriceQuote(
+        context.pricingPort.queueQuote("T-71", new PricingPort.PriceQuote(
             true,
             "Q-71",
             Money.of(new BigDecimal("2100.00"), Currency.RUB),
@@ -68,7 +66,7 @@ class CartApplicationServiceRefreshPricesTest {
         item.markPriceStale(true);
         Cart cart = CartServiceTestFixture.cartWithItems("cust-71", context.totalsCalculator, item);
         context.cartRepository.save(cart);
-        context.pricingPort.queueQuote("T-72", new com.kanokna.cart.application.port.out.PricingPort.PriceQuote(
+        context.pricingPort.queueQuote("T-72", new PricingPort.PriceQuote(
             true,
             "Q-72",
             Money.of(new BigDecimal("1000.00"), Currency.RUB),
@@ -77,7 +75,7 @@ class CartApplicationServiceRefreshPricesTest {
 
         RefreshPricesResult result = context.service.refreshPrices(new RefreshPricesCommand("cust-71", null));
 
-        assertTrue(!result.cart().items().get(0).priceStale());
+      assertFalse(result.cart().items().get(0).priceStale());
     }
 
     @Test
@@ -90,7 +88,7 @@ class CartApplicationServiceRefreshPricesTest {
             CartServiceTestFixture.item("T-73", "Window", "WINDOW", 1, CartServiceTestFixture.money("1000.00"), "hash-73", Instant.now().plusSeconds(3600))
         );
         context.cartRepository.save(cart);
-        context.pricingPort.queueQuote("T-73", new com.kanokna.cart.application.port.out.PricingPort.PriceQuote(
+        context.pricingPort.queueQuote("T-73", new PricingPort.PriceQuote(
             true,
             "Q-73",
             Money.of(new BigDecimal("2000.00"), Currency.RUB),
@@ -114,7 +112,7 @@ class CartApplicationServiceRefreshPricesTest {
         AppliedPromoCode promo = CartServiceTestFixture.promo("SAVE10", CartServiceTestFixture.money("100.00"));
         cart.applyPromoCode(promo, context.totalsCalculator, null);
         context.cartRepository.save(cart);
-        context.pricingPort.queueQuote("T-74", new com.kanokna.cart.application.port.out.PricingPort.PriceQuote(
+        context.pricingPort.queueQuote("T-74", new PricingPort.PriceQuote(
             true,
             "Q-74",
             Money.of(new BigDecimal("2000.00"), Currency.RUB),
@@ -122,7 +120,7 @@ class CartApplicationServiceRefreshPricesTest {
         ));
         context.pricingPort.setPromoResult(
             "SAVE10",
-            new com.kanokna.cart.application.port.out.PricingPort.PromoValidationResult(
+            new PricingPort.PromoValidationResult(
                 true,
                 true,
                 Money.of(new BigDecimal("200.00"), Currency.RUB),
@@ -178,7 +176,7 @@ class CartApplicationServiceRefreshPricesTest {
             CartServiceTestFixture.item("T-76", "Window", "WINDOW", 1, CartServiceTestFixture.money("1000.00"), "hash-76", Instant.now().plusSeconds(3600))
         );
         context.cartRepository.save(cart);
-        context.pricingPort.queueQuote("T-76", new com.kanokna.cart.application.port.out.PricingPort.PriceQuote(
+        context.pricingPort.queueQuote("T-76", new PricingPort.PriceQuote(
             true,
             "Q-76",
             Money.of(new BigDecimal("1500.00"), Currency.RUB),

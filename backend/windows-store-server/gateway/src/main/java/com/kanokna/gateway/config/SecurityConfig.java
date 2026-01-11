@@ -70,6 +70,7 @@ package com.kanokna.gateway.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 
@@ -80,7 +81,7 @@ public class SecurityConfig {
         return http
             // <BLOCK_ANCHOR id="BA-GW-AUTH-01">Validate JWT token</BLOCK_ANCHOR>
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
-            .cors(org.springframework.security.config.Customizer.withDefaults())
+            .cors(Customizer.withDefaults())
             .authorizeExchange(exchanges -> exchanges
                 // <BLOCK_ANCHOR id="BA-GW-AUTH-03">Authorize request based on path and roles</BLOCK_ANCHOR>
                 .pathMatchers(

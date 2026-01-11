@@ -12,10 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.Instant;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CartApplicationServiceSnapshotTest {
     @Test
@@ -43,7 +40,7 @@ class CartApplicationServiceSnapshotTest {
 
         assertNotNull(result.snapshotId());
         assertNotNull(result.cartSnapshot());
-        assertTrue(!result.pricesChanged());
+      assertFalse(result.pricesChanged());
     }
 
     @Test

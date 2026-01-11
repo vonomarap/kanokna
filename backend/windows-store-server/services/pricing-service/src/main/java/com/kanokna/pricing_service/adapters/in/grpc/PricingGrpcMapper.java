@@ -123,7 +123,7 @@ public class PricingGrpcMapper {
         if (value == null || value.isBlank()) {
             return null;
         }
-        String[] parts = value.trim().split("\s+");
+        String[] parts = value.trim().split(" +");
         if (parts.length < 2) {
             return null;
         }

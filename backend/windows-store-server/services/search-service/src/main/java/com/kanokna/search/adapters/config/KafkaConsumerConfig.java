@@ -1,5 +1,6 @@
 package com.kanokna.search.adapters.config;
 
+import com.google.protobuf.Message;
 import com.kanokna.catalog.v1.ProductTemplatePublishedEvent;
 import com.kanokna.catalog.v1.ProductTemplateUnpublishedEvent;
 import com.kanokna.catalog.v1.ProductTemplateUpdatedEvent;
@@ -7,7 +8,7 @@ import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
 import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
+import org.springframework.boot.kafka.autoconfigure.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -18,7 +19,7 @@ import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.CommonErrorHandler;
-import org.springframework.util.backoff.ExponentialBackOffWithMaxRetries;
+import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -108,16 +109,20 @@ public class KafkaConsumerConfig {
         return new DefaultErrorHandler(recoverer, backOff);
     }
 
-    private <T> ConsumerFactory<String, T> buildConsumerFactory(
+    private <T extends Message> ConsumerFactory<String, T> buildConsumerFactory(
         KafkaProperties kafkaProperties,
         Class<T> valueType
     ) {
         Map<String, Object> properties = new HashMap<>(kafkaProperties.buildConsumerProperties());
         properties.put(KafkaProtobufDeserializerConfig.SPECIFIC_PROTOBUF_VALUE_TYPE, valueType.getName());
+
+        KafkaProtobufDeserializer<T> deserializer = new KafkaProtobufDeserializer<>();
+        deserializer.configure(properties, false); // false = value deserializer
+
         return new DefaultKafkaConsumerFactory<>(
             properties,
             new StringDeserializer(),
-            new KafkaProtobufDeserializer<>()
+            deserializer
         );
     }
 }

@@ -1,5 +1,7 @@
 package com.kanokna.cart.adapters.in.grpc;
 
+import org.springframework.grpc.server.service.GrpcService;
+
 import com.kanokna.cart.application.dto.AddItemResult;
 import com.kanokna.cart.application.dto.ApplyPromoCodeResult;
 import com.kanokna.cart.application.dto.CartDto;
@@ -37,8 +39,8 @@ import com.kanokna.cart.v1.RemovePromoCodeRequest;
 import com.kanokna.cart.v1.RemovePromoCodeResponse;
 import com.kanokna.cart.v1.UpdateItemRequest;
 import com.kanokna.cart.v1.UpdateItemResponse;
+
 import io.grpc.stub.StreamObserver;
-import net.devh.boot.grpc.server.service.GrpcService;
 
 /**
  * gRPC service for cart operations.

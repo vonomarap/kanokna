@@ -55,7 +55,7 @@ public class SearchGrpcService extends SearchServiceGrpc.SearchServiceImplBase {
                                StreamObserver<SearchProductsResponse> responseObserver) {
         SearchQuery query = mapper.toQuery(request);
         SearchResult result = searchProductsUseCase.searchProducts(query);
-        Language language = query.getLanguage() == null ? Language.RU : query.getLanguage();
+        Language language = query.language() == null ? Language.RU : query.language();
         responseObserver.onNext(mapper.toResponse(result, language));
         responseObserver.onCompleted();
     }
@@ -83,7 +83,7 @@ public class SearchGrpcService extends SearchServiceGrpc.SearchServiceImplBase {
                                StreamObserver<ProductDocument> responseObserver) {
         GetProductByIdQuery query = mapper.toQuery(request);
         ProductSearchDocument document = getProductByIdUseCase.getProductById(query);
-        Language language = query.getLanguage() == null ? Language.RU : query.getLanguage();
+        Language language = query.language() == null ? Language.RU : query.language();
         responseObserver.onNext(mapper.toProductDocument(document, language));
         responseObserver.onCompleted();
     }

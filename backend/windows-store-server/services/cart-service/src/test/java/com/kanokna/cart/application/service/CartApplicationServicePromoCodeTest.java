@@ -4,6 +4,7 @@ import com.kanokna.cart.application.dto.ApplyPromoCodeCommand;
 import com.kanokna.cart.application.dto.ApplyPromoCodeResult;
 import com.kanokna.cart.application.dto.CartDto;
 import com.kanokna.cart.application.dto.RemovePromoCodeCommand;
+import com.kanokna.cart.application.port.out.PricingPort;
 import com.kanokna.cart.domain.model.AppliedPromoCode;
 import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.cart.support.CartServiceTestFixture;
@@ -16,10 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CartApplicationServicePromoCodeTest {
     @Test
@@ -34,7 +32,7 @@ class CartApplicationServicePromoCodeTest {
         context.cartRepository.save(cart);
         context.pricingPort.setPromoResult(
             "SAVE10",
-            new com.kanokna.cart.application.port.out.PricingPort.PromoValidationResult(
+            new PricingPort.PromoValidationResult(
                 true,
                 true,
                 Money.of(new BigDecimal("1000.00"), Currency.RUB),
@@ -62,7 +60,7 @@ class CartApplicationServicePromoCodeTest {
         context.cartRepository.save(cart);
         context.pricingPort.setPromoResult(
             "INVALID",
-            new com.kanokna.cart.application.port.out.PricingPort.PromoValidationResult(
+            new PricingPort.PromoValidationResult(
                 true,
                 false,
                 Money.zero(Currency.RUB),
@@ -74,7 +72,7 @@ class CartApplicationServicePromoCodeTest {
         ApplyPromoCodeResult result = context.service.applyPromoCode(new ApplyPromoCodeCommand("cust-51", null, "INVALID"));
 
         assertEquals("ERR-CART-PROMO-INVALID", result.errorCode());
-        assertTrue(!result.applied());
+      assertFalse(result.applied());
     }
 
     @Test
@@ -91,7 +89,7 @@ class CartApplicationServicePromoCodeTest {
         context.cartRepository.save(cart);
         context.pricingPort.setPromoResult(
             "NEW20",
-            new com.kanokna.cart.application.port.out.PricingPort.PromoValidationResult(
+            new PricingPort.PromoValidationResult(
                 true,
                 true,
                 Money.of(new BigDecimal("2000.00"), Currency.RUB),
@@ -132,7 +130,7 @@ class CartApplicationServicePromoCodeTest {
         context.cartRepository.save(cart);
         context.pricingPort.setPromoResult(
             "MIN5000",
-            new com.kanokna.cart.application.port.out.PricingPort.PromoValidationResult(
+            new PricingPort.PromoValidationResult(
                 true,
                 false,
                 Money.zero(Currency.RUB),
@@ -144,7 +142,7 @@ class CartApplicationServicePromoCodeTest {
         ApplyPromoCodeResult result = context.service.applyPromoCode(new ApplyPromoCodeCommand("cust-54", null, "MIN5000"));
 
         assertEquals("ERR-CART-PROMO-MIN-NOT-MET", result.errorCode());
-        assertTrue(!result.applied());
+      assertFalse(result.applied());
     }
 
     @Test

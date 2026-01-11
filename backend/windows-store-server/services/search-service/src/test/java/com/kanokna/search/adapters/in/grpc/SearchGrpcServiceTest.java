@@ -10,6 +10,7 @@ import com.kanokna.search.application.port.in.SearchProductsUseCase;
 import com.kanokna.search.domain.model.AutocompleteQuery;
 import com.kanokna.search.domain.model.AutocompleteResult;
 import com.kanokna.search.domain.model.ProductSearchDocument;
+import com.kanokna.search.domain.model.ProductStatus;
 import com.kanokna.search.domain.model.SearchQuery;
 import com.kanokna.search.domain.model.SearchResult;
 import com.kanokna.search.support.SearchTestFixture;
@@ -70,7 +71,7 @@ class SearchGrpcServiceTest {
     @Test
     @DisplayName("TC-FUNC-SEARCH-001: searchProducts_validRequest_returnsResponse")
     void searchProducts_validRequest_returnsResponse() {
-        ProductSearchDocument document = SearchTestFixture.productDocument("p1", com.kanokna.search.domain.model.ProductStatus.ACTIVE);
+        ProductSearchDocument document = SearchTestFixture.productDocument("p1", ProductStatus.ACTIVE);
         SearchResult result = new SearchResult(List.of(document), 1, 0, 20, 1, List.of(), 6);
         when(searchProductsUseCase.searchProducts(any(SearchQuery.class))).thenReturn(result);
 
@@ -164,7 +165,7 @@ class SearchGrpcServiceTest {
     @Test
     @DisplayName("TC-FUNC-GET-001: getProductById_existingId_returnsDocument")
     void getProductById_existingId_returnsDocument() {
-        ProductSearchDocument document = SearchTestFixture.productDocument("p1", com.kanokna.search.domain.model.ProductStatus.ACTIVE);
+        ProductSearchDocument document = SearchTestFixture.productDocument("p1", ProductStatus.ACTIVE);
         when(getProductByIdUseCase.getProductById(any(GetProductByIdQuery.class))).thenReturn(document);
 
         GetProductByIdRequest request = GetProductByIdRequest.newBuilder()

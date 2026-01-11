@@ -4,9 +4,9 @@ package com.kanokna.pricing_service.application.dto;
  * Response DTO for promo code validation.
  */
 public class PromoCodeValidationResponse {
-    private boolean valid;
-    private String errorMessage;
-    private String discountAmount;
+    private final boolean valid;
+    private final String errorMessage;
+    private final String discountAmount;
 
     public PromoCodeValidationResponse(boolean valid, String errorMessage, String discountAmount) {
         this.valid = valid;

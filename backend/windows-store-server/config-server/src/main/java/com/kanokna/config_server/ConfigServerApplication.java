@@ -64,7 +64,7 @@ public class ConfigServerApplication {
         this.environment = environment;
     }
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
         SpringApplication.run(ConfigServerApplication.class, args);
     }
 

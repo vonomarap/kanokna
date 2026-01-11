@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -42,6 +42,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -93,10 +94,10 @@ class CartServiceIntegrationTest {
     @Autowired
     private CartSnapshotJpaRepository cartSnapshotJpaRepository;
 
-    @MockBean
+    @MockitoBean
     private CatalogConfigurationPort catalogConfigurationPort;
 
-    @MockBean
+    @MockitoBean
     private PricingPort pricingPort;
 
     @Test
@@ -155,7 +156,7 @@ class CartServiceIntegrationTest {
 
         assertNotNull(snapshotResult.snapshotId());
         assertTrue(cartSnapshotJpaRepository.findById(
-            java.util.UUID.fromString(snapshotResult.snapshotId())).isPresent());
+            UUID.fromString(snapshotResult.snapshotId())).isPresent());
         assertEquals(CartStatus.CHECKED_OUT,
             cartJpaRepository.findByCustomerId(customerId).orElseThrow().getStatus());
         assertEquals(addResult.cart().cartId(),

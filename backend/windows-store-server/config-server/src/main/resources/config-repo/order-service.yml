@@ -18,6 +18,11 @@ server:
 grpc:
   server:
     port: 9084
+  client:
+    cart-service:
+          address: ${CART_SERVICE_GRPC_ADDRESS:static://localhost:9083}
+          negotiation-type: PLAINTEXT
+          enable-keep-alive: true
 
 spring:
   datasource:
@@ -38,12 +43,6 @@ spring:
 # -----------------------------------------------------------------------------
 # gRPC Clients
 # -----------------------------------------------------------------------------
-grpc:
-  client:
-    cart-service:
-      address: ${CART_SERVICE_GRPC_ADDRESS:static://localhost:9083}
-      negotiation-type: PLAINTEXT
-      enable-keep-alive: true
 
 # -----------------------------------------------------------------------------
 # YooKassa Payment Gateway Configuration

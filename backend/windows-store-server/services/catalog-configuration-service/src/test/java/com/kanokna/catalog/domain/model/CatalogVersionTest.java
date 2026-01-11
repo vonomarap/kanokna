@@ -21,11 +21,11 @@ class CatalogVersionTest {
         );
 
         // Then
-        assertNotNull(catalogVersion.getId());
-        assertEquals(1, catalogVersion.getVersionNumber());
-        assertEquals("admin-user", catalogVersion.getPublishedBy());
-        assertNotNull(catalogVersion.getPublishedAt());
-        assertEquals("{\"templates\": []}", catalogVersion.getSnapshot());
+        assertNotNull(catalogVersion.id());
+        assertEquals(1, catalogVersion.versionNumber());
+        assertEquals("admin-user", catalogVersion.publishedBy());
+        assertNotNull(catalogVersion.publishedAt());
+        assertEquals("{\"templates\": []}", catalogVersion.snapshot());
     }
 
     @Test
