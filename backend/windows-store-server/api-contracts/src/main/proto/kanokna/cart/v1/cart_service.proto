@@ -211,6 +211,9 @@ message CartItem {
 
   // Product thumbnail URL (snapshot at add time)
   string thumbnail_url = 16;
+
+  // Product family (WINDOW, DOOR, etc.) for analytics
+  string product_family = 17;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
