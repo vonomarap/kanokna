@@ -1,11 +1,12 @@
 package com.kanokna.account.adapters.config;
 
-import com.kanokna.account.application.port.out.EventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import com.kanokna.account.application.port.out.EventPublisher;
 
 /**
  * Account service configuration and adapter wiring.
@@ -17,7 +18,11 @@ public class AccountServiceConfig {
 
     @Bean
     public EventPublisher eventPublisher() {
-        return (topic, event) ->
-            log.info("account-service event published topic={} eventType={}", topic, event.getClass().getSimpleName());
+        return new EventPublisher() {
+            @Override
+            public <T> void publish(String topic, T event) {
+                log.info("account-service event published topic={} eventType={}", topic, event.getClass().getSimpleName());
+            }
+        };
     }
 }

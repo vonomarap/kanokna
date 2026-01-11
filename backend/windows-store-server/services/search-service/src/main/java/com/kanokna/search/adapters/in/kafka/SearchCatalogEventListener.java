@@ -1,5 +1,16 @@
 package com.kanokna.search.adapters.in.kafka;
 
+import java.time.Instant;
+
+import com.kanokna.common.v1.EventMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.stereotype.Component;
+
 import com.google.protobuf.Timestamp;
 import com.kanokna.catalog.v1.ProductTemplatePublishedEvent;
 import com.kanokna.catalog.v1.ProductTemplateUnpublishedEvent;
@@ -12,15 +23,6 @@ import com.kanokna.search.application.port.in.IndexProductUseCase;
 import com.kanokna.search.domain.model.ProductStatus;
 import com.kanokna.shared.core.DomainException;
 import com.kanokna.shared.money.Money;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.stereotype.Component;
-
-import java.time.Instant;
 
 /**
  * Kafka listener for catalog events used to keep the search index in sync.
@@ -170,7 +172,7 @@ public class SearchCatalogEventListener {
         }
     }
 
-    private String extractEventId(com.kanokna.common.v1.EventMetadata metadata) {
+    private String extractEventId(EventMetadata metadata) {
         if (metadata == null || metadata.getEventId().isBlank()) {
             return "unknown";
         }
@@ -189,7 +191,7 @@ public class SearchCatalogEventListener {
             case CURRENCY_EUR -> com.kanokna.shared.money.Currency.EUR;
             case CURRENCY_USD -> com.kanokna.shared.money.Currency.USD;
             case CURRENCY_RUB -> com.kanokna.shared.money.Currency.RUB;
-            case CURRENCY_UNSPECIFIED -> com.kanokna.shared.money.Currency.RUB;
+            case CURRENCY_UNSPECIFIED, UNRECOGNIZED -> com.kanokna.shared.money.Currency.RUB;
         };
     }
 
@@ -201,7 +203,7 @@ public class SearchCatalogEventListener {
             case PRODUCT_STATUS_ACTIVE -> ProductStatus.ACTIVE;
             case PRODUCT_STATUS_DRAFT -> ProductStatus.DRAFT;
             case PRODUCT_STATUS_ARCHIVED -> ProductStatus.ARCHIVED;
-            case PRODUCT_STATUS_UNSPECIFIED -> ProductStatus.UNSPECIFIED;
+          case PRODUCT_STATUS_UNSPECIFIED, UNRECOGNIZED -> ProductStatus.UNSPECIFIED;
         };
     }
 

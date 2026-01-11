@@ -1,4 +1,4 @@
-﻿package com.kanokna.search.application.service;
+package com.kanokna.search.application.service;
 
 import com.kanokna.search.adapters.config.SearchProperties;
 import com.kanokna.search.application.dto.BulkIndexResult;

@@ -160,7 +160,7 @@ class CartGrpcServiceIntegrationTest {
         UpdateItemRequest request = UpdateItemRequest.newBuilder()
             .setCustomerId("cust-3")
             .setItemId("item-1")
-            .setNewQuantity(3)
+            .setQuantity(3)
             .build();
 
         TestObserver<UpdateItemResponse> observer = new TestObserver<>();
@@ -172,7 +172,7 @@ class CartGrpcServiceIntegrationTest {
         ArgumentCaptor<UpdateItemCommand> captor = ArgumentCaptor.forClass(UpdateItemCommand.class);
         verify(setup.updateItemUseCase).updateItem(captor.capture());
         assertEquals("item-1", captor.getValue().itemId());
-        assertEquals(3, captor.getValue().newQuantity());
+        assertEquals(3, captor.getValue().quantity());
     }
 
     @Test

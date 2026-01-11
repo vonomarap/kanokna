@@ -112,6 +112,22 @@
         <scope>import</scope>
       </dependency>
 
+      <!-- gRPC BOM -->
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-bom</artifactId>
+        <version>1.69.0</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Protobuf -->
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>3.25.5</version>
+      </dependency>
+
       <!-- gRPC -->
       <dependency>
         <groupId>org.springframework.grpc</groupId>
@@ -136,7 +152,7 @@
             </dependency>
 
 
-      <!-- ArchUnit -->
+          <!-- ArchUnit -->
             <dependency>
                 <groupId>com.tngtech.archunit</groupId>
                 <artifactId>archunit-junit5</artifactId>

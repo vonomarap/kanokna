@@ -86,7 +86,7 @@ public class CartGrpcService extends CartServiceGrpc.CartServiceImplBase {
     @Override
     public void getCart(GetCartRequest request, StreamObserver<GetCartResponse> responseObserver) {
         CartDto cart = getCartUseCase.getCart(mapper.toQuery(request));
-        responseObserver.onNext(mapper.toResponse(cart));
+        responseObserver.onNext(mapper.toGetCartResponse(cart));
         responseObserver.onCompleted();
     }
 
@@ -100,7 +100,7 @@ public class CartGrpcService extends CartServiceGrpc.CartServiceImplBase {
     @Override
     public void updateItem(UpdateItemRequest request, StreamObserver<UpdateItemResponse> responseObserver) {
         CartDto cart = updateItemUseCase.updateItem(mapper.toCommand(request));
-        responseObserver.onNext(mapper.toResponse(cart));
+        responseObserver.onNext(mapper.toUpdateItemResponse(cart));
         responseObserver.onCompleted();
     }
 

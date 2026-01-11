@@ -1,5 +1,7 @@
 package com.kanokna.pricing_service.adapters.in.grpc;
 
+import org.springframework.grpc.server.service.GrpcService;
+
 import com.kanokna.pricing.v1.CalculateQuoteRequest;
 import com.kanokna.pricing.v1.CalculateQuoteResponse;
 import com.kanokna.pricing.v1.PricingServiceGrpc;
@@ -11,8 +13,8 @@ import com.kanokna.pricing_service.application.dto.QuoteResponse;
 import com.kanokna.pricing_service.application.dto.ValidatePromoCodeCommand;
 import com.kanokna.pricing_service.application.port.in.CalculateQuoteUseCase;
 import com.kanokna.pricing_service.application.port.in.ValidatePromoCodeUseCase;
+
 import io.grpc.stub.StreamObserver;
-import net.devh.boot.grpc.server.service.GrpcService;
 
 /**
  * gRPC service for pricing operations.
