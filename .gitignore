@@ -40,7 +40,7 @@ replay_pid*
 AGENTS.md
 
 # Maven
-target/
+**/target/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -53,4 +53,4 @@ buildNumber
 *.iml
 *.iws
 *.ipr
-out/
+/out/
