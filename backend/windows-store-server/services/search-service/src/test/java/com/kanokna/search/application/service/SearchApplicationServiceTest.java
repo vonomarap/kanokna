@@ -1,5 +1,28 @@
 package com.kanokna.search.application.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.kanokna.search.adapters.config.SearchProperties;
 import com.kanokna.search.application.dto.BulkIndexResult;
 import com.kanokna.search.application.dto.CatalogProductDeleteEvent;
@@ -34,24 +57,6 @@ import com.kanokna.shared.core.DomainException;
 import com.kanokna.shared.i18n.Language;
 import com.kanokna.shared.money.Currency;
 import com.kanokna.shared.money.Money;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SearchApplicationServiceTest {
@@ -74,12 +79,11 @@ class SearchApplicationServiceTest {
     void setUp() {
         searchProperties = new SearchProperties();
         service = new SearchApplicationService(
-            searchRepository,
-            searchIndexAdminPort,
-            catalogConfigurationPort,
-            distributedLockPort,
-            searchProperties
-        );
+                searchRepository,
+                searchIndexAdminPort,
+                catalogConfigurationPort,
+                distributedLockPort,
+                searchProperties);
     }
 
     @Test
@@ -87,10 +91,9 @@ class SearchApplicationServiceTest {
     void searchProducts_emptyQuery_returnsAllActiveProducts() {
         SearchQuery query = baseQuery(null);
         SearchResult expected = SearchTestFixture.searchResult(
-            List.of(SearchTestFixture.productDocument("p1", ProductStatus.ACTIVE)),
-            0,
-            20
-        );
+                List.of(SearchTestFixture.productDocument("p1", ProductStatus.ACTIVE)),
+                0,
+                20);
         when(searchRepository.search(any())).thenReturn(expected);
 
         SearchResult result = service.searchProducts(query);
@@ -129,9 +132,8 @@ class SearchApplicationServiceTest {
     @DisplayName("TC-FUNC-SEARCH-004: Price range filter works correctly")
     void searchProducts_priceRangeFilter_passedToRepository() {
         PriceRange range = new PriceRange(
-            Money.ofMinor(100_00, Currency.RUB),
-            Money.ofMinor(500_00, Currency.RUB)
-        );
+                Money.ofMinor(100_00, Currency.RUB),
+                Money.ofMinor(500_00, Currency.RUB));
         SearchQuery query = baseQuery("window", List.of(), range);
         when(searchRepository.search(any())).thenReturn(SearchTestFixture.searchResult(List.of(), 0, 20));
 
@@ -146,9 +148,8 @@ class SearchApplicationServiceTest {
     @DisplayName("TC-FUNC-SEARCH-005: Multiple filters combine with AND logic")
     void searchProducts_multipleFilters_combinedWithAndLogic() {
         List<FacetFilter> filters = List.of(
-            new FacetFilter("family", List.of("WINDOW")),
-            new FacetFilter("materials", List.of("PVC"))
-        );
+                new FacetFilter("family", List.of("WINDOW")),
+                new FacetFilter("materials", List.of("PVC")));
         SearchQuery query = baseQuery("window", filters);
         when(searchRepository.search(any())).thenReturn(SearchTestFixture.searchResult(List.of(), 0, 20));
 
@@ -166,15 +167,14 @@ class SearchApplicationServiceTest {
         ProductSearchDocument second = SearchTestFixture.productDocument("p2", ProductStatus.ACTIVE);
         SearchResult expected = new SearchResult(List.of(first, second), 2, 0, 20, 1, List.of(), 5);
         SearchQuery query = new SearchQuery(
-            "window",
-            0,
-            20,
-            SortField.RELEVANCE,
-            SortOrder.DESC,
-            List.of(),
-            null,
-            Language.RU
-        );
+                "window",
+                0,
+                20,
+                SortField.RELEVANCE,
+                SortOrder.DESC,
+                List.of(),
+                null,
+                Language.RU);
         when(searchRepository.search(any())).thenReturn(expected);
 
         SearchResult result = service.searchProducts(query);
@@ -187,15 +187,14 @@ class SearchApplicationServiceTest {
     void searchProducts_pagination_returnsCorrectSlice() {
         SearchResult expected = new SearchResult(List.of(), 50, 2, 10, 5, List.of(), 10);
         SearchQuery query = new SearchQuery(
-            "",
-            2,
-            10,
-            SortField.RELEVANCE,
-            SortOrder.DESC,
-            List.of(),
-            null,
-            Language.RU
-        );
+                "",
+                2,
+                10,
+                SortField.RELEVANCE,
+                SortOrder.DESC,
+                List.of(),
+                null,
+                Language.RU);
         when(searchRepository.search(any())).thenReturn(expected);
 
         SearchResult result = service.searchProducts(query);
@@ -291,7 +290,7 @@ class SearchApplicationServiceTest {
     void autocomplete_archivedProductsExcluded() {
         Suggestion suggestion = SearchTestFixture.suggestion("Window", "p1");
         when(searchRepository.autocomplete(any()))
-            .thenReturn(SearchTestFixture.autocompleteResult(List.of(suggestion), 3));
+                .thenReturn(SearchTestFixture.autocompleteResult(List.of(suggestion), 3));
 
         AutocompleteResult result = service.autocomplete(new AutocompleteQuery("wi", 10, Language.RU, null));
 
@@ -337,25 +336,24 @@ class SearchApplicationServiceTest {
     @DisplayName("TC-FUNC-INDEX-004: Invalid event logged and skipped")
     void indexProduct_invalidEvent_loggedAndSkipped() {
         CatalogProductEvent event = new CatalogProductEvent(
-            null,
-            "PRODUCT_TEMPLATE_PUBLISHED",
-            "",
-            "",
-            "",
-            "",
-            "",
-            List.of(),
-            List.of(),
-            List.of(),
-            null,
-            null,
-            ProductStatus.UNSPECIFIED,
-            "",
-            0,
-            0,
-            null,
-            null
-        );
+                null,
+                "PRODUCT_TEMPLATE_PUBLISHED",
+                "",
+                "",
+                "",
+                "",
+                "",
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                null,
+                ProductStatus.UNSPECIFIED,
+                "",
+                0,
+                0,
+                null,
+                null);
 
         DomainException ex = assertThrows(DomainException.class, () -> service.indexProduct(event));
 
@@ -381,7 +379,7 @@ class SearchApplicationServiceTest {
 
         DeleteResult result = service.deleteProduct(event);
 
-      assertTrue(result.deleted());
+        assertTrue(result.deleted());
     }
 
     @Test
@@ -392,7 +390,7 @@ class SearchApplicationServiceTest {
 
         DeleteResult result = service.deleteProduct(event);
 
-      assertTrue(result.deleted());
+        assertTrue(result.deleted());
     }
 
     @Test
@@ -421,12 +419,12 @@ class SearchApplicationServiceTest {
     @DisplayName("TC-FUNC-FACET-002: Request multiple facet fields returns all")
     void getFacetValues_multipleFields_returnsAll() {
         List<FacetAggregation> facets = List.of(
-            SearchTestFixture.facetAggregation("family", "WINDOW", 3, false),
-            SearchTestFixture.facetAggregation("materials", "PVC", 2, false)
-        );
+                SearchTestFixture.facetAggregation("family", "WINDOW", 3, false),
+                SearchTestFixture.facetAggregation("materials", "PVC", 2, false));
         when(searchRepository.facetValues(any())).thenReturn(new FacetValuesResult(facets, 6));
 
-        FacetValuesResult result = service.getFacetValues(new GetFacetValuesQuery(List.of("family", "materials"), Language.RU));
+        FacetValuesResult result = service
+                .getFacetValues(new GetFacetValuesQuery(List.of("family", "materials"), Language.RU));
 
         assertEquals(2, result.facets().size());
     }
@@ -435,7 +433,7 @@ class SearchApplicationServiceTest {
     @DisplayName("TC-FUNC-FACET-003: Invalid field name returns error")
     void getFacetValues_invalidField_returnsError() {
         DomainException ex = assertThrows(DomainException.class,
-            () -> service.getFacetValues(new GetFacetValuesQuery(List.of("unknown"), Language.RU)));
+                () -> service.getFacetValues(new GetFacetValuesQuery(List.of("unknown"), Language.RU)));
 
         assertEquals("ERR-FACET-INVALID-FIELD", ex.getCode());
     }
@@ -478,7 +476,7 @@ class SearchApplicationServiceTest {
         when(searchRepository.getById("missing")).thenReturn(null);
 
         DomainException ex = assertThrows(DomainException.class,
-            () -> service.getProductById(new GetProductByIdQuery("missing", Language.RU)));
+                () -> service.getProductById(new GetProductByIdQuery("missing", Language.RU)));
 
         assertEquals("ERR-GET-PRODUCT-NOT-FOUND", ex.getCode());
     }
@@ -487,7 +485,7 @@ class SearchApplicationServiceTest {
     @DisplayName("TC-FUNC-GET-003: Empty product ID returns validation error")
     void getProductById_emptyProductId_returnsValidationError() {
         assertThrows(IllegalArgumentException.class,
-            () -> service.getProductById(new GetProductByIdQuery(" ", Language.RU)));
+                () -> service.getProductById(new GetProductByIdQuery(" ", Language.RU)));
     }
 
     @Test
@@ -506,12 +504,11 @@ class SearchApplicationServiceTest {
     void reindexCatalog_success_createsNewIndexAndSwapsAlias() {
         when(distributedLockPort.tryAcquire(anyString())).thenReturn(new TestLockHandle());
         when(searchIndexAdminPort.resolveAlias(searchProperties.getIndex().getAlias()))
-            .thenReturn(List.of("product_templates_v1"));
-        when(catalogConfigurationPort.listProductTemplates(any(), any()))
-            .thenReturn(SearchTestFixture.catalogProductPage(
-                List.of(SearchTestFixture.catalogProductEvent("p1", ProductStatus.ACTIVE)),
-                null
-            ));
+                .thenReturn(List.of("product_templates_v1"));
+        when(catalogConfigurationPort.listProductTemplates(anyInt(), any()))
+                .thenReturn(SearchTestFixture.catalogProductPage(
+                        List.of(SearchTestFixture.catalogProductEvent("p1", ProductStatus.ACTIVE)),
+                        null));
         when(searchRepository.bulkIndex(anyString(), any())).thenReturn(new BulkIndexResult(1, 0));
 
         ReindexResult result = service.reindexCatalog(new ReindexCommand(null));
@@ -525,11 +522,11 @@ class SearchApplicationServiceTest {
     void reindexCatalog_populatesAllActiveProducts() {
         when(distributedLockPort.tryAcquire(anyString())).thenReturn(new TestLockHandle());
         when(searchIndexAdminPort.resolveAlias(searchProperties.getIndex().getAlias()))
-            .thenReturn(List.of());
+                .thenReturn(List.of());
         CatalogProductEvent first = SearchTestFixture.catalogProductEvent("p1", ProductStatus.ACTIVE);
         CatalogProductEvent second = SearchTestFixture.catalogProductEvent("p2", ProductStatus.ACTIVE);
-        when(catalogConfigurationPort.listProductTemplates(any(), any()))
-            .thenReturn(new CatalogProductPage(List.of(first, second), null));
+        when(catalogConfigurationPort.listProductTemplates(anyInt(), any()))
+                .thenReturn(new CatalogProductPage(List.of(first, second), null));
         when(searchRepository.bulkIndex(anyString(), any())).thenReturn(new BulkIndexResult(2, 0));
 
         ReindexResult result = service.reindexCatalog(new ReindexCommand(null));
@@ -543,7 +540,7 @@ class SearchApplicationServiceTest {
         when(distributedLockPort.tryAcquire(anyString())).thenReturn(null);
 
         DomainException ex = assertThrows(DomainException.class,
-            () -> service.reindexCatalog(new ReindexCommand(null)));
+                () -> service.reindexCatalog(new ReindexCommand(null)));
 
         assertEquals("ERR-REINDEX-IN-PROGRESS", ex.getCode());
     }
@@ -553,12 +550,11 @@ class SearchApplicationServiceTest {
     void reindexCatalog_failedReindex_doesNotSwapAlias() {
         when(distributedLockPort.tryAcquire(anyString())).thenReturn(new TestLockHandle());
         when(searchIndexAdminPort.resolveAlias(searchProperties.getIndex().getAlias()))
-            .thenReturn(List.of("product_templates_v1"));
-        when(catalogConfigurationPort.listProductTemplates(any(), any()))
-            .thenReturn(SearchTestFixture.catalogProductPage(
-                List.of(SearchTestFixture.catalogProductEvent("p1", ProductStatus.ACTIVE)),
-                null
-            ));
+                .thenReturn(List.of("product_templates_v1"));
+        when(catalogConfigurationPort.listProductTemplates(anyInt(), any()))
+                .thenReturn(SearchTestFixture.catalogProductPage(
+                        List.of(SearchTestFixture.catalogProductEvent("p1", ProductStatus.ACTIVE)),
+                        null));
         when(searchRepository.bulkIndex(anyString(), any())).thenReturn(new BulkIndexResult(0, 1));
 
         assertThrows(DomainException.class, () -> service.reindexCatalog(new ReindexCommand(null)));
@@ -571,12 +567,11 @@ class SearchApplicationServiceTest {
     void reindexCatalog_previousIndexRemains_afterSuccessfulSwap() {
         when(distributedLockPort.tryAcquire(anyString())).thenReturn(new TestLockHandle());
         when(searchIndexAdminPort.resolveAlias(searchProperties.getIndex().getAlias()))
-            .thenReturn(List.of("product_templates_v1"));
-        when(catalogConfigurationPort.listProductTemplates(any(), any()))
-            .thenReturn(SearchTestFixture.catalogProductPage(
-                List.of(SearchTestFixture.catalogProductEvent("p1", ProductStatus.ACTIVE)),
-                null
-            ));
+                .thenReturn(List.of("product_templates_v1"));
+        when(catalogConfigurationPort.listProductTemplates(anyInt(), any()))
+                .thenReturn(SearchTestFixture.catalogProductPage(
+                        List.of(SearchTestFixture.catalogProductEvent("p1", ProductStatus.ACTIVE)),
+                        null));
         when(searchRepository.bulkIndex(anyString(), any())).thenReturn(new BulkIndexResult(1, 0));
 
         service.reindexCatalog(new ReindexCommand(null));
@@ -592,7 +587,7 @@ class SearchApplicationServiceTest {
         doThrow(new RuntimeException("redis down")).when(distributedLockPort).tryAcquire(anyString());
 
         DomainException ex = assertThrows(DomainException.class,
-            () -> service.reindexCatalog(new ReindexCommand(null)));
+                () -> service.reindexCatalog(new ReindexCommand(null)));
 
         assertEquals("ERR-REINDEX-LOCK-UNAVAILABLE", ex.getCode());
     }
@@ -607,15 +602,14 @@ class SearchApplicationServiceTest {
 
     private SearchQuery baseQuery(String queryText, List<FacetFilter> filters, PriceRange range) {
         return new SearchQuery(
-            queryText,
-            0,
-            20,
-            SortField.RELEVANCE,
-            SortOrder.DESC,
-            filters,
-            range,
-            Language.RU
-        );
+                queryText,
+                0,
+                20,
+                SortField.RELEVANCE,
+                SortOrder.DESC,
+                filters,
+                range,
+                Language.RU);
     }
 
     private static class TestLockHandle implements DistributedLockPort.LockHandle {

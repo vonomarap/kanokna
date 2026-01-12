@@ -59,9 +59,10 @@ import co.elastic.clients.elasticsearch.core.search.CompletionContext;
 import co.elastic.clients.elasticsearch.core.search.CompletionSuggest;
 import co.elastic.clients.elasticsearch.core.search.CompletionSuggestOption;
 import co.elastic.clients.elasticsearch.core.search.Context;
+import co.elastic.clients.elasticsearch.core.search.HighlightField;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.Suggester;
-import co.elastic.clients.json.JsonData;
+import co.elastic.clients.util.NamedValue;
 
 /**
  * Elasticsearch adapter for search queries and indexing operations.
@@ -89,12 +90,11 @@ public class ElasticsearchSearchRepository implements SearchRepository {
     private static final Language DEFAULT_LANGUAGE = Language.RU;
 
     private static final Set<String> FACET_FIELDS = Set.of(
-        FIELD_FAMILY,
-        FIELD_PROFILE_SYSTEM,
-        FIELD_MATERIALS,
-        FIELD_COLORS,
-        FIELD_OPENING_TYPES
-    );
+            FIELD_FAMILY,
+            FIELD_PROFILE_SYSTEM,
+            FIELD_MATERIALS,
+            FIELD_COLORS,
+            FIELD_OPENING_TYPES);
 
     private final ElasticsearchClient client;
     private final SearchProperties searchProperties;
@@ -110,14 +110,15 @@ public class ElasticsearchSearchRepository implements SearchRepository {
     @Override
     public SearchResult search(SearchQuery query) {
         SearchRequest.Builder builder = new SearchRequest.Builder()
-            .index(indexAlias())
-            .from(query.page() * query.pageSize())
-            .size(query.pageSize())
-            .trackTotalHits(t -> t.enabled(true))
-            .query(buildSearchQuery(query))
-            .highlight(h -> h
-                .fields(FIELD_NAME, f -> f)
-                .fields(FIELD_DESCRIPTION, f -> f));
+                .index(indexAlias())
+                .from(query.page() * query.pageSize())
+                .size(query.pageSize())
+                .trackTotalHits(t -> t.enabled(true))
+                .query(buildSearchQuery(query))
+                .highlight(h -> h
+                        .fields(List.of(
+                                NamedValue.of(FIELD_NAME, HighlightField.of(f -> f)),
+                                NamedValue.of(FIELD_DESCRIPTION, HighlightField.of(f -> f)))));
 
         for (String field : FACET_FIELDS) {
             builder.aggregations(field, a -> a.terms(t -> t.field(field).size(50)));
@@ -141,9 +142,9 @@ public class ElasticsearchSearchRepository implements SearchRepository {
     @Override
     public AutocompleteResult autocomplete(AutocompleteQuery query) {
         SearchRequest.Builder builder = new SearchRequest.Builder()
-            .index(indexAlias())
-            .size(0)
-            .suggest(buildAutocompleteSuggester(query));
+                .index(indexAlias())
+                .size(0)
+                .suggest(buildAutocompleteSuggester(query));
 
         try {
             SearchResponse<SearchIndexDocument> response = client.search(builder.build(), SearchIndexDocument.class);
@@ -159,9 +160,9 @@ public class ElasticsearchSearchRepository implements SearchRepository {
     @Override
     public FacetValuesResult facetValues(GetFacetValuesQuery query) {
         SearchRequest.Builder builder = new SearchRequest.Builder()
-            .index(indexAlias())
-            .size(0)
-            .query(activeOnlyQuery());
+                .index(indexAlias())
+                .size(0)
+                .query(activeOnlyQuery());
 
         for (String field : query.fields()) {
             builder.aggregations(field, a -> a.terms(t -> t.field(field).size(50)));
@@ -169,7 +170,8 @@ public class ElasticsearchSearchRepository implements SearchRepository {
 
         try {
             SearchResponse<SearchIndexDocument> response = client.search(builder.build(), SearchIndexDocument.class);
-            List<FacetAggregation> facets = mapFacetAggregations(response.aggregations(), new HashSet<>(query.fields()), Map.of());
+            List<FacetAggregation> facets = mapFacetAggregations(response.aggregations(), new HashSet<>(query.fields()),
+                    Map.of());
             return new FacetValuesResult(facets, Math.toIntExact(response.took()));
         } catch (ElasticsearchException ex) {
             throw SearchDomainErrors.facetElasticsearchUnavailable(ex.getMessage());
@@ -181,7 +183,8 @@ public class ElasticsearchSearchRepository implements SearchRepository {
     @Override
     public ProductSearchDocument getById(String productId) {
         try {
-            GetResponse<SearchIndexDocument> response = client.get(g -> g.index(indexAlias()).id(productId), SearchIndexDocument.class);
+            GetResponse<SearchIndexDocument> response = client.get(g -> g.index(indexAlias()).id(productId),
+                    SearchIndexDocument.class);
             if (!response.found()) {
                 return null;
             }
@@ -199,9 +202,9 @@ public class ElasticsearchSearchRepository implements SearchRepository {
         long start = System.currentTimeMillis();
         try {
             IndexResponse response = client.index(i -> i
-                .index(indexAlias())
-                .id(document.getId())
-                .document(indexDocument));
+                    .index(indexAlias())
+                    .id(document.getId())
+                    .document(indexDocument));
             long took = System.currentTimeMillis() - start;
             boolean success = response.result() == Result.Created || response.result() == Result.Updated;
             return new IndexResult(success, response.id(), took);
@@ -259,8 +262,8 @@ public class ElasticsearchSearchRepository implements SearchRepository {
             bool.must(m -> m.matchAll(ma -> ma));
         } else {
             bool.must(m -> m.multiMatch(mm -> mm
-                .query(query.queryText())
-                .fields(FIELD_NAME, FIELD_DESCRIPTION)));
+                    .query(query.queryText())
+                    .fields(FIELD_NAME, FIELD_DESCRIPTION)));
         }
 
         bool.filter(activeOnlyQuery());
@@ -270,9 +273,9 @@ public class ElasticsearchSearchRepository implements SearchRepository {
                 continue;
             }
             List<FieldValue> values = filter.values().stream()
-                .filter(value -> value != null && !value.isBlank())
-                .map(FieldValue::of)
-                .toList();
+                    .filter(value -> value != null && !value.isBlank())
+                    .map(FieldValue::of)
+                    .toList();
             if (values.isEmpty()) {
                 continue;
             }
@@ -289,11 +292,11 @@ public class ElasticsearchSearchRepository implements SearchRepository {
             }
             if (min != null) {
                 double minValue = toMinor(min);
-                bool.filter(f -> f.range(r -> r.field(FIELD_MAX_PRICE).gte(JsonData.of(minValue))));
+                bool.filter(f -> f.range(r -> r.number(n -> n.field(FIELD_MAX_PRICE).gte(minValue))));
             }
             if (max != null) {
                 double maxValue = toMinor(max);
-                bool.filter(f -> f.range(r -> r.field(FIELD_MIN_PRICE).lte(JsonData.of(maxValue))));
+                bool.filter(f -> f.range(r -> r.number(n -> n.field(FIELD_MIN_PRICE).lte(maxValue))));
             }
         }
 
@@ -302,8 +305,8 @@ public class ElasticsearchSearchRepository implements SearchRepository {
 
     private Query activeOnlyQuery() {
         return new Query.Builder()
-            .term(t -> t.field(FIELD_STATUS).value(ProductStatus.ACTIVE.name()))
-            .build();
+                .term(t -> t.field(FIELD_STATUS).value(ProductStatus.ACTIVE.name()))
+                .build();
     }
 
     private void applySorting(SearchRequest.Builder builder, SearchQuery query) {
@@ -311,52 +314,61 @@ public class ElasticsearchSearchRepository implements SearchRepository {
         SortOrder sortOrder = query.sortOrder() == null ? SortOrder.UNSPECIFIED : query.sortOrder();
 
         switch (sortField) {
-            case POPULARITY -> builder.sort(s -> s.field(f -> f.field(FIELD_POPULARITY).order(resolveSortOrder(sortOrder, true))));
-            case PRICE_ASC -> builder.sort(s -> s.field(f -> f.field(FIELD_MIN_PRICE).order(co.elastic.clients.elasticsearch._types.SortOrder.Asc)));
-            case PRICE_DESC -> builder.sort(s -> s.field(f -> f.field(FIELD_MIN_PRICE).order(co.elastic.clients.elasticsearch._types.SortOrder.Desc)));
-            case NEWEST -> builder.sort(s -> s.field(f -> f.field(FIELD_PUBLISHED_AT).order(resolveSortOrder(sortOrder, true))));
-            case NAME -> builder.sort(s -> s.field(f -> f.field(FIELD_NAME_KEYWORD).order(resolveSortOrder(sortOrder, false))));
+            case POPULARITY ->
+                builder.sort(s -> s.field(f -> f.field(FIELD_POPULARITY).order(resolveSortOrder(sortOrder, true))));
+            case PRICE_ASC -> builder.sort(s -> s
+                    .field(f -> f.field(FIELD_MIN_PRICE).order(co.elastic.clients.elasticsearch._types.SortOrder.Asc)));
+            case PRICE_DESC -> builder.sort(s -> s.field(
+                    f -> f.field(FIELD_MIN_PRICE).order(co.elastic.clients.elasticsearch._types.SortOrder.Desc)));
+            case NEWEST ->
+                builder.sort(s -> s.field(f -> f.field(FIELD_PUBLISHED_AT).order(resolveSortOrder(sortOrder, true))));
+            case NAME ->
+                builder.sort(s -> s.field(f -> f.field(FIELD_NAME_KEYWORD).order(resolveSortOrder(sortOrder, false))));
             case RELEVANCE, UNSPECIFIED -> {
                 // Default to relevance (_score)
             }
         }
     }
 
-    private co.elastic.clients.elasticsearch._types.SortOrder resolveSortOrder(SortOrder sortOrder, boolean defaultDesc) {
+    private co.elastic.clients.elasticsearch._types.SortOrder resolveSortOrder(SortOrder sortOrder,
+            boolean defaultDesc) {
         if (sortOrder == SortOrder.DESC) {
             return co.elastic.clients.elasticsearch._types.SortOrder.Desc;
         }
         if (sortOrder == SortOrder.ASC) {
             return co.elastic.clients.elasticsearch._types.SortOrder.Asc;
         }
-        return defaultDesc ? co.elastic.clients.elasticsearch._types.SortOrder.Desc : co.elastic.clients.elasticsearch._types.SortOrder.Asc;
+        return defaultDesc ? co.elastic.clients.elasticsearch._types.SortOrder.Desc
+                : co.elastic.clients.elasticsearch._types.SortOrder.Asc;
     }
 
     private Suggester buildAutocompleteSuggester(AutocompleteQuery query) {
         return new Suggester.Builder()
-            .suggesters(SUGGESTER_AUTOCOMPLETE, field -> field
-                .prefix(query.prefix())
-                .completion(comp -> {
-                    comp.field(FIELD_SUGGEST);
-                    comp.size(query.limit());
-                    comp.skipDuplicates(true);
-                    if (query.familyFilter() != null && !query.familyFilter().isBlank()) {
-                        List<CompletionContext> contexts = List.of(CompletionContext.of(ctx ->
-                            ctx.context(Context.of(ctxBuilder -> ctxBuilder.category(query.familyFilter())))));
-                        comp.contexts("family", contexts);
-                    }
-                    return comp;
-                }))
-            .build();
+                .suggesters(SUGGESTER_AUTOCOMPLETE, field -> field
+                        .prefix(query.prefix())
+                        .completion(comp -> {
+                            comp.field(FIELD_SUGGEST);
+                            comp.size(query.limit());
+                            comp.skipDuplicates(true);
+                            if (query.familyFilter() != null && !query.familyFilter().isBlank()) {
+                                List<CompletionContext> contexts = List.of(CompletionContext.of(ctx -> ctx
+                                        .context(Context.of(ctxBuilder -> ctxBuilder.category(query.familyFilter())))));
+                                comp.contexts("family", contexts);
+                            }
+                            return comp;
+                        }))
+                .build();
     }
 
     private List<Suggestion> mapSuggestions(SearchResponse<SearchIndexDocument> response) {
-        Map<String, List<co.elastic.clients.elasticsearch.core.search.Suggestion<SearchIndexDocument>>> suggest = response.suggest();
+        Map<String, List<co.elastic.clients.elasticsearch.core.search.Suggestion<SearchIndexDocument>>> suggest = response
+                .suggest();
         if (suggest == null || suggest.isEmpty()) {
             return List.of();
         }
         List<Suggestion> results = new ArrayList<>();
-        List<co.elastic.clients.elasticsearch.core.search.Suggestion<SearchIndexDocument>> entries = suggest.get(SUGGESTER_AUTOCOMPLETE);
+        List<co.elastic.clients.elasticsearch.core.search.Suggestion<SearchIndexDocument>> entries = suggest
+                .get(SUGGESTER_AUTOCOMPLETE);
         if (entries == null) {
             return List.of();
         }
@@ -371,12 +383,11 @@ public class ElasticsearchSearchRepository implements SearchRepository {
                     productId = option.source().getId();
                 }
                 results.add(new Suggestion(
-                    option.text(),
-                    SuggestionType.PRODUCT,
-                    productId,
-                    0,
-                    option.text()
-                ));
+                        option.text(),
+                        SuggestionType.PRODUCT,
+                        productId,
+                        0,
+                        option.text()));
             }
         }
         return results;
@@ -392,22 +403,21 @@ public class ElasticsearchSearchRepository implements SearchRepository {
         }
 
         long totalHits = response.hits().total() == null
-            ? response.hits().hits().size()
-            : response.hits().total().value();
+                ? response.hits().hits().size()
+                : response.hits().total().value();
         int totalPages = query.pageSize() == 0 ? 0 : (int) Math.ceil((double) totalHits / query.pageSize());
 
         Map<String, Set<String>> selectedValues = extractSelectedValues(query.filters());
         List<FacetAggregation> facets = mapFacetAggregations(response.aggregations(), FACET_FIELDS, selectedValues);
 
         return new SearchResult(
-            documents,
-            totalHits,
-            query.page(),
-            query.pageSize(),
-            totalPages,
-            facets,
-            Math.toIntExact(response.took())
-        );
+                documents,
+                totalHits,
+                query.page(),
+                query.pageSize(),
+                totalPages,
+                facets,
+                Math.toIntExact(response.took()));
     }
 
     private Map<String, String> mapHighlights(Hit<SearchIndexDocument> hit) {
@@ -424,10 +434,9 @@ public class ElasticsearchSearchRepository implements SearchRepository {
     }
 
     private List<FacetAggregation> mapFacetAggregations(
-        Map<String, Aggregate> aggregations,
-        Set<String> requestedFields,
-        Map<String, Set<String>> selectedValues
-    ) {
+            Map<String, Aggregate> aggregations,
+            Set<String> requestedFields,
+            Map<String, Set<String>> selectedValues) {
         List<FacetAggregation> facets = new ArrayList<>();
         if (aggregations == null || aggregations.isEmpty()) {
             return facets;
@@ -503,11 +512,10 @@ public class ElasticsearchSearchRepository implements SearchRepository {
     }
 
     private ProductSearchDocument toDomain(
-        SearchIndexDocument document,
-        Language language,
-        Map<String, String> highlights,
-        Float score
-    ) {
+            SearchIndexDocument document,
+            Language language,
+            Map<String, String> highlights,
+            Float score) {
         if (document == null) {
             return null;
         }
@@ -516,25 +524,25 @@ public class ElasticsearchSearchRepository implements SearchRepository {
         ProductStatus status = parseStatus(document.getStatus());
 
         return ProductSearchDocument.builder(document.getId())
-            .name(localizedString(document.getName(), language))
-            .description(localizedString(document.getDescription(), language))
-            .family(document.getFamily())
-            .profileSystem(document.getProfileSystem())
-            .openingTypes(document.getOpeningTypes())
-            .materials(document.getMaterials())
-            .colors(document.getColors())
-            .minPrice(minPrice)
-            .maxPrice(maxPrice)
-            .currency(document.getCurrency())
-            .popularity(document.getPopularity() == null ? 0 : document.getPopularity())
-            .status(status)
-            .publishedAt(document.getPublishedAt())
-            .thumbnailUrl(document.getThumbnailUrl())
-            .optionCount(document.getOptionCount() == null ? 0 : document.getOptionCount())
-            .suggestInputs(List.of())
-            .score(score)
-            .highlights(highlights)
-            .build();
+                .name(localizedString(document.getName(), language))
+                .description(localizedString(document.getDescription(), language))
+                .family(document.getFamily())
+                .profileSystem(document.getProfileSystem())
+                .openingTypes(document.getOpeningTypes())
+                .materials(document.getMaterials())
+                .colors(document.getColors())
+                .minPrice(minPrice)
+                .maxPrice(maxPrice)
+                .currency(document.getCurrency())
+                .popularity(document.getPopularity() == null ? 0 : document.getPopularity())
+                .status(status)
+                .publishedAt(document.getPublishedAt())
+                .thumbnailUrl(document.getThumbnailUrl())
+                .optionCount(document.getOptionCount() == null ? 0 : document.getOptionCount())
+                .suggestInputs(List.of())
+                .score(score)
+                .highlights(highlights)
+                .build();
     }
 
     private String resolveLocalized(LocalizedString value, Language language) {
@@ -554,8 +562,8 @@ public class ElasticsearchSearchRepository implements SearchRepository {
 
     private double toMinor(Money money) {
         return money.getAmount()
-            .movePointRight(money.getCurrency().getDefaultScale())
-            .doubleValue();
+                .movePointRight(money.getCurrency().getDefaultScale())
+                .doubleValue();
     }
 
     private Long toMinorLong(Money money) {
@@ -563,8 +571,8 @@ public class ElasticsearchSearchRepository implements SearchRepository {
             return null;
         }
         return money.getAmount()
-            .movePointRight(money.getCurrency().getDefaultScale())
-            .longValue();
+                .movePointRight(money.getCurrency().getDefaultScale())
+                .longValue();
     }
 
     private Money toMoney(Long minor, String currencyCode) {
@@ -614,7 +622,7 @@ public class ElasticsearchSearchRepository implements SearchRepository {
             return SearchDomainErrors.indexNotFound(indexName);
         }
         if ("search_phase_execution_exception".equals(type) && ex.getMessage() != null
-            && ex.getMessage().toLowerCase(Locale.ROOT).contains("timeout")) {
+                && ex.getMessage().toLowerCase(Locale.ROOT).contains("timeout")) {
             return SearchDomainErrors.queryTimeout(ex.getMessage());
         }
         return SearchDomainErrors.elasticsearchUnavailable(ex.getMessage());
