@@ -164,13 +164,14 @@ class AccountApplicationServiceConfigurationTest {
     @DisplayName("TC-ACCT-014: Delete saved configuration removes from list")
     void deleteConfigurationRemoves() {
         UUID userId = UUID.randomUUID();
+        UUID productTemplateId = UUID.randomUUID();
         currentUserProvider.setCurrentUser(new CurrentUser(userId.toString(), "user@example.com", null, null, null, Set.of("CUSTOMER")));
 
         SavedConfigurationDto saved = service.saveConfiguration(new SaveConfigurationCommand(
             userId,
             "Config E",
-            UUID.randomUUID(),
-            validSnapshot(),
+            productTemplateId,
+            validSnapshot(productTemplateId),
             null
         ));
 

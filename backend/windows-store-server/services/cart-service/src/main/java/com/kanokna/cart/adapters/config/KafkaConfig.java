@@ -7,7 +7,7 @@ import com.kanokna.pricing.v1.QuoteCalculatedEvent;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.boot.kafka.autoconfigure.KafkaProperties;
-import org.springframework.boot.ssl.SslBundles;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -23,7 +23,7 @@ import org.springframework.lang.Nullable;
  * Uses Spring Boot's KafkaProperties to read configuration from application.yml
  * including bootstrap-servers, serializers, and schema registry settings.
  * 
- * @see org.springframework.boot.kafka.autoconfigure
+ * @see
  */
 @Configuration
 @EnableKafka

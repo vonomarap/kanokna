@@ -575,7 +575,7 @@ public class CartApplicationService implements
         }
 
         Cart cart = resolveExistingCart(customerId, sessionId);
-        CartItemId itemId = CartItemId.of(command.itemId());
+        CartItemId itemId = resolveItemId(command.itemId());
         CartItem item = cart.findItem(itemId)
             .orElseThrow(() -> CartDomainErrors.itemNotFound(command.itemId()));
 
@@ -666,7 +666,7 @@ public class CartApplicationService implements
         }
 
         Cart cart = resolveExistingCart(customerId, sessionId);
-        CartItemId itemId = CartItemId.of(command.itemId());
+        CartItemId itemId = resolveItemId(command.itemId());
         CartItem item = cart.findItem(itemId)
             .orElseThrow(() -> CartDomainErrors.itemNotFound(command.itemId()));
 
@@ -1599,6 +1599,14 @@ public class CartApplicationService implements
             cart.createdAt(),
             cart.updatedAt()
         );
+    }
+
+    private CartItemId resolveItemId(String itemId) {
+        try {
+            return CartItemId.of(itemId);
+        } catch (RuntimeException ex) {
+            throw CartDomainErrors.itemNotFound(itemId);
+        }
     }
 
     private CartItemDto toDto(CartItem item) {

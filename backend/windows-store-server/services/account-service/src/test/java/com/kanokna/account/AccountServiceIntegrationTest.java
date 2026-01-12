@@ -7,6 +7,7 @@ import com.kanokna.account.application.service.AccountApplicationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -25,6 +26,10 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@EnabledIf(
+    value = "com.kanokna.account.support.DockerAvailability#isDockerAvailable",
+    disabledReason = "Docker is not available, skipping Testcontainers integration tests"
+)
 @SpringBootTest
 @Import(AccountServiceIntegrationTest.TestAuthConfig.class)
 @Testcontainers
