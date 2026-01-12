@@ -49,7 +49,7 @@ class ProductTemplateCommandServiceTest {
             productTemplateRepository,
             catalogVersionRepository,
             eventPublisher,
-            new ObjectMapper()
+            new ObjectMapper().findAndRegisterModules()
         );
     }
 
