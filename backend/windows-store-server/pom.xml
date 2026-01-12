@@ -1,30 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project 
-    xmlns="http://maven.apache.org/POM/4.0.0" 
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
-                        http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.0.1</version>
+    <relativePath />
+  </parent>
 
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.0</version>
-        <relativePath/>
-    </parent>
-
-	<modelVersion>4.0.0</modelVersion>
-	<groupId>com.kanokna</groupId>
-	<artifactId>windows-store-server</artifactId>
-	<version>1.0-SNAPSHOT</version>
-	<packaging>pom</packaging>
-	<name>windows-store-server</name>
-	<description>The parent pom.xml for project of window store by company the Kanokna</description>
-	<url>https://www.kanokna.com</url>
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.kanokna</groupId>
+    <artifactId>windows-store-server</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>windows-store-server</name>
+    <description>The parent pom.xml for project of window store by company the Kanokna</description>
+    <url>https://www.kanokna.com</url>
     <inceptionYear>2025</inceptionYear>
 
 
-	<modules>
+    <modules>
         <module>config-server</module>
         <module>shared/shared-kernel</module>
         <module>api-contracts</module>
@@ -34,108 +32,110 @@
         <module>services/catalog-configuration-service</module>
         <module>services/pricing-service</module>
         <module>services/search-service</module>
-	</modules>
+    </modules>
 
 
-	<licenses>
-		<license>
-			<name>MIT License</name>
-			<url>https://opensource.org/licenses/MIT</url>
-			<distribution>repo</distribution>
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
             <comments>The MIT License (MIT)</comments>
-		</license>
-	</licenses>
+        </license>
+    </licenses>
 
-	<developers>
-		<developer>
-			<id>vonomarap</id>
-			<name>Vlad V. Paramonov</name>
-			<email>CornerDev@protonmail.com</email>
-			<organization>Kanokna</organization>
-			<organizationUrl>https://github.com/vonomarap</organizationUrl>
+    <developers>
+        <developer>
+            <id>vonomarap</id>
+            <name>Vlad V. Paramonov</name>
+            <email>CornerDev@protonmail.com</email>
+            <organization>Kanokna</organization>
+            <organizationUrl>https://github.com/vonomarap</organizationUrl>
             <roles>
                 <role>Architect</role>
                 <role>Backend Developer</role>
                 <role>Frontend Developer</role>
             </roles>
             <timezone>UTC+1</timezone>
-		</developer>
-	</developers>
+        </developer>
+    </developers>
 
-	<scm>
-		<connection>https://github.com/vonomarap/kanokna.git</connection>
-		<developerConnection>https://github.com/vonomarap/kanokna.git</developerConnection>
-		<tag>HEAD</tag>
-		<url>https://github.com/vonomarap/kanokna.git</url>
-	</scm> 
+    <scm>
+        <connection>https://github.com/vonomarap/kanokna.git</connection>
+        <developerConnection>https://github.com/vonomarap/kanokna.git</developerConnection>
+        <tag>HEAD</tag>
+        <url>https://github.com/vonomarap/kanokna.git</url>
+    </scm>
 
-	<properties>
-		<java.version>25</java.version>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<spring-boot.version>4.0.0</spring-boot.version>
-    <spring-grpc.version>1.0.1</spring-grpc.version>
-		<lombok.version>1.18.40</lombok.version>
-		<spring-cloud.version>2024.0.0</spring-cloud.version>
+    <properties>
+        <java.version>25</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring-boot.version>4.0.1</spring-boot.version>
+        <spring-grpc.version>1.0.1</spring-grpc.version>
+        <lombok.version>1.18.40</lombok.version>
+        <spring-cloud.version>2025.1.0</spring-cloud.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <grpc-spring-boot-starter.version>3.1.0.RELEASE</grpc-spring-boot-starter.version>
         <testcontainers.version>1.19.3</testcontainers.version>
         <archunit.version>1.2.1</archunit.version>
         <jib-maven-plugin.version>3.4.0</jib-maven-plugin.version>
-	</properties>
+    </properties>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-dependencies</artifactId>
-				<version>${spring-cloud.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-      <dependency>
-        <groupId>com.kanokna</groupId>
-        <artifactId>shared-kernel</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.kanokna</groupId>
-        <artifactId>api-contracts</artifactId>
-        <version>${project.version}</version>
-      </dependency>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Cloud gateway-->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            
+            <dependency>
+                <groupId>com.kanokna</groupId>
+                <artifactId>shared-kernel</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.kanokna</groupId>
+                <artifactId>api-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
-      <!-- Spring Boot BOM -->
-      <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-dependencies</artifactId>
-        <version>${spring-boot.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
+            <!-- Spring Boot BOM -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
 
-      <!-- gRPC BOM -->
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-bom</artifactId>
-        <version>1.69.0</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
+            <!-- gRPC BOM -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>1.69.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
 
-      <!-- Protobuf -->
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java</artifactId>
-        <version>3.25.5</version>
-      </dependency>
+            <!-- Protobuf -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>3.25.5</version>
+            </dependency>
 
-      <!-- gRPC -->
-      <dependency>
-        <groupId>org.springframework.grpc</groupId>
-        <artifactId>spring-grpc-dependencies</artifactId>
-        <version>${spring-grpc.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
+            <!-- gRPC -->
+            <dependency>
+                <groupId>org.springframework.grpc</groupId>
+                <artifactId>spring-grpc-dependencies</artifactId>
+                <version>${spring-grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
 
             <!-- Testcontainers -->
             <dependency>
@@ -151,8 +151,12 @@
                 <version>1.6.4</version>
             </dependency>
 
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+            </dependency>
 
-          <!-- ArchUnit -->
+            <!-- ArchUnit -->
             <dependency>
                 <groupId>com.tngtech.archunit</groupId>
                 <artifactId>archunit-junit5</artifactId>
@@ -165,13 +169,13 @@
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc.version}</version>
             </dependency>
-            
+
             <dependency>
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-common</artifactId>
                 <version>${springdoc.version}</version>
             </dependency>
-            
+
             <!-- MapStruct -->
             <dependency>
                 <groupId>org.mapstruct</groupId>
@@ -183,40 +187,43 @@
                 <artifactId>mapstruct-processor</artifactId>
                 <version>${mapstruct.version}</version>
             </dependency>
-            
+
             <!-- Observability: JSON Logs -->
             <dependency>
                 <groupId>net.logstash.logback</groupId>
                 <artifactId>logstash-logback-encoder</artifactId>
                 <version>7.4</version>
             </dependency>
-            
+
             <!-- Lombok -->
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
             </dependency>
-		</dependencies> 
-	</dependencyManagement>
+        </dependencies>
+    </dependencyManagement>
 
-  <repositories>
-    <repository>
-      <id>spring-milestones</id>
-      <name>Spring Milestones</name>
-      <url>https://repo.spring.io/milestone</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>spring-releases</id>
-      <name>Spring Releases</name>
-      <url>https://repo.spring.io/release</url>
-    </repository>
-  </repositories>
+    <repositories>
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>spring-snapshots</id>
+            <name>Spring Snapshots</name>
+            <url>https://repo.spring.io/snapshot</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+        </repository>
+    </repositories>
 
-  <build>
+    <build>
         <pluginManagement>
             <plugins>
                 <plugin>
