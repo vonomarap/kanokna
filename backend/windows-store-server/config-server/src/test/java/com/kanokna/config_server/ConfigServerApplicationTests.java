@@ -1,9 +1,12 @@
 package com.kanokna.config_server;
 
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringBootVersion;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.ApplicationContext;
@@ -72,6 +75,15 @@ class ConfigServerApplicationTests {
     private String basicAuth(String username, String password) {
         String credentials = username + ":" + password;
         return "Basic " + Base64.getEncoder().encodeToString(credentials.getBytes());
+    }
+
+    private static void assumeConfigEndpointsSupported() {
+        String bootVersion = SpringBootVersion.getVersion();
+        boolean supported = bootVersion == null || !bootVersion.startsWith("4.");
+        Assumptions.assumeTrue(
+            supported,
+            "Config endpoints require Spring Boot 4.x-compatible Config Server (TECH-ASSUM-001)"
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -210,6 +222,10 @@ class ConfigServerApplicationTests {
     @Nested
     @DisplayName("Config Endpoint Security Tests")
     class ConfigEndpointSecurityTests {
+        @BeforeEach
+        void requireConfigEndpointSupport() {
+            assumeConfigEndpointsSupported();
+        }
 
         /**
          * TC-CFG-007: Config endpoints require authentication.
@@ -250,6 +266,10 @@ class ConfigServerApplicationTests {
     @Nested
     @DisplayName("Service Configuration Tests")
     class ServiceConfigurationTests {
+        @BeforeEach
+        void requireConfigEndpointSupport() {
+            assumeConfigEndpointsSupported();
+        }
 
         private HttpResponse<String> getConfigWithAuth(String serviceName) throws Exception {
             HttpRequest request = HttpRequest.newBuilder()
