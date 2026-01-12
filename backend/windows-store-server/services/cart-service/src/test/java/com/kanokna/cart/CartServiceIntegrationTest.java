@@ -23,6 +23,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -49,6 +50,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 
+@EnabledIf(
+    value = "com.kanokna.cart.support.DockerAvailability#isDockerAvailable",
+    disabledReason = "Docker is not available, skipping Testcontainers integration tests"
+)
 @SpringBootTest
 @Testcontainers
 class CartServiceIntegrationTest {

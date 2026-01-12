@@ -4,6 +4,7 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,8 +21,15 @@ class ArchitectureTest {
 
     @BeforeAll
     static void setup() {
+        int javaFeature = Runtime.version().feature();
+        Assumptions.assumeTrue(
+            javaFeature < 25,
+            "ArchUnit does not support Java " + javaFeature
+        );
+
         importedClasses = new ClassFileImporter()
             .withImportOption(new ImportOption.DoNotIncludeTests())
+            .withImportOption(location -> !location.contains("api-contracts"))
             .importPackages("com.kanokna.cart");
     }
 
