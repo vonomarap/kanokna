@@ -51,6 +51,9 @@
 - Security: OAuth2/OIDC JWT with BUYER/ADMIN/INSTALLER roles; method-level authorization expected.
 - Observability: JSON logs with correlation IDs (traceId/spanId), OTEL tracing, Micrometer metrics with SLOs (quote <=200ms, checkout <=350ms).
 - CI: GitHub Actions baseline workflow (ci.yml) runs Maven build/test stages and CodeQL per TECH-ci-pipeline.
+- Tests: config-server config endpoint tests are skipped under Spring Boot 4 placeholder (TECH-ASSUM-001) via JUnit Assumptions; re-enable when Spring Cloud Config is Boot 4 compatible.
+- Tests: cart-service Testcontainers tests are gated with @EnabledIf + DockerAvailability; ArchUnit tests skip on Java 25 due to unsupported class file version.
+- Tests/build: pricing-service gRPC tests can throw NoClassDefFoundError for proto classes if the local api-contracts jar is stale; rebuild api-contracts (or run service tests with -am) to refresh generated gRPC classes.
 - API: REST versioned at /api/v1 for catalog/pricing/cart/checkout; GraphQL schema for configurator queries; Kafka events for order/payment/installation lifecycle.
 - Data rules: Monetary amounts BigDecimal with ISO currency; discountPrice must be null or <= actualPrice; dimensions for windows/doors enforced (width/height 50-500cm, 10mm step from requirements); lead times >0 for MTO; idempotency for payment callbacks.
 - Notes: product-service still lacks service/controller layers; new blueprint extends to dedicated microservices and GRACE semantic anchors for future code generation.
