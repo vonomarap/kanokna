@@ -54,3 +54,14 @@ buildNumber
 *.iws
 *.ipr
 /out/
+# Local build logs
+*_log.txt
+build-output.txt
+maven-output.txt
+dependency_check.txt
+
+# Reports
+**/grace/reports/DebugReport.xml
+
+*_log_*.txt
+compile_output.txt
