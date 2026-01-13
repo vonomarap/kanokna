@@ -14,6 +14,7 @@
 
     <artifactId>cart-service</artifactId>
     <name>cart-service</name>
+    <packaging>jar</packaging>
     <description>Shopping cart management and checkout preparation service</description>
 
     <properties>
