@@ -1,7 +1,13 @@
 package com.kanokna.cart.adapters.out.persistence;
 
-import com.kanokna.cart.domain.model.CartStatus;
-import com.kanokna.cart.domain.model.ValidationStatus;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -14,27 +20,19 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.UUID;
+import com.kanokna.cart.domain.model.CartStatus;
+import com.kanokna.cart.domain.model.ValidationStatus;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-@EnabledIf(
-    value = "com.kanokna.cart.support.DockerAvailability#isDockerAvailable",
-    disabledReason = "Docker is not available, skipping Testcontainers integration tests"
-)
+@EnabledIf(value = "com.kanokna.cart.support.DockerAvailability#isDockerAvailable", disabledReason = "Docker is not available, skipping Testcontainers integration tests")
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
 class CartJpaRepositoryTest {
     @Container
     static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-        .withDatabaseName("cart")
-        .withUsername("test")
-        .withPassword("test");
+            .withDatabaseName("cart")
+            .withUsername("test")
+            .withPassword("test");
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
@@ -102,7 +100,7 @@ class CartJpaRepositoryTest {
         item.setProductFamily("WINDOW");
         item.setThumbnailUrl("http://example.com/item.png");
         item.setConfigurationSnapshot("{\"productTemplateId\":\"T-100\",\"widthCm\":120,\"heightCm\":130,"
-            + "\"selectedOptions\":[],\"resolvedBom\":[]}");
+                + "\"selectedOptions\":[],\"resolvedBom\":[]}");
         item.setConfigurationHash(hash);
         item.setQuantity(1);
         item.setUnitPriceAmount(new BigDecimal("1000.00"));
