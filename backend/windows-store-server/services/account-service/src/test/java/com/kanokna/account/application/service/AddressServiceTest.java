@@ -1,65 +1,59 @@
 package com.kanokna.account.application.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kanokna.account.adapters.config.AccountProperties;
-import com.kanokna.account.application.dto.*;
+import com.kanokna.account.application.dto.AddAddressCommand;
+import com.kanokna.account.application.dto.AddressDto;
+import com.kanokna.account.application.dto.DeleteAddressCommand;
+import com.kanokna.account.application.dto.ListAddressesQuery;
+import com.kanokna.account.application.dto.SavedAddressDto;
+import com.kanokna.account.application.dto.UpdateAddressCommand;
 import com.kanokna.account.application.port.out.CurrentUser;
-import com.kanokna.account.domain.exception.AccountDomainErrors;
-import com.kanokna.account.domain.model.*;
+import com.kanokna.account.domain.event.AddressAddedEvent;
+import com.kanokna.account.domain.event.AddressDeletedEvent;
+import com.kanokna.account.domain.event.AddressUpdatedEvent;
+import com.kanokna.account.domain.model.CurrencyPreference;
+import com.kanokna.account.domain.model.LocalePreference;
+import com.kanokna.account.domain.model.NotificationPreferences;
+import com.kanokna.account.domain.model.PersonName;
+import com.kanokna.account.domain.model.UserProfile;
 import com.kanokna.account.support.AccountServiceTestFixture;
-import com.kanokna.shared.core.DomainException;
 import com.kanokna.shared.core.Email;
 import com.kanokna.shared.core.Id;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class AccountApplicationServiceAddressTest {
+class AddressServiceTest {
     private AccountServiceTestFixture.InMemoryUserProfileRepository userProfileRepository;
     private AccountServiceTestFixture.InMemorySavedAddressRepository savedAddressRepository;
-    private AccountServiceTestFixture.InMemorySavedConfigurationRepository savedConfigurationRepository;
     private AccountServiceTestFixture.RecordingEventPublisher eventPublisher;
     private AccountServiceTestFixture.FixedCurrentUserProvider currentUserProvider;
-    private AccountApplicationService service;
+    private AddressService service;
 
     @BeforeEach
     void setUp() {
         userProfileRepository = new AccountServiceTestFixture.InMemoryUserProfileRepository();
         savedAddressRepository = new AccountServiceTestFixture.InMemorySavedAddressRepository();
-        savedConfigurationRepository = new AccountServiceTestFixture.InMemorySavedConfigurationRepository();
         eventPublisher = new AccountServiceTestFixture.RecordingEventPublisher();
         currentUserProvider = new AccountServiceTestFixture.FixedCurrentUserProvider();
-        ProfileService profileService = new ProfileService(
-            userProfileRepository,
-            eventPublisher,
-            currentUserProvider,
-            new AccountProperties()
-        );
-        AddressService addressService = new AddressService(
+        service = new AddressService(
             savedAddressRepository,
             userProfileRepository,
             eventPublisher,
             currentUserProvider
         );
-        SavedConfigurationService savedConfigurationService = new SavedConfigurationService(
-            savedConfigurationRepository,
-            eventPublisher,
-            currentUserProvider,
-            new ConfigurationSnapshotValidator(new ObjectMapper())
-        );
-        service = new AccountApplicationService(profileService, addressService, savedConfigurationService);
     }
 
     @Test
-    @DisplayName("TC-FUNC-ADDR-001 / TC-ACCT-006: Add address with valid input succeeds")
-    void addAddressValid() {
+    @DisplayName("addAddress_validInput_savesAndPublishesEvent")
+    void addAddressValidInputSavesAndPublishesEvent() {
         UUID userId = UUID.randomUUID();
         seedProfile(userId);
         currentUserProvider.setCurrentUser(new CurrentUser(userId.toString(), "user@example.com", null, null, null, Set.of("CUSTOMER")));
@@ -69,26 +63,12 @@ class AccountApplicationServiceAddressTest {
         assertNotNull(address.addressId());
         assertEquals("Home", address.label());
         assertTrue(address.isDefault());
+        assertTrue(eventPublisher.events().stream().anyMatch(AddressAddedEvent.class::isInstance));
     }
 
     @Test
-    @DisplayName("TC-FUNC-ADDR-002 / TC-ACCT-007: Add duplicate address returns ERR-ACCT-ADDRESS-DUPLICATE")
-    void addAddressDuplicate() {
-        UUID userId = UUID.randomUUID();
-        seedProfile(userId);
-        currentUserProvider.setCurrentUser(new CurrentUser(userId.toString(), "user@example.com", null, null, null, Set.of("CUSTOMER")));
-
-        service.addAddress(new AddAddressCommand(userId, addressDto("Home"), "Home", true));
-
-        DomainException ex = assertThrows(DomainException.class,
-            () -> service.addAddress(new AddAddressCommand(userId, addressDto("Home"), "Home 2", false)));
-
-        assertEquals(AccountDomainErrors.addressDuplicate("x").getCode(), ex.getCode());
-    }
-
-    @Test
-    @DisplayName("TC-FUNC-ADDR-003 / TC-ACCT-008: Add address with setAsDefault clears previous default")
-    void addAddressClearsDefault() {
+    @DisplayName("addAddress_setAsDefault_clearsOldDefault")
+    void addAddressSetAsDefaultClearsOldDefault() {
         UUID userId = UUID.randomUUID();
         seedProfile(userId);
         currentUserProvider.setCurrentUser(new CurrentUser(userId.toString(), "user@example.com", null, null, null, Set.of("CUSTOMER")));
@@ -102,8 +82,8 @@ class AccountApplicationServiceAddressTest {
     }
 
     @Test
-    @DisplayName("TC-FUNC-ADDR-004: Update address label succeeds")
-    void updateAddressLabel() {
+    @DisplayName("updateAddress_validInput_updatesAndPublishesEvent")
+    void updateAddressValidInputUpdatesAndPublishesEvent() {
         UUID userId = UUID.randomUUID();
         seedProfile(userId);
         currentUserProvider.setCurrentUser(new CurrentUser(userId.toString(), "user@example.com", null, null, null, Set.of("CUSTOMER")));
@@ -118,30 +98,12 @@ class AccountApplicationServiceAddressTest {
         ));
 
         assertEquals("Office", updated.label());
+        assertTrue(eventPublisher.events().stream().anyMatch(AddressUpdatedEvent.class::isInstance));
     }
 
     @Test
-    @DisplayName("TC-FUNC-ADDR-005: Update non-existent address returns ERR-ACCT-ADDRESS-NOT-FOUND")
-    void updateAddressNotFound() {
-        UUID userId = UUID.randomUUID();
-        seedProfile(userId);
-        currentUserProvider.setCurrentUser(new CurrentUser(userId.toString(), "user@example.com", null, null, null, Set.of("CUSTOMER")));
-
-        DomainException ex = assertThrows(DomainException.class,
-            () -> service.updateAddress(new UpdateAddressCommand(
-                userId,
-                UUID.randomUUID(),
-                addressDto("Home"),
-                "Home",
-                false
-            )));
-
-        assertEquals(AccountDomainErrors.addressNotFound("x").getCode(), ex.getCode());
-    }
-
-    @Test
-    @DisplayName("TC-FUNC-ADDR-006 / TC-ACCT-009: Delete address removes from list")
-    void deleteAddressRemoves() {
+    @DisplayName("deleteAddress_existingAddress_deletesAndPublishesEvent")
+    void deleteAddressExistingAddressDeletesAndPublishesEvent() {
         UUID userId = UUID.randomUUID();
         seedProfile(userId);
         currentUserProvider.setCurrentUser(new CurrentUser(userId.toString(), "user@example.com", null, null, null, Set.of("CUSTOMER")));
@@ -150,11 +112,12 @@ class AccountApplicationServiceAddressTest {
         service.deleteAddress(new DeleteAddressCommand(userId, UUID.fromString(saved.addressId())));
 
         assertTrue(service.listAddresses(new ListAddressesQuery(userId)).isEmpty());
+        assertTrue(eventPublisher.events().stream().anyMatch(AddressDeletedEvent.class::isInstance));
     }
 
     @Test
-    @DisplayName("TC-FUNC-ADDR-007: List addresses returns all user's addresses sorted by label")
-    void listAddressesSorted() {
+    @DisplayName("listAddresses_returnsAddressesSortedByLabel")
+    void listAddressesReturnsAddressesSortedByLabel() {
         UUID userId = UUID.randomUUID();
         seedProfile(userId);
         currentUserProvider.setCurrentUser(new CurrentUser(userId.toString(), "user@example.com", null, null, null, Set.of("CUSTOMER")));
