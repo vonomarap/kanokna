@@ -1,5 +1,6 @@
 package com.kanokna.pricing_service.domain.model;
 
+import com.kanokna.pricing_service.domain.exception.PricingDomainErrors;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Objects;
@@ -19,13 +20,13 @@ public class CampaignRule {
         this.maxDiscount = maxDiscount;
 
         if (discountValue.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Discount value must be positive");
+            throw PricingDomainErrors.invalidDiscountValue(discountValue);
         }
     }
 
     public static CampaignRule percentage(BigDecimal percentage, Money maxDiscount) {
         if (percentage.compareTo(new BigDecimal("100")) > 0) {
-            throw new IllegalArgumentException("Percentage cannot exceed 100%");
+            throw PricingDomainErrors.discountExceeds100(percentage);
         }
         return new CampaignRule(DiscountType.PERCENTAGE, percentage, maxDiscount);
     }

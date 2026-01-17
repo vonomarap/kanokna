@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.model;
 
+import com.kanokna.catalog.domain.exception.CatalogDomainErrors;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -27,7 +28,7 @@ public record ResolvedBom(
         public BomItem {
             Objects.requireNonNull(sku, "sku cannot be null");
             if (quantity <= 0) {
-                throw new IllegalArgumentException("quantity must be positive");
+                throw CatalogDomainErrors.invalidQuantity(quantity);
             }
         }
     }

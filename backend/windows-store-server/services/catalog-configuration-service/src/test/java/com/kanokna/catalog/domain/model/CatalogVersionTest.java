@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.model;
 
+import com.kanokna.shared.core.DomainException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -32,7 +33,7 @@ class CatalogVersionTest {
     @DisplayName("Version number must be positive")
     void zeroVersionNumber_ThrowsException() {
         // When/Then
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
             () -> CatalogVersion.create(0, "user", "{}"));
     }
 

@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ARCHITECT_WORK_ORDER id="AWO-20260117-03" status="PROPOSED">
+    <Meta>
+        <Created>2026-01-17T17:15:57+03:00</Created>
+        <Origin>Codebase Analysis Report</Origin>
+        <Priority>MEDIUM</Priority>
+        <Reason>Package naming inconsistency and potential SRP violations in large service classes</Reason>
+    </Meta>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       TASK SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Task>
+        <WaveRef>W1</WaveRef>
+        <TaskRef>W1-REFACTORING-STANDARDS</TaskRef>
+        <UserRequest>
+            Address package naming inconsistency (pricing_service uses underscore) and
+            evaluate/plan decomposition of large application service classes.
+        </UserRequest>
+        <PrimaryGoal>
+            1. Rename pricing-service package from com.kanokna.pricing_service to
+            com.kanokna.pricing
+            2. Analyze and propose decomposition strategy for large service classes
+        </PrimaryGoal>
+    </Task>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Scope>
+        <Services>
+            <ServiceRef ref="DP-SVC-pricing-service" priority="HIGH">Package renaming</ServiceRef>
+            <ServiceRef ref="DP-SVC-account-service" priority="MEDIUM">Service decomposition
+                analysis</ServiceRef>
+            <ServiceRef ref="DP-SVC-cart-service" priority="MEDIUM">Service decomposition analysis</ServiceRef>
+            <ServiceRef ref="DP-SVC-search-service" priority="LOW">Service decomposition analysis</ServiceRef>
+        </Services>
+        <AffectedLayers>
+            <Layer>All layers in pricing-service (package rename)</Layer>
+            <Layer>application.service (decomposition)</Layer>
+        </AffectedLayers>
+    </Scope>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       PART 1: PACKAGE RENAMING (pricing_service → pricing)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Part id="PART-1" name="Package Renaming">
+        <Description>
+            Rename all packages in pricing-service from com.kanokna.pricing_service.* to
+            com.kanokna.pricing.*
+            to match the convention used by other services (account, cart, search, catalog).
+        </Description>
+
+        <CurrentState>
+            <Convention service="account-service">com.kanokna.account.*</Convention>
+            <Convention service="cart-service">com.kanokna.cart.*</Convention>
+            <Convention service="search-service">com.kanokna.search.*</Convention>
+            <Convention service="catalog-configuration-service">com.kanokna.catalog.*</Convention>
+            <Inconsistent service="pricing-service">com.kanokna.pricing_service.* (uses underscore)</Inconsistent>
+        </CurrentState>
+
+        <TargetState>
+            <Convention service="pricing-service">com.kanokna.pricing.*</Convention>
+        </TargetState>
+
+        <ImpactAnalysis>
+            <Item>All .java files in pricing-service need package declaration update</Item>
+            <Item>All internal imports need update</Item>
+            <Item>External references from other services (cart-service uses pricing-service via
+                gRPC)</Item>
+            <Item>DevelopmentPlan.xml PackageLayout entries</Item>
+            <Item>Handoff documents referencing pricing_service packages</Item>
+            <Item>Recently created PricingDomainErrors.java needs update</Item>
+        </ImpactAnalysis>
+
+        <RequiredUpdates>
+            <Update id="PKG-001">
+                <Type>CanonicalArtifact</Type>
+                <File>DevelopmentPlan.xml</File>
+                <Action>Update DP-SVC-pricing-service PackageLayout from pricing_service to pricing</Action>
+            </Update>
+            <Update id="PKG-002">
+                <Type>SourceCode</Type>
+                <Scope>services/pricing-service/src/main/java/</Scope>
+                <Action>Rename directory com/kanokna/pricing_service to com/kanokna/pricing</Action>
+            </Update>
+            <Update id="PKG-003">
+                <Type>SourceCode</Type>
+                <Scope>services/pricing-service/src/test/java/</Scope>
+                <Action>Rename directory com/kanokna/pricing_service to com/kanokna/pricing</Action>
+            </Update>
+            <Update id="PKG-004">
+                <Type>ExternalReference</Type>
+                <Scope>cart-service imports</Scope>
+                <Action>Update any imports referencing com.kanokna.pricing_service</Action>
+            </Update>
+        </RequiredUpdates>
+
+        <RiskAssessment>
+            <Risk level="MEDIUM">
+                gRPC generated code may have hardcoded package references
+            </Risk>
+            <Risk level="LOW">
+                IDE refactoring should handle most changes automatically
+            </Risk>
+            <Mitigation>
+                Run full build and test suite after refactoring to catch missed references
+            </Mitigation>
+        </RiskAssessment>
+    </Part>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       PART 2: LARGE SERVICE CLASS ANALYSIS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Part id="PART-2" name="Service Class Decomposition Analysis">
+        <Description>
+            Analyze large application service classes for potential Single Responsibility Principle
+            violations and propose decomposition strategies.
+        </Description>
+
+        <CurrentState>
+            <Service name="AccountApplicationService">
+                <File>
+                    account-service/src/main/java/com/kanokna/account/application/service/AccountApplicationService.java</File>
+                <Lines>964</Lines>
+                <UseCases>
+                    <UseCase>Profile management (getProfile, updateProfile, deleteProfile)</UseCase>
+                    <UseCase>Address management (addAddress, updateAddress, deleteAddress,
+                        listAddresses)</UseCase>
+                    <UseCase>Saved configurations (saveConfiguration, listConfigurations,
+                        deleteConfiguration)</UseCase>
+                    <UseCase>B2B organization management</UseCase>
+                </UseCases>
+                <Assessment>Handles 4 distinct use case groups - candidate for decomposition</Assessment>
+            </Service>
+
+            <Service name="CartApplicationService">
+                <File>
+                    cart-service/src/main/java/com/kanokna/cart/application/service/CartApplicationService.java</File>
+                <Lines>462</Lines>
+                <UseCases>
+                    <UseCase>Cart item operations (add, update, remove, clear)</UseCase>
+                    <UseCase>Price refresh</UseCase>
+                    <UseCase>Promo code operations (apply, remove)</UseCase>
+                    <UseCase>Cart merge (anonymous → authenticated)</UseCase>
+                    <UseCase>Checkout snapshot</UseCase>
+                </UseCases>
+                <Assessment>Already implements handler interfaces for each use case -
+                    well-structured, keep as-is</Assessment>
+            </Service>
+
+            <Service name="SearchApplicationService">
+                <File>
+                    search-service/src/main/java/com/kanokna/search/application/service/SearchApplicationService.java</File>
+                <Lines>~450</Lines>
+                <UseCases>
+                    <UseCase>Search products</UseCase>
+                    <UseCase>Autocomplete/suggestions</UseCase>
+                    <UseCase>Faceted filtering</UseCase>
+                    <UseCase>Index management</UseCase>
+                </UseCases>
+                <Assessment>Search operations are cohesive - keep as-is</Assessment>
+            </Service>
+        </CurrentState>
+
+        <Recommendation>
+            <Service name="AccountApplicationService" action="DECOMPOSE">
+                <ProposedStructure>
+                    <Class name="ProfileApplicationService">
+                        <Responsibility>User profile CRUD operations</Responsibility>
+                        <UseCases>getProfile, updateProfile, deleteProfile,
+                            createProfileFromKeycloak</UseCases>
+                    </Class>
+                    <Class name="AddressApplicationService">
+                        <Responsibility>Address management</Responsibility>
+                        <UseCases>addAddress, updateAddress, deleteAddress, listAddresses,
+                            setDefaultAddress</UseCases>
+                    </Class>
+                    <Class name="SavedConfigurationApplicationService">
+                        <Responsibility>Saved product configurations (drafts)</Responsibility>
+                        <UseCases>saveConfiguration, listConfigurations, deleteConfiguration,
+                            getConfiguration</UseCases>
+                    </Class>
+                    <Class name="OrganizationApplicationService" priority="LATER">
+                        <Responsibility>B2B organization management</Responsibility>
+                        <UseCases>createOrganization, updateOrganization, addMember, removeMember</UseCases>
+                    </Class>
+                </ProposedStructure>
+                <Benefits>
+                    <Item>Each class has single responsibility</Item>
+                    <Item>Easier to test in isolation</Item>
+                    <Item>Better cohesion</Item>
+                    <Item>Clearer API contracts</Item>
+                </Benefits>
+                <Costs>
+                    <Item>More files to manage</Item>
+                    <Item>Potential shared state/transaction coordination</Item>
+                </Costs>
+            </Service>
+
+            <Service name="CartApplicationService" action="KEEP">
+                <Reason>Already well-structured with handler interfaces per use case</Reason>
+            </Service>
+
+            <Service name="SearchApplicationService" action="KEEP">
+                <Reason>Search operations are cohesive and related</Reason>
+            </Service>
+        </Recommendation>
+    </Part>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       REQUIRED OUTPUTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <RequiredOutputs>
+        <Artifacts>
+            <RequirementsAnalysisUpdates>
+                <Item>None required - existing UCs cover the functionality</Item>
+            </RequirementsAnalysisUpdates>
+            <TechnologyUpdates>
+                <Item>Add DEC-PACKAGE-NAMING-CONVENTION if not already present</Item>
+            </TechnologyUpdates>
+            <DevelopmentPlanUpdates>
+                <Item>Update DP-SVC-pricing-service PackageLayout</Item>
+                <Item>If decomposition approved: Add new service class entries</Item>
+            </DevelopmentPlanUpdates>
+        </Artifacts>
+
+        <Decisions>
+            <Item>DEC-PACKAGE-NAMING: Confirm com.kanokna.{bounded-context}.* convention</Item>
+            <Item>DEC-SERVICE-DECOMPOSITION: Approve/reject AccountApplicationService decomposition</Item>
+        </Decisions>
+
+        <Handoffs>
+            <Handoff id="Handoff-YYYYMMDD-XX-W1-PKG-RENAME" scope="PART-1">
+                Package renaming for pricing-service
+            </Handoff>
+            <Handoff id="Handoff-YYYYMMDD-XX-W1-ACCT-DECOMPOSE" scope="PART-2"
+                conditional="if approved">
+                AccountApplicationService decomposition
+            </Handoff>
+        </Handoffs>
+    </RequiredOutputs>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <AcceptanceCriteria>
+        <Part ref="PART-1">
+            <Criterion>All pricing-service packages use com.kanokna.pricing.*</Criterion>
+            <Criterion>DevelopmentPlan.xml updated</Criterion>
+            <Criterion>No compilation errors</Criterion>
+            <Criterion>All tests pass</Criterion>
+            <Criterion>gRPC integration works (cart-service → pricing-service)</Criterion>
+        </Part>
+        <Part ref="PART-2">
+            <Criterion>Decision documented on decomposition (approve/defer)</Criterion>
+            <Criterion>If approved: New service classes created and tested</Criterion>
+            <Criterion>If approved: AccountApplicationService delegates to sub-services</Criterion>
+        </Part>
+    </AcceptanceCriteria>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       QUESTIONS FOR ARCHITECT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <QuestionsForArchitect>
+        <Question id="Q1">
+            Should PART-2 (service decomposition) be deferred to a later wave to reduce scope?
+            Recommend: Yes, focus on package renaming first.
+        </Question>
+        <Question id="Q2">
+            For package renaming, should we also standardize catalog-configuration-service
+            package from com.kanokna.catalog to com.kanokna.catalog_configuration for consistency
+            with the service name, or keep com.kanokna.catalog as it matches the bounded context?
+            Recommend: Keep com.kanokna.catalog (bounded context is preferred over service name).
+        </Question>
+        <Question id="Q3">
+            Should SearchApplicationService be renamed to SearchQueryService to better reflect
+            its query-only nature?
+            Recommend: No change needed - current name is acceptable.
+        </Question>
+    </QuestionsForArchitect>
+
+</ARCHITECT_WORK_ORDER>

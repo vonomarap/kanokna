@@ -1,6 +1,11 @@
 package com.kanokna.pricing_service.adapters.out.persistence;
 
-import com.kanokna.pricing_service.domain.model.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.math.BigDecimal;
+import java.util.Optional;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -12,19 +17,20 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
-import java.math.BigDecimal;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
+import com.kanokna.pricing_service.domain.model.BasePriceEntry;
+import com.kanokna.pricing_service.domain.model.Money;
+import com.kanokna.pricing_service.domain.model.OptionPremium;
+import com.kanokna.pricing_service.domain.model.PriceBook;
+import com.kanokna.pricing_service.domain.model.PriceBookId;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class PriceBookRepositoryIntegrationTest {
 
     private static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
-        .withDatabaseName("pricing")
-        .withUsername("pricing")
-        .withPassword("pricing");
+            .withDatabaseName("pricing")
+            .withUsername("pricing")
+            .withPassword("pricing");
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
@@ -74,21 +80,18 @@ class PriceBookRepositoryIntegrationTest {
 
     private PriceBook priceBook() {
         BasePriceEntry basePriceEntry = BasePriceEntry.of(
-            "WINDOW-STD",
-            new BigDecimal("1000"),
-            new BigDecimal("0.25"),
-            null
-        );
+                "WINDOW-STD",
+                new BigDecimal("1000"),
+                new BigDecimal("0.25"),
+                null);
         PriceBook priceBook = PriceBook.create(
-            PriceBookId.generate(),
-            "WINDOW-STD",
-            "RUB",
-            basePriceEntry,
-            "tester"
-        );
+                PriceBookId.generate(),
+                "WINDOW-STD",
+                "RUB",
+                basePriceEntry,
+                "tester");
         priceBook.addOptionPremium(
-            OptionPremium.absolute("OPT-A", "Handle", Money.of(new BigDecimal("50"), "RUB"))
-        );
+                OptionPremium.absolute("OPT-A", "Handle", Money.of(new BigDecimal("50"), "RUB")));
         priceBook.publish();
         return priceBook;
     }

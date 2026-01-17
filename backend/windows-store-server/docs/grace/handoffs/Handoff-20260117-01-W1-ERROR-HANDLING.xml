@@ -1,0 +1,620 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff: Domain Error Handling Standardization
+  Task: W1-ERROR-HANDLING-STANDARDIZATION
+  Services: catalog-configuration-service, pricing-service
+  Created: 2026-01-17T10:00:00+03:00
+  Author: GRACE-ARCHITECT
+-->
+<GRACE_HANDOFF
+  id="Handoff-20260117-01-W1-ERROR-HANDLING"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2026-01-17T10:00:00+03:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W1-ERROR-HANDLING-STANDARDIZATION"
+  planRef="DevelopmentExecutionPlan.xml#W1"
+  blueprintRef="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service,DevelopmentPlan.xml#DP-SVC-pricing-service"
+  techRef="Technology.xml#DEC-DOMAIN-ERROR-PATTERN,Technology.xml#DEC-ERROR-CODE-REGISTRY"
+  requirementsRef="RequirementsAnalysis.xml#UC-B2C-CPQ-01,RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE"
+>
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Scope>
+    <Services>
+      <ServiceRef ref="DP-SVC-catalog-configuration-service"/>
+      <ServiceRef ref="DP-SVC-pricing-service"/>
+    </Services>
+    <UseCases>
+      <UseCaseRef ref="UC-B2C-CPQ-01"/>
+      <UseCaseRef ref="UC-CATALOG-ADMIN-MANAGE"/>
+    </UseCases>
+    <AffectedLayers>
+      <Layer>domain.exception (NEW: factory classes)</Layer>
+      <Layer>domain.model (MODIFY: replace IllegalArgumentException)</Layer>
+      <Layer>domain.event (MODIFY: replace IllegalArgumentException)</Layer>
+    </AffectedLayers>
+  </Scope>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ARTIFACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Artifacts>
+    <Artifact ref="RequirementsAnalysis.xml" version="1.4.0">
+      <Update type="ADD">
+        <Description>Add NFR-CODE-DOMAIN-ERROR-HANDLING requirement</Description>
+      </Update>
+    </Artifact>
+    <Artifact ref="Technology.xml" version="1.4.0">
+      <Update type="ADD">
+        <Description>Add DEC-DOMAIN-ERROR-PATTERN and DEC-ERROR-CODE-REGISTRY decisions</Description>
+      </Update>
+    </Artifact>
+    <Artifact ref="DevelopmentPlan.xml" version="1.0"/>
+  </Artifacts>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Contracts>
+    <ModuleContractRef id="MC-catalog-domain-errors">
+      <Description>Static factory for catalog-configuration-service domain exceptions</Description>
+      <Package>com.kanokna.catalog.domain.exception</Package>
+      <Class>CatalogDomainErrors</Class>
+    </ModuleContractRef>
+    <ModuleContractRef id="MC-pricing-domain-errors">
+      <Description>Static factory for pricing-service domain exceptions</Description>
+      <Package>com.kanokna.pricing_service.domain.exception</Package>
+      <Class>PricingDomainErrors</Class>
+    </ModuleContractRef>
+    <FunctionContractRef id="FC-catalog-CatalogDomainErrors-dimensionOutOfRange"/>
+    <FunctionContractRef id="FC-pricing-PricingDomainErrors-currencyMismatch"/>
+  </Contracts>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       DECISIONS SNAPSHOT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DecisionsSnapshot>
+    <Decision id="DEC-DOMAIN-ERROR-PATTERN" status="APPROVED">
+      <Title>Domain Error Handling Pattern</Title>
+      <Selected>Static factory class with typed DomainException per service</Selected>
+      <Convention>
+        <Item>Factory class: {BoundedContext}DomainErrors in com.kanokna.{service}.domain.exception</Item>
+        <Item>Error code format: ERR-{PREFIX}-{ERROR-TYPE}</Item>
+        <Item>Prefixes: CAT (catalog), PRICE (pricing)</Item>
+      </Convention>
+    </Decision>
+    <Decision id="DEC-ERROR-CODE-REGISTRY" status="APPROVED">
+      <Title>Service Error Code Prefix Registry</Title>
+      <Registry>
+        <Prefix code="ERR-CAT" service="catalog-configuration-service"/>
+        <Prefix code="ERR-PRICE" service="pricing-service"/>
+      </Registry>
+    </Decision>
+  </DecisionsSnapshot>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ERROR CODE REGISTRY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ErrorCodeRegistry>
+    <Service prefix="ERR-CAT" name="catalog-configuration-service">
+      <ErrorCode id="ERR-CAT-DIMENSION-OUT-OF-RANGE">Dimension value outside absolute bounds [50, 400] cm</ErrorCode>
+      <ErrorCode id="ERR-CAT-DIMENSION-MIN-EXCEEDS-MAX">Min dimension exceeds max dimension</ErrorCode>
+      <ErrorCode id="ERR-CAT-INVALID-WIDTH">Width must be positive</ErrorCode>
+      <ErrorCode id="ERR-CAT-INVALID-HEIGHT">Height must be positive</ErrorCode>
+      <ErrorCode id="ERR-CAT-INVALID-VERSION">Version number must be positive</ErrorCode>
+      <ErrorCode id="ERR-CAT-INVALID-TEMPLATE-COUNT">Template count cannot be negative</ErrorCode>
+      <ErrorCode id="ERR-CAT-INVALID-ERROR-COUNT">Error count cannot be negative</ErrorCode>
+      <ErrorCode id="ERR-CAT-INVALID-QUANTITY">Quantity must be positive</ErrorCode>
+      <ErrorCode id="ERR-CAT-EMPTY-VALIDATION-ERRORS">Cannot create failure result with empty errors</ErrorCode>
+    </Service>
+    <Service prefix="ERR-PRICE" name="pricing-service">
+      <ErrorCode id="ERR-PRICE-CURRENCY-MISMATCH">Cannot operate on Money with different currencies</ErrorCode>
+      <ErrorCode id="ERR-PRICE-INVALID-DISCOUNT-VALUE">Discount value must be positive</ErrorCode>
+      <ErrorCode id="ERR-PRICE-DISCOUNT-EXCEEDS-100">Percentage cannot exceed 100%</ErrorCode>
+      <ErrorCode id="ERR-PRICE-INVALID-PREMIUM">Premium amount cannot be negative</ErrorCode>
+      <ErrorCode id="ERR-PRICE-INVALID-DATE-RANGE">End date must be after start date</ErrorCode>
+      <ErrorCode id="ERR-PRICE-INVALID-TAX-RATE">Tax rate must be between 0 and 100</ErrorCode>
+      <ErrorCode id="ERR-PRICE-INVALID-PRICE-PER-M2">Price per m2 must be positive</ErrorCode>
+      <ErrorCode id="ERR-PRICE-INVALID-VERSION">Version number must be positive</ErrorCode>
+    </Service>
+  </ErrorCodeRegistry>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       MIGRATION PLAN: CATALOG-CONFIGURATION-SERVICE (14 occurrences)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <MigrationPlan service="catalog-configuration-service">
+    <NewFiles>
+      <File path="src/main/java/com/kanokna/catalog/domain/exception/CatalogDomainErrors.java">
+        <Description>Static factory class for catalog domain errors</Description>
+        <Contract ref="MC-catalog-domain-errors"/>
+      </File>
+      <File path="src/test/java/com/kanokna/catalog/domain/exception/CatalogDomainErrorsTest.java">
+        <Description>Unit tests for CatalogDomainErrors factory</Description>
+      </File>
+    </NewFiles>
+
+    <Migrations>
+      <!-- DimensionConstraints.java - 6 migrations -->
+      <Migration id="MIG-CAT-001">
+        <File>src/main/java/com/kanokna/catalog/domain/model/DimensionConstraints.java</File>
+        <Line>25</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("minWidthCm must be within [" + ABSOLUTE_MIN_CM + ", " + ABSOLUTE_MAX_CM + "]");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.dimensionOutOfRange("minWidthCm", minWidthCm, ABSOLUTE_MIN_CM, ABSOLUTE_MAX_CM);]]></Target>
+        <ErrorCode>ERR-CAT-DIMENSION-OUT-OF-RANGE</ErrorCode>
+      </Migration>
+      <Migration id="MIG-CAT-002">
+        <File>src/main/java/com/kanokna/catalog/domain/model/DimensionConstraints.java</File>
+        <Line>28</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("maxWidthCm must be within [" + ABSOLUTE_MIN_CM + ", " + ABSOLUTE_MAX_CM + "]");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.dimensionOutOfRange("maxWidthCm", maxWidthCm, ABSOLUTE_MIN_CM, ABSOLUTE_MAX_CM);]]></Target>
+        <ErrorCode>ERR-CAT-DIMENSION-OUT-OF-RANGE</ErrorCode>
+      </Migration>
+      <Migration id="MIG-CAT-003">
+        <File>src/main/java/com/kanokna/catalog/domain/model/DimensionConstraints.java</File>
+        <Line>31</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("minHeightCm must be within [" + ABSOLUTE_MIN_CM + ", " + ABSOLUTE_MAX_CM + "]");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.dimensionOutOfRange("minHeightCm", minHeightCm, ABSOLUTE_MIN_CM, ABSOLUTE_MAX_CM);]]></Target>
+        <ErrorCode>ERR-CAT-DIMENSION-OUT-OF-RANGE</ErrorCode>
+      </Migration>
+      <Migration id="MIG-CAT-004">
+        <File>src/main/java/com/kanokna/catalog/domain/model/DimensionConstraints.java</File>
+        <Line>34</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("maxHeightCm must be within [" + ABSOLUTE_MIN_CM + ", " + ABSOLUTE_MAX_CM + "]");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.dimensionOutOfRange("maxHeightCm", maxHeightCm, ABSOLUTE_MIN_CM, ABSOLUTE_MAX_CM);]]></Target>
+        <ErrorCode>ERR-CAT-DIMENSION-OUT-OF-RANGE</ErrorCode>
+      </Migration>
+      <Migration id="MIG-CAT-005">
+        <File>src/main/java/com/kanokna/catalog/domain/model/DimensionConstraints.java</File>
+        <Line>37</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("minWidthCm cannot exceed maxWidthCm");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.minExceedsMax("width", minWidthCm, maxWidthCm);]]></Target>
+        <ErrorCode>ERR-CAT-DIMENSION-MIN-EXCEEDS-MAX</ErrorCode>
+      </Migration>
+      <Migration id="MIG-CAT-006">
+        <File>src/main/java/com/kanokna/catalog/domain/model/DimensionConstraints.java</File>
+        <Line>40</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("minHeightCm cannot exceed maxHeightCm");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.minExceedsMax("height", minHeightCm, maxHeightCm);]]></Target>
+        <ErrorCode>ERR-CAT-DIMENSION-MIN-EXCEEDS-MAX</ErrorCode>
+      </Migration>
+
+      <!-- Configuration.java - 2 migrations -->
+      <Migration id="MIG-CAT-007">
+        <File>src/main/java/com/kanokna/catalog/domain/model/Configuration.java</File>
+        <Line>23</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("widthCm must be positive");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.invalidWidth(widthCm);]]></Target>
+        <ErrorCode>ERR-CAT-INVALID-WIDTH</ErrorCode>
+      </Migration>
+      <Migration id="MIG-CAT-008">
+        <File>src/main/java/com/kanokna/catalog/domain/model/Configuration.java</File>
+        <Line>26</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("heightCm must be positive");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.invalidHeight(heightCm);]]></Target>
+        <ErrorCode>ERR-CAT-INVALID-HEIGHT</ErrorCode>
+      </Migration>
+
+      <!-- CatalogVersion.java - 1 migration -->
+      <Migration id="MIG-CAT-009">
+        <File>src/main/java/com/kanokna/catalog/domain/model/CatalogVersion.java</File>
+        <Line>24</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("versionNumber must be positive");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.invalidVersionNumber(versionNumber);]]></Target>
+        <ErrorCode>ERR-CAT-INVALID-VERSION</ErrorCode>
+      </Migration>
+
+      <!-- CatalogVersionPublishedEvent.java - 2 migrations -->
+      <Migration id="MIG-CAT-010">
+        <File>src/main/java/com/kanokna/catalog/domain/event/CatalogVersionPublishedEvent.java</File>
+        <Line>25</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("versionNumber must be positive");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.invalidVersionNumber(versionNumber);]]></Target>
+        <ErrorCode>ERR-CAT-INVALID-VERSION</ErrorCode>
+      </Migration>
+      <Migration id="MIG-CAT-011">
+        <File>src/main/java/com/kanokna/catalog/domain/event/CatalogVersionPublishedEvent.java</File>
+        <Line>28</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("templateCount cannot be negative");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.invalidTemplateCount(templateCount);]]></Target>
+        <ErrorCode>ERR-CAT-INVALID-TEMPLATE-COUNT</ErrorCode>
+      </Migration>
+
+      <!-- ConfigurationValidatedEvent.java - 1 migration -->
+      <Migration id="MIG-CAT-012">
+        <File>src/main/java/com/kanokna/catalog/domain/event/ConfigurationValidatedEvent.java</File>
+        <Line>26</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("errorCount cannot be negative");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.invalidErrorCount(errorCount);]]></Target>
+        <ErrorCode>ERR-CAT-INVALID-ERROR-COUNT</ErrorCode>
+      </Migration>
+
+      <!-- ResolvedBom.java - 1 migration -->
+      <Migration id="MIG-CAT-013">
+        <File>src/main/java/com/kanokna/catalog/domain/model/ResolvedBom.java</File>
+        <Line>30</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("quantity must be positive");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.invalidQuantity(quantity);]]></Target>
+        <ErrorCode>ERR-CAT-INVALID-QUANTITY</ErrorCode>
+      </Migration>
+
+      <!-- ValidationResult.java - 1 migration -->
+      <Migration id="MIG-CAT-014">
+        <File>src/main/java/com/kanokna/catalog/domain/model/ValidationResult.java</File>
+        <Line>29</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("Cannot create failure result with empty errors");]]></Current>
+        <Target><![CDATA[throw CatalogDomainErrors.emptyValidationErrors();]]></Target>
+        <ErrorCode>ERR-CAT-EMPTY-VALIDATION-ERRORS</ErrorCode>
+      </Migration>
+    </Migrations>
+
+    <ImportToAdd>
+      <Import>import com.kanokna.catalog.domain.exception.CatalogDomainErrors;</Import>
+      <AppliesTo>DimensionConstraints.java, Configuration.java, CatalogVersion.java, CatalogVersionPublishedEvent.java, ConfigurationValidatedEvent.java, ResolvedBom.java, ValidationResult.java</AppliesTo>
+    </ImportToAdd>
+  </MigrationPlan>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       MIGRATION PLAN: PRICING-SERVICE (12 occurrences)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <MigrationPlan service="pricing-service">
+    <NewFiles>
+      <File path="src/main/java/com/kanokna/pricing_service/domain/exception/PricingDomainErrors.java">
+        <Description>Static factory class for pricing domain errors</Description>
+        <Contract ref="MC-pricing-domain-errors"/>
+      </File>
+      <File path="src/test/java/com/kanokna/pricing_service/domain/exception/PricingDomainErrorsTest.java">
+        <Description>Unit tests for PricingDomainErrors factory</Description>
+      </File>
+    </NewFiles>
+
+    <Migrations>
+      <!-- Money.java - 4 migrations -->
+      <Migration id="MIG-PRICE-001">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/Money.java</File>
+        <Line>38</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("Cannot add money with different currencies");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.currencyMismatch("add", this.currency, other.currency());]]></Target>
+        <ErrorCode>ERR-PRICE-CURRENCY-MISMATCH</ErrorCode>
+      </Migration>
+      <Migration id="MIG-PRICE-002">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/Money.java</File>
+        <Line>45</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("Cannot subtract money with different currencies");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.currencyMismatch("subtract", this.currency, other.currency());]]></Target>
+        <ErrorCode>ERR-PRICE-CURRENCY-MISMATCH</ErrorCode>
+      </Migration>
+      <Migration id="MIG-PRICE-003">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/Money.java</File>
+        <Line>68</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("Cannot compare money with different currencies");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.currencyMismatch("compare", this.currency, other.currency());]]></Target>
+        <ErrorCode>ERR-PRICE-CURRENCY-MISMATCH</ErrorCode>
+      </Migration>
+      <Migration id="MIG-PRICE-004">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/Money.java</File>
+        <Line>75</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("Cannot compare money with different currencies");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.currencyMismatch("compare", this.currency, other.currency());]]></Target>
+        <ErrorCode>ERR-PRICE-CURRENCY-MISMATCH</ErrorCode>
+      </Migration>
+
+      <!-- CampaignRule.java - 2 migrations -->
+      <Migration id="MIG-PRICE-005">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/CampaignRule.java</File>
+        <Line>22</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("Discount value must be positive");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.invalidDiscountValue(discountValue);]]></Target>
+        <ErrorCode>ERR-PRICE-INVALID-DISCOUNT-VALUE</ErrorCode>
+      </Migration>
+      <Migration id="MIG-PRICE-006">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/CampaignRule.java</File>
+        <Line>28</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("Percentage cannot exceed 100%");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.discountExceeds100(discountValue);]]></Target>
+        <ErrorCode>ERR-PRICE-DISCOUNT-EXCEEDS-100</ErrorCode>
+      </Migration>
+
+      <!-- Campaign.java - 1 migration -->
+      <Migration id="MIG-PRICE-007">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/Campaign.java</File>
+        <Line>41</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("End date must be after start date");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.invalidDateRange(startDate, endDate);]]></Target>
+        <ErrorCode>ERR-PRICE-INVALID-DATE-RANGE</ErrorCode>
+      </Migration>
+
+      <!-- PromoCode.java - 1 migration -->
+      <Migration id="MIG-PRICE-008">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/PromoCode.java</File>
+        <Line>48</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("End date must be after start date");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.invalidDateRange(startDate, endDate);]]></Target>
+        <ErrorCode>ERR-PRICE-INVALID-DATE-RANGE</ErrorCode>
+      </Migration>
+
+      <!-- TaxRule.java - 1 migration -->
+      <Migration id="MIG-PRICE-009">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/TaxRule.java</File>
+        <Line>34</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("Tax rate must be between 0 and 100");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.invalidTaxRate(rate);]]></Target>
+        <ErrorCode>ERR-PRICE-INVALID-TAX-RATE</ErrorCode>
+      </Migration>
+
+      <!-- OptionPremium.java - 1 migration -->
+      <Migration id="MIG-PRICE-010">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/OptionPremium.java</File>
+        <Line>25</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("Premium amount cannot be negative");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.invalidPremiumAmount(amount);]]></Target>
+        <ErrorCode>ERR-PRICE-INVALID-PREMIUM</ErrorCode>
+      </Migration>
+
+      <!-- PriceBookVersion.java - 1 migration -->
+      <Migration id="MIG-PRICE-011">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/PriceBookVersion.java</File>
+        <Line>29</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("Version number must be positive");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.invalidVersionNumber(versionNumber);]]></Target>
+        <ErrorCode>ERR-PRICE-INVALID-VERSION</ErrorCode>
+      </Migration>
+
+      <!-- BasePriceEntry.java - 1 migration -->
+      <Migration id="MIG-PRICE-012">
+        <File>src/main/java/com/kanokna/pricing_service/domain/model/BasePriceEntry.java</File>
+        <Line>24</Line>
+        <Current><![CDATA[throw new IllegalArgumentException("Price per m2 must be positive");]]></Current>
+        <Target><![CDATA[throw PricingDomainErrors.invalidPricePerM2(pricePerM2);]]></Target>
+        <ErrorCode>ERR-PRICE-INVALID-PRICE-PER-M2</ErrorCode>
+      </Migration>
+    </Migrations>
+
+    <ImportToAdd>
+      <Import>import com.kanokna.pricing_service.domain.exception.PricingDomainErrors;</Import>
+      <AppliesTo>Money.java, CampaignRule.java, Campaign.java, PromoCode.java, TaxRule.java, OptionPremium.java, PriceBookVersion.java, BasePriceEntry.java</AppliesTo>
+    </ImportToAdd>
+  </MigrationPlan>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       IMPLEMENTATION CODE: CatalogDomainErrors.java
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationCode>
+    <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/exception/CatalogDomainErrors.java">
+      <![CDATA[
+package com.kanokna.catalog.domain.exception;
+
+import com.kanokna.shared.core.DomainException;
+
+/**
+ * Factory methods for catalog domain error codes.
+ * All catalog exceptions should be created through this class to ensure
+ * consistent error codes and messages.
+ *
+ * @see DomainException
+ */
+public final class CatalogDomainErrors {
+
+    private CatalogDomainErrors() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    // ========== Dimension Validation Errors ==========
+
+    public static DomainException dimensionOutOfRange(String dimension, int value, int min, int max) {
+        return new DomainException("ERR-CAT-DIMENSION-OUT-OF-RANGE",
+            String.format("%s=%d is outside valid range [%d, %d]", dimension, value, min, max));
+    }
+
+    public static DomainException minExceedsMax(String dimension, int min, int max) {
+        return new DomainException("ERR-CAT-DIMENSION-MIN-EXCEEDS-MAX",
+            String.format("min%sCm=%d cannot exceed max%sCm=%d",
+                capitalize(dimension), min, capitalize(dimension), max));
+    }
+
+    public static DomainException invalidWidth(int width) {
+        return new DomainException("ERR-CAT-INVALID-WIDTH",
+            "widthCm must be positive, got: " + width);
+    }
+
+    public static DomainException invalidHeight(int height) {
+        return new DomainException("ERR-CAT-INVALID-HEIGHT",
+            "heightCm must be positive, got: " + height);
+    }
+
+    // ========== Version/Count Validation Errors ==========
+
+    public static DomainException invalidVersionNumber(int version) {
+        return new DomainException("ERR-CAT-INVALID-VERSION",
+            "versionNumber must be positive, got: " + version);
+    }
+
+    public static DomainException invalidTemplateCount(int count) {
+        return new DomainException("ERR-CAT-INVALID-TEMPLATE-COUNT",
+            "templateCount cannot be negative, got: " + count);
+    }
+
+    public static DomainException invalidErrorCount(int count) {
+        return new DomainException("ERR-CAT-INVALID-ERROR-COUNT",
+            "errorCount cannot be negative, got: " + count);
+    }
+
+    public static DomainException invalidQuantity(int quantity) {
+        return new DomainException("ERR-CAT-INVALID-QUANTITY",
+            "quantity must be positive, got: " + quantity);
+    }
+
+    // ========== Validation Result Errors ==========
+
+    public static DomainException emptyValidationErrors() {
+        return new DomainException("ERR-CAT-EMPTY-VALIDATION-ERRORS",
+            "Cannot create failure ValidationResult with empty errors list");
+    }
+
+    // ========== Helper ==========
+
+    private static String capitalize(String s) {
+        return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+}
+      ]]>
+    </File>
+
+    <File path="pricing-service/src/main/java/com/kanokna/pricing_service/domain/exception/PricingDomainErrors.java">
+      <![CDATA[
+package com.kanokna.pricing_service.domain.exception;
+
+import com.kanokna.shared.core.DomainException;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+/**
+ * Factory methods for pricing domain error codes.
+ * All pricing exceptions should be created through this class to ensure
+ * consistent error codes and messages.
+ *
+ * @see DomainException
+ */
+public final class PricingDomainErrors {
+
+    private PricingDomainErrors() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    // ========== Money Operations Errors ==========
+
+    public static DomainException currencyMismatch(String operation, String currency1, String currency2) {
+        return new DomainException("ERR-PRICE-CURRENCY-MISMATCH",
+            String.format("Cannot %s money with different currencies: %s vs %s",
+                operation, currency1, currency2));
+    }
+
+    // ========== Discount/Campaign Validation Errors ==========
+
+    public static DomainException invalidDiscountValue(BigDecimal value) {
+        return new DomainException("ERR-PRICE-INVALID-DISCOUNT-VALUE",
+            "Discount value must be positive, got: " + value);
+    }
+
+    public static DomainException discountExceeds100(BigDecimal percentage) {
+        return new DomainException("ERR-PRICE-DISCOUNT-EXCEEDS-100",
+            "Percentage discount cannot exceed 100%, got: " + percentage);
+    }
+
+    public static DomainException invalidPremiumAmount(BigDecimal amount) {
+        return new DomainException("ERR-PRICE-INVALID-PREMIUM",
+            "Premium amount cannot be negative, got: " + amount);
+    }
+
+    // ========== Date Range Validation Errors ==========
+
+    public static DomainException invalidDateRange(LocalDate startDate, LocalDate endDate) {
+        return new DomainException("ERR-PRICE-INVALID-DATE-RANGE",
+            String.format("End date %s must be after start date %s", endDate, startDate));
+    }
+
+    // ========== Tax Validation Errors ==========
+
+    public static DomainException invalidTaxRate(BigDecimal rate) {
+        return new DomainException("ERR-PRICE-INVALID-TAX-RATE",
+            String.format("Tax rate must be between 0 and 100, got: %s", rate));
+    }
+
+    // ========== Price/Version Validation Errors ==========
+
+    public static DomainException invalidPricePerM2(BigDecimal price) {
+        return new DomainException("ERR-PRICE-INVALID-PRICE-PER-M2",
+            "Price per m2 must be positive, got: " + price);
+    }
+
+    public static DomainException invalidVersionNumber(int version) {
+        return new DomainException("ERR-PRICE-INVALID-VERSION",
+            "versionNumber must be positive, got: " + version);
+    }
+}
+      ]]>
+    </File>
+  </ImplementationCode>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       TEST CASES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <TestCases>
+    <TestCase id="TC-CAT-ERR-001" service="catalog-configuration-service">
+      <Description>dimensionOutOfRange returns exception with ERR-CAT-DIMENSION-OUT-OF-RANGE code and includes all context</Description>
+      <Method>CatalogDomainErrorsTest.dimensionOutOfRange_includesAllContextInMessage</Method>
+    </TestCase>
+    <TestCase id="TC-CAT-ERR-002" service="catalog-configuration-service">
+      <Description>minExceedsMax returns exception with correct code and both values</Description>
+      <Method>CatalogDomainErrorsTest.minExceedsMax_includesBothValuesInMessage</Method>
+    </TestCase>
+    <TestCase id="TC-CAT-ERR-003" service="catalog-configuration-service">
+      <Description>invalidVersionNumber returns exception with correct code</Description>
+      <Method>CatalogDomainErrorsTest.invalidVersionNumber_includesValueInMessage</Method>
+    </TestCase>
+    <TestCase id="TC-CAT-ERR-004" service="catalog-configuration-service">
+      <Description>emptyValidationErrors returns exception with correct code</Description>
+      <Method>CatalogDomainErrorsTest.emptyValidationErrors_hasCorrectCode</Method>
+    </TestCase>
+    <TestCase id="TC-PRICE-ERR-001" service="pricing-service">
+      <Description>currencyMismatch includes operation and both currencies</Description>
+      <Method>PricingDomainErrorsTest.currencyMismatch_includesOperationAndBothCurrencies</Method>
+    </TestCase>
+    <TestCase id="TC-PRICE-ERR-002" service="pricing-service">
+      <Description>invalidDiscountValue includes the value</Description>
+      <Method>PricingDomainErrorsTest.invalidDiscountValue_includesValue</Method>
+    </TestCase>
+    <TestCase id="TC-PRICE-ERR-003" service="pricing-service">
+      <Description>discountExceeds100 includes percentage</Description>
+      <Method>PricingDomainErrorsTest.discountExceeds100_includesPercentage</Method>
+    </TestCase>
+    <TestCase id="TC-PRICE-ERR-004" service="pricing-service">
+      <Description>invalidDateRange includes both dates</Description>
+      <Method>PricingDomainErrorsTest.invalidDateRange_includesBothDates</Method>
+    </TestCase>
+    <TestCase id="TC-PRICE-ERR-005" service="pricing-service">
+      <Description>invalidTaxRate includes the rate value</Description>
+      <Method>PricingDomainErrorsTest.invalidTaxRate_includesRate</Method>
+    </TestCase>
+  </TestCases>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ASSUMPTIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Assumptions>
+    <Item id="A-ERR-BASE-CLASS">DomainException from shared-kernel is the base class (confirmed exists at com.kanokna.shared.core.DomainException)</Item>
+    <Item id="A-ERR-NO-SUBCLASSES">Using simple DomainException without typed subclasses (unlike cart-service); can add later if polymorphic handling needed</Item>
+    <Item id="A-ERR-IMPORT">Each modified file needs to add import for respective DomainErrors factory</Item>
+    <Item id="A-ERR-EXISTING-TESTS">Existing tests for domain classes may need adjustment to expect DomainException instead of IllegalArgumentException</Item>
+  </Assumptions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria>
+    <Criterion id="AC-ERR-001">CatalogDomainErrors factory class exists with MODULE_CONTRACT comment</Criterion>
+    <Criterion id="AC-ERR-002">PricingDomainErrors factory class exists with MODULE_CONTRACT comment</Criterion>
+    <Criterion id="AC-ERR-003">All error codes follow ERR-{PREFIX}-{TYPE} convention</Criterion>
+    <Criterion id="AC-ERR-004">All 14 IllegalArgumentException in catalog-configuration-service migrated</Criterion>
+    <Criterion id="AC-ERR-005">All 12 IllegalArgumentException in pricing-service migrated</Criterion>
+    <Criterion id="AC-ERR-006">Unit tests pass for both factory classes</Criterion>
+    <Criterion id="AC-ERR-007">No cross-service dependencies introduced</Criterion>
+    <Criterion id="AC-ERR-008">Error messages include contextual values for debugging</Criterion>
+  </AcceptanceCriteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       CODER INSTRUCTIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <CoderInstructions>
+    <Instruction priority="1">Create CatalogDomainErrors.java at catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/exception/</Instruction>
+    <Instruction priority="2">Create PricingDomainErrors.java at pricing-service/src/main/java/com/kanokna/pricing_service/domain/exception/</Instruction>
+    <Instruction priority="3">Migrate all 14 IllegalArgumentException in catalog-configuration-service per MIG-CAT-001 through MIG-CAT-014</Instruction>
+    <Instruction priority="4">Migrate all 12 IllegalArgumentException in pricing-service per MIG-PRICE-001 through MIG-PRICE-012</Instruction>
+    <Instruction priority="5">Add imports for DomainErrors factory to all modified files</Instruction>
+    <Instruction priority="6">Create unit tests CatalogDomainErrorsTest.java and PricingDomainErrorsTest.java</Instruction>
+    <Instruction priority="7">Update any existing tests that expect IllegalArgumentException to expect DomainException</Instruction>
+    <Instruction priority="8">Run mvn test to verify all tests pass</Instruction>
+  </CoderInstructions>
+
+</GRACE_HANDOFF>

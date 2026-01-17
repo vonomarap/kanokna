@@ -25,15 +25,15 @@ import org.springframework.core.env.Environment;
  *   to all microservices in the Kanokna Windows & Doors platform.
  *
  * Responsibilities:
- *   - Serve configuration from native filesystem (dev/stage) or Git (prod)
+ *   - Serve configuration from native filesystem (dev) or Git (stage/prod)
  *   - Support encryption/decryption of sensitive property values
  *   - Enable runtime configuration refresh for clients
  *   - Provide health endpoints for K8s readiness/liveness probes
  *   - Apply profile-based configuration (dev, stage, prod)
  *
  * Configuration Sources:
- *   - Native Profile: classpath:/config-repo/{application}.yml
- *   - Git Profile: ${CONFIG_GIT_URI}/{application}.yml
+ *   - Native Profile: file:${CONFIG_REPO_PATH}/application.yml (and {application}.yml)
+ *   - Git Profile: ${CONFIG_GIT_URI} (branch ${CONFIG_GIT_BRANCH})
  *
  * Security:
  *   - Basic authentication for config endpoints
@@ -93,7 +93,9 @@ public class ConfigServerApplication {
 
     private String determineConfigSource(String[] activeProfiles) {
         for (String profile : activeProfiles) {
-            if ("prod".equalsIgnoreCase(profile) || "git".equalsIgnoreCase(profile)) {
+            if ("prod".equalsIgnoreCase(profile)
+                    || "stage".equalsIgnoreCase(profile)
+                    || "git".equalsIgnoreCase(profile)) {
                 return "git";
             }
         }

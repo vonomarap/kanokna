@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.event;
 
+import com.kanokna.shared.core.DomainException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +40,7 @@ class CatalogVersionPublishedEventTest {
     @DisplayName("Version number must be positive")
     void zeroVersionNumber_ThrowsException() {
         // When/Then
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
             () -> CatalogVersionPublishedEvent.create(UUID.randomUUID(), 0, 5, "user"));
     }
 
@@ -47,7 +48,7 @@ class CatalogVersionPublishedEventTest {
     @DisplayName("Template count cannot be negative")
     void negativeTemplateCount_ThrowsException() {
         // When/Then
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
             () -> CatalogVersionPublishedEvent.create(UUID.randomUUID(), 1, -1, "user"));
     }
 }

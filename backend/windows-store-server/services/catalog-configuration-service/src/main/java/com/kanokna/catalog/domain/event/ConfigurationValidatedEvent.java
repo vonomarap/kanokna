@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.event;
 
+import com.kanokna.catalog.domain.exception.CatalogDomainErrors;
 import com.kanokna.catalog.domain.model.ProductTemplateId;
 
 import java.time.Instant;
@@ -23,7 +24,7 @@ public record ConfigurationValidatedEvent(
         Objects.requireNonNull(occurredAt, "occurredAt cannot be null");
         Objects.requireNonNull(productTemplateId, "productTemplateId cannot be null");
         if (errorCount < 0) {
-            throw new IllegalArgumentException("errorCount cannot be negative");
+            throw CatalogDomainErrors.invalidErrorCount(errorCount);
         }
     }
 

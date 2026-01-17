@@ -1866,6 +1866,67 @@ billing-service, support-service)
           <Link ref="Technology.xml#DEC-ARCH-ENTITY-VERSIONING" />
         </Links>
       </FunctionContract>
+
+      <!-- Domain Error Handling Contracts -->
+      <ModuleContract id="MC-catalog-domain-errors">
+        <Service>catalog-configuration-service</Service>
+        <Layer>domain.exception</Layer>
+        <Description>Static factory for catalog-configuration-service domain exceptions</Description>
+        <Class>com.kanokna.catalog.domain.exception.CatalogDomainErrors</Class>
+        <Responsibilities>
+          <Item>Provide factory methods for all catalog domain error types</Item>
+          <Item>Ensure consistent error codes (ERR-CAT-*)</Item>
+          <Item>Include contextual values in error messages</Item>
+        </Responsibilities>
+        <Links>
+          <Link ref="Technology.xml#DEC-DOMAIN-ERROR-PATTERN" />
+          <Link ref="RequirementsAnalysis.xml#NFR-CODE-DOMAIN-ERROR-HANDLING" />
+        </Links>
+      </ModuleContract>
+
+      <ModuleContract id="MC-pricing-domain-errors">
+        <Service>pricing-service</Service>
+        <Layer>domain.exception</Layer>
+        <Description>Static factory for pricing-service domain exceptions</Description>
+        <Class>com.kanokna.pricing_service.domain.exception.PricingDomainErrors</Class>
+        <Responsibilities>
+          <Item>Provide factory methods for all pricing domain error types</Item>
+          <Item>Ensure consistent error codes (ERR-PRICE-*)</Item>
+          <Item>Include contextual values in error messages</Item>
+        </Responsibilities>
+        <Links>
+          <Link ref="Technology.xml#DEC-DOMAIN-ERROR-PATTERN" />
+          <Link ref="RequirementsAnalysis.xml#NFR-CODE-DOMAIN-ERROR-HANDLING" />
+        </Links>
+      </ModuleContract>
+
+      <FunctionContract id="FC-catalog-CatalogDomainErrors-dimensionOutOfRange">
+        <Service>catalog-configuration-service</Service>
+        <Layer>domain.exception</Layer>
+        <Method>dimensionOutOfRange</Method>
+        <Intent>Create exception for dimension constraint violations</Intent>
+        <Input>dimension name (String), value (int), min (int), max (int)</Input>
+        <Output>DomainException with ERR-CAT-DIMENSION-OUT-OF-RANGE code</Output>
+        <ErrorCode>ERR-CAT-DIMENSION-OUT-OF-RANGE</ErrorCode>
+        <Criticality>MEDIUM</Criticality>
+        <Links>
+          <Link ref="MC-catalog-domain-errors" />
+        </Links>
+      </FunctionContract>
+
+      <FunctionContract id="FC-pricing-PricingDomainErrors-currencyMismatch">
+        <Service>pricing-service</Service>
+        <Layer>domain.exception</Layer>
+        <Method>currencyMismatch</Method>
+        <Intent>Create exception for money operations with mismatched currencies</Intent>
+        <Input>operation (String), currency1 (String), currency2 (String)</Input>
+        <Output>DomainException with ERR-PRICE-CURRENCY-MISMATCH code</Output>
+        <ErrorCode>ERR-PRICE-CURRENCY-MISMATCH</ErrorCode>
+        <Criticality>HIGH</Criticality>
+        <Links>
+          <Link ref="MC-pricing-domain-errors" />
+        </Links>
+      </FunctionContract>
     </ContractRegistry>
 
     <BlockAnchorRegistry>

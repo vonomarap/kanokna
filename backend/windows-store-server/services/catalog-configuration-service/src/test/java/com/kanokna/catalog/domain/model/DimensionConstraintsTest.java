@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.model;
 
+import com.kanokna.shared.core.DomainException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -27,10 +28,10 @@ class DimensionConstraintsTest {
     @DisplayName("Constraints outside absolute range throw exception")
     void outsideAbsoluteRange_ThrowsException() {
         // When/Then
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
             () -> new DimensionConstraints(40, 300, 80, 250)); // min below 50
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
             () -> new DimensionConstraints(60, 450, 80, 250)); // max above 400
     }
 
@@ -38,7 +39,7 @@ class DimensionConstraintsTest {
     @DisplayName("Min greater than max throws exception")
     void minGreaterThanMax_ThrowsException() {
         // When/Then
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
             () -> new DimensionConstraints(300, 200, 80, 250)); // width min > max
     }
 

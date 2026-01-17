@@ -1,0 +1,243 @@
+<ARCHITECT_WORK_ORDER id="AWO-20260117-02" status="PROPOSED" type="BLUEPRINT_FIX">
+    <Meta>
+        <Created>2026-01-17T14:56:09+03:00</Created>
+        <Origin>BlueprintIssueReport-20260117-01.xml</Origin>
+        <OriginalHandoff>Handoff-20260117-01-W1-ERROR-HANDLING</OriginalHandoff>
+        <Priority>CRITICAL</Priority>
+        <Reason>CODER blocked - missing canonical artifact entries</Reason>
+    </Meta>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ISSUE SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <IssuesSummary>
+        <TotalIssues>4</TotalIssues>
+        <BlockingStatus>All 4 issues are BLOCKING</BlockingStatus>
+        <IssueRef ref="ISS-ERR-001">Missing UC-CATALOG-ADMIN-MANAGE in RequirementsAnalysis.xml</IssueRef>
+        <IssueRef ref="ISS-ERR-002">Missing NFR-CODE-DOMAIN-ERROR-HANDLING in
+            RequirementsAnalysis.xml</IssueRef>
+        <IssueRef ref="ISS-ERR-003">Missing DEC-DOMAIN-ERROR-PATTERN, DEC-ERROR-CODE-REGISTRY in
+            Technology.xml</IssueRef>
+        <IssueRef ref="ISS-ERR-004">Missing MC and FC contracts in DevelopmentPlan.xml</IssueRef>
+    </IssuesSummary>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       REQUIRED UPDATES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <RequiredUpdates>
+
+        <!-- RequirementsAnalysis.xml Updates -->
+        <Update id="FIX-001" artifact="RequirementsAnalysis.xml" issue="ISS-ERR-001">
+            <Action>ADD</Action>
+            <Type>UseCase</Type>
+            <Id>UC-CATALOG-ADMIN-MANAGE</Id>
+            <Description>Add use case for catalog admin management operations (create, update,
+                publish product templates)</Description>
+            <SuggestedContent>
+                <UseCase id="UC-CATALOG-ADMIN-MANAGE" priority="MUST">
+                    <Name>Catalog Admin Product Management</Name>
+                    <Actor>ACT-ADMIN</Actor>
+                    <Description>Administrator creates, updates, and publishes product templates</Description>
+                    <Preconditions>
+                        <Item>User has ADMIN role</Item>
+                    </Preconditions>
+                    <Postconditions>
+                        <Item>Product template is created/updated/published</Item>
+                        <Item>Search index is updated via ProductTemplatePublishedEvent</Item>
+                    </Postconditions>
+                    <Links>
+                        <Link ref="BR-CATALOG-VERSIONING" />
+                        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
+                    </Links>
+                </UseCase>
+            </SuggestedContent>
+        </Update>
+
+        <Update id="FIX-002" artifact="RequirementsAnalysis.xml" issue="ISS-ERR-002">
+            <Action>ADD</Action>
+            <Type>NFR</Type>
+            <Id>NFR-CODE-DOMAIN-ERROR-HANDLING</Id>
+            <Description>Add NFR for consistent domain error handling pattern</Description>
+            <SuggestedContent>
+                <NFR id="NFR-CODE-DOMAIN-ERROR-HANDLING" category="Maintainability">
+                    <Name>Domain Error Handling Pattern</Name>
+                    <Description>All domain layer validation failures must throw typed
+                        DomainException via service-specific factory classes (e.g.,
+                        CatalogDomainErrors, PricingDomainErrors). No raw IllegalArgumentException
+                        in domain layer.</Description>
+                    <Rationale>Enables consistent error codes, structured logging, and API error
+                        responses</Rationale>
+                    <Metric>Zero IllegalArgumentException in domain packages</Metric>
+                </NFR>
+            </SuggestedContent>
+        </Update>
+
+        <!-- Technology.xml Updates -->
+        <Update id="FIX-003" artifact="Technology.xml" issue="ISS-ERR-003">
+            <Action>ADD</Action>
+            <Type>Decision</Type>
+            <Id>DEC-DOMAIN-ERROR-PATTERN</Id>
+            <Description>Add decision for domain error handling pattern</Description>
+            <SuggestedContent>
+                <Decision id="DEC-DOMAIN-ERROR-PATTERN" status="APPROVED" date="2026-01-17">
+                    <Title>Domain Error Handling Pattern</Title>
+                    <Context>Need consistent error handling across all services for domain
+                        validation failures</Context>
+                    <Options>
+                        <Option>Raw IllegalArgumentException</Option>
+                        <Option>Service-specific DomainException subclasses</Option>
+                        <Option selected="true">Static factory class returning DomainException with
+                            error codes</Option>
+                    </Options>
+                    <Selected>Static factory class with typed DomainException per service</Selected>
+                    <Convention>
+                        <Item>Factory class: {BoundedContext}DomainErrors in
+                            com.kanokna.{service}.domain.exception</Item>
+                        <Item>Error code format: ERR-{PREFIX}-{ERROR-TYPE}</Item>
+                        <Item>Prefixes: ACCT (account), CART (cart), CAT (catalog), PRICE (pricing),
+                            SEARCH (search)</Item>
+                    </Convention>
+                    <Rationale>Provides consistent error codes for logging, monitoring, and API
+                        responses while keeping domain layer clean</Rationale>
+                    <Links>
+                        <Link ref="NFR-CODE-DOMAIN-ERROR-HANDLING" />
+                    </Links>
+                </Decision>
+            </SuggestedContent>
+        </Update>
+
+        <Update id="FIX-004" artifact="Technology.xml" issue="ISS-ERR-003">
+            <Action>ADD</Action>
+            <Type>Decision</Type>
+            <Id>DEC-ERROR-CODE-REGISTRY</Id>
+            <Description>Add decision for service error code prefix registry</Description>
+            <SuggestedContent>
+                <Decision id="DEC-ERROR-CODE-REGISTRY" status="APPROVED" date="2026-01-17">
+                    <Title>Service Error Code Prefix Registry</Title>
+                    <Context>Need unique error code prefixes per service to avoid collisions</Context>
+                    <Registry>
+                        <Prefix code="ERR-ACCT" service="account-service" />
+                        <Prefix code="ERR-CART" service="cart-service" />
+                        <Prefix code="ERR-CAT" service="catalog-configuration-service" />
+                        <Prefix code="ERR-PRICE" service="pricing-service" />
+                        <Prefix code="ERR-SEARCH" service="search-service" />
+                        <Prefix code="ERR-ORDER" service="order-service" />
+                    </Registry>
+                    <Links>
+                        <Link ref="DEC-DOMAIN-ERROR-PATTERN" />
+                    </Links>
+                </Decision>
+            </SuggestedContent>
+        </Update>
+
+        <!-- DevelopmentPlan.xml Updates -->
+        <Update id="FIX-005" artifact="DevelopmentPlan.xml" issue="ISS-ERR-004">
+            <Action>ADD</Action>
+            <Type>ModuleContract</Type>
+            <Id>MC-catalog-domain-errors</Id>
+            <Description>Add MODULE_CONTRACT for CatalogDomainErrors factory</Description>
+            <SuggestedContent>
+                <ModuleContract id="MC-catalog-domain-errors"
+                    layer="domain.exception"
+                    service="catalog-configuration-service">
+                    <Intent>Static factory for catalog-configuration-service domain exceptions</Intent>
+                    <Class>com.kanokna.catalog.domain.exception.CatalogDomainErrors</Class>
+                    <Responsibilities>
+                        <Item>Provide factory methods for all catalog domain error types</Item>
+                        <Item>Ensure consistent error codes (ERR-CAT-*)</Item>
+                        <Item>Include contextual values in error messages</Item>
+                    </Responsibilities>
+                    <Links>
+                        <Link ref="DEC-DOMAIN-ERROR-PATTERN" />
+                        <Link ref="NFR-CODE-DOMAIN-ERROR-HANDLING" />
+                    </Links>
+                </ModuleContract>
+            </SuggestedContent>
+        </Update>
+
+        <Update id="FIX-006" artifact="DevelopmentPlan.xml" issue="ISS-ERR-004">
+            <Action>ADD</Action>
+            <Type>ModuleContract</Type>
+            <Id>MC-pricing-domain-errors</Id>
+            <Description>Add MODULE_CONTRACT for PricingDomainErrors factory</Description>
+            <SuggestedContent>
+                <ModuleContract id="MC-pricing-domain-errors"
+                    layer="domain.exception"
+                    service="pricing-service">
+                    <Intent>Static factory for pricing-service domain exceptions</Intent>
+                    <Class>com.kanokna.pricing_service.domain.exception.PricingDomainErrors</Class>
+                    <Responsibilities>
+                        <Item>Provide factory methods for all pricing domain error types</Item>
+                        <Item>Ensure consistent error codes (ERR-PRICE-*)</Item>
+                        <Item>Include contextual values in error messages</Item>
+                    </Responsibilities>
+                    <Links>
+                        <Link ref="DEC-DOMAIN-ERROR-PATTERN" />
+                        <Link ref="NFR-CODE-DOMAIN-ERROR-HANDLING" />
+                    </Links>
+                </ModuleContract>
+            </SuggestedContent>
+        </Update>
+
+        <Update id="FIX-007" artifact="DevelopmentPlan.xml" issue="ISS-ERR-004">
+            <Action>ADD</Action>
+            <Type>FunctionContract</Type>
+            <Id>FC-catalog-CatalogDomainErrors-dimensionOutOfRange</Id>
+            <Description>Add representative FUNCTION_CONTRACT for dimension validation errors</Description>
+            <SuggestedContent>
+                <FunctionContract id="FC-catalog-CatalogDomainErrors-dimensionOutOfRange"
+                    layer="domain.exception"
+                    service="catalog-configuration-service">
+                    <Intent>Create exception for dimension constraint violations</Intent>
+                    <Input>dimension name (String), value (int), min (int), max (int)</Input>
+                    <Output>DomainException with ERR-CAT-DIMENSION-OUT-OF-RANGE code</Output>
+                    <ErrorCode>ERR-CAT-DIMENSION-OUT-OF-RANGE</ErrorCode>
+                </FunctionContract>
+            </SuggestedContent>
+        </Update>
+
+        <Update id="FIX-008" artifact="DevelopmentPlan.xml" issue="ISS-ERR-004">
+            <Action>ADD</Action>
+            <Type>FunctionContract</Type>
+            <Id>FC-pricing-PricingDomainErrors-currencyMismatch</Id>
+            <Description>Add representative FUNCTION_CONTRACT for currency mismatch errors</Description>
+            <SuggestedContent>
+                <FunctionContract id="FC-pricing-PricingDomainErrors-currencyMismatch"
+                    layer="domain.exception"
+                    service="pricing-service">
+                    <Intent>Create exception for money operations with mismatched currencies</Intent>
+                    <Input>operation (String), currency1 (String), currency2 (String)</Input>
+                    <Output>DomainException with ERR-PRICE-CURRENCY-MISMATCH code</Output>
+                    <ErrorCode>ERR-PRICE-CURRENCY-MISMATCH</ErrorCode>
+                </FunctionContract>
+            </SuggestedContent>
+        </Update>
+
+    </RequiredUpdates>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       DELIVERABLES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Deliverables>
+        <Item>Updated RequirementsAnalysis.xml with UC-CATALOG-ADMIN-MANAGE and
+            NFR-CODE-DOMAIN-ERROR-HANDLING</Item>
+        <Item>Updated Technology.xml with DEC-DOMAIN-ERROR-PATTERN and DEC-ERROR-CODE-REGISTRY</Item>
+        <Item>Updated DevelopmentPlan.xml with MC-catalog-domain-errors, MC-pricing-domain-errors,
+            and FC contracts</Item>
+        <Item>Updated Handoff-20260117-01-W1-ERROR-HANDLING (optional: may just need re-validation
+            after artifact updates)</Item>
+    </Deliverables>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       POST-FIX WORKFLOW
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <PostFixWorkflow>
+        <Step order="1">ARCHITECT updates canonical artifacts per FIX-001 through FIX-008</Step>
+        <Step order="2">ARCHITECT verifies handoff references now resolve</Step>
+        <Step order="3">COORDINATOR re-validates handoff against updated artifacts</Step>
+        <Step order="4">If PASS: User re-approves handoff (or original approval stands)</Step>
+        <Step order="5">COORDINATOR re-issues CODER_WORK_ORDER</Step>
+        <Step order="6">CODER implements without blueprint issues</Step>
+    </PostFixWorkflow>
+
+</ARCHITECT_WORK_ORDER>

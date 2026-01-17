@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.model;
 
+import com.kanokna.shared.core.DomainException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -47,9 +48,9 @@ class ConfigurationTest {
     @DisplayName("Zero or negative dimensions throw exception")
     void invalidDimensions_ThrowsException() {
         // When/Then
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
             () -> new Configuration(0, 100, Map.of()));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
             () -> new Configuration(100, -50, Map.of()));
     }
 

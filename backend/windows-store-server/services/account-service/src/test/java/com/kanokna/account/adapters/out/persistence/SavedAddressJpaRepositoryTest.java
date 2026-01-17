@@ -1,5 +1,12 @@
 package com.kanokna.account.adapters.out.persistence;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -12,25 +19,16 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.*;
-
-@EnabledIf(
-    value = "com.kanokna.account.support.DockerAvailability#isDockerAvailable",
-    disabledReason = "Docker is not available, skipping Testcontainers repository tests"
-)
+@EnabledIf(value = "com.kanokna.account.support.DockerAvailability#isDockerAvailable", disabledReason = "Docker is not available, skipping Testcontainers repository tests")
 @DataJpaTest
 @Testcontainers
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class SavedAddressJpaRepositoryTest {
     @Container
     static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-        .withDatabaseName("accounts")
-        .withUsername("test")
-        .withPassword("test");
+            .withDatabaseName("accounts")
+            .withUsername("test")
+            .withPassword("test");
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {

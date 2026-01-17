@@ -1,5 +1,6 @@
 package com.kanokna.pricing_service.domain.model;
 
+import com.kanokna.pricing_service.domain.exception.PricingDomainErrors;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -26,7 +27,7 @@ public class PriceBookVersion {
         this.publishedBy = publishedBy;
 
         if (versionNumber < 1) {
-            throw new IllegalArgumentException("Version number must be positive");
+            throw PricingDomainErrors.invalidVersionNumber(versionNumber);
         }
     }
 

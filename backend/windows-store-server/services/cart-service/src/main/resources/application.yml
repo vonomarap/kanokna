@@ -30,17 +30,21 @@ spring:
     redis:
       port: ${REDIS_PORT:6379}
       host: ${REDIS_HOST:localhost}
-
-grpc:
-  server:
-    port: 9083
-  client:
-    catalog-configuration-service:
-      address: static://localhost:9081
-      negotiationType: plaintext
-    pricing-service:
-      address: static://localhost:9082
-      negotiationType: plaintext
+  grpc:
+    server:
+      port: 9083
+    client:
+      inprocess:
+        exclusive: false
+      channels:
+        catalog-configuration-service:
+          address: static://localhost:9081
+          negotiation-type: PLAINTEXT
+          enable-keep-alive: true
+        pricing-service:
+          address: static://localhost:9082
+          negotiation-type: PLAINTEXT
+          enable-keep-alive: true
 
 resilience4j:
   circuitbreaker:
@@ -54,10 +58,29 @@ resilience4j:
         failure-rate-threshold: 50
         wait-duration-in-open-state: 10s
 
-cart:
-  anonymous-ttl: 7d
-  abandoned-threshold: 72h
-  snapshot-validity: 15m
+# Cart service configuration (MC-cart-properties)
+kanokna:
+  cart:
+    # Time-to-live for anonymous carts (BR-CART-SESSION-TTL)
+    anonymous-ttl: 7d
+    # Threshold for cart abandonment detection (BR-CART-ABANDONED)
+    abandoned-threshold: 72h
+    # Validity duration for checkout snapshots (BR-CART-028)
+    snapshot-validity: 15m
+    # Price change threshold for user acknowledgment (BR-CART-015)
+    price-change-threshold-percent: 1.0
+    # Maximum items per cart
+    max-items-per-cart: 50
+    # Maximum quantity per line item
+    max-quantity-per-item: 100
+    # Duration after which price quotes are considered stale
+    price-quote-staleness: 30m
+    # Auto-refresh prices on cart retrieval
+    auto-refresh-prices: false
+    # Timeout for catalog validation calls
+    catalog-validation-timeout: 5s
+    # Timeout for pricing quote calls
+    pricing-quote-timeout: 5s
 
 management:
   endpoints:

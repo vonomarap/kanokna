@@ -1,5 +1,6 @@
 package com.kanokna.pricing_service.domain.model;
 
+import com.kanokna.pricing_service.domain.exception.PricingDomainErrors;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Objects;
@@ -22,7 +23,7 @@ public class OptionPremium {
         this.amount = Objects.requireNonNull(amount);
 
         if (amount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Premium amount cannot be negative");
+            throw PricingDomainErrors.invalidPremiumAmount(amount);
         }
     }
 

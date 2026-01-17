@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.model;
 
+import com.kanokna.shared.core.DomainException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -43,7 +44,7 @@ class ValidationResultTest {
     @DisplayName("Failure with empty errors throws exception")
     void failureWithEmptyErrors_ThrowsException() {
         // When/Then
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
             () -> ValidationResult.failure(List.of()));
     }
 

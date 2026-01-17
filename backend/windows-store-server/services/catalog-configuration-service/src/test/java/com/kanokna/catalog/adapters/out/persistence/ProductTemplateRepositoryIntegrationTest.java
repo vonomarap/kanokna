@@ -1,6 +1,11 @@
 package com.kanokna.catalog.adapters.out.persistence;
 
-import com.kanokna.catalog.domain.model.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,9 +13,10 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
+import com.kanokna.catalog.domain.model.DimensionConstraints;
+import com.kanokna.catalog.domain.model.ProductFamily;
+import com.kanokna.catalog.domain.model.ProductTemplate;
+import com.kanokna.catalog.domain.model.TemplateStatus;
 
 /**
  * Integration tests for ProductTemplateRepositoryAdapter with Testcontainers.
@@ -31,11 +37,10 @@ class ProductTemplateRepositoryIntegrationTest {
         // Given
         adapter = new ProductTemplateRepositoryAdapter(jpaRepository);
         ProductTemplate template = ProductTemplate.create(
-            "Test Window",
-            "Description",
-            ProductFamily.WINDOW,
-            DimensionConstraints.standard()
-        );
+                "Test Window",
+                "Description",
+                ProductFamily.WINDOW,
+                DimensionConstraints.standard());
 
         // When
         ProductTemplate saved = adapter.save(template);
@@ -53,19 +58,17 @@ class ProductTemplateRepositoryIntegrationTest {
         // Given
         adapter = new ProductTemplateRepositoryAdapter(jpaRepository);
         ProductTemplate template1 = ProductTemplate.create(
-            "Draft 1",
-            "Description",
-            ProductFamily.WINDOW,
-            DimensionConstraints.standard()
-        );
+                "Draft 1",
+                "Description",
+                ProductFamily.WINDOW,
+                DimensionConstraints.standard());
         adapter.save(template1);
 
         ProductTemplate template2 = ProductTemplate.create(
-            "Draft 2",
-            "Description",
-            ProductFamily.DOOR,
-            DimensionConstraints.standard()
-        );
+                "Draft 2",
+                "Description",
+                ProductFamily.DOOR,
+                DimensionConstraints.standard());
         template2.publish();
         adapter.save(template2);
 

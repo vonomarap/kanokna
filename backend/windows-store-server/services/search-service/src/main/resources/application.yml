@@ -34,9 +34,13 @@ spring:
     server:
       port: 9089
     client:
+      inprocess:
+        exclusive: false
       channels:
         catalog-configuration-service:
-          address: localhost:9081
+          address: static://localhost:9081
+          negotiation-type: PLAINTEXT
+          enable-keep-alive: true
 
 search:
   index:

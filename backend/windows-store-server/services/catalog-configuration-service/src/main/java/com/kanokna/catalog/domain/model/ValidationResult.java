@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.model;
 
+import com.kanokna.catalog.domain.exception.CatalogDomainErrors;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -26,7 +27,7 @@ public final class ValidationResult {
     public static ValidationResult failure(List<ValidationError> errors) {
         Objects.requireNonNull(errors, "errors cannot be null");
         if (errors.isEmpty()) {
-            throw new IllegalArgumentException("Cannot create failure result with empty errors");
+            throw CatalogDomainErrors.emptyValidationErrors();
         }
         return new ValidationResult(false, errors);
     }

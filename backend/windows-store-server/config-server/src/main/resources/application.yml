@@ -5,8 +5,8 @@
 # management for all microservices in the Kanokna Windows & Doors platform.
 #
 # Configuration Source Strategy:
-# - dev/stage: Native file system (configs in classpath:config-repo/)
-# - prod: Git repository (external, encrypted)
+# - dev: Native file system (configs in kanokna-config)
+# - stage/prod: Git repository (external, encrypted)
 # ============================================================================
 
 server:
@@ -27,11 +27,11 @@ spring:
   cloud:
     config:
       server:
-        # Native filesystem configuration (default for dev/stage)
+        # Native filesystem configuration (default for dev)
         native:
           search-locations:
-            - classpath:/config-repo
-            - classpath:/config-repo/{application}
+            - file:${CONFIG_REPO_PATH:C:/windows-store-project/kanokna-copy/backend/windows-store-server/kanokna-config}
+            - file:${CONFIG_REPO_PATH:C:/windows-store-project/kanokna-copy/backend/windows-store-server/kanokna-config}/{application}
 
         # Encryption configuration
         encrypt:
@@ -97,10 +97,8 @@ spring:
       server:
         native:
           search-locations:
-            - classpath:/config-repo
-            - classpath:/config-repo/{application}
-            - file:./config-repo
-            - file:./config-repo/{application}
+            - file:${CONFIG_REPO_PATH:C:/windows-store-project/kanokna-copy/backend/windows-store-server/kanokna-config}
+            - file:${CONFIG_REPO_PATH:C:/windows-store-project/kanokna-copy/backend/windows-store-server/kanokna-config}/{application}
 
   security:
     user:
@@ -125,9 +123,18 @@ spring:
     config:
       server:
         native:
-          search-locations:
-            - classpath:/config-repo
-            - classpath:/config-repo/{application}
+          search-locations: []
+        git:
+          uri: ${CONFIG_GIT_URI:https://github.com/vonomarap/kanokna-config.git}
+          default-label: ${CONFIG_GIT_BRANCH:main}
+          search-paths:
+            - '.'
+          clone-on-start: true
+          force-pull: true
+          timeout: 10
+          refresh-rate: 30
+          username: ${CONFIG_GIT_USERNAME:}
+          password: ${CONFIG_GIT_PASSWORD:}
 
 ---
 # ============================================================================
@@ -147,10 +154,10 @@ spring:
           search-locations: []
         # Git configuration for production
         git:
-          uri: ${CONFIG_GIT_URI}
+          uri: ${CONFIG_GIT_URI:https://github.com/vonomarap/kanokna-config.git}
           default-label: ${CONFIG_GIT_BRANCH:main}
           search-paths:
-            - '{application}'
+            - '.'
           clone-on-start: true
           force-pull: true
           timeout: 10

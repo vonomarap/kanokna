@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @EnableConfigurationProperties(CartProperties.class)
+@org.springframework.boot.context.properties.ConfigurationPropertiesScan
 public class CartServiceConfig {
     @Bean
     public CartTotalsCalculator cartTotalsCalculator() {

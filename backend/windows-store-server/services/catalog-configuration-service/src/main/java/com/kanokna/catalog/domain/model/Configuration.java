@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.model;
 
+import com.kanokna.catalog.domain.exception.CatalogDomainErrors;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
@@ -20,10 +21,10 @@ public record Configuration(
         selectedOptions = Map.copyOf(selectedOptions); // defensive copy
 
         if (widthCm <= 0) {
-            throw new IllegalArgumentException("widthCm must be positive");
+            throw CatalogDomainErrors.invalidWidth(widthCm);
         }
         if (heightCm <= 0) {
-            throw new IllegalArgumentException("heightCm must be positive");
+            throw CatalogDomainErrors.invalidHeight(heightCm);
         }
     }
 
