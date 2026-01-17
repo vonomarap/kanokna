@@ -1,0 +1,1573 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  GRACE HANDOFF: Cross-Service Configuration Standardization
+  ═══════════════════════════════════════════════════════════════════════════════
+  Handoff ID:      Handoff-20260115-01-W1-CROSS-CONFIG
+  Scope:           account-service, catalog-configuration-service, pricing-service,
+                   search-service, gateway
+  Wave:            1 (CPQ Core)
+  Task:            W1-CROSS-CONFIG
+  Created:         2026-01-15T10:00:00+03:00
+  Author:          GRACE-ARCHITECT
+  Status:          PROPOSED
+
+  Purpose:
+    Standardize externalized configuration across all microservices by extracting
+    magic numbers into @ConfigurationProperties classes following the CartProperties
+    reference pattern. Establishes consistent naming conventions, validation patterns,
+    and American English documentation standards.
+
+  Work Order Reference: AWO-20260115-02
+
+  Discovery Summary:
+    - account-service: 12 magic numbers (limits, defaults, ports)
+    - catalog-configuration-service: 8 magic numbers (dimensions, column lengths)
+    - pricing-service: 15 magic numbers (TTL, thresholds, tax rates, scales)
+    - search-service: 15 magic numbers (pagination, facets, index settings)
+    - gateway: 24 magic numbers (rate limits, circuit breaker, CORS, timeouts)
+  ═══════════════════════════════════════════════════════════════════════════════
+-->
+<GRACE_HANDOFF
+  id="Handoff-20260115-01-W1-CROSS-CONFIG"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2026-01-15T10:00:00+03:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W1-CROSS-CONFIG"
+  planRef="DevelopmentPlan.xml#PHASE-1"
+  techRef="Technology.xml#DEC-CONFIGURATION-PATTERN,Technology.xml#DEC-CONFIG-NAMING,Technology.xml#DEC-CONFIG-VALIDATION"
+>
+  <Metadata>
+    <Title>Cross-Service Configuration Standardization</Title>
+    <Services>
+      <Service ref="DP-SVC-account-service" />
+      <Service ref="DP-SVC-catalog-configuration-service" />
+      <Service ref="DP-SVC-pricing-service" />
+      <Service ref="DP-SVC-search-service" />
+      <Service ref="DP-SVC-gateway" />
+    </Services>
+    <Wave>W1</Wave>
+    <Task>W1-CROSS-CONFIG</Task>
+    <Phase>PHASE-1 (CPQ Core)</Phase>
+    <CreatedAt>2026-01-15T10:00:00+03:00</CreatedAt>
+    <Author>GRACE-ARCHITECT</Author>
+    <Status>PROPOSED</Status>
+    <ReferencePattern>
+      <Source>CartProperties.java</Source>
+      <Features>
+        <Feature>Nested record classes for logical grouping</Feature>
+        <Feature>@Validated at class level</Feature>
+        <Feature>@ConfigurationProperties(prefix = "kanokna.{service}")</Feature>
+        <Feature>Validation annotations (@Min, @Max, @NotNull, etc.)</Feature>
+        <Feature>Default values in compact constructor</Feature>
+        <Feature>Javadoc on each record and field explaining purpose and default</Feature>
+      </Features>
+    </ReferencePattern>
+    <TracesTo>
+      <Link ref="RequirementsAnalysis.xml#NFR-CONFIG" />
+      <Link ref="Technology.xml#TECH-spring-boot" />
+      <Link ref="DevelopmentPlan.xml#PHASE-1" />
+    </TracesTo>
+  </Metadata>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 1: TECHNOLOGY DECISIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <TechnologyDecisions>
+    <Decision id="DEC-CONFIGURATION-PATTERN" status="PROPOSED">
+      <Title>Cross-Service @ConfigurationProperties Standard</Title>
+      <Selected>Type-safe @ConfigurationProperties with nested record classes</Selected>
+      <Alternatives>
+        <Alternative>@Value annotations scattered across classes</Alternative>
+        <Alternative>Static final constants in service classes</Alternative>
+        <Alternative>Environment variable lookup at runtime</Alternative>
+        <Alternative>Properties files with PropertySourcesPlaceholderConfigurer</Alternative>
+      </Alternatives>
+      <Rationale>
+        @ConfigurationProperties provides type-safe configuration binding with compile-time
+        verification, IDE auto-completion, and centralized documentation. Record classes
+        enable immutable configuration with automatic equals/hashCode/toString. Nested
+        records provide logical grouping that maps directly to YAML structure. Spring Boot
+        4.0 constructor binding eliminates setter-based configuration. Validation annotations
+        ensure configuration errors are caught at startup, not runtime.
+      </Rationale>
+      <Pattern>
+        <![CDATA[
+// Standard pattern for all *Properties classes
+@Validated
+@ConfigurationProperties(prefix = "kanokna.{service}")
+public record {Service}Properties(
+    @NotNull CategoryOneProperties categoryOne,
+    @NotNull CategoryTwoProperties categoryTwo
+) {
+    /**
+     * Default constructor with sensible defaults.
+     */
+    public {Service}Properties {
+        if (categoryOne == null) categoryOne = new CategoryOneProperties(...defaults...);
+        if (categoryTwo == null) categoryTwo = new CategoryTwoProperties(...defaults...);
+    }
+
+    /**
+     * Category one configuration.
+     *
+     * @param property1 Description of property1 (default: value)
+     * @param property2 Description of property2 (default: value)
+     */
+    public record CategoryOneProperties(
+        @Min(1) @Max(100) int property1,
+        @NotBlank String property2
+    ) {
+        public CategoryOneProperties {
+            if (property1 <= 0) property1 = 10; // default
+            if (property2 == null || property2.isBlank()) property2 = "default";
+        }
+    }
+}
+        ]]>
+      </Pattern>
+      <Requirements>
+        <Item>Each service has exactly one *Properties class</Item>
+        <Item>All configuration uses prefix "kanokna.{service-name}"</Item>
+        <Item>No @Value annotations in production code</Item>
+        <Item>No inline numeric literals in business logic</Item>
+        <Item>All properties have sensible defaults</Item>
+        <Item>All properties have Javadoc in American English</Item>
+      </Requirements>
+      <Links>
+        <Link ref="Technology.xml#TECH-spring-boot" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CONFIG-NAMING" status="PROPOSED">
+      <Title>Configuration Property Naming Convention</Title>
+      <Selected>Hierarchical kebab-case with service prefix: kanokna.{service}.{category}.{property}</Selected>
+      <Alternatives>
+        <Alternative>Flat naming: service.property</Alternative>
+        <Alternative>CamelCase: serviceNamePropertyName</Alternative>
+        <Alternative>Dot notation without prefix: category.property</Alternative>
+      </Alternatives>
+      <Rationale>
+        Hierarchical naming provides clear namespace isolation between services. Kebab-case
+        is the Spring Boot standard for property names. The "kanokna" root prefix prevents
+        collision with Spring or third-party configuration. Category grouping (validation,
+        pricing, cache, etc.) enables logical organization in YAML files.
+      </Rationale>
+      <NamingRules>
+        <Rule id="NAMING-001">Root prefix: "kanokna" (company namespace)</Rule>
+        <Rule id="NAMING-002">Service prefix: short service name without "-service" suffix</Rule>
+        <Rule id="NAMING-003">Category: logical grouping (validation, pricing, cache, etc.)</Rule>
+        <Rule id="NAMING-004">Property: specific setting in kebab-case</Rule>
+        <Rule id="NAMING-005">Boolean properties: use positive form (enabled, allow-xxx)</Rule>
+        <Rule id="NAMING-006">Duration properties: include unit suffix (-ms, -seconds, -minutes)</Rule>
+        <Rule id="NAMING-007">Size properties: include unit suffix (-bytes, -kb, -mb)</Rule>
+      </NamingRules>
+      <Examples>
+        <Example service="account">kanokna.account.addresses.max-per-user</Example>
+        <Example service="account">kanokna.account.defaults.language</Example>
+        <Example service="catalog">kanokna.catalog.dimensions.min-cm</Example>
+        <Example service="pricing">kanokna.pricing.quote.cache-ttl-minutes</Example>
+        <Example service="search">kanokna.search.pagination.default-page-size</Example>
+        <Example service="gateway">kanokna.gateway.rate-limit.authenticated-requests-per-minute</Example>
+      </Examples>
+      <ServicePrefixes>
+        <Prefix service="account-service">kanokna.account</Prefix>
+        <Prefix service="catalog-configuration-service">kanokna.catalog</Prefix>
+        <Prefix service="pricing-service">kanokna.pricing</Prefix>
+        <Prefix service="search-service">kanokna.search</Prefix>
+        <Prefix service="gateway">kanokna.gateway</Prefix>
+        <Prefix service="cart-service">kanokna.cart</Prefix>
+      </ServicePrefixes>
+      <Links>
+        <Link ref="Technology.xml#TECH-spring-boot" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CONFIG-VALIDATION" status="PROPOSED">
+      <Title>Configuration Validation Pattern</Title>
+      <Selected>Jakarta Bean Validation annotations with @Validated at class level</Selected>
+      <Alternatives>
+        <Alternative>Manual validation in compact constructor</Alternative>
+        <Alternative>Spring Validator interface implementation</Alternative>
+        <Alternative>No validation (trust YAML)</Alternative>
+      </Alternatives>
+      <Rationale>
+        Jakarta Bean Validation provides declarative, standardized validation that integrates
+        with Spring Boot's configuration binding. Validation errors are reported at application
+        startup with clear messages. Common annotations (@Min, @Max, @NotNull, @NotBlank,
+        @DecimalMin, @DecimalMax) cover most use cases. Custom validators can be added for
+        complex rules.
+      </Rationale>
+      <ValidationAnnotations>
+        <Annotation name="@NotNull">Required property (must be present)</Annotation>
+        <Annotation name="@NotBlank">Required non-empty string</Annotation>
+        <Annotation name="@Min(n)">Minimum integer value</Annotation>
+        <Annotation name="@Max(n)">Maximum integer value</Annotation>
+        <Annotation name="@DecimalMin">Minimum decimal value</Annotation>
+        <Annotation name="@DecimalMax">Maximum decimal value</Annotation>
+        <Annotation name="@Positive">Must be > 0</Annotation>
+        <Annotation name="@PositiveOrZero">Must be >= 0</Annotation>
+        <Annotation name="@Size(min,max)">Collection/string size bounds</Annotation>
+        <Annotation name="@Pattern">Regex pattern match</Annotation>
+        <Annotation name="@Email">Valid email format</Annotation>
+      </ValidationAnnotations>
+      <DefaultValueStrategy>
+        <Item>Defaults defined in compact constructor body</Item>
+        <Item>Check for zero/null and replace with default</Item>
+        <Item>Document default in Javadoc @param tag</Item>
+        <Item>Validation runs AFTER defaults applied</Item>
+      </DefaultValueStrategy>
+      <Links>
+        <Link ref="Technology.xml#TECH-jakarta-validation" />
+      </Links>
+    </Decision>
+  </TechnologyDecisions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 2: DISCOVERY RESULTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DiscoveryResults>
+    <ServiceDiscovery service="account-service">
+      <Category name="Limits">
+        <Item name="maxAddressLabelLength" value="50" location="SavedAddress.java:97" enforced="yes">
+          Maximum characters for address labels (Home, Work, etc.)
+        </Item>
+        <Item name="maxConfigNameLength" value="255" location="AccountApplicationService.java:519" enforced="yes">
+          Maximum characters for saved configuration names
+        </Item>
+        <Item name="maxAddressesPerUser" value="10" location="AccountProperties.java:11" enforced="no">
+          Maximum saved addresses per user account
+        </Item>
+        <Item name="maxConfigsPerUser" value="50" location="AccountProperties.java:48" enforced="no">
+          Maximum saved product configurations per user
+        </Item>
+        <Item name="minAccessoryQuantity" value="1" location="ConfigurationSnapshotValidator.java:132" enforced="yes">
+          Minimum quantity for accessories in configurations
+        </Item>
+      </Category>
+      <Category name="Defaults">
+        <Item name="defaultLanguage" value="ru" location="AccountProperties.java:69">
+          Default preferred language for new profiles
+        </Item>
+        <Item name="defaultCurrency" value="RUB" location="AccountProperties.java:70">
+          Default preferred currency for new profiles
+        </Item>
+        <Item name="notificationEmail" value="true" location="AccountProperties.java:71">
+          Default email notification preference
+        </Item>
+        <Item name="notificationSms" value="false" location="AccountProperties.java:72">
+          Default SMS notification preference
+        </Item>
+        <Item name="notificationPush" value="true" location="AccountProperties.java:73">
+          Default push notification preference
+        </Item>
+        <Item name="autoCreateProfile" value="true" location="AccountProperties.java:10">
+          Auto-create profile from Keycloak on first login
+        </Item>
+      </Category>
+      <Category name="Infrastructure">
+        <Item name="httpPort" value="8085" location="application.yml:2">HTTP server port</Item>
+        <Item name="grpcPort" value="9085" location="application.yml:29">gRPC server port</Item>
+      </Category>
+    </ServiceDiscovery>
+
+    <ServiceDiscovery service="catalog-configuration-service">
+      <Category name="Dimensions">
+        <Item name="absoluteMinCm" value="50" location="DimensionConstraints.java:16" enforced="yes">
+          Minimum allowed dimension in centimeters for any product
+        </Item>
+        <Item name="absoluteMaxCm" value="400" location="DimensionConstraints.java:17" enforced="yes">
+          Maximum allowed dimension in centimeters for any product
+        </Item>
+      </Category>
+      <Category name="DatabaseLimits">
+        <Item name="productNameMaxLength" value="200" location="ProductTemplateJpaEntity.java:18">
+          VARCHAR length for product template names
+        </Item>
+        <Item name="productFamilyMaxLength" value="50" location="ProductTemplateJpaEntity.java:24">
+          VARCHAR length for product family enum
+        </Item>
+        <Item name="statusMaxLength" value="20" location="ProductTemplateJpaEntity.java:40">
+          VARCHAR length for template status enum
+        </Item>
+        <Item name="publishedByMaxLength" value="100" location="CatalogVersionJpaEntity.java:23">
+          VARCHAR length for publisher user ID
+        </Item>
+      </Category>
+      <Category name="Pricing">
+        <Item name="stubPricePerM2" value="500.0" location="PricingGrpcClientAdapter.java:29">
+          Stub price per square meter (development only)
+        </Item>
+      </Category>
+      <Category name="Infrastructure">
+        <Item name="httpPort" value="8081" location="application.yml">HTTP server port</Item>
+        <Item name="grpcPort" value="9081" location="application.yml">gRPC server port</Item>
+      </Category>
+    </ServiceDiscovery>
+
+    <ServiceDiscovery service="pricing-service">
+      <Category name="QuoteSettings">
+        <Item name="quoteCacheTtlMinutes" value="5" location="application.yml:39" enforced="yes">
+          Quote cache time-to-live in minutes
+        </Item>
+      </Category>
+      <Category name="AreaCalculation">
+        <Item name="areaConversionDivisor" value="10000" location="PriceCalculationService.java:222">
+          Divisor to convert cm² to m² (width_cm * height_cm / 10000)
+        </Item>
+        <Item name="minimumAreaM2" value="0.25" location="BasePriceEntry.java:20">
+          Minimum chargeable area in square meters
+        </Item>
+      </Category>
+      <Category name="Discounts">
+        <Item name="maxCombinedDiscountPercent" value="30" location="DiscountService.java:19" enforced="yes">
+          Maximum combined discount percentage cap
+        </Item>
+      </Category>
+      <Category name="Tax">
+        <Item name="defaultTaxRegion" value="RU" location="application.yml:43">
+          Default tax jurisdiction (Russia)
+        </Item>
+        <Item name="defaultTaxRatePercent" value="20" location="application.yml:44">
+          Default VAT rate for Russia
+        </Item>
+      </Category>
+      <Category name="Precision">
+        <Item name="rubDecimalScale" value="2" location="RoundingService.java:13">
+          Decimal places for RUB currency amounts
+        </Item>
+        <Item name="calculationScale" value="10" location="Money.java:59">
+          Decimal places for intermediate calculations
+        </Item>
+      </Category>
+      <Category name="Infrastructure">
+        <Item name="httpPort" value="8082" location="application.yml:2">HTTP server port</Item>
+        <Item name="grpcPort" value="9082" location="application.yml:35">gRPC server port</Item>
+      </Category>
+    </ServiceDiscovery>
+
+    <ServiceDiscovery service="search-service">
+      <Category name="Pagination">
+        <Item name="defaultPageSize" value="20" location="SearchGrpcMapper.java:47" enforced="yes">
+          Default number of results per page
+        </Item>
+        <Item name="maxPageSize" value="100" location="SearchGrpcMapper.java:48" enforced="yes">
+          Maximum allowed results per page
+        </Item>
+      </Category>
+      <Category name="Autocomplete">
+        <Item name="defaultAutocompleteLimit" value="10" location="SearchApplicationService.java:73">
+          Default number of autocomplete suggestions
+        </Item>
+        <Item name="maxAutocompleteLimit" value="20" location="SearchApplicationService.java:74">
+          Maximum autocomplete suggestions
+        </Item>
+        <Item name="minAutocompletePrefix" value="2" location="SearchApplicationService.java:72">
+          Minimum characters required for autocomplete
+        </Item>
+      </Category>
+      <Category name="Facets">
+        <Item name="facetAggregationSize" value="50" location="ElasticsearchSearchRepository.java:124">
+          Maximum terms returned per facet field
+        </Item>
+      </Category>
+      <Category name="Reindex">
+        <Item name="reindexBatchSize" value="200" location="SearchProperties.java:52">
+          Batch size for fetching products during reindex
+        </Item>
+      </Category>
+      <Category name="IndexSettings">
+        <Item name="numberOfShards" value="1" location="ElasticsearchIndexAdminAdapter.java:42">
+          Elasticsearch index shards (development setting)
+        </Item>
+        <Item name="numberOfReplicas" value="1" location="ElasticsearchIndexAdminAdapter.java:43">
+          Elasticsearch index replicas (development setting)
+        </Item>
+        <Item name="refreshInterval" value="1s" location="ElasticsearchIndexAdminAdapter.java:44">
+          Elasticsearch index refresh interval
+        </Item>
+      </Category>
+      <Category name="Timeouts">
+        <Item name="connectionTimeoutSeconds" value="5" location="application.yml:13">
+          Elasticsearch connection timeout
+        </Item>
+        <Item name="socketTimeoutSeconds" value="30" location="application.yml:14">
+          Elasticsearch socket timeout
+        </Item>
+      </Category>
+      <Category name="Infrastructure">
+        <Item name="httpPort" value="8089" location="application.yml:2">HTTP server port</Item>
+        <Item name="grpcPort" value="9089" location="application.yml:35">gRPC server port</Item>
+      </Category>
+    </ServiceDiscovery>
+
+    <ServiceDiscovery service="gateway">
+      <Category name="RateLimiting">
+        <Item name="authenticatedRequestsPerMinute" value="100" location="RateLimitConfig.java:113">
+          Rate limit for authenticated users
+        </Item>
+        <Item name="anonymousRequestsPerMinute" value="20" location="RateLimitConfig.java:114">
+          Rate limit for anonymous users
+        </Item>
+        <Item name="rateLimitWindowSeconds" value="60" location="RateLimitConfig.java:115">
+          Rate limit sliding window duration
+        </Item>
+      </Category>
+      <Category name="CircuitBreaker">
+        <Item name="slidingWindowSize" value="10" location="CircuitBreakerConfig.java:18">
+          Number of requests to evaluate for circuit breaker
+        </Item>
+        <Item name="failureRateThreshold" value="50" location="CircuitBreakerConfig.java:19">
+          Failure rate percentage to open circuit
+        </Item>
+        <Item name="waitDurationInOpenStateSeconds" value="10" location="CircuitBreakerConfig.java:20">
+          Seconds to wait in open state before half-open
+        </Item>
+        <Item name="permittedCallsInHalfOpen" value="3" location="CircuitBreakerConfig.java:21">
+          Test calls allowed in half-open state
+        </Item>
+        <Item name="slowCallDurationThresholdSeconds" value="2" location="CircuitBreakerConfig.java:22">
+          Threshold for slow call detection
+        </Item>
+        <Item name="slowCallRateThreshold" value="50" location="CircuitBreakerConfig.java:23">
+          Slow call rate percentage to open circuit
+        </Item>
+      </Category>
+      <Category name="CORS">
+        <Item name="corsMaxAgeSeconds" value="3600" location="CorsConfig.java:23">
+          CORS preflight response cache duration (1 hour)
+        </Item>
+      </Category>
+      <Category name="Timeouts">
+        <Item name="routeResponseTimeoutMs" value="10000" location="GatewayConfig.java:89">
+          Response timeout for all routes (10 seconds)
+        </Item>
+      </Category>
+      <Category name="Retry">
+        <Item name="retryAttempts" value="3" location="application.yml:18">
+          Number of retry attempts for failed requests
+        </Item>
+        <Item name="retryFirstBackoffMs" value="100" location="application.yml:22">
+          Initial backoff duration for exponential backoff
+        </Item>
+        <Item name="retryMaxBackoffMs" value="500" location="application.yml:23">
+          Maximum backoff duration
+        </Item>
+        <Item name="retryBackoffFactor" value="2" location="application.yml:24">
+          Exponential backoff multiplier
+        </Item>
+      </Category>
+      <Category name="Infrastructure">
+        <Item name="httpPort" value="8080" location="application.yml:1">HTTP server port</Item>
+      </Category>
+    </ServiceDiscovery>
+  </DiscoveryResults>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 3: MODULE CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ModuleContracts>
+    <ModuleContract id="MC-account-properties">
+      <![CDATA[
+/* <MODULE_CONTRACT id="MC-account-properties"
+     ROLE="Configuration"
+     SERVICE="account-service"
+     LAYER="adapters.config"
+     SPECIFICATION="DEC-CONFIGURATION-PATTERN">
+  <PURPOSE>
+    Centralized, type-safe configuration for account-service operations including
+    address management, saved configurations, user defaults, and profile creation.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Define limits for addresses and saved configurations</Item>
+    <Item>Define default user preferences (language, currency, notifications)</Item>
+    <Item>Control auto-creation of profiles from Keycloak</Item>
+    <Item>Provide validation for all configuration values</Item>
+  </RESPONSIBILITIES>
+
+  <CATEGORIES>
+    <Category name="addresses">Address management limits</Category>
+    <Category name="savedConfigurations">Saved product configuration limits</Category>
+    <Category name="defaults">Default values for new user profiles</Category>
+    <Category name="profile">Profile creation behavior</Category>
+  </CATEGORIES>
+
+  <LINKS>
+    <Link ref="Technology.xml#DEC-CONFIGURATION-PATTERN" />
+    <Link ref="Technology.xml#DEC-CONFIG-NAMING" />
+    <Link ref="DevelopmentPlan.xml#DP-SVC-account-service" />
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]>
+    </ModuleContract>
+
+    <ModuleContract id="MC-catalog-properties">
+      <![CDATA[
+/* <MODULE_CONTRACT id="MC-catalog-properties"
+     ROLE="Configuration"
+     SERVICE="catalog-configuration-service"
+     LAYER="adapters.config"
+     SPECIFICATION="DEC-CONFIGURATION-PATTERN">
+  <PURPOSE>
+    Centralized, type-safe configuration for catalog-configuration-service including
+    dimension constraints, validation settings, and BOM resolution parameters.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Define absolute dimension constraints (min/max cm)</Item>
+    <Item>Configure validation behavior and timeouts</Item>
+    <Item>Control BOM resolution settings</Item>
+    <Item>Provide validation for all configuration values</Item>
+  </RESPONSIBILITIES>
+
+  <CATEGORIES>
+    <Category name="dimensions">Product dimension constraints</Category>
+    <Category name="validation">Configuration validation settings</Category>
+    <Category name="bom">Bill of materials resolution settings</Category>
+  </CATEGORIES>
+
+  <LINKS>
+    <Link ref="Technology.xml#DEC-CONFIGURATION-PATTERN" />
+    <Link ref="Technology.xml#DEC-CONFIG-NAMING" />
+    <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]>
+    </ModuleContract>
+
+    <ModuleContract id="MC-pricing-properties">
+      <![CDATA[
+/* <MODULE_CONTRACT id="MC-pricing-properties"
+     ROLE="Configuration"
+     SERVICE="pricing-service"
+     LAYER="adapters.config"
+     SPECIFICATION="DEC-CONFIGURATION-PATTERN">
+  <PURPOSE>
+    Centralized, type-safe configuration for pricing-service including quote caching,
+    discount limits, tax settings, and calculation precision.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Define quote cache TTL and behavior</Item>
+    <Item>Configure discount caps and validation</Item>
+    <Item>Define default tax jurisdiction and rates</Item>
+    <Item>Control calculation precision and rounding</Item>
+  </RESPONSIBILITIES>
+
+  <CATEGORIES>
+    <Category name="quote">Quote generation and caching</Category>
+    <Category name="discount">Discount calculation limits</Category>
+    <Category name="tax">Tax jurisdiction and rates</Category>
+    <Category name="precision">Calculation precision settings</Category>
+    <Category name="area">Area calculation settings</Category>
+  </CATEGORIES>
+
+  <LINKS>
+    <Link ref="Technology.xml#DEC-CONFIGURATION-PATTERN" />
+    <Link ref="Technology.xml#DEC-CONFIG-NAMING" />
+    <Link ref="Technology.xml#DEC-PRICING-QUOTE-TTL" />
+    <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]>
+    </ModuleContract>
+
+    <ModuleContract id="MC-search-properties">
+      <![CDATA[
+/* <MODULE_CONTRACT id="MC-search-properties"
+     ROLE="Configuration"
+     SERVICE="search-service"
+     LAYER="adapters.config"
+     SPECIFICATION="DEC-CONFIGURATION-PATTERN">
+  <PURPOSE>
+    Centralized, type-safe configuration for search-service including pagination,
+    autocomplete, faceting, reindexing, and Elasticsearch index settings.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Define pagination defaults and limits</Item>
+    <Item>Configure autocomplete behavior</Item>
+    <Item>Control facet aggregation size</Item>
+    <Item>Define reindex batch processing settings</Item>
+    <Item>Configure Elasticsearch index parameters</Item>
+  </RESPONSIBILITIES>
+
+  <CATEGORIES>
+    <Category name="pagination">Search result pagination</Category>
+    <Category name="autocomplete">Autocomplete suggestion settings</Category>
+    <Category name="facets">Faceted search configuration</Category>
+    <Category name="reindex">Reindex operation settings</Category>
+    <Category name="index">Elasticsearch index settings</Category>
+    <Category name="timeouts">Connection and operation timeouts</Category>
+  </CATEGORIES>
+
+  <LINKS>
+    <Link ref="Technology.xml#DEC-CONFIGURATION-PATTERN" />
+    <Link ref="Technology.xml#DEC-CONFIG-NAMING" />
+    <Link ref="Technology.xml#TECH-elasticsearch" />
+    <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]>
+    </ModuleContract>
+
+    <ModuleContract id="MC-gateway-properties">
+      <![CDATA[
+/* <MODULE_CONTRACT id="MC-gateway-properties"
+     ROLE="Configuration"
+     SERVICE="gateway"
+     LAYER="adapters.config"
+     SPECIFICATION="DEC-CONFIGURATION-PATTERN">
+  <PURPOSE>
+    Centralized, type-safe configuration for API gateway including rate limiting,
+    circuit breaker, CORS, timeouts, and retry policies.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Define rate limiting thresholds by user type</Item>
+    <Item>Configure circuit breaker parameters</Item>
+    <Item>Control CORS settings</Item>
+    <Item>Define route timeout defaults</Item>
+    <Item>Configure retry policies with backoff</Item>
+  </RESPONSIBILITIES>
+
+  <CATEGORIES>
+    <Category name="rateLimit">Rate limiting configuration</Category>
+    <Category name="circuitBreaker">Circuit breaker parameters</Category>
+    <Category name="cors">Cross-origin resource sharing</Category>
+    <Category name="timeout">Route and connection timeouts</Category>
+    <Category name="retry">Retry policy configuration</Category>
+  </CATEGORIES>
+
+  <LINKS>
+    <Link ref="Technology.xml#DEC-CONFIGURATION-PATTERN" />
+    <Link ref="Technology.xml#DEC-CONFIG-NAMING" />
+    <Link ref="Technology.xml#TECH-resilience4j" />
+    <Link ref="DevelopmentPlan.xml#DP-SVC-gateway" />
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]>
+    </ModuleContract>
+  </ModuleContracts>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 4: SPECIFICATIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Specifications>
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         ACCOUNT-SERVICE PROPERTIES
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <Specification id="SPEC-AccountProperties">
+      <File>com/kanokna/account/adapters/config/AccountProperties.java</File>
+      <Description>
+        @ConfigurationProperties class for account-service configuration.
+        Replaces existing AccountProperties with standardized pattern.
+      </Description>
+      <Content>
+        <![CDATA[
+package com.kanokna.account.adapters.config;
+
+import jakarta.validation.constraints.*;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * Configuration properties for account-service.
+ *
+ * <MODULE_CONTRACT id="MC-account-properties"
+ *   ROLE="Configuration"
+ *   SERVICE="account-service"
+ *   LAYER="adapters.config">
+ *   <PURPOSE>Centralized, type-safe configuration for account operations</PURPOSE>
+ *   <LINKS>
+ *     <Link ref="Technology.xml#DEC-CONFIGURATION-PATTERN" />
+ *   </LINKS>
+ * </MODULE_CONTRACT>
+ *
+ * @see DEC-CONFIGURATION-PATTERN
+ */
+@Validated
+@ConfigurationProperties(prefix = "kanokna.account")
+public record AccountProperties(
+    @NotNull AddressesProperties addresses,
+    @NotNull SavedConfigurationsProperties savedConfigurations,
+    @NotNull DefaultsProperties defaults,
+    @NotNull ProfileProperties profile
+) {
+    /**
+     * Default constructor with sensible defaults.
+     */
+    public AccountProperties {
+        if (addresses == null) addresses = new AddressesProperties(10, 50);
+        if (savedConfigurations == null) savedConfigurations = new SavedConfigurationsProperties(50, 255);
+        if (defaults == null) defaults = new DefaultsProperties("ru", "RUB", true, false, true);
+        if (profile == null) profile = new ProfileProperties(true);
+    }
+
+    /**
+     * Address management configuration.
+     *
+     * @param maxPerUser Maximum saved addresses per user account (default: 10)
+     * @param maxLabelLength Maximum characters for address labels like "Home" or "Work" (default: 50)
+     */
+    public record AddressesProperties(
+        @Min(1) @Max(100) int maxPerUser,
+        @Min(10) @Max(255) int maxLabelLength
+    ) {
+        public AddressesProperties {
+            if (maxPerUser <= 0) maxPerUser = 10;
+            if (maxLabelLength <= 0) maxLabelLength = 50;
+        }
+    }
+
+    /**
+     * Saved product configuration limits.
+     *
+     * @param maxPerUser Maximum saved product configurations per user (default: 50)
+     * @param maxNameLength Maximum characters for configuration names (default: 255)
+     */
+    public record SavedConfigurationsProperties(
+        @Min(1) @Max(500) int maxPerUser,
+        @Min(10) @Max(500) int maxNameLength
+    ) {
+        public SavedConfigurationsProperties {
+            if (maxPerUser <= 0) maxPerUser = 50;
+            if (maxNameLength <= 0) maxNameLength = 255;
+        }
+    }
+
+    /**
+     * Default values for new user profiles.
+     *
+     * @param language Default preferred language code ISO 639-1 (default: "ru")
+     * @param currency Default preferred currency code ISO 4217 (default: "RUB")
+     * @param notificationEmail Whether email notifications are enabled by default (default: true)
+     * @param notificationSms Whether SMS notifications are enabled by default (default: false)
+     * @param notificationPush Whether push notifications are enabled by default (default: true)
+     */
+    public record DefaultsProperties(
+        @NotBlank @Size(min = 2, max = 5) String language,
+        @NotBlank @Size(min = 3, max = 3) String currency,
+        boolean notificationEmail,
+        boolean notificationSms,
+        boolean notificationPush
+    ) {
+        public DefaultsProperties {
+            if (language == null || language.isBlank()) language = "ru";
+            if (currency == null || currency.isBlank()) currency = "RUB";
+        }
+    }
+
+    /**
+     * Profile creation behavior.
+     *
+     * @param autoCreateOnFirstLogin Automatically create profile from Keycloak claims on first login (default: true)
+     */
+    public record ProfileProperties(
+        boolean autoCreateOnFirstLogin
+    ) {}
+}
+        ]]>
+      </Content>
+      <ApplicationYaml>
+        <![CDATA[
+kanokna:
+  account:
+    addresses:
+      max-per-user: 10
+      max-label-length: 50
+    saved-configurations:
+      max-per-user: 50
+      max-name-length: 255
+    defaults:
+      language: ru
+      currency: RUB
+      notification-email: true
+      notification-sms: false
+      notification-push: true
+    profile:
+      auto-create-on-first-login: true
+        ]]>
+      </ApplicationYaml>
+    </Specification>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         CATALOG-CONFIGURATION-SERVICE PROPERTIES
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <Specification id="SPEC-CatalogProperties">
+      <File>com/kanokna/catalog/adapters/config/CatalogProperties.java</File>
+      <Description>
+        @ConfigurationProperties class for catalog-configuration-service.
+        Consolidates dimension constraints and validation settings.
+      </Description>
+      <Content>
+        <![CDATA[
+package com.kanokna.catalog.adapters.config;
+
+import jakarta.validation.constraints.*;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * Configuration properties for catalog-configuration-service.
+ *
+ * <MODULE_CONTRACT id="MC-catalog-properties"
+ *   ROLE="Configuration"
+ *   SERVICE="catalog-configuration-service"
+ *   LAYER="adapters.config">
+ *   <PURPOSE>Centralized, type-safe configuration for catalog operations</PURPOSE>
+ *   <LINKS>
+ *     <Link ref="Technology.xml#DEC-CONFIGURATION-PATTERN" />
+ *   </LINKS>
+ * </MODULE_CONTRACT>
+ *
+ * @see DEC-CONFIGURATION-PATTERN
+ */
+@Validated
+@ConfigurationProperties(prefix = "kanokna.catalog")
+public record CatalogProperties(
+    @NotNull DimensionsProperties dimensions,
+    @NotNull ValidationProperties validation,
+    @NotNull BomProperties bom,
+    @NotNull TemplateProperties template
+) {
+    /**
+     * Default constructor with sensible defaults.
+     */
+    public CatalogProperties {
+        if (dimensions == null) dimensions = new DimensionsProperties(50, 400);
+        if (validation == null) validation = new ValidationProperties(2000, true);
+        if (bom == null) bom = new BomProperties(100, true);
+        if (template == null) template = new TemplateProperties(200, 50);
+    }
+
+    /**
+     * Product dimension constraints.
+     *
+     * @param minCm Absolute minimum dimension in centimeters for any product (default: 50)
+     * @param maxCm Absolute maximum dimension in centimeters for any product (default: 400)
+     */
+    public record DimensionsProperties(
+        @Min(1) @Max(100) int minCm,
+        @Min(100) @Max(1000) int maxCm
+    ) {
+        public DimensionsProperties {
+            if (minCm <= 0) minCm = 50;
+            if (maxCm <= 0) maxCm = 400;
+            if (maxCm <= minCm) {
+                throw new IllegalArgumentException("maxCm must be greater than minCm");
+            }
+        }
+    }
+
+    /**
+     * Configuration validation settings.
+     *
+     * @param timeoutMs Timeout for validation operations in milliseconds (default: 2000)
+     * @param cacheValidationResults Whether to cache validation results (default: true)
+     */
+    public record ValidationProperties(
+        @Min(100) @Max(30000) int timeoutMs,
+        boolean cacheValidationResults
+    ) {
+        public ValidationProperties {
+            if (timeoutMs <= 0) timeoutMs = 2000;
+        }
+    }
+
+    /**
+     * Bill of materials resolution settings.
+     *
+     * @param maxDepth Maximum depth for BOM resolution recursion (default: 100)
+     * @param cacheResults Whether to cache BOM resolution results (default: true)
+     */
+    public record BomProperties(
+        @Min(1) @Max(500) int maxDepth,
+        boolean cacheResults
+    ) {
+        public BomProperties {
+            if (maxDepth <= 0) maxDepth = 100;
+        }
+    }
+
+    /**
+     * Product template settings.
+     *
+     * @param maxNameLength Maximum characters for product template names (default: 200)
+     * @param maxFamilyLength Maximum characters for product family enum (default: 50)
+     */
+    public record TemplateProperties(
+        @Min(10) @Max(500) int maxNameLength,
+        @Min(10) @Max(100) int maxFamilyLength
+    ) {
+        public TemplateProperties {
+            if (maxNameLength <= 0) maxNameLength = 200;
+            if (maxFamilyLength <= 0) maxFamilyLength = 50;
+        }
+    }
+}
+        ]]>
+      </Content>
+      <ApplicationYaml>
+        <![CDATA[
+kanokna:
+  catalog:
+    dimensions:
+      min-cm: 50
+      max-cm: 400
+    validation:
+      timeout-ms: 2000
+      cache-validation-results: true
+    bom:
+      max-depth: 100
+      cache-results: true
+    template:
+      max-name-length: 200
+      max-family-length: 50
+        ]]>
+      </ApplicationYaml>
+    </Specification>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         PRICING-SERVICE PROPERTIES
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <Specification id="SPEC-PricingProperties">
+      <File>com/kanokna/pricing_service/adapters/config/PricingProperties.java</File>
+      <Description>
+        @ConfigurationProperties class for pricing-service.
+        Consolidates quote caching, discount limits, tax, and precision settings.
+      </Description>
+      <Content>
+        <![CDATA[
+package com.kanokna.pricing_service.adapters.config;
+
+import jakarta.validation.constraints.*;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+/**
+ * Configuration properties for pricing-service.
+ *
+ * <MODULE_CONTRACT id="MC-pricing-properties"
+ *   ROLE="Configuration"
+ *   SERVICE="pricing-service"
+ *   LAYER="adapters.config">
+ *   <PURPOSE>Centralized, type-safe configuration for pricing operations</PURPOSE>
+ *   <LINKS>
+ *     <Link ref="Technology.xml#DEC-CONFIGURATION-PATTERN" />
+ *     <Link ref="Technology.xml#DEC-PRICING-QUOTE-TTL" />
+ *   </LINKS>
+ * </MODULE_CONTRACT>
+ *
+ * @see DEC-CONFIGURATION-PATTERN
+ */
+@Validated
+@ConfigurationProperties(prefix = "kanokna.pricing")
+public record PricingProperties(
+    @NotNull QuoteProperties quote,
+    @NotNull DiscountProperties discount,
+    @NotNull TaxProperties tax,
+    @NotNull PrecisionProperties precision,
+    @NotNull AreaProperties area
+) {
+    /**
+     * Default constructor with sensible defaults.
+     */
+    public PricingProperties {
+        if (quote == null) quote = new QuoteProperties(5, true);
+        if (discount == null) discount = new DiscountProperties(30);
+        if (tax == null) tax = new TaxProperties("RU", 20);
+        if (precision == null) precision = new PrecisionProperties(2, 10, "HALF_UP");
+        if (area == null) area = new AreaProperties(new BigDecimal("0.25"), 10000);
+    }
+
+    /**
+     * Quote generation and caching settings.
+     *
+     * @param cacheTtlMinutes Quote cache time-to-live in minutes (default: 5)
+     * @param cacheEnabled Whether quote caching is enabled (default: true)
+     */
+    public record QuoteProperties(
+        @Min(1) @Max(60) int cacheTtlMinutes,
+        boolean cacheEnabled
+    ) {
+        public QuoteProperties {
+            if (cacheTtlMinutes <= 0) cacheTtlMinutes = 5;
+        }
+    }
+
+    /**
+     * Discount calculation limits.
+     *
+     * @param maxCombinedPercent Maximum combined discount percentage cap (default: 30)
+     */
+    public record DiscountProperties(
+        @Min(0) @Max(100) int maxCombinedPercent
+    ) {
+        public DiscountProperties {
+            if (maxCombinedPercent <= 0) maxCombinedPercent = 30;
+        }
+    }
+
+    /**
+     * Tax jurisdiction and rates.
+     *
+     * @param defaultRegion Default tax jurisdiction ISO 3166-1 alpha-2 code (default: "RU")
+     * @param defaultRatePercent Default VAT/tax rate percentage (default: 20 for Russia)
+     */
+    public record TaxProperties(
+        @NotBlank @Size(min = 2, max = 2) String defaultRegion,
+        @Min(0) @Max(100) int defaultRatePercent
+    ) {
+        public TaxProperties {
+            if (defaultRegion == null || defaultRegion.isBlank()) defaultRegion = "RU";
+            if (defaultRatePercent <= 0) defaultRatePercent = 20;
+        }
+    }
+
+    /**
+     * Calculation precision settings.
+     *
+     * @param currencyScale Decimal places for final currency amounts (default: 2 for RUB)
+     * @param calculationScale Decimal places for intermediate calculations (default: 10)
+     * @param roundingMode Rounding mode for monetary calculations (default: "HALF_UP")
+     */
+    public record PrecisionProperties(
+        @Min(0) @Max(8) int currencyScale,
+        @Min(2) @Max(20) int calculationScale,
+        @NotBlank String roundingMode
+    ) {
+        public PrecisionProperties {
+            if (currencyScale < 0) currencyScale = 2;
+            if (calculationScale <= 0) calculationScale = 10;
+            if (roundingMode == null || roundingMode.isBlank()) roundingMode = "HALF_UP";
+        }
+
+        /**
+         * Returns the configured RoundingMode enum value.
+         */
+        public RoundingMode getRoundingModeEnum() {
+            return RoundingMode.valueOf(roundingMode);
+        }
+    }
+
+    /**
+     * Area calculation settings.
+     *
+     * @param minimumChargeableM2 Minimum chargeable area in square meters (default: 0.25)
+     * @param conversionDivisor Divisor to convert cm² to m² (width*height/divisor) (default: 10000)
+     */
+    public record AreaProperties(
+        @NotNull @DecimalMin("0.01") BigDecimal minimumChargeableM2,
+        @Min(10000) @Max(10000) int conversionDivisor
+    ) {
+        public AreaProperties {
+            if (minimumChargeableM2 == null || minimumChargeableM2.compareTo(BigDecimal.ZERO) <= 0) {
+                minimumChargeableM2 = new BigDecimal("0.25");
+            }
+            if (conversionDivisor <= 0) conversionDivisor = 10000;
+        }
+    }
+}
+        ]]>
+      </Content>
+      <ApplicationYaml>
+        <![CDATA[
+kanokna:
+  pricing:
+    quote:
+      cache-ttl-minutes: 5
+      cache-enabled: true
+    discount:
+      max-combined-percent: 30
+    tax:
+      default-region: RU
+      default-rate-percent: 20
+    precision:
+      currency-scale: 2
+      calculation-scale: 10
+      rounding-mode: HALF_UP
+    area:
+      minimum-chargeable-m2: 0.25
+      conversion-divisor: 10000
+        ]]>
+      </ApplicationYaml>
+    </Specification>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         SEARCH-SERVICE PROPERTIES
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <Specification id="SPEC-SearchProperties">
+      <File>com/kanokna/search/adapters/config/SearchProperties.java</File>
+      <Description>
+        @ConfigurationProperties class for search-service.
+        Consolidates pagination, autocomplete, faceting, reindex, and index settings.
+      </Description>
+      <Content>
+        <![CDATA[
+package com.kanokna.search.adapters.config;
+
+import jakarta.validation.constraints.*;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * Configuration properties for search-service.
+ *
+ * <MODULE_CONTRACT id="MC-search-properties"
+ *   ROLE="Configuration"
+ *   SERVICE="search-service"
+ *   LAYER="adapters.config">
+ *   <PURPOSE>Centralized, type-safe configuration for search operations</PURPOSE>
+ *   <LINKS>
+ *     <Link ref="Technology.xml#DEC-CONFIGURATION-PATTERN" />
+ *     <Link ref="Technology.xml#TECH-elasticsearch" />
+ *   </LINKS>
+ * </MODULE_CONTRACT>
+ *
+ * @see DEC-CONFIGURATION-PATTERN
+ */
+@Validated
+@ConfigurationProperties(prefix = "kanokna.search")
+public record SearchProperties(
+    @NotNull PaginationProperties pagination,
+    @NotNull AutocompleteProperties autocomplete,
+    @NotNull FacetsProperties facets,
+    @NotNull ReindexProperties reindex,
+    @NotNull IndexProperties index,
+    @NotNull TimeoutsProperties timeouts
+) {
+    /**
+     * Default constructor with sensible defaults.
+     */
+    public SearchProperties {
+        if (pagination == null) pagination = new PaginationProperties(20, 100);
+        if (autocomplete == null) autocomplete = new AutocompleteProperties(2, 10, 20);
+        if (facets == null) facets = new FacetsProperties(50);
+        if (reindex == null) reindex = new ReindexProperties(200);
+        if (index == null) index = new IndexProperties(1, 1, "1s");
+        if (timeouts == null) timeouts = new TimeoutsProperties(5, 30);
+    }
+
+    /**
+     * Search result pagination settings.
+     *
+     * @param defaultPageSize Default number of results per page (default: 20)
+     * @param maxPageSize Maximum allowed results per page (default: 100)
+     */
+    public record PaginationProperties(
+        @Min(1) @Max(100) int defaultPageSize,
+        @Min(10) @Max(1000) int maxPageSize
+    ) {
+        public PaginationProperties {
+            if (defaultPageSize <= 0) defaultPageSize = 20;
+            if (maxPageSize <= 0) maxPageSize = 100;
+            if (defaultPageSize > maxPageSize) {
+                throw new IllegalArgumentException("defaultPageSize cannot exceed maxPageSize");
+            }
+        }
+    }
+
+    /**
+     * Autocomplete suggestion settings.
+     *
+     * @param minPrefixLength Minimum characters required before autocomplete activates (default: 2)
+     * @param defaultLimit Default number of autocomplete suggestions (default: 10)
+     * @param maxLimit Maximum autocomplete suggestions allowed (default: 20)
+     */
+    public record AutocompleteProperties(
+        @Min(1) @Max(10) int minPrefixLength,
+        @Min(1) @Max(50) int defaultLimit,
+        @Min(5) @Max(100) int maxLimit
+    ) {
+        public AutocompleteProperties {
+            if (minPrefixLength <= 0) minPrefixLength = 2;
+            if (defaultLimit <= 0) defaultLimit = 10;
+            if (maxLimit <= 0) maxLimit = 20;
+        }
+    }
+
+    /**
+     * Faceted search configuration.
+     *
+     * @param aggregationSize Maximum terms returned per facet field (default: 50)
+     */
+    public record FacetsProperties(
+        @Min(10) @Max(500) int aggregationSize
+    ) {
+        public FacetsProperties {
+            if (aggregationSize <= 0) aggregationSize = 50;
+        }
+    }
+
+    /**
+     * Reindex operation settings.
+     *
+     * @param batchSize Number of products to fetch per batch during reindex (default: 200)
+     */
+    public record ReindexProperties(
+        @Min(10) @Max(1000) int batchSize
+    ) {
+        public ReindexProperties {
+            if (batchSize <= 0) batchSize = 200;
+        }
+    }
+
+    /**
+     * Elasticsearch index settings for new indices.
+     *
+     * @param numberOfShards Number of primary shards for new index (default: 1 for dev, increase for prod)
+     * @param numberOfReplicas Number of replica shards for new index (default: 1)
+     * @param refreshInterval Index refresh interval as duration string (default: "1s")
+     */
+    public record IndexProperties(
+        @Min(1) @Max(100) int numberOfShards,
+        @Min(0) @Max(10) int numberOfReplicas,
+        @NotBlank String refreshInterval
+    ) {
+        public IndexProperties {
+            if (numberOfShards <= 0) numberOfShards = 1;
+            if (numberOfReplicas < 0) numberOfReplicas = 1;
+            if (refreshInterval == null || refreshInterval.isBlank()) refreshInterval = "1s";
+        }
+    }
+
+    /**
+     * Connection and operation timeouts.
+     *
+     * @param connectionTimeoutSeconds Elasticsearch connection timeout in seconds (default: 5)
+     * @param socketTimeoutSeconds Elasticsearch socket/read timeout in seconds (default: 30)
+     */
+    public record TimeoutsProperties(
+        @Min(1) @Max(60) int connectionTimeoutSeconds,
+        @Min(5) @Max(300) int socketTimeoutSeconds
+    ) {
+        public TimeoutsProperties {
+            if (connectionTimeoutSeconds <= 0) connectionTimeoutSeconds = 5;
+            if (socketTimeoutSeconds <= 0) socketTimeoutSeconds = 30;
+        }
+    }
+}
+        ]]>
+      </Content>
+      <ApplicationYaml>
+        <![CDATA[
+kanokna:
+  search:
+    pagination:
+      default-page-size: 20
+      max-page-size: 100
+    autocomplete:
+      min-prefix-length: 2
+      default-limit: 10
+      max-limit: 20
+    facets:
+      aggregation-size: 50
+    reindex:
+      batch-size: 200
+    index:
+      number-of-shards: 1
+      number-of-replicas: 1
+      refresh-interval: 1s
+    timeouts:
+      connection-timeout-seconds: 5
+      socket-timeout-seconds: 30
+        ]]>
+      </ApplicationYaml>
+    </Specification>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         GATEWAY PROPERTIES
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <Specification id="SPEC-GatewayProperties">
+      <File>com/kanokna/gateway/config/GatewayProperties.java</File>
+      <Description>
+        @ConfigurationProperties class for API gateway.
+        Consolidates rate limiting, circuit breaker, CORS, timeout, and retry settings.
+      </Description>
+      <Content>
+        <![CDATA[
+package com.kanokna.gateway.config;
+
+import jakarta.validation.constraints.*;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * Configuration properties for API gateway.
+ *
+ * <MODULE_CONTRACT id="MC-gateway-properties"
+ *   ROLE="Configuration"
+ *   SERVICE="gateway"
+ *   LAYER="config">
+ *   <PURPOSE>Centralized, type-safe configuration for gateway operations</PURPOSE>
+ *   <LINKS>
+ *     <Link ref="Technology.xml#DEC-CONFIGURATION-PATTERN" />
+ *     <Link ref="Technology.xml#TECH-resilience4j" />
+ *   </LINKS>
+ * </MODULE_CONTRACT>
+ *
+ * @see DEC-CONFIGURATION-PATTERN
+ */
+@Validated
+@ConfigurationProperties(prefix = "kanokna.gateway")
+public record GatewayProperties(
+    @NotNull RateLimitProperties rateLimit,
+    @NotNull CircuitBreakerProperties circuitBreaker,
+    @NotNull CorsProperties cors,
+    @NotNull TimeoutProperties timeout,
+    @NotNull RetryProperties retry
+) {
+    /**
+     * Default constructor with sensible defaults.
+     */
+    public GatewayProperties {
+        if (rateLimit == null) rateLimit = new RateLimitProperties(100, 20, 60);
+        if (circuitBreaker == null) circuitBreaker = new CircuitBreakerProperties(10, 50, 10, 3, 2, 50);
+        if (cors == null) cors = new CorsProperties(3600);
+        if (timeout == null) timeout = new TimeoutProperties(10000);
+        if (retry == null) retry = new RetryProperties(3, 100, 500, 2);
+    }
+
+    /**
+     * Rate limiting configuration.
+     *
+     * @param authenticatedRequestsPerMinute Maximum requests per minute for authenticated users (default: 100)
+     * @param anonymousRequestsPerMinute Maximum requests per minute for anonymous users (default: 20)
+     * @param windowSeconds Rate limit sliding window duration in seconds (default: 60)
+     */
+    public record RateLimitProperties(
+        @Min(10) @Max(10000) int authenticatedRequestsPerMinute,
+        @Min(1) @Max(1000) int anonymousRequestsPerMinute,
+        @Min(10) @Max(3600) int windowSeconds
+    ) {
+        public RateLimitProperties {
+            if (authenticatedRequestsPerMinute <= 0) authenticatedRequestsPerMinute = 100;
+            if (anonymousRequestsPerMinute <= 0) anonymousRequestsPerMinute = 20;
+            if (windowSeconds <= 0) windowSeconds = 60;
+        }
+    }
+
+    /**
+     * Circuit breaker parameters for resilience.
+     *
+     * @param slidingWindowSize Number of requests to evaluate for circuit state (default: 10)
+     * @param failureRateThreshold Failure rate percentage to open circuit (default: 50)
+     * @param waitDurationInOpenStateSeconds Seconds to wait in open state before half-open (default: 10)
+     * @param permittedCallsInHalfOpen Test calls allowed in half-open state (default: 3)
+     * @param slowCallDurationThresholdSeconds Threshold in seconds for slow call detection (default: 2)
+     * @param slowCallRateThreshold Slow call rate percentage to open circuit (default: 50)
+     */
+    public record CircuitBreakerProperties(
+        @Min(1) @Max(100) int slidingWindowSize,
+        @Min(1) @Max(100) int failureRateThreshold,
+        @Min(1) @Max(300) int waitDurationInOpenStateSeconds,
+        @Min(1) @Max(20) int permittedCallsInHalfOpen,
+        @Min(1) @Max(60) int slowCallDurationThresholdSeconds,
+        @Min(1) @Max(100) int slowCallRateThreshold
+    ) {
+        public CircuitBreakerProperties {
+            if (slidingWindowSize <= 0) slidingWindowSize = 10;
+            if (failureRateThreshold <= 0) failureRateThreshold = 50;
+            if (waitDurationInOpenStateSeconds <= 0) waitDurationInOpenStateSeconds = 10;
+            if (permittedCallsInHalfOpen <= 0) permittedCallsInHalfOpen = 3;
+            if (slowCallDurationThresholdSeconds <= 0) slowCallDurationThresholdSeconds = 2;
+            if (slowCallRateThreshold <= 0) slowCallRateThreshold = 50;
+        }
+    }
+
+    /**
+     * Cross-origin resource sharing settings.
+     *
+     * @param maxAgeSeconds CORS preflight response cache duration in seconds (default: 3600 = 1 hour)
+     */
+    public record CorsProperties(
+        @Min(60) @Max(86400) int maxAgeSeconds
+    ) {
+        public CorsProperties {
+            if (maxAgeSeconds <= 0) maxAgeSeconds = 3600;
+        }
+    }
+
+    /**
+     * Route timeout settings.
+     *
+     * @param responseTimeoutMs Response timeout for all routes in milliseconds (default: 10000 = 10s)
+     */
+    public record TimeoutProperties(
+        @Min(1000) @Max(300000) int responseTimeoutMs
+    ) {
+        public TimeoutProperties {
+            if (responseTimeoutMs <= 0) responseTimeoutMs = 10000;
+        }
+    }
+
+    /**
+     * Retry policy configuration with exponential backoff.
+     *
+     * @param attempts Number of retry attempts for failed requests (default: 3)
+     * @param firstBackoffMs Initial backoff duration in milliseconds (default: 100)
+     * @param maxBackoffMs Maximum backoff duration in milliseconds (default: 500)
+     * @param backoffFactor Exponential backoff multiplier (default: 2)
+     */
+    public record RetryProperties(
+        @Min(0) @Max(10) int attempts,
+        @Min(10) @Max(10000) int firstBackoffMs,
+        @Min(100) @Max(60000) int maxBackoffMs,
+        @Min(1) @Max(10) int backoffFactor
+    ) {
+        public RetryProperties {
+            if (attempts < 0) attempts = 3;
+            if (firstBackoffMs <= 0) firstBackoffMs = 100;
+            if (maxBackoffMs <= 0) maxBackoffMs = 500;
+            if (backoffFactor <= 0) backoffFactor = 2;
+        }
+    }
+}
+        ]]>
+      </Content>
+      <ApplicationYaml>
+        <![CDATA[
+kanokna:
+  gateway:
+    rate-limit:
+      authenticated-requests-per-minute: 100
+      anonymous-requests-per-minute: 20
+      window-seconds: 60
+    circuit-breaker:
+      sliding-window-size: 10
+      failure-rate-threshold: 50
+      wait-duration-in-open-state-seconds: 10
+      permitted-calls-in-half-open: 3
+      slow-call-duration-threshold-seconds: 2
+      slow-call-rate-threshold: 50
+    cors:
+      max-age-seconds: 3600
+    timeout:
+      response-timeout-ms: 10000
+    retry:
+      attempts: 3
+      first-backoff-ms: 100
+      max-backoff-ms: 500
+      backoff-factor: 2
+        ]]>
+      </ApplicationYaml>
+    </Specification>
+  </Specifications>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 5: IMPLEMENTATION CHECKLIST
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationChecklist>
+    <Phase name="Phase 1: Properties Classes" order="1">
+      <Task id="IMPL-001" service="account-service" priority="HIGH">
+        Replace existing AccountProperties with standardized version
+      </Task>
+      <Task id="IMPL-002" service="catalog-configuration-service" priority="HIGH">
+        Create CatalogProperties.java
+      </Task>
+      <Task id="IMPL-003" service="pricing-service" priority="HIGH">
+        Create PricingProperties.java
+      </Task>
+      <Task id="IMPL-004" service="search-service" priority="HIGH">
+        Update existing SearchProperties with standardized pattern
+      </Task>
+      <Task id="IMPL-005" service="gateway" priority="HIGH">
+        Create GatewayProperties.java
+      </Task>
+    </Phase>
+
+    <Phase name="Phase 2: YAML Configuration" order="2">
+      <Task id="IMPL-010" service="all" priority="HIGH">
+        Update application.yml files with kanokna.{service}.* properties
+      </Task>
+      <Task id="IMPL-011" service="all" priority="MEDIUM">
+        Create application-prod.yml with production-appropriate values
+      </Task>
+    </Phase>
+
+    <Phase name="Phase 3: Code Migration" order="3">
+      <Task id="IMPL-020" service="account-service" priority="HIGH">
+        Replace SavedAddress hardcoded 50 with properties.addresses.maxLabelLength
+      </Task>
+      <Task id="IMPL-021" service="account-service" priority="HIGH">
+        Replace AccountApplicationService hardcoded 255 with properties.savedConfigurations.maxNameLength
+      </Task>
+      <Task id="IMPL-022" service="catalog-configuration-service" priority="HIGH">
+        Replace DimensionConstraints hardcoded 50/400 with properties.dimensions.*
+      </Task>
+      <Task id="IMPL-023" service="pricing-service" priority="HIGH">
+        Remove @Value annotation for quoteTtlMinutes, use PricingProperties
+      </Task>
+      <Task id="IMPL-024" service="pricing-service" priority="HIGH">
+        Replace DiscountService MAX_DISCOUNT_PERCENT with properties.discount.maxCombinedPercent
+      </Task>
+      <Task id="IMPL-025" service="search-service" priority="HIGH">
+        Replace SearchGrpcMapper hardcoded 20/100 with properties.pagination.*
+      </Task>
+      <Task id="IMPL-026" service="search-service" priority="HIGH">
+        Replace ElasticsearchSearchRepository hardcoded 50 with properties.facets.aggregationSize
+      </Task>
+      <Task id="IMPL-027" service="gateway" priority="HIGH">
+        Replace RateLimitConfig hardcoded 100/20/60 with properties.rateLimit.*
+      </Task>
+      <Task id="IMPL-028" service="gateway" priority="HIGH">
+        Replace CircuitBreakerConfig hardcoded values with properties.circuitBreaker.*
+      </Task>
+      <Task id="IMPL-029" service="gateway" priority="HIGH">
+        Replace GatewayConfig hardcoded 10000ms with properties.timeout.responseTimeoutMs
+      </Task>
+    </Phase>
+
+    <Phase name="Phase 4: Testing" order="4">
+      <Task id="IMPL-030" service="all" priority="HIGH">
+        Add unit tests for each *Properties class with validation
+      </Task>
+      <Task id="IMPL-031" service="all" priority="HIGH">
+        Verify application startup with default configuration
+      </Task>
+      <Task id="IMPL-032" service="all" priority="MEDIUM">
+        Test configuration override via environment variables
+      </Task>
+    </Phase>
+  </ImplementationChecklist>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 6: ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria>
+    <Criterion id="AC-001" category="Magic Numbers">
+      All magic numbers identified in discovery are extracted to *Properties classes
+    </Criterion>
+    <Criterion id="AC-002" category="Code Quality">
+      No @Value annotations remain in service production code
+    </Criterion>
+    <Criterion id="AC-003" category="Code Quality">
+      No inline numeric literals remain in business logic
+    </Criterion>
+    <Criterion id="AC-004" category="Documentation">
+      All properties have American English Javadoc explaining purpose and default
+    </Criterion>
+    <Criterion id="AC-005" category="Validation">
+      All properties have appropriate validation constraints
+    </Criterion>
+    <Criterion id="AC-006" category="Defaults">
+      All properties have sensible defaults that allow startup without configuration
+    </Criterion>
+    <Criterion id="AC-007" category="Naming">
+      All properties follow kanokna.{service}.{category}.{property} naming convention
+    </Criterion>
+    <Criterion id="AC-008" category="Testing">
+      Each *Properties class has unit tests for validation and defaults
+    </Criterion>
+    <Criterion id="AC-009" category="Documentation">
+      application.yml examples provided for each service
+    </Criterion>
+  </AcceptanceCriteria>
+
+</GRACE_HANDOFF>

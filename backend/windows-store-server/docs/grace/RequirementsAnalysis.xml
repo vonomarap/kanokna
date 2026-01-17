@@ -1026,6 +1026,51 @@
         <Link ref="DevelopmentPlan.xml#DP-SVC-support-service" />
       </Links>
     </UseCase>
+
+    <!-- ===========================================================================
+         MUST (MVP): Catalog Admin Management
+         =========================================================================== -->
+    <UseCase id="UC-CATALOG-ADMIN-MANAGE" priority="MUST">
+      <ActorRef ref="ACT-ADMIN" />
+      <Action>Manage product catalog (create, update, publish templates)</Action>
+      <Goal>Maintain product catalog with configuration rules and publish versions</Goal>
+      <Preconditions>
+        <Item>User has ADMIN or CATALOG_ADMIN role</Item>
+        <Item>catalog-configuration-service is available</Item>
+      </Preconditions>
+      <Postconditions>
+        <Item>Product template is created/updated/published</Item>
+        <Item>Search index is updated via CatalogVersionPublishedEvent</Item>
+        <Item>Catalog version history is maintained</Item>
+      </Postconditions>
+      <MainFlow>
+        <Step order="1">Admin creates new product template with base configuration</Step>
+        <Step order="2">Admin defines option groups and configuration rules</Step>
+        <Step order="3">Admin sets dimension constraints and compatibility rules</Step>
+        <Step order="4">Admin saves template as draft</Step>
+        <Step order="5">Admin publishes catalog version</Step>
+        <Step order="6">System emits CatalogVersionPublishedEvent</Step>
+        <Step order="7">search-service indexes new catalog data</Step>
+      </MainFlow>
+      <AlternateFlows>
+        <Flow id="UC-CATALOG-ADMIN-MANAGE-A1" trigger="Update existing template">
+          <Step order="1">Admin selects existing template</Step>
+          <Step order="2">Admin modifies configuration rules or options</Step>
+          <Step order="3">System validates changes don't break existing configurations</Step>
+          <Step order="4">Admin saves and optionally publishes new version</Step>
+        </Flow>
+      </AlternateFlows>
+      <AcceptanceCriteria>
+        <Criterion id="AC-CAT-ADMIN-01">Templates can be created with full configuration options</Criterion>
+        <Criterion id="AC-CAT-ADMIN-02">Catalog versions are immutable once published</Criterion>
+        <Criterion id="AC-CAT-ADMIN-03">Search index updated within 5 seconds of publish</Criterion>
+      </AcceptanceCriteria>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
+        <Link ref="Technology.xml#DEC-ARCH-ENTITY-VERSIONING" />
+      </Links>
+    </UseCase>
   </UseCases>
 
   <!-- ===============================================================================
@@ -1414,6 +1459,27 @@
         Hexagonal architecture enforced via ArchUnit.
         Domain layer has no framework dependencies.
       </Specification>
+    </Requirement>
+
+    <Requirement id="NFR-CODE-DOMAIN-ERROR-HANDLING">
+      <Category>Code Quality</Category>
+      <Description>Consistent domain error handling pattern</Description>
+      <Specification>
+        All domain layer validation failures MUST use typed domain exceptions created via
+        static factory classes (e.g., CatalogDomainErrors, PricingDomainErrors).
+        IllegalArgumentException/IllegalStateException are prohibited in domain layer for
+        business rule violations. Error codes follow convention: ERR-{SERVICE-PREFIX}-{ERROR-TYPE}.
+      </Specification>
+      <Rationale>
+        Typed domain errors enable: (1) consistent API error responses with codes clients can handle,
+        (2) structured logging for observability, (3) clear distinction between programming errors
+        and business rule violations, (4) testable error conditions.
+      </Rationale>
+      <Metric>Zero IllegalArgumentException in domain packages for business rule violations</Metric>
+      <Links>
+        <Link ref="Technology.xml#DEC-DOMAIN-ERROR-PATTERN" />
+        <Link ref="Technology.xml#DEC-ERROR-CODE-REGISTRY" />
+      </Links>
     </Requirement>
   </NonFunctionalRequirements>
 

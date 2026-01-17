@@ -1169,6 +1169,67 @@
         <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
       </Links>
     </Decision>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         DOMAIN ERROR HANDLING DECISIONS (From Handoff-20260117-01-W1-ERROR-HANDLING)
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <Decision id="DEC-DOMAIN-ERROR-PATTERN" status="APPROVED">
+      <Title>Domain Error Handling Pattern</Title>
+      <Selected>Static factory class with typed DomainException per service</Selected>
+      <Alternatives>
+        <Alternative>Throw IllegalArgumentException directly</Alternative>
+        <Alternative>Domain-specific exception hierarchy per error type</Alternative>
+        <Alternative>Result/Either type for all domain operations</Alternative>
+      </Alternatives>
+      <Rationale>
+        Static factory pattern (AccountDomainErrors, CartDomainErrors) centralizes error creation,
+        ensures consistent error codes, enables code completion, and keeps domain layer clean.
+        DomainException from shared-kernel provides base class with code+message+optional cause.
+        Typed subclasses (e.g., CartNotFoundException) used only when polymorphic handling needed.
+      </Rationale>
+      <Convention>
+        <Item>Factory class: {BoundedContext}DomainErrors in com.kanokna.{service}.domain.exception</Item>
+        <Item>Error code format: ERR-{PREFIX}-{ERROR-TYPE}</Item>
+        <Item>Prefixes: ACCT (account), CART (cart), CAT (catalog), PRICE (pricing), SEARCH (search)</Item>
+        <Item>Factory methods are static, return DomainException or typed subclass</Item>
+        <Item>Factory class has private constructor, marked final</Item>
+        <Item>Error messages include relevant context (IDs, values) for debugging</Item>
+      </Convention>
+      <ApplicableServices>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-account-service">AccountDomainErrors (implemented)</ServiceRef>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-cart-service">CartDomainErrors (implemented)</ServiceRef>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service">CatalogDomainErrors</ServiceRef>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-pricing-service">PricingDomainErrors</ServiceRef>
+        <ServiceRef ref="DevelopmentPlan.xml#DP-SVC-order-service">OrderDomainErrors (future)</ServiceRef>
+      </ApplicableServices>
+      <PromotedFrom handoff="Handoff-20260117-01-W1-ERROR-HANDLING" />
+      <Links>
+        <Link ref="RequirementsAnalysis.xml#NFR-CODE-DOMAIN-ERROR-HANDLING" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-ERROR-CODE-REGISTRY" status="APPROVED">
+      <Title>Service Error Code Prefix Registry</Title>
+      <Selected>Centralized prefix registry to prevent collisions</Selected>
+      <Registry>
+        <Prefix code="ERR-ACCT" service="account-service">Account domain errors</Prefix>
+        <Prefix code="ERR-CART" service="cart-service">Cart domain errors</Prefix>
+        <Prefix code="ERR-CAT" service="catalog-configuration-service">Catalog domain errors</Prefix>
+        <Prefix code="ERR-PRICE" service="pricing-service">Pricing domain errors</Prefix>
+        <Prefix code="ERR-SEARCH" service="search-service" status="reserved">Search domain errors</Prefix>
+        <Prefix code="ERR-ORDER" service="order-service" status="reserved">Order domain errors</Prefix>
+        <Prefix code="ERR-MEDIA" service="media-service" status="reserved">Media domain errors</Prefix>
+        <Prefix code="ERR-NOTIF" service="notification-service" status="reserved">Notification errors</Prefix>
+      </Registry>
+      <Rationale>
+        Unique prefixes per service enable log aggregation, error categorization in monitoring,
+        and clear ownership of error codes. Reserved prefixes prevent future conflicts.
+      </Rationale>
+      <PromotedFrom handoff="Handoff-20260117-01-W1-ERROR-HANDLING" />
+      <Links>
+        <Link ref="Technology.xml#DEC-DOMAIN-ERROR-PATTERN" />
+      </Links>
+    </Decision>
   </Decisions>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════

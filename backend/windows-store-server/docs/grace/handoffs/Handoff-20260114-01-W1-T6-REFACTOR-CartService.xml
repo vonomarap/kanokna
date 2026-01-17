@@ -1,0 +1,1862 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════════
+  GRACE HANDOFF: Cart Service Refactoring Blueprint
+  ═══════════════════════════════════════════════════════════════════════════════
+  Handoff ID:      Handoff-20260114-01-W1-T6-REFACTOR-CartService
+  Service:         cart-service
+  Bounded Context: cart
+  Wave:            1 (CPQ Core)
+  Task:            T6-REFACTOR
+  Created:         2026-01-14T10:00:00+03:00
+  Author:          GRACE-ARCHITECT
+  Status:          APPROVED
+
+  Purpose:
+    Refactoring blueprint for cart-service to improve maintainability, testability,
+    and compliance with GRACE architectural standards. Splits 1893-line
+    CartApplicationService into 6 focused sub-services, introduces structured
+    logging, externalized configuration, and standardized error handling.
+
+  Work Order Reference: AWO-20260114-01
+
+  Changes:
+    - Split CartApplicationService (1893 lines) into orchestrator + 5 sub-services
+    - Introduce structured logging via log.atInfo().addKeyValue()
+    - Extract magic numbers to @ConfigurationProperties (CartProperties)
+    - Standardize domain exceptions via CartDomainErrors factory
+    - Add MapStruct mappers for entity↔domain conversions
+
+  IMPORTANT: This refactoring preserves ALL existing gRPC and Kafka contracts.
+  No breaking changes to public APIs or event schemas.
+  ═══════════════════════════════════════════════════════════════════════════════
+-->
+<GRACE_HANDOFF
+  id="Handoff-20260114-01-W1-T6-REFACTOR-CartService"
+  status="APPROVED"
+  schemaVersion="grace-markup-v2"
+  created="2026-01-14T10:00:00+03:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W1-T6-REFACTOR"
+  planRef="DevelopmentPlan.xml#PHASE-1"
+  blueprintRef="DevelopmentPlan.xml#DP-SVC-cart-service"
+  techRef="Technology.xml#DEC-CART-LOGGING,Technology.xml#DEC-CART-ERROR-HANDLING,Technology.xml#DEC-CART-CONFIGURATION"
+  requirementsRef="RequirementsAnalysis.xml#UC-CART-MANAGE,RequirementsAnalysis.xml#UC-CART-APPLY-PROMO,RequirementsAnalysis.xml#UC-ORDER-PLACE"
+  priorHandoffRef="Handoff-20260109-01-W1-T6-CartService"
+>
+  <Metadata>
+    <Title>Cart Service Refactoring Blueprint</Title>
+    <Service>cart-service</Service>
+    <BoundedContext>cart</BoundedContext>
+    <Wave>W1</Wave>
+    <Task>T6-REFACTOR</Task>
+    <Phase>PHASE-1 (CPQ Core)</Phase>
+    <CreatedAt>2026-01-14T10:00:00+03:00</CreatedAt>
+    <Author>GRACE-ARCHITECT</Author>
+    <Status>PROPOSED</Status>
+    <RefactoringScope>
+      <CurrentState>
+        <File>CartApplicationService.java</File>
+        <LineCount>1893</LineCount>
+        <UseCases>10</UseCases>
+        <Issues>
+          <Issue severity="HIGH">Single class handles 10 use cases (SRP violation)</Issue>
+          <Issue severity="HIGH">String concatenation for logging (performance, non-structured)</Issue>
+          <Issue severity="MEDIUM">Magic numbers embedded in code</Issue>
+          <Issue severity="MEDIUM">No standardized error handling pattern</Issue>
+          <Issue severity="LOW">Missing MapStruct mappers</Issue>
+        </Issues>
+      </CurrentState>
+      <TargetState>
+        <Services count="6">
+          <Service name="CartApplicationService" lines="200-300" role="orchestrator" />
+          <Service name="CartItemValidationService" lines="150-200" role="sub-service" />
+          <Service name="CartPricingService" lines="200-250" role="sub-service" />
+          <Service name="CartMergingService" lines="150-200" role="sub-service" />
+          <Service name="CartCheckoutService" lines="150-200" role="sub-service" />
+          <Service name="CartPromoCodeService" lines="100-150" role="sub-service" />
+        </Services>
+        <Patterns>
+          <Pattern>Structured logging with addKeyValue()</Pattern>
+          <Pattern>@ConfigurationProperties for externalized config</Pattern>
+          <Pattern>CartDomainErrors factory for exceptions</Pattern>
+          <Pattern>MapStruct for entity↔domain mapping</Pattern>
+        </Patterns>
+      </TargetState>
+    </RefactoringScope>
+    <TracesTo>
+      <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
+      <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO" />
+      <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE" />
+      <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+      <Link ref="Handoff-20260109-01-W1-T6-CartService" />
+    </TracesTo>
+  </Metadata>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 1: TECHNOLOGY DECISIONS (Updates to Technology.xml)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <TechnologyDecisions>
+    <Decision id="DEC-CART-LOGGING" status="PROPOSED">
+      <Title>Structured Logging Pattern for Cart Service</Title>
+      <Selected>Structured logging using SLF4J Fluent API with addKeyValue()</Selected>
+      <Alternatives>
+        <Alternative>String concatenation with MDC (current approach)</Alternative>
+        <Alternative>JSON logger with custom appender</Alternative>
+        <Alternative>Lombok @Slf4j with string interpolation</Alternative>
+      </Alternatives>
+      <Rationale>
+        SLF4J 2.0 Fluent API with addKeyValue() provides structured key-value logging
+        that integrates seamlessly with log aggregation systems (ELK, Loki). Eliminates
+        string concatenation overhead and enables consistent machine-parseable logs.
+        Pattern aligns with Spring Boot 4.0 logging defaults.
+      </Rationale>
+      <Pattern>
+        <![CDATA[
+// BEFORE: String concatenation (current)
+log.info("Adding item to cart. cartId={}, productTemplateId={}, quantity={}",
+         cartId, productTemplateId, quantity);
+
+// AFTER: Structured logging (target)
+log.atInfo()
+   .addKeyValue("operation", "addItem")
+   .addKeyValue("cartId", cartId.value())
+   .addKeyValue("productTemplateId", productTemplateId)
+   .addKeyValue("quantity", quantity)
+   .log("Adding item to cart");
+        ]]>
+      </Pattern>
+      <Guidelines>
+        <Item>Use log.atLevel() for all logging (atInfo, atDebug, atWarn, atError)</Item>
+        <Item>Always include "operation" key for method identification</Item>
+        <Item>Include domain identifiers (cartId, customerId, itemId) as keys</Item>
+        <Item>Use .log("message") for the human-readable summary</Item>
+        <Item>Sensitive data (prices, customer emails) should NOT be logged at INFO level</Item>
+        <Item>Performance metrics (durationMs) logged at DEBUG level</Item>
+      </Guidelines>
+      <Links>
+        <Link ref="Technology.xml#TECH-slf4j" />
+        <Link ref="Technology.xml#TECH-spring-boot" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-ERROR-HANDLING" status="PROPOSED">
+      <Title>Standardized Domain Error Factory Pattern</Title>
+      <Selected>CartDomainErrors static factory class with typed exception builders</Selected>
+      <Alternatives>
+        <Alternative>Direct exception construction at throw sites</Alternative>
+        <Alternative>Exception enum with messages</Alternative>
+        <Alternative>Result/Either monad pattern</Alternative>
+      </Alternatives>
+      <Rationale>
+        Static factory pattern centralizes error message definitions, enables consistent
+        error codes, and simplifies exception testing. Each domain error has a unique
+        code (CART_xxx) for client-side handling and i18n. Factory methods accept
+        context parameters for rich error messages.
+      </Rationale>
+      <Pattern>
+        <![CDATA[
+/**
+ * Factory for cart domain exceptions with standardized error codes.
+ * <MODULE_CONTRACT id="MC-cart-domain-errors"
+ *   ROLE="ErrorFactory"
+ *   SERVICE="cart-service"
+ *   LAYER="domain.exception">
+ */
+public final class CartDomainErrors {
+    private CartDomainErrors() {} // Static factory only
+
+    // Error codes (CART_xxx)
+    public static final String CART_NOT_FOUND = "CART_001";
+    public static final String CART_ITEM_NOT_FOUND = "CART_002";
+    public static final String CART_INVALID_QUANTITY = "CART_003";
+    public static final String CART_INVALID_CONFIGURATION = "CART_004";
+    public static final String CART_PROMO_CODE_INVALID = "CART_005";
+    public static final String CART_PROMO_CODE_EXPIRED = "CART_006";
+    public static final String CART_PROMO_CODE_ALREADY_APPLIED = "CART_007";
+    public static final String CART_MERGE_FAILED = "CART_008";
+    public static final String CART_SNAPSHOT_INVALID_ITEMS = "CART_009";
+    public static final String CART_CHECKOUT_PRICE_CHANGED = "CART_010";
+    public static final String CART_STATE_INVALID = "CART_011";
+
+    public static CartNotFoundException cartNotFound(CartId cartId) {
+        return new CartNotFoundException(CART_NOT_FOUND,
+            "Cart not found: " + cartId.value());
+    }
+
+    public static CartItemNotFoundException itemNotFound(CartId cartId, CartItemId itemId) {
+        return new CartItemNotFoundException(CART_ITEM_NOT_FOUND,
+            "Item %s not found in cart %s".formatted(itemId.value(), cartId.value()));
+    }
+
+    public static InvalidQuantityException invalidQuantity(int quantity, int maxQuantity) {
+        return new InvalidQuantityException(CART_INVALID_QUANTITY,
+            "Invalid quantity %d. Must be between 1 and %d".formatted(quantity, maxQuantity));
+    }
+
+    public static InvalidConfigurationException invalidConfiguration(
+            String productTemplateId, String validationMessage) {
+        return new InvalidConfigurationException(CART_INVALID_CONFIGURATION,
+            "Invalid configuration for product %s: %s".formatted(productTemplateId, validationMessage));
+    }
+
+    public static PromoCodeException promoCodeInvalid(String code, String reason) {
+        return new PromoCodeException(CART_PROMO_CODE_INVALID,
+            "Promo code '%s' is invalid: %s".formatted(code, reason));
+    }
+
+    public static PromoCodeException promoCodeExpired(String code) {
+        return new PromoCodeException(CART_PROMO_CODE_EXPIRED,
+            "Promo code '%s' has expired".formatted(code));
+    }
+
+    public static PromoCodeException promoCodeAlreadyApplied(String existingCode) {
+        return new PromoCodeException(CART_PROMO_CODE_ALREADY_APPLIED,
+            "Promo code already applied: %s. Remove it before applying a new one.".formatted(existingCode));
+    }
+
+    public static CartMergeException mergeFailed(CartId source, CartId target, String reason) {
+        return new CartMergeException(CART_MERGE_FAILED,
+            "Failed to merge cart %s into %s: %s".formatted(source.value(), target.value(), reason));
+    }
+
+    public static CheckoutException snapshotHasInvalidItems(CartId cartId, int invalidCount) {
+        return new CheckoutException(CART_SNAPSHOT_INVALID_ITEMS,
+            "Cannot create snapshot for cart %s: %d items have invalid configurations"
+                .formatted(cartId.value(), invalidCount));
+    }
+
+    public static CheckoutException priceChangeExceedsThreshold(
+            CartId cartId, BigDecimal previousTotal, BigDecimal newTotal, double thresholdPercent) {
+        return new CheckoutException(CART_CHECKOUT_PRICE_CHANGED,
+            "Cart %s total changed from %s to %s (exceeds %s%% threshold). Customer acknowledgement required."
+                .formatted(cartId.value(), previousTotal, newTotal, thresholdPercent));
+    }
+
+    public static CartStateException invalidStateTransition(CartId cartId, CartStatus current, CartStatus target) {
+        return new CartStateException(CART_STATE_INVALID,
+            "Invalid state transition for cart %s: %s -> %s".formatted(cartId.value(), current, target));
+    }
+}
+        ]]>
+      </Pattern>
+      <ExceptionHierarchy>
+        <Exception name="CartDomainException" base="RuntimeException">
+          Base class for all cart domain exceptions
+        </Exception>
+        <Exception name="CartNotFoundException" extends="CartDomainException">
+          Cart does not exist
+        </Exception>
+        <Exception name="CartItemNotFoundException" extends="CartDomainException">
+          Item not found in cart
+        </Exception>
+        <Exception name="InvalidQuantityException" extends="CartDomainException">
+          Quantity constraint violated
+        </Exception>
+        <Exception name="InvalidConfigurationException" extends="CartDomainException">
+          Product configuration validation failed
+        </Exception>
+        <Exception name="PromoCodeException" extends="CartDomainException">
+          Promo code validation/application error
+        </Exception>
+        <Exception name="CartMergeException" extends="CartDomainException">
+          Cart merge operation failed
+        </Exception>
+        <Exception name="CheckoutException" extends="CartDomainException">
+          Checkout/snapshot creation error
+        </Exception>
+        <Exception name="CartStateException" extends="CartDomainException">
+          Invalid state transition
+        </Exception>
+      </ExceptionHierarchy>
+      <Links>
+        <Link ref="Technology.xml#TECH-spring-boot" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-CONFIGURATION" status="PROPOSED">
+      <Title>Externalized Configuration with @ConfigurationProperties</Title>
+      <Selected>@ConfigurationProperties class (CartProperties) for all cart configuration</Selected>
+      <Alternatives>
+        <Alternative>@Value annotations scattered across classes</Alternative>
+        <Alternative>Static final constants in service classes</Alternative>
+        <Alternative>Environment variable lookup at runtime</Alternative>
+      </Alternatives>
+      <Rationale>
+        @ConfigurationProperties provides type-safe configuration binding with validation,
+        IDE auto-completion, and centralized documentation. Enables environment-specific
+        overrides without code changes. Integrates with Spring Cloud Config for distributed
+        configuration management.
+      </Rationale>
+      <Pattern>
+        <![CDATA[
+/**
+ * Configuration properties for cart-service.
+ * <MODULE_CONTRACT id="MC-cart-properties"
+ *   ROLE="Configuration"
+ *   SERVICE="cart-service"
+ *   LAYER="adapters.config">
+ */
+@Validated
+@ConfigurationProperties(prefix = "kanokna.cart")
+public record CartProperties(
+    @NotNull ValidationProperties validation,
+    @NotNull PricingProperties pricing,
+    @NotNull TtlProperties ttl,
+    @NotNull MergeProperties merge,
+    @NotNull CheckoutProperties checkout
+) {
+    public record ValidationProperties(
+        /** Maximum allowed quantity per item (default: 100) */
+        @Min(1) @Max(1000) int maxQuantity,
+
+        /** Validation timeout in milliseconds (default: 2000) */
+        @Min(100) @Max(30000) int timeoutMs,
+
+        /** Whether to allow items with unknown validation status (default: true) */
+        boolean allowUnknownStatus
+    ) {
+        public ValidationProperties {
+            if (maxQuantity == 0) maxQuantity = 100;
+            if (timeoutMs == 0) timeoutMs = 2000;
+        }
+    }
+
+    public record PricingProperties(
+        /** Price change threshold percentage for checkout warning (default: 1.0) */
+        @DecimalMin("0.0") @DecimalMax("100.0") double changeThresholdPercent,
+
+        /** Whether to auto-refresh prices on GetCart if stale (default: false) */
+        boolean autoRefreshOnGet,
+
+        /** Maximum concurrent price refresh calls (default: 5) */
+        @Min(1) @Max(20) int maxConcurrentRefresh
+    ) {
+        public PricingProperties {
+            if (changeThresholdPercent == 0.0) changeThresholdPercent = 1.0;
+            if (maxConcurrentRefresh == 0) maxConcurrentRefresh = 5;
+        }
+    }
+
+    public record TtlProperties(
+        /** Anonymous cart TTL in hours (default: 168 = 7 days) */
+        @Min(1) @Max(8760) int anonymousCartHours,
+
+        /** Abandoned cart threshold in hours (default: 72 = 3 days) */
+        @Min(1) @Max(720) int abandonedThresholdHours,
+
+        /** Session cookie max age in seconds (default: 604800 = 7 days) */
+        @Min(3600) @Max(2592000) int sessionCookieMaxAgeSeconds
+    ) {
+        public TtlProperties {
+            if (anonymousCartHours == 0) anonymousCartHours = 168;
+            if (abandonedThresholdHours == 0) abandonedThresholdHours = 72;
+            if (sessionCookieMaxAgeSeconds == 0) sessionCookieMaxAgeSeconds = 604800;
+        }
+    }
+
+    public record MergeProperties(
+        /** Whether to sum quantities for matching items (default: true) */
+        boolean sumQuantitiesOnMatch,
+
+        /** Whether to preserve anonymous cart promo if auth cart has none (default: true) */
+        boolean preserveAnonymousPromo,
+
+        /** Maximum items allowed after merge (default: 50) */
+        @Min(1) @Max(200) int maxItemsAfterMerge
+    ) {
+        public MergeProperties {
+            if (maxItemsAfterMerge == 0) maxItemsAfterMerge = 50;
+        }
+    }
+
+    public record CheckoutProperties(
+        /** Snapshot validity period in minutes (default: 30) */
+        @Min(5) @Max(1440) int snapshotValidityMinutes,
+
+        /** Whether customer acknowledgement is required for price changes (default: true) */
+        boolean requirePriceChangeAcknowledgement,
+
+        /** Whether to fail snapshot if any item has unknown validation (default: false) */
+        boolean failOnUnknownValidation
+    ) {
+        public CheckoutProperties {
+            if (snapshotValidityMinutes == 0) snapshotValidityMinutes = 30;
+        }
+    }
+}
+        ]]>
+      </Pattern>
+      <ApplicationYamlExample>
+        <![CDATA[
+kanokna:
+  cart:
+    validation:
+      max-quantity: 100
+      timeout-ms: 2000
+      allow-unknown-status: true
+    pricing:
+      change-threshold-percent: 1.0
+      auto-refresh-on-get: false
+      max-concurrent-refresh: 5
+    ttl:
+      anonymous-cart-hours: 168
+      abandoned-threshold-hours: 72
+      session-cookie-max-age-seconds: 604800
+    merge:
+      sum-quantities-on-match: true
+      preserve-anonymous-promo: true
+      max-items-after-merge: 50
+    checkout:
+      snapshot-validity-minutes: 30
+      require-price-change-acknowledgement: true
+      fail-on-unknown-validation: false
+        ]]>
+      </ApplicationYamlExample>
+      <Links>
+        <Link ref="Technology.xml#TECH-spring-boot" />
+        <Link ref="Technology.xml#TECH-spring-cloud-config" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-CART-MAPSTRUCT" status="PROPOSED">
+      <Title>MapStruct for Entity-Domain Mapping</Title>
+      <Selected>MapStruct mapper interfaces for Cart and CartItem conversions</Selected>
+      <Alternatives>
+        <Alternative>Manual mapping in repository adapters</Alternative>
+        <Alternative>ModelMapper with reflection</Alternative>
+        <Alternative>Orika mapper</Alternative>
+      </Alternatives>
+      <Rationale>
+        MapStruct generates type-safe, compile-time verified mapping code with no runtime
+        reflection overhead. Integrates seamlessly with Spring dependency injection.
+        Supports custom mappings for complex types (Money, ValueObjects).
+      </Rationale>
+      <Pattern>
+        <![CDATA[
+@Mapper(componentModel = "spring", uses = {MoneyMapper.class, CartIdMapper.class})
+public interface CartEntityMapper {
+
+    @Mapping(target = "id", source = "cartId.value")
+    @Mapping(target = "customerId", source = "customerId.value")
+    @Mapping(target = "sessionId", source = "sessionId.value")
+    @Mapping(target = "status", source = "status.name")
+    CartJpaEntity toEntity(Cart cart);
+
+    @Mapping(target = "cartId", expression = "java(CartId.of(entity.getId()))")
+    @Mapping(target = "customerId", expression = "java(entity.getCustomerId() != null ? CustomerId.of(entity.getCustomerId()) : null)")
+    @Mapping(target = "sessionId", expression = "java(entity.getSessionId() != null ? SessionId.of(entity.getSessionId()) : null)")
+    @Mapping(target = "status", expression = "java(CartStatus.valueOf(entity.getStatus()))")
+    Cart toDomain(CartJpaEntity entity);
+
+    List<CartItem> toCartItems(List<CartItemJpaEntity> entities);
+
+    @Mapping(target = "itemId", expression = "java(CartItemId.of(entity.getId()))")
+    CartItem toCartItem(CartItemJpaEntity entity);
+}
+        ]]>
+      </Pattern>
+      <Links>
+        <Link ref="Technology.xml#TECH-mapstruct" />
+      </Links>
+    </Decision>
+  </TechnologyDecisions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 2: SERVICE INTERNAL STRUCTURE UPDATE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <InternalStructureUpdate serviceRef="DP-SVC-cart-service">
+    <Description>
+      Internal service structure defining the 6 application services within cart-service.
+      This does NOT change the external service definition, only the internal organization
+      of the application layer.
+    </Description>
+
+    <ApplicationLayerStructure>
+      <Package>com.kanokna.cart.application.service</Package>
+
+      <Service id="CART-SVC-001" name="CartApplicationService" role="orchestrator">
+        <Description>
+          Main orchestrator delegating to specialized sub-services. Implements all 10
+          use case interfaces but delegates heavy lifting to sub-services.
+        </Description>
+        <TargetLineCount>200-300</TargetLineCount>
+        <Implements>
+          <Interface>GetCartUseCase</Interface>
+          <Interface>AddItemUseCase</Interface>
+          <Interface>UpdateItemUseCase</Interface>
+          <Interface>RemoveItemUseCase</Interface>
+          <Interface>ClearCartUseCase</Interface>
+          <Interface>RefreshPricesUseCase</Interface>
+          <Interface>ApplyPromoCodeUseCase</Interface>
+          <Interface>RemovePromoCodeUseCase</Interface>
+          <Interface>MergeCartsUseCase</Interface>
+          <Interface>CreateSnapshotUseCase</Interface>
+        </Implements>
+        <Dependencies>
+          <Dependency ref="CART-SVC-002">CartItemValidationService</Dependency>
+          <Dependency ref="CART-SVC-003">CartPricingService</Dependency>
+          <Dependency ref="CART-SVC-004">CartMergingService</Dependency>
+          <Dependency ref="CART-SVC-005">CartCheckoutService</Dependency>
+          <Dependency ref="CART-SVC-006">CartPromoCodeService</Dependency>
+          <Dependency>CartRepository</Dependency>
+          <Dependency>CartEventPublisher</Dependency>
+          <Dependency>CartProperties</Dependency>
+        </Dependencies>
+        <Responsibilities>
+          <Item>Route use case calls to appropriate sub-service</Item>
+          <Item>Manage transactional boundaries</Item>
+          <Item>Coordinate multi-step operations</Item>
+          <Item>Publish domain events</Item>
+          <Item>Handle cart loading and saving</Item>
+        </Responsibilities>
+      </Service>
+
+      <Service id="CART-SVC-002" name="CartItemValidationService" role="sub-service">
+        <Description>
+          Handles item configuration validation via catalog-configuration-service gRPC.
+          Validates configurations on add, update, and lazy revalidation on cart retrieval.
+        </Description>
+        <TargetLineCount>150-200</TargetLineCount>
+        <Dependencies>
+          <Dependency>CatalogConfigurationClient (gRPC)</Dependency>
+          <Dependency>CartProperties.ValidationProperties</Dependency>
+        </Dependencies>
+        <Responsibilities>
+          <Item>Validate item configuration on add-to-cart</Item>
+          <Item>Revalidate items on cart retrieval (lazy validation)</Item>
+          <Item>Mark items with ValidationStatus (VALID, INVALID, UNKNOWN)</Item>
+          <Item>Handle validation timeouts gracefully</Item>
+          <Item>Check for items with invalid configurations before checkout</Item>
+        </Responsibilities>
+        <ExposedMethods>
+          <Method name="validateConfiguration" returns="ValidationResult">
+            Validate single configuration synchronously
+          </Method>
+          <Method name="revalidateCartItems" returns="List&lt;CartItem&gt;">
+            Revalidate all items in cart, update validation status
+          </Method>
+          <Method name="hasInvalidItems" returns="boolean">
+            Check if cart has any items with INVALID status
+          </Method>
+          <Method name="countInvalidItems" returns="int">
+            Count items with INVALID status
+          </Method>
+        </ExposedMethods>
+      </Service>
+
+      <Service id="CART-SVC-003" name="CartPricingService" role="sub-service">
+        <Description>
+          Handles price calculations via pricing-service gRPC. Fetches quotes, checks
+          staleness, refreshes prices, and manages price change detection.
+        </Description>
+        <TargetLineCount>200-250</TargetLineCount>
+        <Dependencies>
+          <Dependency>PricingServiceClient (gRPC)</Dependency>
+          <Dependency>CartProperties.PricingProperties</Dependency>
+        </Dependencies>
+        <Responsibilities>
+          <Item>Fetch price quotes for items via CalculateQuote RPC</Item>
+          <Item>Check quote validity and staleness</Item>
+          <Item>Refresh prices for all cart items</Item>
+          <Item>Calculate cart totals (subtotal, discount, tax, total)</Item>
+          <Item>Detect price changes exceeding threshold</Item>
+          <Item>Support concurrent price refresh with configurable parallelism</Item>
+        </Responsibilities>
+        <ExposedMethods>
+          <Method name="fetchQuote" returns="PriceQuoteReference">
+            Get price quote for a single item configuration
+          </Method>
+          <Method name="refreshAllPrices" returns="PriceRefreshResult">
+            Refresh prices for all items, return change summary
+          </Method>
+          <Method name="checkPriceStaleness" returns="List&lt;CartItem&gt;">
+            Mark items as stale if quote expired
+          </Method>
+          <Method name="calculateTotals" returns="CartTotals">
+            Calculate subtotal, discount, tax, total
+          </Method>
+          <Method name="isPriceChangeSignificant" returns="boolean">
+            Check if total change exceeds configured threshold
+          </Method>
+        </ExposedMethods>
+      </Service>
+
+      <Service id="CART-SVC-004" name="CartMergingService" role="sub-service">
+        <Description>
+          Handles cart merging logic when anonymous user logs in. Implements merge rules
+          for item matching, quantity summing, and promo code preservation.
+        </Description>
+        <TargetLineCount>150-200</TargetLineCount>
+        <Dependencies>
+          <Dependency ref="CART-SVC-003">CartPricingService</Dependency>
+          <Dependency>CartProperties.MergeProperties</Dependency>
+        </Dependencies>
+        <Responsibilities>
+          <Item>Match items by configuration hash</Item>
+          <Item>Sum quantities for matching items</Item>
+          <Item>Add non-matching items to target cart</Item>
+          <Item>Handle promo code preservation logic</Item>
+          <Item>Refresh prices after merge</Item>
+          <Item>Enforce max items limit after merge</Item>
+        </Responsibilities>
+        <ExposedMethods>
+          <Method name="mergeCarts" returns="MergeResult">
+            Merge source cart into target cart
+          </Method>
+          <Method name="findMatchingItem" returns="Optional&lt;CartItem&gt;">
+            Find item with matching configuration hash
+          </Method>
+          <Method name="canMerge" returns="boolean">
+            Check if merge is possible (item count limits)
+          </Method>
+        </ExposedMethods>
+        <MergeRulesImplemented>
+          <Rule ref="MERGE-001">Items with identical configuration hash - sum quantities</Rule>
+          <Rule ref="MERGE-002">Items with different configurations - both kept</Rule>
+          <Rule ref="MERGE-003">Auth cart promo code takes precedence</Rule>
+          <Rule ref="MERGE-004">Anonymous promo preserved if auth has none</Rule>
+          <Rule ref="MERGE-005">All prices refreshed after merge</Rule>
+          <Rule ref="MERGE-006">Anonymous cart deleted after successful merge</Rule>
+        </MergeRulesImplemented>
+      </Service>
+
+      <Service id="CART-SVC-005" name="CartCheckoutService" role="sub-service">
+        <Description>
+          Handles checkout preparation including validation, price refresh, and
+          immutable snapshot creation for order-service handoff.
+        </Description>
+        <TargetLineCount>150-200</TargetLineCount>
+        <Dependencies>
+          <Dependency ref="CART-SVC-002">CartItemValidationService</Dependency>
+          <Dependency ref="CART-SVC-003">CartPricingService</Dependency>
+          <Dependency>CartSnapshotRepository</Dependency>
+          <Dependency>CartProperties.CheckoutProperties</Dependency>
+        </Dependencies>
+        <Responsibilities>
+          <Item>Validate all items before snapshot creation</Item>
+          <Item>Refresh all prices before snapshot</Item>
+          <Item>Check for price change threshold violation</Item>
+          <Item>Create immutable CartSnapshot aggregate</Item>
+          <Item>Transition cart state to CHECKED_OUT</Item>
+          <Item>Clear cart items after snapshot (optional)</Item>
+        </Responsibilities>
+        <ExposedMethods>
+          <Method name="createSnapshot" returns="CartSnapshot">
+            Create immutable snapshot for checkout
+          </Method>
+          <Method name="validateForCheckout" returns="CheckoutValidationResult">
+            Validate cart is ready for checkout
+          </Method>
+          <Method name="requiresAcknowledgement" returns="boolean">
+            Check if price change acknowledgement needed
+          </Method>
+        </ExposedMethods>
+      </Service>
+
+      <Service id="CART-SVC-006" name="CartPromoCodeService" role="sub-service">
+        <Description>
+          Handles promo code operations via pricing-service.ValidatePromoCode RPC.
+          Validates codes, applies discounts, and manages promo code state.
+        </Description>
+        <TargetLineCount>100-150</TargetLineCount>
+        <Dependencies>
+          <Dependency>PricingServiceClient (gRPC)</Dependency>
+          <Dependency ref="CART-SVC-003">CartPricingService</Dependency>
+        </Dependencies>
+        <Responsibilities>
+          <Item>Validate promo code via ValidatePromoCode RPC</Item>
+          <Item>Apply discount to cart</Item>
+          <Item>Remove applied promo code</Item>
+          <Item>Ensure only one promo code at a time</Item>
+          <Item>Recalculate totals after promo changes</Item>
+        </Responsibilities>
+        <ExposedMethods>
+          <Method name="applyPromoCode" returns="ApplyPromoResult">
+            Validate and apply promo code to cart
+          </Method>
+          <Method name="removePromoCode" returns="Cart">
+            Remove applied promo code from cart
+          </Method>
+          <Method name="validatePromoCode" returns="PromoValidationResult">
+            Validate promo code without applying
+          </Method>
+        </ExposedMethods>
+      </Service>
+    </ApplicationLayerStructure>
+
+    <PackageStructure>
+      <![CDATA[
+com.kanokna.cart.application.service/
+├── CartApplicationService.java          # Orchestrator (200-300 lines)
+├── CartItemValidationService.java       # Validation sub-service
+├── CartPricingService.java              # Pricing sub-service
+├── CartMergingService.java              # Merge sub-service
+├── CartCheckoutService.java             # Checkout sub-service
+├── CartPromoCodeService.java            # Promo code sub-service
+└── dto/
+    ├── ValidationResult.java
+    ├── PriceRefreshResult.java
+    ├── MergeResult.java
+    ├── CheckoutValidationResult.java
+    └── ApplyPromoResult.java
+      ]]>
+    </PackageStructure>
+  </InternalStructureUpdate>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 3: MODULE CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ModuleContracts>
+    <ModuleContract id="MC-cart-orchestrator">
+      <![CDATA[
+/* <MODULE_CONTRACT id="MC-cart-orchestrator"
+     ROLE="ApplicationService"
+     SERVICE="cart-service"
+     LAYER="application.service"
+     BOUNDED_CONTEXT="cart"
+     SPECIFICATION="UC-CART-MANAGE;UC-CART-APPLY-PROMO;UC-ORDER-PLACE">
+  <PURPOSE>
+    Orchestrator service implementing all cart use cases by delegating to
+    specialized sub-services. Manages transactional boundaries and event publishing.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Route use case calls to appropriate sub-service</Item>
+    <Item>Manage @Transactional boundaries</Item>
+    <Item>Coordinate multi-step operations</Item>
+    <Item>Publish domain events via CartEventPublisher</Item>
+    <Item>Handle cart aggregate loading and saving</Item>
+    <Item>Apply structured logging for all operations</Item>
+  </RESPONSIBILITIES>
+
+  <DEPENDENCIES>
+    <Item>CartItemValidationService: configuration validation</Item>
+    <Item>CartPricingService: price fetching and calculations</Item>
+    <Item>CartMergingService: anonymous-to-auth cart merging</Item>
+    <Item>CartCheckoutService: snapshot creation</Item>
+    <Item>CartPromoCodeService: promo code operations</Item>
+    <Item>CartRepository: cart persistence</Item>
+    <Item>CartEventPublisher: domain event publishing</Item>
+    <Item>CartProperties: externalized configuration</Item>
+  </DEPENDENCIES>
+
+  <INVARIANTS>
+    <Item>Each method corresponds to exactly one use case</Item>
+    <Item>Sub-services must not call each other directly except where documented</Item>
+    <Item>All mutations must publish corresponding domain events</Item>
+    <Item>No method may exceed 30 lines of code</Item>
+  </INVARIANTS>
+
+  <ARCHITECTURE>
+    <TECHNOLOGY ref="Technology.xml#TECH-spring-boot" />
+    <TECHNOLOGY ref="Technology.xml#DEC-CART-LOGGING" />
+  </ARCHITECTURE>
+
+  <LINKS>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+    <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]>
+    </ModuleContract>
+
+    <ModuleContract id="MC-cart-item-validation">
+      <![CDATA[
+/* <MODULE_CONTRACT id="MC-cart-item-validation"
+     ROLE="SubService"
+     SERVICE="cart-service"
+     LAYER="application.service"
+     BOUNDED_CONTEXT="cart"
+     SPECIFICATION="DEC-CART-VALIDATION">
+  <PURPOSE>
+    Handles item configuration validation via catalog-configuration-service gRPC.
+    Provides synchronous validation on add and lazy revalidation on cart retrieval.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Validate configurations via ValidateConfiguration RPC</Item>
+    <Item>Mark items with ValidationStatus (VALID, INVALID, UNKNOWN)</Item>
+    <Item>Handle validation timeouts (return UNKNOWN status)</Item>
+    <Item>Provide checkout readiness checks</Item>
+  </RESPONSIBILITIES>
+
+  <DEPENDENCIES>
+    <Item>CatalogConfigurationClient: gRPC client for validation</Item>
+    <Item>CartProperties.ValidationProperties: timeout, max quantity config</Item>
+  </DEPENDENCIES>
+
+  <INVARIANTS>
+    <Item>Never block indefinitely - respect timeout configuration</Item>
+    <Item>On timeout, status is UNKNOWN (not failure)</Item>
+    <Item>Validation failures must include reason from catalog service</Item>
+  </INVARIANTS>
+
+  <ARCHITECTURE>
+    <TECHNOLOGY ref="Technology.xml#TECH-grpc" />
+    <TECHNOLOGY ref="Technology.xml#DEC-CART-VALIDATION" />
+  </ARCHITECTURE>
+
+  <LINKS>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]>
+    </ModuleContract>
+
+    <ModuleContract id="MC-cart-pricing">
+      <![CDATA[
+/* <MODULE_CONTRACT id="MC-cart-pricing"
+     ROLE="SubService"
+     SERVICE="cart-service"
+     LAYER="application.service"
+     BOUNDED_CONTEXT="cart"
+     SPECIFICATION="DEC-CART-PRICE-LOCK">
+  <PURPOSE>
+    Handles all pricing operations via pricing-service gRPC. Fetches quotes,
+    manages staleness, refreshes prices, and calculates cart totals.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Fetch price quotes via CalculateQuote RPC</Item>
+    <Item>Check quote validity against configured TTL</Item>
+    <Item>Refresh all prices with configurable concurrency</Item>
+    <Item>Calculate subtotal, discount, tax, total</Item>
+    <Item>Detect significant price changes</Item>
+  </RESPONSIBILITIES>
+
+  <DEPENDENCIES>
+    <Item>PricingServiceClient: gRPC client for quotes</Item>
+    <Item>CartProperties.PricingProperties: threshold, concurrency config</Item>
+  </DEPENDENCIES>
+
+  <INVARIANTS>
+    <Item>Concurrent refresh limited to maxConcurrentRefresh</Item>
+    <Item>Price change threshold applied to percentage difference</Item>
+    <Item>Totals calculation: total = subtotal - discount + tax</Item>
+  </INVARIANTS>
+
+  <ARCHITECTURE>
+    <TECHNOLOGY ref="Technology.xml#TECH-grpc" />
+    <TECHNOLOGY ref="Technology.xml#DEC-CART-PRICE-LOCK" />
+    <TECHNOLOGY ref="Technology.xml#DEC-PRICING-QUOTE-TTL" />
+  </ARCHITECTURE>
+
+  <LINKS>
+    <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]>
+    </ModuleContract>
+
+    <ModuleContract id="MC-cart-merging">
+      <![CDATA[
+/* <MODULE_CONTRACT id="MC-cart-merging"
+     ROLE="SubService"
+     SERVICE="cart-service"
+     LAYER="application.service"
+     BOUNDED_CONTEXT="cart"
+     SPECIFICATION="DEC-CART-MERGE">
+  <PURPOSE>
+    Implements cart merge logic for anonymous-to-authenticated cart transitions.
+    Handles item matching, quantity summing, and promo code preservation.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Match items by configuration hash (MERGE-001, MERGE-002)</Item>
+    <Item>Sum quantities for matching items</Item>
+    <Item>Preserve promo code per merge rules (MERGE-003, MERGE-004)</Item>
+    <Item>Refresh prices after merge (MERGE-005)</Item>
+    <Item>Mark source cart as MERGED state (MERGE-006)</Item>
+    <Item>Enforce max items limit</Item>
+  </RESPONSIBILITIES>
+
+  <DEPENDENCIES>
+    <Item>CartPricingService: refresh prices after merge</Item>
+    <Item>CartProperties.MergeProperties: max items, promo preservation config</Item>
+  </DEPENDENCIES>
+
+  <INVARIANTS>
+    <Item>Items with same configuration_hash are merged</Item>
+    <Item>Items with different configuration_hash are both kept</Item>
+    <Item>Total items after merge must not exceed maxItemsAfterMerge</Item>
+    <Item>Source cart transitions to MERGED state after success</Item>
+  </INVARIANTS>
+
+  <ARCHITECTURE>
+    <TECHNOLOGY ref="Technology.xml#DEC-CART-MERGE" />
+    <TECHNOLOGY ref="Technology.xml#DEC-CART-STATE-MACHINE" />
+  </ARCHITECTURE>
+
+  <LINKS>
+    <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]>
+    </ModuleContract>
+
+    <ModuleContract id="MC-cart-checkout">
+      <![CDATA[
+/* <MODULE_CONTRACT id="MC-cart-checkout"
+     ROLE="SubService"
+     SERVICE="cart-service"
+     LAYER="application.service"
+     BOUNDED_CONTEXT="cart"
+     SPECIFICATION="UC-ORDER-PLACE">
+  <PURPOSE>
+    Prepares cart for checkout by creating an immutable CartSnapshot for
+    order-service handoff. Validates all items and refreshes prices.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Validate all items have VALID status</Item>
+    <Item>Refresh all prices before snapshot</Item>
+    <Item>Detect price change threshold violations</Item>
+    <Item>Create immutable CartSnapshot aggregate</Item>
+    <Item>Transition cart to CHECKED_OUT state</Item>
+    <Item>Set snapshot validity period</Item>
+  </RESPONSIBILITIES>
+
+  <DEPENDENCIES>
+    <Item>CartItemValidationService: item validation</Item>
+    <Item>CartPricingService: price refresh</Item>
+    <Item>CartSnapshotRepository: snapshot persistence</Item>
+    <Item>CartProperties.CheckoutProperties: validity, acknowledgement config</Item>
+  </DEPENDENCIES>
+
+  <INVARIANTS>
+    <Item>Snapshot fails if any item has INVALID status</Item>
+    <Item>Prices always refreshed immediately before snapshot</Item>
+    <Item>Snapshot is immutable after creation</Item>
+    <Item>Snapshot expires after snapshotValidityMinutes</Item>
+  </INVARIANTS>
+
+  <ARCHITECTURE>
+    <TECHNOLOGY ref="Technology.xml#DEC-CART-VALIDATION" />
+    <TECHNOLOGY ref="Technology.xml#DEC-CART-PRICE-LOCK" />
+    <TECHNOLOGY ref="Technology.xml#DEC-CART-STATE-MACHINE" />
+  </ARCHITECTURE>
+
+  <LINKS>
+    <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE" />
+    <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment" />
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]>
+    </ModuleContract>
+
+    <ModuleContract id="MC-cart-promo-code">
+      <![CDATA[
+/* <MODULE_CONTRACT id="MC-cart-promo-code"
+     ROLE="SubService"
+     SERVICE="cart-service"
+     LAYER="application.service"
+     BOUNDED_CONTEXT="cart"
+     SPECIFICATION="UC-CART-APPLY-PROMO">
+  <PURPOSE>
+    Handles promotional code operations including validation, application,
+    and removal via pricing-service.ValidatePromoCode RPC.
+  </PURPOSE>
+
+  <RESPONSIBILITIES>
+    <Item>Validate promo codes via ValidatePromoCode RPC</Item>
+    <Item>Apply discount to cart totals</Item>
+    <Item>Remove applied promo code</Item>
+    <Item>Enforce single promo code rule</Item>
+    <Item>Recalculate totals after changes</Item>
+  </RESPONSIBILITIES>
+
+  <DEPENDENCIES>
+    <Item>PricingServiceClient: gRPC client for ValidatePromoCode</Item>
+    <Item>CartPricingService: totals recalculation</Item>
+  </DEPENDENCIES>
+
+  <INVARIANTS>
+    <Item>Only one promo code per cart</Item>
+    <Item>Must remove existing before applying new</Item>
+    <Item>Discount cannot exceed subtotal</Item>
+    <Item>Expired promo codes are rejected</Item>
+  </INVARIANTS>
+
+  <ARCHITECTURE>
+    <TECHNOLOGY ref="Technology.xml#TECH-grpc" />
+    <TECHNOLOGY ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
+  </ARCHITECTURE>
+
+  <LINKS>
+    <Link ref="RequirementsAnalysis.xml#UC-CART-APPLY-PROMO" />
+  </LINKS>
+</MODULE_CONTRACT> */
+      ]]>
+    </ModuleContract>
+  </ModuleContracts>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 4: FUNCTION CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FunctionContracts>
+    <!-- NOTE: Existing FUNCTION_CONTRACTs from Handoff-20260109-01 are preserved.
+         Below are ADDITIONAL contracts for the refactored sub-service methods. -->
+
+    <FunctionContract id="FC-cart-orchestrator-getCart">
+      <![CDATA[
+/* <FUNCTION_CONTRACT id="FC-cart-orchestrator-getCart"
+     MODULE_REF="MC-cart-orchestrator"
+     OPERATION="getCart"
+     VISIBILITY="public">
+  <SIGNATURE>
+    Cart getCart(GetCartCommand command)
+  </SIGNATURE>
+
+  <PURPOSE>
+    Retrieve cart by customer ID or session ID. Delegates to validation service
+    for lazy revalidation and pricing service for staleness check.
+  </PURPOSE>
+
+  <PRECONDITIONS>
+    <Item>command.customerId or command.sessionId must be present</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>Returns cart with items, totals, and validation status</Item>
+    <Item>Items marked with staleness flag if quote expired</Item>
+    <Item>Items marked with validation status from lazy revalidation</Item>
+  </POSTCONDITIONS>
+
+  <EXCEPTIONS>
+    <Item>CartNotFoundException: if cart does not exist and create=false</Item>
+  </EXCEPTIONS>
+
+  <BLOCK_ANCHORS>
+    <BLOCK_ANCHOR id="BA-getCart-load" purpose="Load cart from repository" />
+    <BLOCK_ANCHOR id="BA-getCart-revalidate" purpose="Lazy revalidation delegation" />
+    <BLOCK_ANCHOR id="BA-getCart-staleness" purpose="Check price staleness" />
+    <BLOCK_ANCHOR id="BA-getCart-return" purpose="Return cart with updated statuses" />
+  </BLOCK_ANCHORS>
+</FUNCTION_CONTRACT> */
+      ]]>
+    </FunctionContract>
+
+    <FunctionContract id="FC-cart-orchestrator-addItem">
+      <![CDATA[
+/* <FUNCTION_CONTRACT id="FC-cart-orchestrator-addItem"
+     MODULE_REF="MC-cart-orchestrator"
+     OPERATION="addItem"
+     VISIBILITY="public">
+  <SIGNATURE>
+    Cart addItem(AddItemCommand command)
+  </SIGNATURE>
+
+  <PURPOSE>
+    Add configured item to cart. Validates configuration, fetches price quote,
+    creates cart if needed, publishes CartItemAddedEvent.
+  </PURPOSE>
+
+  <PRECONDITIONS>
+    <Item>command.configuration must be valid (validated via sub-service)</Item>
+    <Item>command.quantity >= 1 and <= maxQuantity</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>Item added with current price quote</Item>
+    <Item>Cart totals recalculated</Item>
+    <Item>CartItemAddedEvent published</Item>
+    <Item>Cart state reset to ACTIVE if was ABANDONED</Item>
+  </POSTCONDITIONS>
+
+  <EXCEPTIONS>
+    <Item>InvalidConfigurationException: if configuration validation fails</Item>
+    <Item>InvalidQuantityException: if quantity out of range</Item>
+  </EXCEPTIONS>
+
+  <BLOCK_ANCHORS>
+    <BLOCK_ANCHOR id="BA-addItem-validate" purpose="Validate configuration" />
+    <BLOCK_ANCHOR id="BA-addItem-fetchQuote" purpose="Fetch price quote" />
+    <BLOCK_ANCHOR id="BA-addItem-createItem" purpose="Create CartItem entity" />
+    <BLOCK_ANCHOR id="BA-addItem-recalculate" purpose="Recalculate totals" />
+    <BLOCK_ANCHOR id="BA-addItem-publish" purpose="Publish event" />
+  </BLOCK_ANCHORS>
+</FUNCTION_CONTRACT> */
+      ]]>
+    </FunctionContract>
+
+    <FunctionContract id="FC-cart-validation-validateConfiguration">
+      <![CDATA[
+/* <FUNCTION_CONTRACT id="FC-cart-validation-validateConfiguration"
+     MODULE_REF="MC-cart-item-validation"
+     OPERATION="validateConfiguration"
+     VISIBILITY="package">
+  <SIGNATURE>
+    ValidationResult validateConfiguration(String productTemplateId,
+                                           List<SelectedOption> options,
+                                           Dimensions dimensions)
+  </SIGNATURE>
+
+  <PURPOSE>
+    Validate product configuration via catalog-configuration-service gRPC.
+    Returns validation result with status and optional error message.
+  </PURPOSE>
+
+  <PRECONDITIONS>
+    <Item>productTemplateId must be non-null</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>Returns VALID if configuration passes all rules</Item>
+    <Item>Returns INVALID with message if validation fails</Item>
+    <Item>Returns UNKNOWN if timeout or service unavailable</Item>
+  </POSTCONDITIONS>
+
+  <EXCEPTIONS>
+    <Item>None thrown - errors mapped to ValidationStatus.UNKNOWN</Item>
+  </EXCEPTIONS>
+
+  <TIMEOUT>
+    Respects CartProperties.validation.timeoutMs (default: 2000ms)
+  </TIMEOUT>
+</FUNCTION_CONTRACT> */
+      ]]>
+    </FunctionContract>
+
+    <FunctionContract id="FC-cart-pricing-refreshAllPrices">
+      <![CDATA[
+/* <FUNCTION_CONTRACT id="FC-cart-pricing-refreshAllPrices"
+     MODULE_REF="MC-cart-pricing"
+     OPERATION="refreshAllPrices"
+     VISIBILITY="package">
+  <SIGNATURE>
+    PriceRefreshResult refreshAllPrices(Cart cart)
+  </SIGNATURE>
+
+  <PURPOSE>
+    Refresh prices for all items in cart via pricing-service. Returns summary
+    of changes including previous and new totals.
+  </PURPOSE>
+
+  <PRECONDITIONS>
+    <Item>Cart must have at least one item</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>All items have current price quotes</Item>
+    <Item>price_stale flag cleared for all items</Item>
+    <Item>Cart totals recalculated</Item>
+    <Item>Result includes change detection info</Item>
+  </POSTCONDITIONS>
+
+  <CONCURRENCY>
+    Calls pricing-service in parallel, limited by CartProperties.pricing.maxConcurrentRefresh
+  </CONCURRENCY>
+</FUNCTION_CONTRACT> */
+      ]]>
+    </FunctionContract>
+
+    <FunctionContract id="FC-cart-merging-mergeCarts">
+      <![CDATA[
+/* <FUNCTION_CONTRACT id="FC-cart-merging-mergeCarts"
+     MODULE_REF="MC-cart-merging"
+     OPERATION="mergeCarts"
+     VISIBILITY="package">
+  <SIGNATURE>
+    MergeResult mergeCarts(Cart sourceCart, Cart targetCart)
+  </SIGNATURE>
+
+  <PURPOSE>
+    Merge anonymous (source) cart into authenticated (target) cart following
+    the merge rules defined in DEC-CART-MERGE.
+  </PURPOSE>
+
+  <PRECONDITIONS>
+    <Item>sourceCart must be anonymous (session-based)</Item>
+    <Item>targetCart must be authenticated (customer-based)</Item>
+    <Item>Combined item count must not exceed maxItemsAfterMerge</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>All items from source present in target (merged or added)</Item>
+    <Item>Source cart state changed to MERGED</Item>
+    <Item>Prices refreshed in target cart</Item>
+    <Item>Result contains merge statistics</Item>
+  </POSTCONDITIONS>
+
+  <EXCEPTIONS>
+    <Item>CartMergeException: if merge rules violated or limit exceeded</Item>
+  </EXCEPTIONS>
+
+  <MERGE_RULES>
+    <Rule>MERGE-001: Same config hash -> sum quantities</Rule>
+    <Rule>MERGE-002: Different config -> keep both</Rule>
+    <Rule>MERGE-003: Target promo takes precedence</Rule>
+    <Rule>MERGE-004: Source promo kept if target has none</Rule>
+    <Rule>MERGE-005: Prices refreshed after merge</Rule>
+    <Rule>MERGE-006: Source deleted after merge</Rule>
+  </MERGE_RULES>
+</FUNCTION_CONTRACT> */
+      ]]>
+    </FunctionContract>
+
+    <FunctionContract id="FC-cart-checkout-createSnapshot">
+      <![CDATA[
+/* <FUNCTION_CONTRACT id="FC-cart-checkout-createSnapshot"
+     MODULE_REF="MC-cart-checkout"
+     OPERATION="createSnapshot"
+     VISIBILITY="package">
+  <SIGNATURE>
+    CartSnapshot createSnapshot(Cart cart, boolean acknowledgesPriceChange)
+  </SIGNATURE>
+
+  <PURPOSE>
+    Create immutable cart snapshot for checkout handoff to order-service.
+    Validates all items and refreshes prices before snapshot creation.
+  </PURPOSE>
+
+  <PRECONDITIONS>
+    <Item>Cart must have at least one item</Item>
+    <Item>All items must have VALID validation status</Item>
+    <Item>If price change > threshold, acknowledgesPriceChange must be true</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>Immutable CartSnapshot created with current prices</Item>
+    <Item>Snapshot has validity period set</Item>
+    <Item>Cart state changed to CHECKED_OUT</Item>
+    <Item>CartCheckedOutEvent published</Item>
+  </POSTCONDITIONS>
+
+  <EXCEPTIONS>
+    <Item>CheckoutException(CART_SNAPSHOT_INVALID_ITEMS): if any item INVALID</Item>
+    <Item>CheckoutException(CART_CHECKOUT_PRICE_CHANGED): if threshold exceeded without acknowledgement</Item>
+  </EXCEPTIONS>
+
+  <BLOCK_ANCHORS>
+    <BLOCK_ANCHOR id="BA-snapshot-validate" purpose="Validate all items" />
+    <BLOCK_ANCHOR id="BA-snapshot-refresh" purpose="Refresh all prices" />
+    <BLOCK_ANCHOR id="BA-snapshot-checkThreshold" purpose="Check price change threshold" />
+    <BLOCK_ANCHOR id="BA-snapshot-create" purpose="Create immutable snapshot" />
+    <BLOCK_ANCHOR id="BA-snapshot-transition" purpose="Transition cart state" />
+  </BLOCK_ANCHORS>
+</FUNCTION_CONTRACT> */
+      ]]>
+    </FunctionContract>
+
+    <FunctionContract id="FC-cart-promo-applyPromoCode">
+      <![CDATA[
+/* <FUNCTION_CONTRACT id="FC-cart-promo-applyPromoCode"
+     MODULE_REF="MC-cart-promo-code"
+     OPERATION="applyPromoCode"
+     VISIBILITY="package">
+  <SIGNATURE>
+    ApplyPromoResult applyPromoCode(Cart cart, String promoCode)
+  </SIGNATURE>
+
+  <PURPOSE>
+    Validate and apply promotional code to cart. Validates via pricing-service,
+    calculates discount, and updates cart totals.
+  </PURPOSE>
+
+  <PRECONDITIONS>
+    <Item>promoCode must be non-null and non-empty</Item>
+    <Item>Cart must not already have a promo code applied</Item>
+  </PRECONDITIONS>
+
+  <POSTCONDITIONS>
+    <Item>Promo code applied to cart with discount amount</Item>
+    <Item>Cart totals recalculated with discount</Item>
+    <Item>PromoCodeAppliedEvent published</Item>
+  </POSTCONDITIONS>
+
+  <EXCEPTIONS>
+    <Item>PromoCodeException(CART_PROMO_CODE_INVALID): if code invalid</Item>
+    <Item>PromoCodeException(CART_PROMO_CODE_EXPIRED): if code expired</Item>
+    <Item>PromoCodeException(CART_PROMO_CODE_ALREADY_APPLIED): if cart has promo</Item>
+  </EXCEPTIONS>
+</FUNCTION_CONTRACT> */
+      ]]>
+    </FunctionContract>
+  </FunctionContracts>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 5: SPECIFICATIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Specifications>
+    <Specification id="SPEC-CartProperties">
+      <File>com/kanokna/cart/adapters/config/CartProperties.java</File>
+      <Description>
+        @ConfigurationProperties class consolidating all cart configuration.
+        Replaces scattered magic numbers and @Value annotations.
+      </Description>
+      <Content>
+        <![CDATA[
+package com.kanokna.cart.adapters.config;
+
+import jakarta.validation.constraints.*;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * Configuration properties for cart-service.
+ *
+ * <MODULE_CONTRACT id="MC-cart-properties"
+ *   ROLE="Configuration"
+ *   SERVICE="cart-service"
+ *   LAYER="adapters.config">
+ *   <PURPOSE>Centralized, type-safe configuration for cart operations</PURPOSE>
+ *   <LINKS>
+ *     <Link ref="Technology.xml#DEC-CART-CONFIGURATION" />
+ *   </LINKS>
+ * </MODULE_CONTRACT>
+ *
+ * @see DEC-CART-CONFIGURATION
+ */
+@Validated
+@ConfigurationProperties(prefix = "kanokna.cart")
+public record CartProperties(
+    @NotNull ValidationProperties validation,
+    @NotNull PricingProperties pricing,
+    @NotNull TtlProperties ttl,
+    @NotNull MergeProperties merge,
+    @NotNull CheckoutProperties checkout
+) {
+    /**
+     * Default constructor with sensible defaults.
+     */
+    public CartProperties {
+        if (validation == null) validation = new ValidationProperties(100, 2000, true);
+        if (pricing == null) pricing = new PricingProperties(1.0, false, 5);
+        if (ttl == null) ttl = new TtlProperties(168, 72, 604800);
+        if (merge == null) merge = new MergeProperties(true, true, 50);
+        if (checkout == null) checkout = new CheckoutProperties(30, true, false);
+    }
+
+    /**
+     * Validation-related configuration.
+     *
+     * @param maxQuantity Maximum allowed quantity per item (default: 100)
+     * @param timeoutMs Validation timeout in milliseconds (default: 2000)
+     * @param allowUnknownStatus Whether to allow items with unknown validation status (default: true)
+     */
+    public record ValidationProperties(
+        @Min(1) @Max(1000) int maxQuantity,
+        @Min(100) @Max(30000) int timeoutMs,
+        boolean allowUnknownStatus
+    ) {
+        public ValidationProperties {
+            if (maxQuantity <= 0) maxQuantity = 100;
+            if (timeoutMs <= 0) timeoutMs = 2000;
+        }
+    }
+
+    /**
+     * Pricing-related configuration.
+     *
+     * @param changeThresholdPercent Price change threshold for checkout warning (default: 1.0%)
+     * @param autoRefreshOnGet Whether to auto-refresh prices on GetCart if stale (default: false)
+     * @param maxConcurrentRefresh Maximum concurrent price refresh calls (default: 5)
+     */
+    public record PricingProperties(
+        @DecimalMin("0.0") @DecimalMax("100.0") double changeThresholdPercent,
+        boolean autoRefreshOnGet,
+        @Min(1) @Max(20) int maxConcurrentRefresh
+    ) {
+        public PricingProperties {
+            if (changeThresholdPercent <= 0.0) changeThresholdPercent = 1.0;
+            if (maxConcurrentRefresh <= 0) maxConcurrentRefresh = 5;
+        }
+    }
+
+    /**
+     * Time-to-live configuration.
+     *
+     * @param anonymousCartHours Anonymous cart TTL in hours (default: 168 = 7 days)
+     * @param abandonedThresholdHours Abandoned cart threshold in hours (default: 72 = 3 days)
+     * @param sessionCookieMaxAgeSeconds Session cookie max age in seconds (default: 604800 = 7 days)
+     */
+    public record TtlProperties(
+        @Min(1) @Max(8760) int anonymousCartHours,
+        @Min(1) @Max(720) int abandonedThresholdHours,
+        @Min(3600) @Max(2592000) int sessionCookieMaxAgeSeconds
+    ) {
+        public TtlProperties {
+            if (anonymousCartHours <= 0) anonymousCartHours = 168;
+            if (abandonedThresholdHours <= 0) abandonedThresholdHours = 72;
+            if (sessionCookieMaxAgeSeconds <= 0) sessionCookieMaxAgeSeconds = 604800;
+        }
+    }
+
+    /**
+     * Cart merge configuration.
+     *
+     * @param sumQuantitiesOnMatch Whether to sum quantities for matching items (default: true)
+     * @param preserveAnonymousPromo Whether to preserve anonymous cart promo if auth cart has none (default: true)
+     * @param maxItemsAfterMerge Maximum items allowed after merge (default: 50)
+     */
+    public record MergeProperties(
+        boolean sumQuantitiesOnMatch,
+        boolean preserveAnonymousPromo,
+        @Min(1) @Max(200) int maxItemsAfterMerge
+    ) {
+        public MergeProperties {
+            if (maxItemsAfterMerge <= 0) maxItemsAfterMerge = 50;
+        }
+    }
+
+    /**
+     * Checkout configuration.
+     *
+     * @param snapshotValidityMinutes Snapshot validity period in minutes (default: 30)
+     * @param requirePriceChangeAcknowledgement Whether customer acknowledgement is required for price changes (default: true)
+     * @param failOnUnknownValidation Whether to fail snapshot if any item has unknown validation (default: false)
+     */
+    public record CheckoutProperties(
+        @Min(5) @Max(1440) int snapshotValidityMinutes,
+        boolean requirePriceChangeAcknowledgement,
+        boolean failOnUnknownValidation
+    ) {
+        public CheckoutProperties {
+            if (snapshotValidityMinutes <= 0) snapshotValidityMinutes = 30;
+        }
+    }
+}
+        ]]>
+      </Content>
+    </Specification>
+
+    <Specification id="SPEC-CartDomainErrors">
+      <File>com/kanokna/cart/domain/exception/CartDomainErrors.java</File>
+      <Description>
+        Static factory for cart domain exceptions with standardized error codes.
+        Provides consistent error messages for client-side handling and i18n.
+      </Description>
+      <Content>
+        <![CDATA[
+package com.kanokna.cart.domain.exception;
+
+import com.kanokna.cart.domain.model.CartId;
+import com.kanokna.cart.domain.model.CartItemId;
+import com.kanokna.cart.domain.model.CartStatus;
+
+import java.math.BigDecimal;
+
+/**
+ * Factory for cart domain exceptions with standardized error codes.
+ *
+ * <MODULE_CONTRACT id="MC-cart-domain-errors"
+ *   ROLE="ErrorFactory"
+ *   SERVICE="cart-service"
+ *   LAYER="domain.exception">
+ *   <PURPOSE>Centralized error factory with consistent codes and messages</PURPOSE>
+ *   <LINKS>
+ *     <Link ref="Technology.xml#DEC-CART-ERROR-HANDLING" />
+ *   </LINKS>
+ * </MODULE_CONTRACT>
+ *
+ * @see DEC-CART-ERROR-HANDLING
+ */
+public final class CartDomainErrors {
+
+    private CartDomainErrors() {
+        // Static factory only
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Error Codes
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public static final String CART_NOT_FOUND = "CART_001";
+    public static final String CART_ITEM_NOT_FOUND = "CART_002";
+    public static final String CART_INVALID_QUANTITY = "CART_003";
+    public static final String CART_INVALID_CONFIGURATION = "CART_004";
+    public static final String CART_PROMO_CODE_INVALID = "CART_005";
+    public static final String CART_PROMO_CODE_EXPIRED = "CART_006";
+    public static final String CART_PROMO_CODE_ALREADY_APPLIED = "CART_007";
+    public static final String CART_MERGE_FAILED = "CART_008";
+    public static final String CART_SNAPSHOT_INVALID_ITEMS = "CART_009";
+    public static final String CART_CHECKOUT_PRICE_CHANGED = "CART_010";
+    public static final String CART_STATE_INVALID = "CART_011";
+    public static final String CART_MERGE_LIMIT_EXCEEDED = "CART_012";
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Factory Methods
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Cart not found by ID.
+     */
+    public static CartNotFoundException cartNotFound(CartId cartId) {
+        return new CartNotFoundException(
+            CART_NOT_FOUND,
+            "Cart not found: " + cartId.value()
+        );
+    }
+
+    /**
+     * Cart not found by customer ID.
+     */
+    public static CartNotFoundException cartNotFoundForCustomer(String customerId) {
+        return new CartNotFoundException(
+            CART_NOT_FOUND,
+            "Cart not found for customer: " + customerId
+        );
+    }
+
+    /**
+     * Cart not found by session ID.
+     */
+    public static CartNotFoundException cartNotFoundForSession(String sessionId) {
+        return new CartNotFoundException(
+            CART_NOT_FOUND,
+            "Cart not found for session: " + sessionId
+        );
+    }
+
+    /**
+     * Item not found in cart.
+     */
+    public static CartItemNotFoundException itemNotFound(CartId cartId, CartItemId itemId) {
+        return new CartItemNotFoundException(
+            CART_ITEM_NOT_FOUND,
+            "Item %s not found in cart %s".formatted(itemId.value(), cartId.value())
+        );
+    }
+
+    /**
+     * Invalid quantity (out of range).
+     */
+    public static InvalidQuantityException invalidQuantity(int quantity, int maxQuantity) {
+        return new InvalidQuantityException(
+            CART_INVALID_QUANTITY,
+            "Invalid quantity %d. Must be between 1 and %d".formatted(quantity, maxQuantity)
+        );
+    }
+
+    /**
+     * Invalid quantity (zero or negative).
+     */
+    public static InvalidQuantityException quantityMustBePositive(int quantity) {
+        return new InvalidQuantityException(
+            CART_INVALID_QUANTITY,
+            "Quantity must be positive, got: " + quantity
+        );
+    }
+
+    /**
+     * Product configuration validation failed.
+     */
+    public static InvalidConfigurationException invalidConfiguration(
+            String productTemplateId,
+            String validationMessage) {
+        return new InvalidConfigurationException(
+            CART_INVALID_CONFIGURATION,
+            "Invalid configuration for product %s: %s".formatted(productTemplateId, validationMessage)
+        );
+    }
+
+    /**
+     * Promo code is invalid (general validation failure).
+     */
+    public static PromoCodeException promoCodeInvalid(String code, String reason) {
+        return new PromoCodeException(
+            CART_PROMO_CODE_INVALID,
+            "Promo code '%s' is invalid: %s".formatted(code, reason)
+        );
+    }
+
+    /**
+     * Promo code has expired.
+     */
+    public static PromoCodeException promoCodeExpired(String code) {
+        return new PromoCodeException(
+            CART_PROMO_CODE_EXPIRED,
+            "Promo code '%s' has expired".formatted(code)
+        );
+    }
+
+    /**
+     * Promo code already applied to cart.
+     */
+    public static PromoCodeException promoCodeAlreadyApplied(String existingCode) {
+        return new PromoCodeException(
+            CART_PROMO_CODE_ALREADY_APPLIED,
+            "Promo code already applied: %s. Remove it before applying a new one.".formatted(existingCode)
+        );
+    }
+
+    /**
+     * Cart merge operation failed.
+     */
+    public static CartMergeException mergeFailed(CartId source, CartId target, String reason) {
+        return new CartMergeException(
+            CART_MERGE_FAILED,
+            "Failed to merge cart %s into %s: %s".formatted(
+                source.value(), target.value(), reason)
+        );
+    }
+
+    /**
+     * Cart merge would exceed item limit.
+     */
+    public static CartMergeException mergeLimitExceeded(int combinedCount, int maxItems) {
+        return new CartMergeException(
+            CART_MERGE_LIMIT_EXCEEDED,
+            "Merge would result in %d items, exceeding limit of %d".formatted(
+                combinedCount, maxItems)
+        );
+    }
+
+    /**
+     * Cannot create snapshot due to invalid items.
+     */
+    public static CheckoutException snapshotHasInvalidItems(CartId cartId, int invalidCount) {
+        return new CheckoutException(
+            CART_SNAPSHOT_INVALID_ITEMS,
+            "Cannot create snapshot for cart %s: %d items have invalid configurations"
+                .formatted(cartId.value(), invalidCount)
+        );
+    }
+
+    /**
+     * Price change exceeds threshold without acknowledgement.
+     */
+    public static CheckoutException priceChangeExceedsThreshold(
+            CartId cartId,
+            BigDecimal previousTotal,
+            BigDecimal newTotal,
+            double thresholdPercent) {
+        return new CheckoutException(
+            CART_CHECKOUT_PRICE_CHANGED,
+            "Cart %s total changed from %s to %s (exceeds %.1f%% threshold). Customer acknowledgement required."
+                .formatted(cartId.value(), previousTotal, newTotal, thresholdPercent)
+        );
+    }
+
+    /**
+     * Invalid cart state transition.
+     */
+    public static CartStateException invalidStateTransition(
+            CartId cartId,
+            CartStatus current,
+            CartStatus target) {
+        return new CartStateException(
+            CART_STATE_INVALID,
+            "Invalid state transition for cart %s: %s -> %s".formatted(
+                cartId.value(), current, target)
+        );
+    }
+
+    /**
+     * Operation not allowed in current cart state.
+     */
+    public static CartStateException operationNotAllowedInState(
+            CartId cartId,
+            String operation,
+            CartStatus currentState) {
+        return new CartStateException(
+            CART_STATE_INVALID,
+            "Operation '%s' not allowed for cart %s in state %s".formatted(
+                operation, cartId.value(), currentState)
+        );
+    }
+}
+        ]]>
+      </Content>
+    </Specification>
+
+    <Specification id="SPEC-CartDomainException">
+      <File>com/kanokna/cart/domain/exception/CartDomainException.java</File>
+      <Description>Base exception class for cart domain exceptions.</Description>
+      <Content>
+        <![CDATA[
+package com.kanokna.cart.domain.exception;
+
+/**
+ * Base class for all cart domain exceptions.
+ */
+public abstract class CartDomainException extends RuntimeException {
+
+    private final String errorCode;
+
+    protected CartDomainException(String errorCode, String message) {
+        super(message);
+        this.errorCode = errorCode;
+    }
+
+    protected CartDomainException(String errorCode, String message, Throwable cause) {
+        super(message, cause);
+        this.errorCode = errorCode;
+    }
+
+    public String getErrorCode() {
+        return errorCode;
+    }
+}
+        ]]>
+      </Content>
+    </Specification>
+  </Specifications>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 6: IMPLEMENTATION CHECKLIST
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationChecklist>
+    <Phase name="Phase 1: Foundation" order="1">
+      <Task id="IMPL-001" priority="HIGH">
+        Create CartProperties.java with all nested record classes
+      </Task>
+      <Task id="IMPL-002" priority="HIGH">
+        Create CartDomainErrors.java factory with all exception types
+      </Task>
+      <Task id="IMPL-003" priority="HIGH">
+        Create exception hierarchy (CartDomainException and subclasses)
+      </Task>
+      <Task id="IMPL-004" priority="MEDIUM">
+        Update application.yml with kanokna.cart.* properties
+      </Task>
+    </Phase>
+
+    <Phase name="Phase 2: Sub-Services" order="2">
+      <Task id="IMPL-010" priority="HIGH">
+        Extract CartItemValidationService from CartApplicationService
+        - Move validateConfiguration logic
+        - Move revalidateCartItems logic
+        - Add structured logging
+      </Task>
+      <Task id="IMPL-011" priority="HIGH">
+        Extract CartPricingService from CartApplicationService
+        - Move fetchQuote logic
+        - Move refreshAllPrices logic
+        - Move calculateTotals logic
+        - Add concurrent refresh support
+        - Add structured logging
+      </Task>
+      <Task id="IMPL-012" priority="HIGH">
+        Extract CartMergingService from CartApplicationService
+        - Move mergeCarts logic
+        - Implement merge rules
+        - Add structured logging
+      </Task>
+      <Task id="IMPL-013" priority="HIGH">
+        Extract CartCheckoutService from CartApplicationService
+        - Move createSnapshot logic
+        - Add price change threshold check
+        - Add structured logging
+      </Task>
+      <Task id="IMPL-014" priority="HIGH">
+        Extract CartPromoCodeService from CartApplicationService
+        - Move applyPromoCode logic
+        - Move removePromoCode logic
+        - Add structured logging
+      </Task>
+    </Phase>
+
+    <Phase name="Phase 3: Orchestrator Refactor" order="3">
+      <Task id="IMPL-020" priority="HIGH">
+        Refactor CartApplicationService as orchestrator
+        - Inject 5 sub-services
+        - Delegate operations to sub-services
+        - Keep only coordination logic
+        - Replace all string logging with structured logging
+        - Replace magic numbers with CartProperties references
+        - Replace direct exceptions with CartDomainErrors factory
+        - Target: 200-300 lines
+      </Task>
+    </Phase>
+
+    <Phase name="Phase 4: Mappers" order="4">
+      <Task id="IMPL-030" priority="MEDIUM">
+        Create CartEntityMapper MapStruct interface
+      </Task>
+      <Task id="IMPL-031" priority="MEDIUM">
+        Create supporting mappers (MoneyMapper, CartIdMapper)
+      </Task>
+      <Task id="IMPL-032" priority="MEDIUM">
+        Update repository adapters to use MapStruct
+      </Task>
+    </Phase>
+
+    <Phase name="Phase 5: Testing" order="5">
+      <Task id="IMPL-040" priority="HIGH">
+        Unit tests for CartItemValidationService
+      </Task>
+      <Task id="IMPL-041" priority="HIGH">
+        Unit tests for CartPricingService
+      </Task>
+      <Task id="IMPL-042" priority="HIGH">
+        Unit tests for CartMergingService
+      </Task>
+      <Task id="IMPL-043" priority="HIGH">
+        Unit tests for CartCheckoutService
+      </Task>
+      <Task id="IMPL-044" priority="HIGH">
+        Unit tests for CartPromoCodeService
+      </Task>
+      <Task id="IMPL-045" priority="HIGH">
+        Integration tests for CartApplicationService
+      </Task>
+      <Task id="IMPL-046" priority="MEDIUM">
+        Verify all existing tests still pass
+      </Task>
+    </Phase>
+  </ImplementationChecklist>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 7: ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria>
+    <Criterion id="AC-001" category="Breaking Changes">
+      All existing gRPC contracts preserved - no proto file changes
+    </Criterion>
+    <Criterion id="AC-002" category="Breaking Changes">
+      All existing Kafka event contracts preserved - no event schema changes
+    </Criterion>
+    <Criterion id="AC-003" category="Code Quality">
+      No class exceeds 400 lines (target: 200-300 for orchestrator, 100-250 for sub-services)
+    </Criterion>
+    <Criterion id="AC-004" category="Code Quality">
+      All logging uses structured format (log.atLevel().addKeyValue())
+    </Criterion>
+    <Criterion id="AC-005" category="Code Quality">
+      All configuration via CartProperties (no magic numbers, no scattered @Value)
+    </Criterion>
+    <Criterion id="AC-006" category="Code Quality">
+      All domain exceptions via CartDomainErrors factory
+    </Criterion>
+    <Criterion id="AC-007" category="Testing">
+      All existing tests pass
+    </Criterion>
+    <Criterion id="AC-008" category="Testing">
+      Code coverage >= 80% for new sub-services
+    </Criterion>
+    <Criterion id="AC-009" category="Documentation">
+      All MODULE_CONTRACT and FUNCTION_CONTRACT markers in place
+    </Criterion>
+  </AcceptanceCriteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SECTION 8: RISK ASSESSMENT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <RiskAssessment>
+    <Risk id="RISK-001" severity="LOW">
+      <Description>Regression in existing functionality during refactor</Description>
+      <Mitigation>
+        Existing integration tests cover all use cases. Each phase runs full test suite.
+        Refactoring is extract-method only; no logic changes.
+      </Mitigation>
+    </Risk>
+    <Risk id="RISK-002" severity="LOW">
+      <Description>Configuration change breaks deployment</Description>
+      <Mitigation>
+        CartProperties has sensible defaults. Missing config values use defaults.
+        Existing environment variables continue to work during transition.
+      </Mitigation>
+    </Risk>
+    <Risk id="RISK-003" severity="VERY_LOW">
+      <Description>MapStruct generated code differs from manual mapping</Description>
+      <Mitigation>
+        MapStruct generates at compile time; any mapping errors are compile errors.
+        Unit tests verify mapper correctness.
+      </Mitigation>
+    </Risk>
+  </RiskAssessment>
+
+</GRACE_HANDOFF>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BlueprintIssueReport>
+  <Issue id="ISS-ERR-001">
+    <Description>RequirementsAnalysis.xml missing UC-CATALOG-ADMIN-MANAGE referenced by Handoff-20260117-01-W1-ERROR-HANDLING.</Description>
+    <Impact>Cannot complete requirement trace or validate scope for catalog admin management use case.</Impact>
+    <ProposedFix>Add UC-CATALOG-ADMIN-MANAGE to RequirementsAnalysis.xml or update the handoff requirementsRef to a valid existing use case ID.</ProposedFix>
+    <RequiredAction>Architect update + new approval</RequiredAction>
+  </Issue>
+  <Issue id="ISS-ERR-002">
+    <Description>RequirementsAnalysis.xml missing NFR-CODE-DOMAIN-ERROR-HANDLING referenced by Handoff-20260117-01-W1-ERROR-HANDLING artifacts.</Description>
+    <Impact>Cannot trace domain error handling requirement to RequirementsAnalysis.xml as required.</Impact>
+    <ProposedFix>Add NFR-CODE-DOMAIN-ERROR-HANDLING to RequirementsAnalysis.xml or remove the reference if it is not intended for this scope.</ProposedFix>
+    <RequiredAction>Architect update + new approval</RequiredAction>
+  </Issue>
+  <Issue id="ISS-ERR-003">
+    <Description>Technology.xml missing DEC-DOMAIN-ERROR-PATTERN and DEC-ERROR-CODE-REGISTRY decisions referenced by Handoff-20260117-01-W1-ERROR-HANDLING.</Description>
+    <Impact>Cannot confirm approved error handling decisions from Technology.xml; implementation would violate "use only Technology.xml decisions".</Impact>
+    <ProposedFix>Add both decisions to Technology.xml with approved status and content, or update the handoff techRef to actual decision IDs.</ProposedFix>
+    <RequiredAction>Architect update + new approval</RequiredAction>
+  </Issue>
+  <Issue id="ISS-ERR-004">
+    <Description>Contract definitions for MC-catalog-domain-errors, MC-pricing-domain-errors, FC-catalog-CatalogDomainErrors-dimensionOutOfRange, and FC-pricing-PricingDomainErrors-currencyMismatch are missing from DevelopmentPlan.xml or referenced contract artifacts.</Description>
+    <Impact>Cannot embed required MODULE_CONTRACT and FUNCTION_CONTRACT text without inventing content.</Impact>
+    <ProposedFix>Add full contract definitions to DevelopmentPlan.xml or a referenced contracts artifact, then update the handoff to point to them.</ProposedFix>
+    <RequiredAction>Architect update + new approval</RequiredAction>
+  </Issue>
+</BlueprintIssueReport>
