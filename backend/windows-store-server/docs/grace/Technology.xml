@@ -1230,6 +1230,34 @@
         <Link ref="Technology.xml#DEC-DOMAIN-ERROR-PATTERN" />
       </Links>
     </Decision>
+
+    <Decision id="DEC-PACKAGE-NAMING-CONVENTION" status="APPROVED">
+      <Title>Java Package Naming Convention</Title>
+      <Context>Need consistent package naming across all services for maintainability and IDE navigation</Context>
+      <Selected>Package root follows bounded context name: com.kanokna.{bounded-context}.*</Selected>
+      <Convention>
+        <Item>Package root: com.kanokna.{bounded-context}.*</Item>
+        <Item>Bounded context name uses lowercase, NO underscores</Item>
+        <Item>Service name may differ from bounded context (e.g., catalog-configuration-service uses com.kanokna.catalog)</Item>
+      </Convention>
+      <Registry>
+        <Service name="account-service" package="com.kanokna.account" />
+        <Service name="cart-service" package="com.kanokna.cart" />
+        <Service name="catalog-configuration-service" package="com.kanokna.catalog" />
+        <Service name="pricing-service" package="com.kanokna.pricing" />
+        <Service name="search-service" package="com.kanokna.search" />
+        <Service name="order-service" package="com.kanokna.order" />
+        <Service name="media-service" package="com.kanokna.media" />
+        <Service name="notification-service" package="com.kanokna.notification" />
+        <Service name="installation-service" package="com.kanokna.installation" />
+        <Service name="reporting-service" package="com.kanokna.reporting" />
+      </Registry>
+      <Rationale>
+        Bounded context names are stable domain concepts; service names may change.
+        No underscores in package names follows Java conventions (JLS §6.1).
+      </Rationale>
+      <PromotedFrom handoff="Handoff-20260117-02-W1-PKG-RENAME" />
+    </Decision>
   </Decisions>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════

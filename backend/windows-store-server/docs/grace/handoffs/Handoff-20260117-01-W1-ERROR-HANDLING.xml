@@ -65,7 +65,7 @@
     </ModuleContractRef>
     <ModuleContractRef id="MC-pricing-domain-errors">
       <Description>Static factory for pricing-service domain exceptions</Description>
-      <Package>com.kanokna.pricing_service.domain.exception</Package>
+      <Package>com.kanokna.pricing.domain.exception</Package>
       <Class>PricingDomainErrors</Class>
     </ModuleContractRef>
     <FunctionContractRef id="FC-catalog-CatalogDomainErrors-dimensionOutOfRange"/>
@@ -260,11 +260,11 @@
        ═══════════════════════════════════════════════════════════════════════════ -->
   <MigrationPlan service="pricing-service">
     <NewFiles>
-      <File path="src/main/java/com/kanokna/pricing_service/domain/exception/PricingDomainErrors.java">
+      <File path="src/main/java/com/kanokna/pricing/domain/exception/PricingDomainErrors.java">
         <Description>Static factory class for pricing domain errors</Description>
         <Contract ref="MC-pricing-domain-errors"/>
       </File>
-      <File path="src/test/java/com/kanokna/pricing_service/domain/exception/PricingDomainErrorsTest.java">
+      <File path="src/test/java/com/kanokna/pricing/domain/exception/PricingDomainErrorsTest.java">
         <Description>Unit tests for PricingDomainErrors factory</Description>
       </File>
     </NewFiles>
@@ -272,28 +272,28 @@
     <Migrations>
       <!-- Money.java - 4 migrations -->
       <Migration id="MIG-PRICE-001">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/Money.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/Money.java</File>
         <Line>38</Line>
         <Current><![CDATA[throw new IllegalArgumentException("Cannot add money with different currencies");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.currencyMismatch("add", this.currency, other.currency());]]></Target>
         <ErrorCode>ERR-PRICE-CURRENCY-MISMATCH</ErrorCode>
       </Migration>
       <Migration id="MIG-PRICE-002">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/Money.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/Money.java</File>
         <Line>45</Line>
         <Current><![CDATA[throw new IllegalArgumentException("Cannot subtract money with different currencies");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.currencyMismatch("subtract", this.currency, other.currency());]]></Target>
         <ErrorCode>ERR-PRICE-CURRENCY-MISMATCH</ErrorCode>
       </Migration>
       <Migration id="MIG-PRICE-003">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/Money.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/Money.java</File>
         <Line>68</Line>
         <Current><![CDATA[throw new IllegalArgumentException("Cannot compare money with different currencies");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.currencyMismatch("compare", this.currency, other.currency());]]></Target>
         <ErrorCode>ERR-PRICE-CURRENCY-MISMATCH</ErrorCode>
       </Migration>
       <Migration id="MIG-PRICE-004">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/Money.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/Money.java</File>
         <Line>75</Line>
         <Current><![CDATA[throw new IllegalArgumentException("Cannot compare money with different currencies");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.currencyMismatch("compare", this.currency, other.currency());]]></Target>
@@ -302,14 +302,14 @@
 
       <!-- CampaignRule.java - 2 migrations -->
       <Migration id="MIG-PRICE-005">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/CampaignRule.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/CampaignRule.java</File>
         <Line>22</Line>
         <Current><![CDATA[throw new IllegalArgumentException("Discount value must be positive");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.invalidDiscountValue(discountValue);]]></Target>
         <ErrorCode>ERR-PRICE-INVALID-DISCOUNT-VALUE</ErrorCode>
       </Migration>
       <Migration id="MIG-PRICE-006">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/CampaignRule.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/CampaignRule.java</File>
         <Line>28</Line>
         <Current><![CDATA[throw new IllegalArgumentException("Percentage cannot exceed 100%");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.discountExceeds100(discountValue);]]></Target>
@@ -318,7 +318,7 @@
 
       <!-- Campaign.java - 1 migration -->
       <Migration id="MIG-PRICE-007">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/Campaign.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/Campaign.java</File>
         <Line>41</Line>
         <Current><![CDATA[throw new IllegalArgumentException("End date must be after start date");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.invalidDateRange(startDate, endDate);]]></Target>
@@ -327,7 +327,7 @@
 
       <!-- PromoCode.java - 1 migration -->
       <Migration id="MIG-PRICE-008">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/PromoCode.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/PromoCode.java</File>
         <Line>48</Line>
         <Current><![CDATA[throw new IllegalArgumentException("End date must be after start date");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.invalidDateRange(startDate, endDate);]]></Target>
@@ -336,7 +336,7 @@
 
       <!-- TaxRule.java - 1 migration -->
       <Migration id="MIG-PRICE-009">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/TaxRule.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/TaxRule.java</File>
         <Line>34</Line>
         <Current><![CDATA[throw new IllegalArgumentException("Tax rate must be between 0 and 100");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.invalidTaxRate(rate);]]></Target>
@@ -345,7 +345,7 @@
 
       <!-- OptionPremium.java - 1 migration -->
       <Migration id="MIG-PRICE-010">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/OptionPremium.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/OptionPremium.java</File>
         <Line>25</Line>
         <Current><![CDATA[throw new IllegalArgumentException("Premium amount cannot be negative");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.invalidPremiumAmount(amount);]]></Target>
@@ -354,7 +354,7 @@
 
       <!-- PriceBookVersion.java - 1 migration -->
       <Migration id="MIG-PRICE-011">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/PriceBookVersion.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/PriceBookVersion.java</File>
         <Line>29</Line>
         <Current><![CDATA[throw new IllegalArgumentException("Version number must be positive");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.invalidVersionNumber(versionNumber);]]></Target>
@@ -363,7 +363,7 @@
 
       <!-- BasePriceEntry.java - 1 migration -->
       <Migration id="MIG-PRICE-012">
-        <File>src/main/java/com/kanokna/pricing_service/domain/model/BasePriceEntry.java</File>
+        <File>src/main/java/com/kanokna/pricing/domain/model/BasePriceEntry.java</File>
         <Line>24</Line>
         <Current><![CDATA[throw new IllegalArgumentException("Price per m2 must be positive");]]></Current>
         <Target><![CDATA[throw PricingDomainErrors.invalidPricePerM2(pricePerM2);]]></Target>
@@ -372,7 +372,7 @@
     </Migrations>
 
     <ImportToAdd>
-      <Import>import com.kanokna.pricing_service.domain.exception.PricingDomainErrors;</Import>
+      <Import>import com.kanokna.pricing.domain.exception.PricingDomainErrors;</Import>
       <AppliesTo>Money.java, CampaignRule.java, Campaign.java, PromoCode.java, TaxRule.java, OptionPremium.java, PriceBookVersion.java, BasePriceEntry.java</AppliesTo>
     </ImportToAdd>
   </MigrationPlan>
@@ -461,9 +461,9 @@ public final class CatalogDomainErrors {
       ]]>
     </File>
 
-    <File path="pricing-service/src/main/java/com/kanokna/pricing_service/domain/exception/PricingDomainErrors.java">
+    <File path="pricing-service/src/main/java/com/kanokna/pricing/domain/exception/PricingDomainErrors.java">
       <![CDATA[
-package com.kanokna.pricing_service.domain.exception;
+package com.kanokna.pricing.domain.exception;
 
 import com.kanokna.shared.core.DomainException;
 import java.math.BigDecimal;
@@ -608,7 +608,7 @@ public final class PricingDomainErrors {
        ═══════════════════════════════════════════════════════════════════════════ -->
   <CoderInstructions>
     <Instruction priority="1">Create CatalogDomainErrors.java at catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/exception/</Instruction>
-    <Instruction priority="2">Create PricingDomainErrors.java at pricing-service/src/main/java/com/kanokna/pricing_service/domain/exception/</Instruction>
+    <Instruction priority="2">Create PricingDomainErrors.java at pricing-service/src/main/java/com/kanokna/pricing/domain/exception/</Instruction>
     <Instruction priority="3">Migrate all 14 IllegalArgumentException in catalog-configuration-service per MIG-CAT-001 through MIG-CAT-014</Instruction>
     <Instruction priority="4">Migrate all 12 IllegalArgumentException in pricing-service per MIG-PRICE-001 through MIG-PRICE-012</Instruction>
     <Instruction priority="5">Add imports for DomainErrors factory to all modified files</Instruction>
