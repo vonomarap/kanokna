@@ -59,4 +59,4 @@ management:
 
 logging:
   level:
-    com.kanokna.pricing_service: DEBUG
+    com.kanokna.pricing: DEBUG
