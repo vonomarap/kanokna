@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.model;
 
+import com.kanokna.catalog.domain.exception.CatalogDomainErrors;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -21,7 +22,7 @@ public record CatalogVersion(UUID id, int versionNumber, Instant publishedAt, St
   ) {
     this.id = Objects.requireNonNull(id, "CatalogVersion id cannot be null");
     if (versionNumber <= 0) {
-      throw new IllegalArgumentException("versionNumber must be positive");
+      throw CatalogDomainErrors.invalidVersionNumber(versionNumber);
     }
     this.versionNumber = versionNumber;
     this.publishedAt = Objects.requireNonNull(publishedAt, "publishedAt cannot be null");

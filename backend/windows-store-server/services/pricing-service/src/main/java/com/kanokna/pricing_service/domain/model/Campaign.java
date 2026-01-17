@@ -1,5 +1,6 @@
 package com.kanokna.pricing_service.domain.model;
 
+import com.kanokna.pricing_service.domain.exception.PricingDomainErrors;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Objects;
@@ -38,7 +39,7 @@ public class Campaign {
         this.createdAt = Objects.requireNonNull(createdAt);
 
         if (endDate.isBefore(startDate)) {
-            throw new IllegalArgumentException("End date must be after start date");
+            throw PricingDomainErrors.invalidDateRange(startDate, endDate);
         }
     }
 

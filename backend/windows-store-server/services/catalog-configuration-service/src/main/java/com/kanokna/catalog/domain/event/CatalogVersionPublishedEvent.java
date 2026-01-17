@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.event;
 
+import com.kanokna.catalog.domain.exception.CatalogDomainErrors;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -22,10 +23,10 @@ public record CatalogVersionPublishedEvent(
         Objects.requireNonNull(occurredAt, "occurredAt cannot be null");
         Objects.requireNonNull(catalogVersionId, "catalogVersionId cannot be null");
         if (versionNumber <= 0) {
-            throw new IllegalArgumentException("versionNumber must be positive");
+            throw CatalogDomainErrors.invalidVersionNumber(versionNumber);
         }
         if (templateCount < 0) {
-            throw new IllegalArgumentException("templateCount cannot be negative");
+            throw CatalogDomainErrors.invalidTemplateCount(templateCount);
         }
     }
 

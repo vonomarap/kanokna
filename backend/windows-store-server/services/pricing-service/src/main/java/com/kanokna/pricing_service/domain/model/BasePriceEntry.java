@@ -1,5 +1,6 @@
 package com.kanokna.pricing_service.domain.model;
 
+import com.kanokna.pricing_service.domain.exception.PricingDomainErrors;
 import java.math.BigDecimal;
 import java.util.Objects;
 
@@ -21,7 +22,7 @@ public class BasePriceEntry {
         this.minimumCharge = minimumCharge;
 
         if (pricePerM2.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Price per m2 must be positive");
+            throw PricingDomainErrors.invalidPricePerM2(pricePerM2);
         }
     }
 

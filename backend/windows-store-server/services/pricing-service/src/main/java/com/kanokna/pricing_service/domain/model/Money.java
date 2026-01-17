@@ -1,5 +1,6 @@
 package com.kanokna.pricing_service.domain.model;
 
+import com.kanokna.pricing_service.domain.exception.PricingDomainErrors;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Objects;
@@ -35,14 +36,14 @@ public final class Money {
 
     public Money add(Money other) {
         if (!this.currency.equals(other.currency)) {
-            throw new IllegalArgumentException("Cannot add money with different currencies");
+            throw PricingDomainErrors.currencyMismatch("add", this.currency, other.currency);
         }
         return new Money(this.amount.add(other.amount), this.currency);
     }
 
     public Money subtract(Money other) {
         if (!this.currency.equals(other.currency)) {
-            throw new IllegalArgumentException("Cannot subtract money with different currencies");
+            throw PricingDomainErrors.currencyMismatch("subtract", this.currency, other.currency);
         }
         return new Money(this.amount.subtract(other.amount), this.currency);
     }
@@ -65,14 +66,14 @@ public final class Money {
 
     public boolean isGreaterThan(Money other) {
         if (!this.currency.equals(other.currency)) {
-            throw new IllegalArgumentException("Cannot compare money with different currencies");
+            throw PricingDomainErrors.currencyMismatch("compare", this.currency, other.currency);
         }
         return this.amount.compareTo(other.amount) > 0;
     }
 
     public boolean isLessThan(Money other) {
         if (!this.currency.equals(other.currency)) {
-            throw new IllegalArgumentException("Cannot compare money with different currencies");
+            throw PricingDomainErrors.currencyMismatch("compare", this.currency, other.currency);
         }
         return this.amount.compareTo(other.amount) < 0;
     }

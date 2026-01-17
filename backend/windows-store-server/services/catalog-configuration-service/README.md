@@ -152,9 +152,11 @@ Key configuration properties in `application.yml`:
 
 ```yaml
 server.port: 8081
-grpc.server.port: 9081
 
 spring:
+  grpc:
+    server:
+      port: 9081
   datasource:
     url: jdbc:postgresql://localhost:5432/catalog_configuration
   jpa:

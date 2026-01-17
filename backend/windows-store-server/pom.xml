@@ -75,7 +75,6 @@
         <lombok.version>1.18.40</lombok.version>
         <spring-cloud.version>2025.1.0</spring-cloud.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
-        <grpc-spring-boot-starter.version>3.1.0.RELEASE</grpc-spring-boot-starter.version>
         <testcontainers.version>1.19.3</testcontainers.version>
         <archunit.version>1.2.1</archunit.version>
         <jib-maven-plugin.version>3.4.0</jib-maven-plugin.version>

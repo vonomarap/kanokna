@@ -1,5 +1,6 @@
 package com.kanokna.catalog.domain.model;
 
+import com.kanokna.catalog.domain.exception.CatalogDomainErrors;
 import java.util.Objects;
 
 /**
@@ -22,22 +23,42 @@ public record DimensionConstraints(
 
     private static void validate(int minW, int maxW, int minH, int maxH) {
         if (minW < ABSOLUTE_MIN_CM || minW > ABSOLUTE_MAX_CM) {
-            throw new IllegalArgumentException("minWidthCm must be within [" + ABSOLUTE_MIN_CM + ", " + ABSOLUTE_MAX_CM + "]");
+            throw CatalogDomainErrors.dimensionOutOfRange(
+                "minWidthCm",
+                minW,
+                ABSOLUTE_MIN_CM,
+                ABSOLUTE_MAX_CM
+            );
         }
         if (maxW < ABSOLUTE_MIN_CM || maxW > ABSOLUTE_MAX_CM) {
-            throw new IllegalArgumentException("maxWidthCm must be within [" + ABSOLUTE_MIN_CM + ", " + ABSOLUTE_MAX_CM + "]");
+            throw CatalogDomainErrors.dimensionOutOfRange(
+                "maxWidthCm",
+                maxW,
+                ABSOLUTE_MIN_CM,
+                ABSOLUTE_MAX_CM
+            );
         }
         if (minH < ABSOLUTE_MIN_CM || minH > ABSOLUTE_MAX_CM) {
-            throw new IllegalArgumentException("minHeightCm must be within [" + ABSOLUTE_MIN_CM + ", " + ABSOLUTE_MAX_CM + "]");
+            throw CatalogDomainErrors.dimensionOutOfRange(
+                "minHeightCm",
+                minH,
+                ABSOLUTE_MIN_CM,
+                ABSOLUTE_MAX_CM
+            );
         }
         if (maxH < ABSOLUTE_MIN_CM || maxH > ABSOLUTE_MAX_CM) {
-            throw new IllegalArgumentException("maxHeightCm must be within [" + ABSOLUTE_MIN_CM + ", " + ABSOLUTE_MAX_CM + "]");
+            throw CatalogDomainErrors.dimensionOutOfRange(
+                "maxHeightCm",
+                maxH,
+                ABSOLUTE_MIN_CM,
+                ABSOLUTE_MAX_CM
+            );
         }
         if (minW > maxW) {
-            throw new IllegalArgumentException("minWidthCm cannot exceed maxWidthCm");
+            throw CatalogDomainErrors.minExceedsMax("width", minW, maxW);
         }
         if (minH > maxH) {
-            throw new IllegalArgumentException("minHeightCm cannot exceed maxHeightCm");
+            throw CatalogDomainErrors.minExceedsMax("height", minH, maxH);
         }
     }
 

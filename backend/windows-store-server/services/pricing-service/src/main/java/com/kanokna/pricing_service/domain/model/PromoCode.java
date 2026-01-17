@@ -1,5 +1,6 @@
 package com.kanokna.pricing_service.domain.model;
 
+import com.kanokna.pricing_service.domain.exception.PricingDomainErrors;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -45,7 +46,7 @@ public class PromoCode {
         this.createdBy = createdBy;
 
         if (endDate.isBefore(startDate)) {
-            throw new IllegalArgumentException("End date must be after start date");
+            throw PricingDomainErrors.invalidDateRange(startDate, endDate);
         }
     }
 

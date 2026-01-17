@@ -13,6 +13,7 @@
 .cursor
 .vscode
 .kilocode
+backend/windows-store-server/kanokna-config
 .gemini
 .gemini/settings.json
 .claude

@@ -1,5 +1,6 @@
 package com.kanokna.pricing_service.domain.model;
 
+import com.kanokna.pricing_service.domain.exception.PricingDomainErrors;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -31,7 +32,7 @@ public class TaxRule {
 
         if (taxRatePercent.compareTo(BigDecimal.ZERO) < 0 ||
             taxRatePercent.compareTo(new BigDecimal("100")) > 0) {
-            throw new IllegalArgumentException("Tax rate must be between 0 and 100");
+            throw PricingDomainErrors.invalidTaxRate(taxRatePercent);
         }
     }
 
