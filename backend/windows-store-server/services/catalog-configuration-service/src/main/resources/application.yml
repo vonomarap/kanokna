@@ -24,14 +24,17 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer
-
-grpc:
-  server:
-    port: 9081
-  client:
-    pricing-service:
-      address: static://localhost:9082
-      negotiationType: plaintext
+  grpc:
+    server:
+      port: 9081
+    client:
+      inprocess:
+        exclusive: false
+      channels:
+        pricing-service:
+          address: static://localhost:9082
+          negotiation-type: PLAINTEXT
+          enable-keep-alive: true
 
 management:
   endpoints:

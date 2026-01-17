@@ -38,7 +38,8 @@ spring:
         # Native backend configuration for tests
         native:
           search-locations:
-            - classpath:/config-repo
+            - file:${CONFIG_REPO_PATH:C:/windows-store-project/kanokna-copy/backend/windows-store-server/kanokna-config}
+            - file:${CONFIG_REPO_PATH:C:/windows-store-project/kanokna-copy/backend/windows-store-server/kanokna-config}/{application}
 
   security:
     user:

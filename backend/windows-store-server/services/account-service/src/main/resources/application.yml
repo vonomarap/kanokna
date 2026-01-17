@@ -24,10 +24,9 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer
-
-grpc:
-  server:
-    port: 9085
+  grpc:
+    server:
+      port: 9085
 
 management:
   endpoints:

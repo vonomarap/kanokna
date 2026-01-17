@@ -30,10 +30,9 @@ spring:
       value-serializer: io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer
     ssl:
       bundle: kafka
-
-grpc:
-  server:
-    port: 9082
+  grpc:
+    server:
+      port: 9082
 
 pricing:
   quote:
@@ -61,4 +60,3 @@ management:
 logging:
   level:
     com.kanokna.pricing_service: DEBUG
-
