@@ -8,7 +8,7 @@
 -->
 <GRACE_HANDOFF
   id="Handoff-20260117-01-W1-ERROR-HANDLING"
-  status="PROPOSED"
+  status="APPROVED"
   schemaVersion="grace-markup-v2"
   created="2026-01-17T10:00:00+03:00"
   author="GRACE-ARCHITECT"
@@ -23,12 +23,12 @@
        ═══════════════════════════════════════════════════════════════════════════ -->
   <Scope>
     <Services>
-      <ServiceRef ref="DP-SVC-catalog-configuration-service"/>
-      <ServiceRef ref="DP-SVC-pricing-service"/>
+      <ServiceRef ref="DP-SVC-catalog-configuration-service" />
+      <ServiceRef ref="DP-SVC-pricing-service" />
     </Services>
     <UseCases>
-      <UseCaseRef ref="UC-B2C-CPQ-01"/>
-      <UseCaseRef ref="UC-CATALOG-ADMIN-MANAGE"/>
+      <UseCaseRef ref="UC-B2C-CPQ-01" />
+      <UseCaseRef ref="UC-CATALOG-ADMIN-MANAGE" />
     </UseCases>
     <AffectedLayers>
       <Layer>domain.exception (NEW: factory classes)</Layer>
@@ -51,7 +51,7 @@
         <Description>Add DEC-DOMAIN-ERROR-PATTERN and DEC-ERROR-CODE-REGISTRY decisions</Description>
       </Update>
     </Artifact>
-    <Artifact ref="DevelopmentPlan.xml" version="1.0"/>
+    <Artifact ref="DevelopmentPlan.xml" version="1.0" />
   </Artifacts>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
@@ -68,8 +68,8 @@
       <Package>com.kanokna.pricing.domain.exception</Package>
       <Class>PricingDomainErrors</Class>
     </ModuleContractRef>
-    <FunctionContractRef id="FC-catalog-CatalogDomainErrors-dimensionOutOfRange"/>
-    <FunctionContractRef id="FC-pricing-PricingDomainErrors-currencyMismatch"/>
+    <FunctionContractRef id="FC-catalog-CatalogDomainErrors-dimensionOutOfRange" />
+    <FunctionContractRef id="FC-pricing-PricingDomainErrors-currencyMismatch" />
   </Contracts>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
@@ -88,8 +88,8 @@
     <Decision id="DEC-ERROR-CODE-REGISTRY" status="APPROVED">
       <Title>Service Error Code Prefix Registry</Title>
       <Registry>
-        <Prefix code="ERR-CAT" service="catalog-configuration-service"/>
-        <Prefix code="ERR-PRICE" service="pricing-service"/>
+        <Prefix code="ERR-CAT" service="catalog-configuration-service" />
+        <Prefix code="ERR-PRICE" service="pricing-service" />
       </Registry>
     </Decision>
   </DecisionsSnapshot>
@@ -99,7 +99,8 @@
        ═══════════════════════════════════════════════════════════════════════════ -->
   <ErrorCodeRegistry>
     <Service prefix="ERR-CAT" name="catalog-configuration-service">
-      <ErrorCode id="ERR-CAT-DIMENSION-OUT-OF-RANGE">Dimension value outside absolute bounds [50, 400] cm</ErrorCode>
+      <ErrorCode id="ERR-CAT-DIMENSION-OUT-OF-RANGE">Dimension value outside absolute bounds [50,
+        400] cm</ErrorCode>
       <ErrorCode id="ERR-CAT-DIMENSION-MIN-EXCEEDS-MAX">Min dimension exceeds max dimension</ErrorCode>
       <ErrorCode id="ERR-CAT-INVALID-WIDTH">Width must be positive</ErrorCode>
       <ErrorCode id="ERR-CAT-INVALID-HEIGHT">Height must be positive</ErrorCode>
@@ -128,7 +129,7 @@
     <NewFiles>
       <File path="src/main/java/com/kanokna/catalog/domain/exception/CatalogDomainErrors.java">
         <Description>Static factory class for catalog domain errors</Description>
-        <Contract ref="MC-catalog-domain-errors"/>
+        <Contract ref="MC-catalog-domain-errors" />
       </File>
       <File path="src/test/java/com/kanokna/catalog/domain/exception/CatalogDomainErrorsTest.java">
         <Description>Unit tests for CatalogDomainErrors factory</Description>
@@ -251,7 +252,9 @@
 
     <ImportToAdd>
       <Import>import com.kanokna.catalog.domain.exception.CatalogDomainErrors;</Import>
-      <AppliesTo>DimensionConstraints.java, Configuration.java, CatalogVersion.java, CatalogVersionPublishedEvent.java, ConfigurationValidatedEvent.java, ResolvedBom.java, ValidationResult.java</AppliesTo>
+      <AppliesTo>DimensionConstraints.java, Configuration.java, CatalogVersion.java,
+        CatalogVersionPublishedEvent.java, ConfigurationValidatedEvent.java, ResolvedBom.java,
+        ValidationResult.java</AppliesTo>
     </ImportToAdd>
   </MigrationPlan>
 
@@ -262,7 +265,7 @@
     <NewFiles>
       <File path="src/main/java/com/kanokna/pricing/domain/exception/PricingDomainErrors.java">
         <Description>Static factory class for pricing domain errors</Description>
-        <Contract ref="MC-pricing-domain-errors"/>
+        <Contract ref="MC-pricing-domain-errors" />
       </File>
       <File path="src/test/java/com/kanokna/pricing/domain/exception/PricingDomainErrorsTest.java">
         <Description>Unit tests for PricingDomainErrors factory</Description>
@@ -373,7 +376,8 @@
 
     <ImportToAdd>
       <Import>import com.kanokna.pricing.domain.exception.PricingDomainErrors;</Import>
-      <AppliesTo>Money.java, CampaignRule.java, Campaign.java, PromoCode.java, TaxRule.java, OptionPremium.java, PriceBookVersion.java, BasePriceEntry.java</AppliesTo>
+      <AppliesTo>Money.java, CampaignRule.java, Campaign.java, PromoCode.java, TaxRule.java,
+        OptionPremium.java, PriceBookVersion.java, BasePriceEntry.java</AppliesTo>
     </ImportToAdd>
   </MigrationPlan>
 
@@ -381,7 +385,8 @@
        IMPLEMENTATION CODE: CatalogDomainErrors.java
        ═══════════════════════════════════════════════════════════════════════════ -->
   <ImplementationCode>
-    <File path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/exception/CatalogDomainErrors.java">
+    <File
+      path="catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/exception/CatalogDomainErrors.java">
       <![CDATA[
 package com.kanokna.catalog.domain.exception;
 
@@ -461,7 +466,8 @@ public final class CatalogDomainErrors {
       ]]>
     </File>
 
-    <File path="pricing-service/src/main/java/com/kanokna/pricing/domain/exception/PricingDomainErrors.java">
+    <File
+      path="pricing-service/src/main/java/com/kanokna/pricing/domain/exception/PricingDomainErrors.java">
       <![CDATA[
 package com.kanokna.pricing.domain.exception;
 
@@ -542,7 +548,8 @@ public final class PricingDomainErrors {
        ═══════════════════════════════════════════════════════════════════════════ -->
   <TestCases>
     <TestCase id="TC-CAT-ERR-001" service="catalog-configuration-service">
-      <Description>dimensionOutOfRange returns exception with ERR-CAT-DIMENSION-OUT-OF-RANGE code and includes all context</Description>
+      <Description>dimensionOutOfRange returns exception with ERR-CAT-DIMENSION-OUT-OF-RANGE code
+        and includes all context</Description>
       <Method>CatalogDomainErrorsTest.dimensionOutOfRange_includesAllContextInMessage</Method>
     </TestCase>
     <TestCase id="TC-CAT-ERR-002" service="catalog-configuration-service">
@@ -583,10 +590,14 @@ public final class PricingDomainErrors {
        ASSUMPTIONS
        ═══════════════════════════════════════════════════════════════════════════ -->
   <Assumptions>
-    <Item id="A-ERR-BASE-CLASS">DomainException from shared-kernel is the base class (confirmed exists at com.kanokna.shared.core.DomainException)</Item>
-    <Item id="A-ERR-NO-SUBCLASSES">Using simple DomainException without typed subclasses (unlike cart-service); can add later if polymorphic handling needed</Item>
-    <Item id="A-ERR-IMPORT">Each modified file needs to add import for respective DomainErrors factory</Item>
-    <Item id="A-ERR-EXISTING-TESTS">Existing tests for domain classes may need adjustment to expect DomainException instead of IllegalArgumentException</Item>
+    <Item id="A-ERR-BASE-CLASS">DomainException from shared-kernel is the base class (confirmed
+      exists at com.kanokna.shared.core.DomainException)</Item>
+    <Item id="A-ERR-NO-SUBCLASSES">Using simple DomainException without typed subclasses (unlike
+      cart-service); can add later if polymorphic handling needed</Item>
+    <Item id="A-ERR-IMPORT">Each modified file needs to add import for respective DomainErrors
+      factory</Item>
+    <Item id="A-ERR-EXISTING-TESTS">Existing tests for domain classes may need adjustment to expect
+      DomainException instead of IllegalArgumentException</Item>
   </Assumptions>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
@@ -596,7 +607,8 @@ public final class PricingDomainErrors {
     <Criterion id="AC-ERR-001">CatalogDomainErrors factory class exists with MODULE_CONTRACT comment</Criterion>
     <Criterion id="AC-ERR-002">PricingDomainErrors factory class exists with MODULE_CONTRACT comment</Criterion>
     <Criterion id="AC-ERR-003">All error codes follow ERR-{PREFIX}-{TYPE} convention</Criterion>
-    <Criterion id="AC-ERR-004">All 14 IllegalArgumentException in catalog-configuration-service migrated</Criterion>
+    <Criterion id="AC-ERR-004">All 14 IllegalArgumentException in catalog-configuration-service
+      migrated</Criterion>
     <Criterion id="AC-ERR-005">All 12 IllegalArgumentException in pricing-service migrated</Criterion>
     <Criterion id="AC-ERR-006">Unit tests pass for both factory classes</Criterion>
     <Criterion id="AC-ERR-007">No cross-service dependencies introduced</Criterion>
@@ -607,13 +619,19 @@ public final class PricingDomainErrors {
        CODER INSTRUCTIONS
        ═══════════════════════════════════════════════════════════════════════════ -->
   <CoderInstructions>
-    <Instruction priority="1">Create CatalogDomainErrors.java at catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/exception/</Instruction>
-    <Instruction priority="2">Create PricingDomainErrors.java at pricing-service/src/main/java/com/kanokna/pricing/domain/exception/</Instruction>
-    <Instruction priority="3">Migrate all 14 IllegalArgumentException in catalog-configuration-service per MIG-CAT-001 through MIG-CAT-014</Instruction>
-    <Instruction priority="4">Migrate all 12 IllegalArgumentException in pricing-service per MIG-PRICE-001 through MIG-PRICE-012</Instruction>
+    <Instruction priority="1">Create CatalogDomainErrors.java at
+      catalog-configuration-service/src/main/java/com/kanokna/catalog/domain/exception/</Instruction>
+    <Instruction priority="2">Create PricingDomainErrors.java at
+      pricing-service/src/main/java/com/kanokna/pricing/domain/exception/</Instruction>
+    <Instruction priority="3">Migrate all 14 IllegalArgumentException in
+      catalog-configuration-service per MIG-CAT-001 through MIG-CAT-014</Instruction>
+    <Instruction priority="4">Migrate all 12 IllegalArgumentException in pricing-service per
+      MIG-PRICE-001 through MIG-PRICE-012</Instruction>
     <Instruction priority="5">Add imports for DomainErrors factory to all modified files</Instruction>
-    <Instruction priority="6">Create unit tests CatalogDomainErrorsTest.java and PricingDomainErrorsTest.java</Instruction>
-    <Instruction priority="7">Update any existing tests that expect IllegalArgumentException to expect DomainException</Instruction>
+    <Instruction priority="6">Create unit tests CatalogDomainErrorsTest.java and
+      PricingDomainErrorsTest.java</Instruction>
+    <Instruction priority="7">Update any existing tests that expect IllegalArgumentException to
+      expect DomainException</Instruction>
     <Instruction priority="8">Run mvn test to verify all tests pass</Instruction>
   </CoderInstructions>
 

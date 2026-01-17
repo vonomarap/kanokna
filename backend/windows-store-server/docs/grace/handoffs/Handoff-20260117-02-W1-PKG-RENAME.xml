@@ -8,7 +8,7 @@
 -->
 <GRACE_HANDOFF
   id="Handoff-20260117-02-W1-PKG-RENAME"
-  status="PROPOSED"
+  status="APPROVED"
   schemaVersion="grace-markup-v2"
   created="2026-01-17T17:30:00+03:00"
   author="GRACE-ARCHITECT"
@@ -82,20 +82,34 @@
       </Pattern>
       <AffectedPackages>
         <Package old="com.kanokna.pricing_service" new="com.kanokna.pricing" />
-        <Package old="com.kanokna.pricing_service.domain.model" new="com.kanokna.pricing.domain.model" />
-        <Package old="com.kanokna.pricing_service.domain.service" new="com.kanokna.pricing.domain.service" />
-        <Package old="com.kanokna.pricing_service.domain.event" new="com.kanokna.pricing.domain.event" />
-        <Package old="com.kanokna.pricing_service.domain.exception" new="com.kanokna.pricing.domain.exception" />
-        <Package old="com.kanokna.pricing_service.application.port.in" new="com.kanokna.pricing.application.port.in" />
-        <Package old="com.kanokna.pricing_service.application.port.out" new="com.kanokna.pricing.application.port.out" />
-        <Package old="com.kanokna.pricing_service.application.service" new="com.kanokna.pricing.application.service" />
-        <Package old="com.kanokna.pricing_service.application.dto" new="com.kanokna.pricing.application.dto" />
-        <Package old="com.kanokna.pricing_service.adapters.in.web" new="com.kanokna.pricing.adapters.in.web" />
-        <Package old="com.kanokna.pricing_service.adapters.in.grpc" new="com.kanokna.pricing.adapters.in.grpc" />
-        <Package old="com.kanokna.pricing_service.adapters.out.persistence" new="com.kanokna.pricing.adapters.out.persistence" />
-        <Package old="com.kanokna.pricing_service.adapters.out.redis" new="com.kanokna.pricing.adapters.out.redis" />
-        <Package old="com.kanokna.pricing_service.adapters.out.kafka" new="com.kanokna.pricing.adapters.out.kafka" />
-        <Package old="com.kanokna.pricing_service.adapters.config" new="com.kanokna.pricing.adapters.config" />
+        <Package old="com.kanokna.pricing_service.domain.model"
+          new="com.kanokna.pricing.domain.model" />
+        <Package old="com.kanokna.pricing_service.domain.service"
+          new="com.kanokna.pricing.domain.service" />
+        <Package old="com.kanokna.pricing_service.domain.event"
+          new="com.kanokna.pricing.domain.event" />
+        <Package old="com.kanokna.pricing_service.domain.exception"
+          new="com.kanokna.pricing.domain.exception" />
+        <Package old="com.kanokna.pricing_service.application.port.in"
+          new="com.kanokna.pricing.application.port.in" />
+        <Package old="com.kanokna.pricing_service.application.port.out"
+          new="com.kanokna.pricing.application.port.out" />
+        <Package old="com.kanokna.pricing_service.application.service"
+          new="com.kanokna.pricing.application.service" />
+        <Package old="com.kanokna.pricing_service.application.dto"
+          new="com.kanokna.pricing.application.dto" />
+        <Package old="com.kanokna.pricing_service.adapters.in.web"
+          new="com.kanokna.pricing.adapters.in.web" />
+        <Package old="com.kanokna.pricing_service.adapters.in.grpc"
+          new="com.kanokna.pricing.adapters.in.grpc" />
+        <Package old="com.kanokna.pricing_service.adapters.out.persistence"
+          new="com.kanokna.pricing.adapters.out.persistence" />
+        <Package old="com.kanokna.pricing_service.adapters.out.redis"
+          new="com.kanokna.pricing.adapters.out.redis" />
+        <Package old="com.kanokna.pricing_service.adapters.out.kafka"
+          new="com.kanokna.pricing.adapters.out.kafka" />
+        <Package old="com.kanokna.pricing_service.adapters.config"
+          new="com.kanokna.pricing.adapters.config" />
       </AffectedPackages>
       <FileCount>81 Java files (main) + test files</FileCount>
     </Phase>
@@ -224,7 +238,6 @@
     <Important>
       This handoff (PKG-RENAME) should be executed BEFORE Handoff-20260117-01-W1-ERROR-HANDLING
       to ensure the new PricingDomainErrors.java is created with the correct package name.
-
       Alternatively, both can be done together if the Coder:
       1. First renames the packages
       2. Then creates the new error handling classes in the renamed packages

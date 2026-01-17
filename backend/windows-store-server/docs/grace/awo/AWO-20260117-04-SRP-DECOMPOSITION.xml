@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ARCHITECT_WORK_ORDER id="AWO-20260117-04" status="PROPOSED">
+    <Meta>
+        <Created>2026-01-17T20:28:23+03:00</Created>
+        <Origin>GRACE-COORDINATOR routing from user request</Origin>
+        <Priority>MEDIUM</Priority>
+        <Reason>Large class sizes violating Single Responsibility Principle (SRP)</Reason>
+        <RelatedAWO ref="AWO-20260117-03-REFACTORING">Expands PART-2 analysis</RelatedAWO>
+    </Meta>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       TASK SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Task>
+        <WaveRef>W1</WaveRef>
+        <TaskRef>W1-SRP-DECOMPOSITION</TaskRef>
+        <UserRequest>
+            Fix Large Class Sizes (SRP Violation Risk) in application services:
+            - AccountApplicationService.java (964 lines, 4 use case groups)
+            - CartApplicationService.java (462 lines, helper methods mixed with use cases)
+            - SearchApplicationService.java (~1000+ lines)
+
+            Recommended decomposition:
+            - AccountProfileService (getProfile, updateProfile)
+            - AccountAddressService (addAddress, updateAddress, deleteAddress, listAddresses)
+            - AccountConfigurationService (saveConfiguration, listConfigurations,
+            deleteConfiguration)
+        </UserRequest>
+        <PrimaryGoal>
+            Design and document decomposition strategy for large application service classes
+            to enforce Single Responsibility Principle while maintaining API compatibility.
+        </PrimaryGoal>
+    </Task>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       KNOWN ARTIFACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <KnownArtifacts>
+        <Artifact name="RequirementsAnalysis.xml" provided="yes" />
+        <Artifact name="Technology.xml" provided="yes" />
+        <Artifact name="DevelopmentPlan.xml" provided="yes" />
+        <Artifact name="AWO-20260117-03-REFACTORING" provided="yes">
+            Contains preliminary AccountApplicationService analysis in PART-2
+        </Artifact>
+    </KnownArtifacts>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Scope>
+        <Services>
+            <ServiceRef ref="DP-SVC-account-service" priority="HIGH">
+                Primary target: AccountApplicationService decomposition
+            </ServiceRef>
+            <ServiceRef ref="DP-SVC-cart-service" priority="MEDIUM">
+                Re-evaluate: CartApplicationService helper methods
+            </ServiceRef>
+            <ServiceRef ref="DP-SVC-search-service" priority="MEDIUM">
+                Re-evaluate: SearchApplicationService size concerns
+            </ServiceRef>
+        </Services>
+        <AffectedLayers>
+            <Layer>application.service (decomposition into specialized services)</Layer>
+            <Layer>application.port.in (handler interfaces alignment)</Layer>
+        </AffectedLayers>
+    </Scope>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ANALYSIS REQUIREMENTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <AnalysisRequirements>
+        <Service name="AccountApplicationService">
+            <CurrentFile>
+                account-service/src/main/java/com/kanokna/account/application/service/AccountApplicationService.java</CurrentFile>
+            <CurrentLines>964</CurrentLines>
+            <IdentifiedUseCaseGroups>
+                <Group id="PROFILE">getProfile, updateProfile, deleteProfile,
+                    createProfileFromKeycloak</Group>
+                <Group id="ADDRESS">addAddress, updateAddress, deleteAddress, listAddresses,
+                    setDefaultAddress</Group>
+                <Group id="SAVED-CONFIG">saveConfiguration, listConfigurations, deleteConfiguration,
+                    getConfiguration</Group>
+                <Group id="B2B-ORG">createOrganization, updateOrganization, addMember, removeMember</Group>
+            </IdentifiedUseCaseGroups>
+            <ProposedDecomposition>
+                <NewClass name="ProfileApplicationService" group="PROFILE" />
+                <NewClass name="AddressApplicationService" group="ADDRESS" />
+                <NewClass name="SavedConfigurationApplicationService" group="SAVED-CONFIG" />
+                <NewClass name="OrganizationApplicationService" group="B2B-ORG" priority="LATER" />
+            </ProposedDecomposition>
+            <ArchitectMustAnalyze>
+                <Item>Shared state between use case groups (repositories, validators)</Item>
+                <Item>Transaction boundaries across groups</Item>
+                <Item>Handler interface alignment (existing port.in interfaces)</Item>
+                <Item>API compatibility (existing REST/gRPC endpoints)</Item>
+                <Item>Potential facade pattern for backward compatibility</Item>
+            </ArchitectMustAnalyze>
+        </Service>
+
+        <Service name="CartApplicationService">
+            <CurrentFile>
+                cart-service/src/main/java/com/kanokna/cart/application/service/CartApplicationService.java</CurrentFile>
+            <CurrentLines>462</CurrentLines>
+            <PriorAssessment>AWO-20260117-03 marked as "KEEP" - already uses handler interfaces</PriorAssessment>
+            <ArchitectMustReEvaluate>
+                <Item>Confirm handler interface pattern is sufficient</Item>
+                <Item>Identify helper methods that could be extracted to utilities</Item>
+                <Item>Validate against Clean-Code Watchlist item A (huge classes/methods)</Item>
+            </ArchitectMustReEvaluate>
+        </Service>
+
+        <Service name="SearchApplicationService">
+            <CurrentFile>
+                search-service/src/main/java/com/kanokna/search/application/service/SearchApplicationService.java</CurrentFile>
+            <CurrentLines>~1000+</CurrentLines>
+            <PriorAssessment>AWO-20260117-03 marked as "KEEP" - cohesive search operations</PriorAssessment>
+            <ArchitectMustReEvaluate>
+                <Item>Re-verify line count and complexity</Item>
+                <Item>Identify if search vs index management should be separated</Item>
+                <Item>Validate against Clean-Code Watchlist</Item>
+            </ArchitectMustReEvaluate>
+        </Service>
+    </AnalysisRequirements>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       REQUIRED OUTPUTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <RequiredOutputs>
+        <Artifacts>
+            <RequirementsAnalysisUpdates>
+                <Item>None expected - existing UCs cover the functionality</Item>
+            </RequirementsAnalysisUpdates>
+            <TechnologyUpdates>
+                <Item>Record DEC-SRP-DECOMPOSITION-STRATEGY decision</Item>
+                <Item>Define decomposition pattern (Facade + Delegates vs Direct Split)</Item>
+            </TechnologyUpdates>
+            <DevelopmentPlanUpdates>
+                <Item>Update DP-SVC-account-service with new service class entries</Item>
+                <Item>If cart/search decomposition approved: Update respective DP-SVC entries</Item>
+            </DevelopmentPlanUpdates>
+        </Artifacts>
+
+        <Decisions>
+            <Item>DEC-SRP-DECOMPOSITION-STRATEGY: Record the chosen decomposition approach</Item>
+            <Item>DEC-ACCOUNT-DECOMPOSITION: Approve/adjust AccountApplicationService split</Item>
+            <Item>DEC-CART-DECOMPOSITION: Confirm KEEP or define decomposition</Item>
+            <Item>DEC-SEARCH-DECOMPOSITION: Confirm KEEP or define decomposition</Item>
+        </Decisions>
+
+        <Contracts>
+            <ModuleContracts count=">=1 per new service class">
+                <Item>MC-account-profile-service (if split)</Item>
+                <Item>MC-account-address-service (if split)</Item>
+                <Item>MC-account-savedconfig-service (if split)</Item>
+            </ModuleContracts>
+            <FunctionContracts count=">=1 per migrated method">
+                <Item>Update existing FC-* to reference new service classes</Item>
+            </FunctionContracts>
+            <BlockAnchors count="Migrate existing anchors to new locations" />
+            <TestCases count="Ensure TC-* coverage for each new service" />
+        </Contracts>
+
+        <Handoff>
+            <GRACE_HANDOFF required="true">
+                <Description>
+                    Produce Handoff-20260117-XX-W1-SRP-DECOMPOSITION with:
+                    - Decomposition strategy per service
+                    - New service class definitions
+                    - Migration plan for methods
+                    - Contract updates
+                    - API compatibility notes
+                </Description>
+            </GRACE_HANDOFF>
+        </Handoff>
+    </RequiredOutputs>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <AcceptanceCriteria>
+        <Item>All DEC-* decisions recorded in Technology.xml (no OR ambiguity)</Item>
+        <Item>DevelopmentPlan.xml updated with new service class entries</Item>
+        <Item>MODULE_CONTRACT defined for each new service class</Item>
+        <Item>Traceability maintained: UC → Flow → MC/FC → BA → TC</Item>
+        <Item>No new REST/gRPC endpoints introduced (refactoring only)</Item>
+        <Item>API backward compatibility preserved</Item>
+        <Item>Transaction boundaries documented</Item>
+        <Item>Shared dependencies (repositories, validators) explicitly mapped</Item>
+        <Item>Clean-Code Watchlist compliance verified for proposed design</Item>
+    </AcceptanceCriteria>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       COORDINATOR GUIDANCE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <CoordinatorGuidance>
+        <Priority>
+            <Item order="1">Account service decomposition (highest impact, 964 lines)</Item>
+            <Item order="2">Search service re-evaluation</Item>
+            <Item order="3">Cart service re-evaluation</Item>
+        </Priority>
+        <SuggestedApproach>
+            Consider phased decomposition:
+            - Phase 1: AccountApplicationService → 3-4 specialized services
+            - Phase 2: Search/Cart if analysis shows need
+        </SuggestedApproach>
+        <WarningFromExistingAnalysis>
+            AWO-20260117-03-REFACTORING Q1 recommended deferring PART-2 to reduce scope.
+            ARCHITECT should confirm if full decomposition is in scope now or if
+            AccountApplicationService only is the target.
+        </WarningFromExistingAnalysis>
+    </CoordinatorGuidance>
+
+</ARCHITECT_WORK_ORDER>
