@@ -1,0 +1,612 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff: AccountApplicationService SRP Decomposition
+  Task: W1-SRP-DECOMPOSITION
+  Service: account-service
+  Created: 2026-01-17T21:00:00+03:00
+  Author: GRACE-ARCHITECT
+-->
+<GRACE_HANDOFF
+  id="Handoff-20260117-03-W1-SRP-DECOMPOSITION"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2026-01-17T21:00:00+03:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W1-SRP-DECOMPOSITION"
+  awoRef="AWO-20260117-04-SRP-DECOMPOSITION"
+  techRef="Technology.xml#DEC-SRP-DECOMPOSITION-STRATEGY,Technology.xml#DEC-ACCOUNT-DECOMPOSITION"
+>
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Scope>
+    <Services>
+      <ServiceRef ref="DP-SVC-account-service" />
+    </Services>
+    <Description>
+      Decompose AccountApplicationService (964 lines) into specialized services following
+      the Delegate Pattern per DEC-SRP-DECOMPOSITION-STRATEGY.
+    </Description>
+    <AffectedLayers>
+      <Layer>application.service (decomposition into ProfileService, AddressService, SavedConfigurationService)</Layer>
+    </AffectedLayers>
+    <APICompatibility>
+      PRESERVED - AccountApplicationService remains as facade implementing use case interfaces.
+      No changes to REST/gRPC endpoints or port.in interfaces.
+    </APICompatibility>
+  </Scope>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       DECISIONS SNAPSHOT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DecisionsSnapshot>
+    <Decision id="DEC-SRP-DECOMPOSITION-STRATEGY" status="APPROVED">
+      <Title>Application Service Decomposition Strategy</Title>
+      <Selected>Delegate Pattern - main service implements interfaces, delegates to specialized services</Selected>
+    </Decision>
+    <Decision id="DEC-ACCOUNT-DECOMPOSITION" status="APPROVED">
+      <Title>AccountApplicationService Decomposition</Title>
+      <Selected>DECOMPOSE into 3 specialized services + facade</Selected>
+    </Decision>
+  </DecisionsSnapshot>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       CONTRACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Contracts>
+    <ModuleContractRef id="MC-account-profile-service">
+      <Class>com.kanokna.account.application.service.ProfileService</Class>
+      <Package>com.kanokna.account.application.service</Package>
+    </ModuleContractRef>
+    <ModuleContractRef id="MC-account-address-service">
+      <Class>com.kanokna.account.application.service.AddressService</Class>
+      <Package>com.kanokna.account.application.service</Package>
+    </ModuleContractRef>
+    <ModuleContractRef id="MC-account-savedconfig-service">
+      <Class>com.kanokna.account.application.service.SavedConfigurationService</Class>
+      <Package>com.kanokna.account.application.service</Package>
+    </ModuleContractRef>
+  </Contracts>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       DECOMPOSITION PLAN
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DecompositionPlan>
+    <CurrentState>
+      <File>account-service/src/main/java/com/kanokna/account/application/service/AccountApplicationService.java</File>
+      <Lines>964</Lines>
+      <Implements>GetProfileUseCase, UpdateProfileUseCase, AddressManagementUseCase, ConfigurationManagementUseCase</Implements>
+      <Methods>
+        <Group name="Profile">
+          <Method name="getProfile" lines="412-450" />
+          <Method name="updateProfile" lines="453-510" />
+          <Method name="createProfileFromCurrentUser" lines="820-855" helper="true" />
+        </Group>
+        <Group name="Address">
+          <Method name="addAddress" lines="610-658" />
+          <Method name="updateAddress" lines="661-705" />
+          <Method name="deleteAddress" lines="709-724" />
+          <Method name="listAddresses" lines="728-737" />
+          <Method name="loadProfileWithAddresses" lines="756-762" helper="true" />
+        </Group>
+        <Group name="SavedConfiguration">
+          <Method name="saveConfiguration" lines="513-575" />
+          <Method name="listConfigurations" lines="579-587" />
+          <Method name="deleteConfiguration" lines="590-607" />
+        </Group>
+        <Group name="Shared">
+          <Method name="requireCurrentUser" lines="739-745" helper="true" />
+          <Method name="authorizeAccess" lines="747-754" helper="true" />
+          <Method name="toDto" lines="857-905" helper="true" />
+          <Method name="logLine" lines="949-962" helper="true" />
+          <Method name="parsePhone/parseLanguage/parseCurrency" lines="781-818" helper="true" />
+        </Group>
+      </Methods>
+    </CurrentState>
+
+    <TargetState>
+      <NewFile name="ProfileService.java">
+        <Path>account-service/src/main/java/com/kanokna/account/application/service/ProfileService.java</Path>
+        <Contract ref="MC-account-profile-service" />
+        <MovedMethods>
+          <Method>getProfile</Method>
+          <Method>updateProfile</Method>
+          <Method>createProfileFromCurrentUser</Method>
+        </MovedMethods>
+        <MovedHelpers>
+          <Method>buildUpdatedName</Method>
+          <Method>parsePhone</Method>
+          <Method>parseLanguage</Method>
+          <Method>parseCurrency</Method>
+          <Method>maskEmail</Method>
+        </MovedHelpers>
+        <Dependencies>
+          <Item>UserProfileRepository</Item>
+          <Item>EventPublisher</Item>
+          <Item>CurrentUserProvider</Item>
+          <Item>AccountProperties</Item>
+        </Dependencies>
+      </NewFile>
+
+      <NewFile name="AddressService.java">
+        <Path>account-service/src/main/java/com/kanokna/account/application/service/AddressService.java</Path>
+        <Contract ref="MC-account-address-service" />
+        <MovedMethods>
+          <Method>addAddress</Method>
+          <Method>updateAddress</Method>
+          <Method>deleteAddress</Method>
+          <Method>listAddresses</Method>
+        </MovedMethods>
+        <MovedHelpers>
+          <Method>loadProfileWithAddresses</Method>
+          <Method>buildAddressChangedFields</Method>
+        </MovedHelpers>
+        <Dependencies>
+          <Item>SavedAddressRepository</Item>
+          <Item>UserProfileRepository</Item>
+          <Item>EventPublisher</Item>
+          <Item>CurrentUserProvider</Item>
+        </Dependencies>
+      </NewFile>
+
+      <NewFile name="SavedConfigurationService.java">
+        <Path>account-service/src/main/java/com/kanokna/account/application/service/SavedConfigurationService.java</Path>
+        <Contract ref="MC-account-savedconfig-service" />
+        <MovedMethods>
+          <Method>saveConfiguration</Method>
+          <Method>listConfigurations</Method>
+          <Method>deleteConfiguration</Method>
+        </MovedMethods>
+        <Dependencies>
+          <Item>SavedConfigurationRepository</Item>
+          <Item>EventPublisher</Item>
+          <Item>CurrentUserProvider</Item>
+          <Item>ConfigurationSnapshotValidator</Item>
+        </Dependencies>
+      </NewFile>
+
+      <NewFile name="AccountServiceUtils.java">
+        <Path>account-service/src/main/java/com/kanokna/account/application/service/AccountServiceUtils.java</Path>
+        <Description>Shared utility methods used by multiple specialized services</Description>
+        <SharedHelpers>
+          <Method>requireCurrentUser(CurrentUserProvider)</Method>
+          <Method>authorizeAccess(CurrentUser, Id)</Method>
+          <Method>logLine(String useCase, String block, String state, String eventType, String decision, String keyValues)</Method>
+        </SharedHelpers>
+      </NewFile>
+
+      <ModifiedFile name="AccountApplicationService.java">
+        <Description>Refactored to facade pattern - delegates to specialized services</Description>
+        <NewDependencies>
+          <Item>ProfileService</Item>
+          <Item>AddressService</Item>
+          <Item>SavedConfigurationService</Item>
+        </NewDependencies>
+        <RemovedDependencies>
+          <Item>UserProfileRepository (moved to ProfileService, AddressService)</Item>
+          <Item>SavedAddressRepository (moved to AddressService)</Item>
+          <Item>SavedConfigurationRepository (moved to SavedConfigurationService)</Item>
+          <Item>AccountProperties (moved to ProfileService)</Item>
+          <Item>ConfigurationSnapshotValidator (moved to SavedConfigurationService)</Item>
+        </RemovedDependencies>
+        <ExpectedLines>~150 (facade delegating to specialized services)</ExpectedLines>
+      </ModifiedFile>
+    </TargetState>
+  </DecompositionPlan>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       IMPLEMENTATION SKELETON: ProfileService.java
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationSkeleton>
+    <File path="account-service/src/main/java/com/kanokna/account/application/service/ProfileService.java">
+      <![CDATA[
+package com.kanokna.account.application.service;
+
+import com.kanokna.account.adapters.config.AccountProperties;
+import com.kanokna.account.application.dto.*;
+import com.kanokna.account.application.port.out.*;
+import com.kanokna.account.domain.event.*;
+import com.kanokna.account.domain.exception.AccountDomainErrors;
+import com.kanokna.account.domain.model.*;
+import com.kanokna.shared.core.Email;
+import com.kanokna.shared.core.Id;
+import com.kanokna.shared.core.PhoneNumber;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.Currency;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+
+/**
+ * MODULE_CONTRACT id="MC-account-profile-service"
+ * LAYER="application.service"
+ * INTENT="Specialized service for user profile CRUD operations"
+ * LINKS="Technology.xml#DEC-ACCOUNT-DECOMPOSITION;RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE"
+ */
+@Service
+@Transactional
+public class ProfileService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProfileService.class);
+
+    private final UserProfileRepository userProfileRepository;
+    private final EventPublisher eventPublisher;
+    private final CurrentUserProvider currentUserProvider;
+    private final AccountProperties accountProperties;
+
+    public ProfileService(
+        UserProfileRepository userProfileRepository,
+        EventPublisher eventPublisher,
+        CurrentUserProvider currentUserProvider,
+        AccountProperties accountProperties
+    ) {
+        this.userProfileRepository = userProfileRepository;
+        this.eventPublisher = eventPublisher;
+        this.currentUserProvider = currentUserProvider;
+        this.accountProperties = accountProperties;
+    }
+
+    public UserProfileDto getProfile(GetProfileQuery query) {
+        // Implementation moved from AccountApplicationService.getProfile
+        // Lines 412-450
+    }
+
+    public UserProfileDto updateProfile(UpdateProfileCommand command) {
+        // Implementation moved from AccountApplicationService.updateProfile
+        // Lines 453-510
+    }
+
+    // Private helpers moved from AccountApplicationService:
+    // - createProfileFromCurrentUser
+    // - buildUpdatedName
+    // - parsePhone, parseLanguage, parseCurrency
+    // - maskEmail
+    // - toDto (profile-specific)
+}
+      ]]>
+    </File>
+
+    <File path="account-service/src/main/java/com/kanokna/account/application/service/AddressService.java">
+      <![CDATA[
+package com.kanokna.account.application.service;
+
+import com.kanokna.account.application.dto.*;
+import com.kanokna.account.application.port.out.*;
+import com.kanokna.account.domain.event.*;
+import com.kanokna.account.domain.exception.AccountDomainErrors;
+import com.kanokna.account.domain.model.*;
+import com.kanokna.shared.core.Id;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * MODULE_CONTRACT id="MC-account-address-service"
+ * LAYER="application.service"
+ * INTENT="Specialized service for address management operations"
+ * LINKS="Technology.xml#DEC-ACCOUNT-DECOMPOSITION;RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE"
+ */
+@Service
+@Transactional
+public class AddressService {
+
+    private static final Logger log = LoggerFactory.getLogger(AddressService.class);
+
+    private final SavedAddressRepository savedAddressRepository;
+    private final UserProfileRepository userProfileRepository;
+    private final EventPublisher eventPublisher;
+    private final CurrentUserProvider currentUserProvider;
+
+    public AddressService(
+        SavedAddressRepository savedAddressRepository,
+        UserProfileRepository userProfileRepository,
+        EventPublisher eventPublisher,
+        CurrentUserProvider currentUserProvider
+    ) {
+        this.savedAddressRepository = savedAddressRepository;
+        this.userProfileRepository = userProfileRepository;
+        this.eventPublisher = eventPublisher;
+        this.currentUserProvider = currentUserProvider;
+    }
+
+    public SavedAddressDto addAddress(AddAddressCommand command) {
+        // Implementation moved from AccountApplicationService.addAddress
+        // Lines 610-658
+    }
+
+    public SavedAddressDto updateAddress(UpdateAddressCommand command) {
+        // Implementation moved from AccountApplicationService.updateAddress
+        // Lines 661-705
+    }
+
+    public void deleteAddress(DeleteAddressCommand command) {
+        // Implementation moved from AccountApplicationService.deleteAddress
+        // Lines 709-724
+    }
+
+    public List<SavedAddressDto> listAddresses(ListAddressesQuery query) {
+        // Implementation moved from AccountApplicationService.listAddresses
+        // Lines 728-737
+    }
+
+    // Private helpers:
+    // - loadProfileWithAddresses
+    // - buildAddressChangedFields
+    // - toDto (address-specific)
+}
+      ]]>
+    </File>
+
+    <File path="account-service/src/main/java/com/kanokna/account/application/service/SavedConfigurationService.java">
+      <![CDATA[
+package com.kanokna.account.application.service;
+
+import com.kanokna.account.application.dto.*;
+import com.kanokna.account.application.port.out.*;
+import com.kanokna.account.domain.event.*;
+import com.kanokna.account.domain.exception.AccountDomainErrors;
+import com.kanokna.account.domain.model.*;
+import com.kanokna.shared.core.Id;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * MODULE_CONTRACT id="MC-account-savedconfig-service"
+ * LAYER="application.service"
+ * INTENT="Specialized service for saved product configuration operations"
+ * LINKS="Technology.xml#DEC-ACCOUNT-DECOMPOSITION;RequirementsAnalysis.xml#UC-B2C-CPQ-01"
+ */
+@Service
+@Transactional
+public class SavedConfigurationService {
+
+    private static final Logger log = LoggerFactory.getLogger(SavedConfigurationService.class);
+
+    private final SavedConfigurationRepository savedConfigurationRepository;
+    private final EventPublisher eventPublisher;
+    private final CurrentUserProvider currentUserProvider;
+    private final ConfigurationSnapshotValidator configurationSnapshotValidator;
+
+    public SavedConfigurationService(
+        SavedConfigurationRepository savedConfigurationRepository,
+        EventPublisher eventPublisher,
+        CurrentUserProvider currentUserProvider,
+        ConfigurationSnapshotValidator configurationSnapshotValidator
+    ) {
+        this.savedConfigurationRepository = savedConfigurationRepository;
+        this.eventPublisher = eventPublisher;
+        this.currentUserProvider = currentUserProvider;
+        this.configurationSnapshotValidator = configurationSnapshotValidator;
+    }
+
+    public SavedConfigurationDto saveConfiguration(SaveConfigurationCommand command) {
+        // Implementation moved from AccountApplicationService.saveConfiguration
+        // Lines 513-575
+    }
+
+    public List<SavedConfigurationDto> listConfigurations(ListConfigurationsQuery query) {
+        // Implementation moved from AccountApplicationService.listConfigurations
+        // Lines 579-587
+    }
+
+    public void deleteConfiguration(DeleteConfigurationCommand command) {
+        // Implementation moved from AccountApplicationService.deleteConfiguration
+        // Lines 590-607
+    }
+
+    // Private helpers:
+    // - toDto (configuration-specific)
+}
+      ]]>
+    </File>
+
+    <File path="account-service/src/main/java/com/kanokna/account/application/service/AccountApplicationService.java (REFACTORED)">
+      <![CDATA[
+package com.kanokna.account.application.service;
+
+import com.kanokna.account.application.dto.*;
+import com.kanokna.account.application.port.in.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+/**
+ * Facade service implementing account use case interfaces.
+ * Delegates to specialized services for each responsibility group.
+ *
+ * @see ProfileService
+ * @see AddressService
+ * @see SavedConfigurationService
+ */
+@Service
+@Transactional
+public class AccountApplicationService implements
+    GetProfileUseCase,
+    UpdateProfileUseCase,
+    AddressManagementUseCase,
+    ConfigurationManagementUseCase {
+
+    private final ProfileService profileService;
+    private final AddressService addressService;
+    private final SavedConfigurationService savedConfigurationService;
+
+    public AccountApplicationService(
+        ProfileService profileService,
+        AddressService addressService,
+        SavedConfigurationService savedConfigurationService
+    ) {
+        this.profileService = profileService;
+        this.addressService = addressService;
+        this.savedConfigurationService = savedConfigurationService;
+    }
+
+    // ========== Profile Operations ==========
+
+    @Override
+    public UserProfileDto getProfile(GetProfileQuery query) {
+        return profileService.getProfile(query);
+    }
+
+    @Override
+    public UserProfileDto updateProfile(UpdateProfileCommand command) {
+        return profileService.updateProfile(command);
+    }
+
+    // ========== Address Operations ==========
+
+    @Override
+    public SavedAddressDto addAddress(AddAddressCommand command) {
+        return addressService.addAddress(command);
+    }
+
+    @Override
+    public SavedAddressDto updateAddress(UpdateAddressCommand command) {
+        return addressService.updateAddress(command);
+    }
+
+    @Override
+    public void deleteAddress(DeleteAddressCommand command) {
+        addressService.deleteAddress(command);
+    }
+
+    @Override
+    public List<SavedAddressDto> listAddresses(ListAddressesQuery query) {
+        return addressService.listAddresses(query);
+    }
+
+    // ========== Configuration Operations ==========
+
+    @Override
+    public SavedConfigurationDto saveConfiguration(SaveConfigurationCommand command) {
+        return savedConfigurationService.saveConfiguration(command);
+    }
+
+    @Override
+    public List<SavedConfigurationDto> listConfigurations(ListConfigurationsQuery query) {
+        return savedConfigurationService.listConfigurations(query);
+    }
+
+    @Override
+    public void deleteConfiguration(DeleteConfigurationCommand command) {
+        savedConfigurationService.deleteConfiguration(command);
+    }
+}
+      ]]>
+    </File>
+  </ImplementationSkeleton>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       TEST REQUIREMENTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <TestRequirements>
+    <NewTests>
+      <TestFile path="account-service/src/test/java/com/kanokna/account/application/service/ProfileServiceTest.java">
+        <Cases>
+          <Case>getProfile_existingUser_returnsProfile</Case>
+          <Case>getProfile_newUser_autoCreatesFromKeycloak</Case>
+          <Case>updateProfile_validInput_updatesAndPublishesEvent</Case>
+          <Case>updateProfile_invalidPhone_throwsException</Case>
+        </Cases>
+      </TestFile>
+      <TestFile path="account-service/src/test/java/com/kanokna/account/application/service/AddressServiceTest.java">
+        <Cases>
+          <Case>addAddress_validInput_savesAndPublishesEvent</Case>
+          <Case>addAddress_setAsDefault_clearsOldDefault</Case>
+          <Case>updateAddress_validInput_updatesAndPublishesEvent</Case>
+          <Case>deleteAddress_existingAddress_deletesAndPublishesEvent</Case>
+          <Case>listAddresses_returnsAddressesSortedByLabel</Case>
+        </Cases>
+      </TestFile>
+      <TestFile path="account-service/src/test/java/com/kanokna/account/application/service/SavedConfigurationServiceTest.java">
+        <Cases>
+          <Case>saveConfiguration_validInput_savesAndPublishesEvent</Case>
+          <Case>saveConfiguration_invalidSnapshot_throwsException</Case>
+          <Case>listConfigurations_returnsUserConfigurations</Case>
+          <Case>deleteConfiguration_existingConfig_deletesAndPublishesEvent</Case>
+        </Cases>
+      </TestFile>
+    </NewTests>
+    <ExistingTests>
+      <Note>Existing AccountApplicationServiceTest should continue to pass (facade behavior unchanged)</Note>
+    </ExistingTests>
+  </TestRequirements>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       CODER INSTRUCTIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <CoderInstructions>
+    <Instruction priority="1">
+      Create ProfileService.java with methods moved from AccountApplicationService (getProfile, updateProfile)
+      and associated helpers. Add MODULE_CONTRACT comment at class level.
+    </Instruction>
+    <Instruction priority="2">
+      Create AddressService.java with address management methods (addAddress, updateAddress, deleteAddress, listAddresses)
+      and associated helpers. Add MODULE_CONTRACT comment at class level.
+    </Instruction>
+    <Instruction priority="3">
+      Create SavedConfigurationService.java with configuration management methods
+      (saveConfiguration, listConfigurations, deleteConfiguration) and associated helpers.
+      Add MODULE_CONTRACT comment at class level.
+    </Instruction>
+    <Instruction priority="4">
+      Refactor AccountApplicationService.java to delegate to specialized services.
+      Remove direct repository dependencies, keep only service dependencies.
+    </Instruction>
+    <Instruction priority="5">
+      Create unit tests for each specialized service (ProfileServiceTest, AddressServiceTest, SavedConfigurationServiceTest).
+    </Instruction>
+    <Instruction priority="6">
+      Verify existing AccountApplicationServiceTest passes (API compatibility preserved).
+    </Instruction>
+    <Instruction priority="7">
+      Run mvn clean test to verify all tests pass.
+    </Instruction>
+    <Instruction priority="8">
+      Verify no compilation errors in other services that depend on account-service.
+    </Instruction>
+  </CoderInstructions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria>
+    <Criterion id="AC-SRP-001">ProfileService.java exists with MODULE_CONTRACT comment</Criterion>
+    <Criterion id="AC-SRP-002">AddressService.java exists with MODULE_CONTRACT comment</Criterion>
+    <Criterion id="AC-SRP-003">SavedConfigurationService.java exists with MODULE_CONTRACT comment</Criterion>
+    <Criterion id="AC-SRP-004">AccountApplicationService delegates to specialized services</Criterion>
+    <Criterion id="AC-SRP-005">AccountApplicationService has no direct repository dependencies</Criterion>
+    <Criterion id="AC-SRP-006">Each specialized service is under 300 lines</Criterion>
+    <Criterion id="AC-SRP-007">Existing API contracts (port.in interfaces) unchanged</Criterion>
+    <Criterion id="AC-SRP-008">All existing tests pass</Criterion>
+    <Criterion id="AC-SRP-009">New unit tests added for each specialized service</Criterion>
+    <Criterion id="AC-SRP-010">No circular dependencies between specialized services</Criterion>
+  </AcceptanceCriteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ASSUMPTIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Assumptions>
+    <Item id="A-SRP-001">Spring can inject specialized services into AccountApplicationService</Item>
+    <Item id="A-SRP-002">Transaction propagation works correctly through delegation</Item>
+    <Item id="A-SRP-003">FUNCTION_CONTRACT comments in original file will be migrated to appropriate services</Item>
+    <Item id="A-SRP-004">Logging patterns (logLine helper) can be shared via static utility or duplicated</Item>
+  </Assumptions>
+
+</GRACE_HANDOFF>

@@ -441,19 +441,20 @@ billing-service, support-service)
         <Port type="grpc">9082</Port>
       </Ports>
       <PackageLayout>
-        <Package>com.kanokna.pricing_service.domain.model</Package>
-        <Package>com.kanokna.pricing_service.domain.service</Package>
-        <Package>com.kanokna.pricing_service.domain.event</Package>
-        <Package>com.kanokna.pricing_service.domain.exception</Package>
-        <Package>com.kanokna.pricing_service.application.port.in</Package>
-        <Package>com.kanokna.pricing_service.application.port.out</Package>
-        <Package>com.kanokna.pricing_service.application.service</Package>
-        <Package>com.kanokna.pricing_service.application.dto</Package>
-        <Package>com.kanokna.pricing_service.adapters.in.web</Package>
-        <Package>com.kanokna.pricing_service.adapters.in.grpc</Package>
-        <Package>com.kanokna.pricing_service.adapters.out.persistence</Package>
-        <Package>com.kanokna.pricing_service.adapters.out.redis</Package>
-        <Package>com.kanokna.pricing_service.adapters.config</Package>
+        <!-- Updated per DEC-PACKAGE-NAMING-CONVENTION: pricing_service → pricing -->
+        <Package>com.kanokna.pricing.domain.model</Package>
+        <Package>com.kanokna.pricing.domain.service</Package>
+        <Package>com.kanokna.pricing.domain.event</Package>
+        <Package>com.kanokna.pricing.domain.exception</Package>
+        <Package>com.kanokna.pricing.application.port.in</Package>
+        <Package>com.kanokna.pricing.application.port.out</Package>
+        <Package>com.kanokna.pricing.application.service</Package>
+        <Package>com.kanokna.pricing.application.dto</Package>
+        <Package>com.kanokna.pricing.adapters.in.web</Package>
+        <Package>com.kanokna.pricing.adapters.in.grpc</Package>
+        <Package>com.kanokna.pricing.adapters.out.persistence</Package>
+        <Package>com.kanokna.pricing.adapters.out.redis</Package>
+        <Package>com.kanokna.pricing.adapters.config</Package>
       </PackageLayout>
       <Aggregates>
         <Aggregate name="PriceBook">Versioned price definitions</Aggregate>
@@ -1888,7 +1889,7 @@ billing-service, support-service)
         <Service>pricing-service</Service>
         <Layer>domain.exception</Layer>
         <Description>Static factory for pricing-service domain exceptions</Description>
-        <Class>com.kanokna.pricing_service.domain.exception.PricingDomainErrors</Class>
+        <Class>com.kanokna.pricing.domain.exception.PricingDomainErrors</Class>
         <Responsibilities>
           <Item>Provide factory methods for all pricing domain error types</Item>
           <Item>Ensure consistent error codes (ERR-PRICE-*)</Item>
@@ -1927,6 +1928,74 @@ billing-service, support-service)
           <Link ref="MC-pricing-domain-errors" />
         </Links>
       </FunctionContract>
+
+      <!-- Account Service Decomposition (DEC-ACCOUNT-DECOMPOSITION) -->
+      <ModuleContract id="MC-account-profile-service">
+        <Service>account-service</Service>
+        <Layer>application.service</Layer>
+        <Description>Specialized service for user profile operations</Description>
+        <Class>com.kanokna.account.application.service.ProfileService</Class>
+        <Responsibilities>
+          <Item>Get user profile (with auto-create from Keycloak on first access)</Item>
+          <Item>Update user profile fields (name, phone, preferences)</Item>
+          <Item>Create profile from Keycloak claims</Item>
+        </Responsibilities>
+        <Dependencies>
+          <Item>UserProfileRepository</Item>
+          <Item>EventPublisher</Item>
+          <Item>CurrentUserProvider</Item>
+          <Item>AccountProperties</Item>
+        </Dependencies>
+        <Links>
+          <Link ref="Technology.xml#DEC-ACCOUNT-DECOMPOSITION" />
+          <Link ref="RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE" />
+        </Links>
+      </ModuleContract>
+
+      <ModuleContract id="MC-account-address-service">
+        <Service>account-service</Service>
+        <Layer>application.service</Layer>
+        <Description>Specialized service for address management operations</Description>
+        <Class>com.kanokna.account.application.service.AddressService</Class>
+        <Responsibilities>
+          <Item>Add address with optional set-as-default</Item>
+          <Item>Update address details and label</Item>
+          <Item>Delete address</Item>
+          <Item>List addresses sorted by label</Item>
+        </Responsibilities>
+        <Dependencies>
+          <Item>SavedAddressRepository</Item>
+          <Item>UserProfileRepository (for loading profile with addresses)</Item>
+          <Item>EventPublisher</Item>
+          <Item>CurrentUserProvider</Item>
+        </Dependencies>
+        <Links>
+          <Link ref="Technology.xml#DEC-ACCOUNT-DECOMPOSITION" />
+          <Link ref="RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE" />
+        </Links>
+      </ModuleContract>
+
+      <ModuleContract id="MC-account-savedconfig-service">
+        <Service>account-service</Service>
+        <Layer>application.service</Layer>
+        <Description>Specialized service for saved product configuration operations</Description>
+        <Class>com.kanokna.account.application.service.SavedConfigurationService</Class>
+        <Responsibilities>
+          <Item>Save product configuration draft</Item>
+          <Item>List user's saved configurations</Item>
+          <Item>Delete saved configuration</Item>
+        </Responsibilities>
+        <Dependencies>
+          <Item>SavedConfigurationRepository</Item>
+          <Item>EventPublisher</Item>
+          <Item>CurrentUserProvider</Item>
+          <Item>ConfigurationSnapshotValidator</Item>
+        </Dependencies>
+        <Links>
+          <Link ref="Technology.xml#DEC-ACCOUNT-DECOMPOSITION" />
+          <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01" />
+        </Links>
+      </ModuleContract>
     </ContractRegistry>
 
     <BlockAnchorRegistry>

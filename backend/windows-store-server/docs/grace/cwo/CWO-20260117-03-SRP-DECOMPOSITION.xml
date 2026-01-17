@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CODER_WORK_ORDER id="CWO-20260117-03" status="APPROVED">
+    <Meta>
+        <Created>2026-01-17T21:26:12+03:00</Created>
+        <HandoffRef>Handoff-20260117-03-W1-SRP-DECOMPOSITION</HandoffRef>
+        <TaskRef>W1-SRP-DECOMPOSITION</TaskRef>
+        <ApprovalRef>GRACE_APPROVAL approved="2026-01-17T21:26:12+03:00" approver="Human"</ApprovalRef>
+        <Priority>MEDIUM</Priority>
+        <EstimatedEffort>2-3 hours</EstimatedEffort>
+    </Meta>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       PRECONDITIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Preconditions>
+        <Item>Handoff exists: Handoff-20260117-03-W1-SRP-DECOMPOSITION</Item>
+        <Item>Valid approval exists in docs/grace/approvals.log for the same ref</Item>
+        <Item>All referenced artifact sections and contract IDs are provided in this work order</Item>
+        <Item>No blocking PENDING_HUMAN/TBD decisions for in-scope implementation</Item>
+        <Item>Human-readable code is mandatory: prefer clarity over cleverness</Item>
+        <Item>Error handling must be domain-focused and consistent across the module</Item>
+        <Item>No mapper duplication: extract shared mapping functions/utilities</Item>
+    </Preconditions>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Scope>
+        <HandoffRef>Handoff-20260117-03-W1-SRP-DECOMPOSITION</HandoffRef>
+        <Services>
+            <ServiceRef ref="DP-SVC-account-service" />
+        </Services>
+        <UseCases>
+            <UseCaseRef ref="UC-ACCOUNT-MANAGE-PROFILE" />
+            <UseCaseRef ref="UC-B2C-CPQ-01" />
+        </UseCases>
+        <Contracts>
+            <ModuleContractRef id="MC-account-profile-service" />
+            <ModuleContractRef id="MC-account-address-service" />
+            <ModuleContractRef id="MC-account-savedconfig-service" />
+        </Contracts>
+        <Description>
+            Decompose AccountApplicationService (964 lines) into specialized services:
+            - ProfileService: profile CRUD operations
+            - AddressService: address management
+            - SavedConfigurationService: saved configuration operations
+            - AccountApplicationService: refactored to facade pattern
+        </Description>
+    </Scope>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       FILES TO CREATE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <FilesToCreate>
+        <File id="F-001">
+            <Path>
+                services/account-service/src/main/java/com/kanokna/account/application/service/ProfileService.java</Path>
+            <Description>Specialized service for user profile CRUD operations</Description>
+            <Contract ref="MC-account-profile-service" />
+            <Methods>
+                <Method>getProfile(GetProfileQuery): UserProfileDto</Method>
+                <Method>updateProfile(UpdateProfileCommand): UserProfileDto</Method>
+            </Methods>
+            <MovedFrom>AccountApplicationService lines 412-510, 781-855</MovedFrom>
+            <Dependencies>
+                <Item>UserProfileRepository</Item>
+                <Item>EventPublisher</Item>
+                <Item>CurrentUserProvider</Item>
+                <Item>AccountProperties</Item>
+            </Dependencies>
+        </File>
+
+        <File id="F-002">
+            <Path>
+                services/account-service/src/main/java/com/kanokna/account/application/service/AddressService.java</Path>
+            <Description>Specialized service for address management operations</Description>
+            <Contract ref="MC-account-address-service" />
+            <Methods>
+                <Method>addAddress(AddAddressCommand): SavedAddressDto</Method>
+                <Method>updateAddress(UpdateAddressCommand): SavedAddressDto</Method>
+                <Method>deleteAddress(DeleteAddressCommand): void</Method>
+                <Method>listAddresses(ListAddressesQuery): List&lt;SavedAddressDto&gt;</Method>
+            </Methods>
+            <MovedFrom>AccountApplicationService lines 610-762</MovedFrom>
+            <Dependencies>
+                <Item>SavedAddressRepository</Item>
+                <Item>UserProfileRepository</Item>
+                <Item>EventPublisher</Item>
+                <Item>CurrentUserProvider</Item>
+            </Dependencies>
+        </File>
+
+        <File id="F-003">
+            <Path>
+                services/account-service/src/main/java/com/kanokna/account/application/service/SavedConfigurationService.java</Path>
+            <Description>Specialized service for saved product configuration operations</Description>
+            <Contract ref="MC-account-savedconfig-service" />
+            <Methods>
+                <Method>saveConfiguration(SaveConfigurationCommand): SavedConfigurationDto</Method>
+                <Method>listConfigurations(ListConfigurationsQuery):
+                    List&lt;SavedConfigurationDto&gt;</Method>
+                <Method>deleteConfiguration(DeleteConfigurationCommand): void</Method>
+            </Methods>
+            <MovedFrom>AccountApplicationService lines 513-607</MovedFrom>
+            <Dependencies>
+                <Item>SavedConfigurationRepository</Item>
+                <Item>EventPublisher</Item>
+                <Item>CurrentUserProvider</Item>
+                <Item>ConfigurationSnapshotValidator</Item>
+            </Dependencies>
+        </File>
+    </FilesToCreate>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       FILES TO MODIFY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <FilesToModify>
+        <File id="M-001">
+            <Path>
+                services/account-service/src/main/java/com/kanokna/account/application/service/AccountApplicationService.java</Path>
+            <Description>Refactor to facade pattern - delegate to specialized services</Description>
+            <Changes>
+                <Change>Remove profile-related methods (move to ProfileService)</Change>
+                <Change>Remove address-related methods (move to AddressService)</Change>
+                <Change>Remove configuration-related methods (move to SavedConfigurationService)</Change>
+                <Change>Remove direct repository dependencies</Change>
+                <Change>Add ProfileService, AddressService, SavedConfigurationService as
+                    dependencies</Change>
+                <Change>Implement use case interfaces by delegating to specialized services</Change>
+            </Changes>
+            <ExpectedLines>~150 lines (down from 964)</ExpectedLines>
+        </File>
+    </FilesToModify>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       TEST FILES TO CREATE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <TestFiles>
+        <File id="T-001">
+            <Path>
+                services/account-service/src/test/java/com/kanokna/account/application/service/ProfileServiceTest.java</Path>
+            <TestCases>
+                <Case>getProfile_existingUser_returnsProfile</Case>
+                <Case>getProfile_newUser_autoCreatesFromKeycloak</Case>
+                <Case>updateProfile_validInput_updatesAndPublishesEvent</Case>
+                <Case>updateProfile_invalidPhone_throwsException</Case>
+            </TestCases>
+        </File>
+        <File id="T-002">
+            <Path>
+                services/account-service/src/test/java/com/kanokna/account/application/service/AddressServiceTest.java</Path>
+            <TestCases>
+                <Case>addAddress_validInput_savesAndPublishesEvent</Case>
+                <Case>addAddress_setAsDefault_clearsOldDefault</Case>
+                <Case>updateAddress_validInput_updatesAndPublishesEvent</Case>
+                <Case>deleteAddress_existingAddress_deletesAndPublishesEvent</Case>
+                <Case>listAddresses_returnsAddressesSortedByLabel</Case>
+            </TestCases>
+        </File>
+        <File id="T-003">
+            <Path>
+                services/account-service/src/test/java/com/kanokna/account/application/service/SavedConfigurationServiceTest.java</Path>
+            <TestCases>
+                <Case>saveConfiguration_validInput_savesAndPublishesEvent</Case>
+                <Case>saveConfiguration_invalidSnapshot_throwsException</Case>
+                <Case>listConfigurations_returnsUserConfigurations</Case>
+                <Case>deleteConfiguration_existingConfig_deletesAndPublishesEvent</Case>
+            </TestCases>
+        </File>
+    </TestFiles>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       IMPLEMENTATION RULES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <ImplementationRules>
+        <Item>No new endpoints/events/services beyond the approved handoff scope</Item>
+        <Item>Embed semantic contracts verbatim (IDs unchanged)</Item>
+        <Item>Logs must follow canonical format and reference BA anchors</Item>
+        <Item>Implement tests matching all referenced TC-* cases</Item>
+        <Item>Respect hexagonal layering (domain free of Spring/JPA/etc.)</Item>
+        <Item>No cross-service join logic introduced</Item>
+        <Item>Use Technology.xml decisions only (no alternative stacks)</Item>
+        <Item>Each specialized service must have @Service and @Transactional annotations</Item>
+        <Item>Each specialized service must have MODULE_CONTRACT comment at class level</Item>
+        <Item>Private constructor helpers moved from AccountApplicationService must be preserved</Item>
+        <Item>Transaction boundaries: each specialized service method is self-contained transaction</Item>
+    </ImplementationRules>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       EXECUTION PHASES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <ExecutionPhases>
+        <Phase id="1" name="Create Specialized Services">
+            <Task priority="1">Create ProfileService.java with methods from handoff skeleton</Task>
+            <Task priority="2">Create AddressService.java with methods from handoff skeleton</Task>
+            <Task priority="3">Create SavedConfigurationService.java with methods from handoff
+                skeleton</Task>
+            <Task priority="4">Move method implementations from AccountApplicationService to
+                respective services</Task>
+            <Task priority="5">Move helper methods to appropriate locations (shared utils or
+                per-service)</Task>
+        </Phase>
+
+        <Phase id="2" name="Refactor Facade">
+            <Task priority="1">Update AccountApplicationService constructor to inject specialized
+                services</Task>
+            <Task priority="2">Replace method implementations with delegation calls</Task>
+            <Task priority="3">Remove unused imports and dependencies</Task>
+            <Task priority="4">Verify AccountApplicationService still implements all use case
+                interfaces</Task>
+        </Phase>
+
+        <Phase id="3" name="Create Tests">
+            <Task priority="1">Create ProfileServiceTest.java with specified test cases</Task>
+            <Task priority="2">Create AddressServiceTest.java with specified test cases</Task>
+            <Task priority="3">Create SavedConfigurationServiceTest.java with specified test cases</Task>
+        </Phase>
+
+        <Phase id="4" name="Verification">
+            <Task priority="1">Run mvn clean compile -pl services/account-service</Task>
+            <Task priority="2">Run mvn test -pl services/account-service</Task>
+            <Task priority="3">Verify existing AccountApplicationServiceTest passes</Task>
+            <Task priority="4">Verify no compilation errors in dependent services</Task>
+        </Phase>
+    </ExecutionPhases>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA CHECKLIST
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <AcceptanceCriteria>
+        <Criterion id="AC-SRP-001">ProfileService.java exists with MODULE_CONTRACT comment</Criterion>
+        <Criterion id="AC-SRP-002">AddressService.java exists with MODULE_CONTRACT comment</Criterion>
+        <Criterion id="AC-SRP-003">SavedConfigurationService.java exists with MODULE_CONTRACT
+            comment</Criterion>
+        <Criterion id="AC-SRP-004">AccountApplicationService delegates to specialized services</Criterion>
+        <Criterion id="AC-SRP-005">AccountApplicationService has no direct repository dependencies</Criterion>
+        <Criterion id="AC-SRP-006">Each specialized service is under 300 lines</Criterion>
+        <Criterion id="AC-SRP-007">Existing API contracts (port.in interfaces) unchanged</Criterion>
+        <Criterion id="AC-SRP-008">All existing tests pass</Criterion>
+        <Criterion id="AC-SRP-009">New unit tests added for each specialized service</Criterion>
+        <Criterion id="AC-SRP-010">No circular dependencies between specialized services</Criterion>
+    </AcceptanceCriteria>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       REQUIRED OUTPUTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <RequiredOutputs>
+        <Item>FilePlan (paths + purpose) then code by file path</Item>
+        <Item>Tests for each specialized service</Item>
+        <Item>ConsistencyChecklist (self-audit vs scope + contracts)</Item>
+    </RequiredOutputs>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       CODER NOTES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <CoderNotes>
+        <Note priority="HIGH">
+            Implementation skeletons are provided in the handoff (lines 200-513).
+            Use these as the base structure for each service class.
+        </Note>
+        <Note priority="HIGH">
+            Method implementations should be MOVED (not copied) from AccountApplicationService.
+            Ensure all private helper methods are also moved to appropriate locations.
+        </Note>
+        <Note priority="MEDIUM">
+            Shared helpers like requireCurrentUser, authorizeAccess can be:
+            - Duplicated in each service (simplest)
+            - Extracted to AccountServiceUtils (if handoff includes it)
+            - Made into a shared base class (avoid if possible - favor composition)
+        </Note>
+        <Note priority="MEDIUM">
+            Transaction boundaries are preserved - each specialized service method runs
+            in its own transaction via @Transactional at service level.
+        </Note>
+        <Note priority="LOW">
+            After refactoring, AccountApplicationService should be ~150 lines (thin facade).
+            If significantly larger, review for missed extractions.
+        </Note>
+    </CoderNotes>
+
+</CODER_WORK_ORDER>

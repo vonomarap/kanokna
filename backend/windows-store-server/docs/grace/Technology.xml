@@ -1230,6 +1230,135 @@
         <Link ref="Technology.xml#DEC-DOMAIN-ERROR-PATTERN" />
       </Links>
     </Decision>
+
+    <Decision id="DEC-PACKAGE-NAMING-CONVENTION" status="APPROVED">
+      <Title>Java Package Naming Convention</Title>
+      <Context>Need consistent package naming across all services for maintainability and IDE navigation</Context>
+      <Selected>Package root follows bounded context name: com.kanokna.{bounded-context}.*</Selected>
+      <Convention>
+        <Item>Package root: com.kanokna.{bounded-context}.*</Item>
+        <Item>Bounded context name uses lowercase, NO underscores</Item>
+        <Item>Service name may differ from bounded context (e.g., catalog-configuration-service uses com.kanokna.catalog)</Item>
+      </Convention>
+      <Registry>
+        <Service name="account-service" package="com.kanokna.account" />
+        <Service name="cart-service" package="com.kanokna.cart" />
+        <Service name="catalog-configuration-service" package="com.kanokna.catalog" />
+        <Service name="pricing-service" package="com.kanokna.pricing" />
+        <Service name="search-service" package="com.kanokna.search" />
+        <Service name="order-service" package="com.kanokna.order" />
+        <Service name="media-service" package="com.kanokna.media" />
+        <Service name="notification-service" package="com.kanokna.notification" />
+        <Service name="installation-service" package="com.kanokna.installation" />
+        <Service name="reporting-service" package="com.kanokna.reporting" />
+      </Registry>
+      <Rationale>
+        Bounded context names are stable domain concepts; service names may change.
+        No underscores in package names follows Java conventions (JLS §6.1).
+      </Rationale>
+      <PromotedFrom handoff="Handoff-20260117-02-W1-PKG-RENAME" />
+    </Decision>
+
+    <Decision id="DEC-SRP-DECOMPOSITION-STRATEGY" status="APPROVED">
+      <Title>Application Service Decomposition Strategy</Title>
+      <Context>Large application service classes (>500 lines or >3 use case groups) should be decomposed for maintainability</Context>
+      <Selected>Delegate Pattern - main service implements interfaces, delegates to specialized services</Selected>
+      <Pattern>
+        <Item>Main service (e.g., AccountApplicationService) remains as facade implementing use case interfaces</Item>
+        <Item>Specialized services (e.g., ProfileService, AddressService) contain actual business logic</Item>
+        <Item>Shared dependencies (repositories, validators) injected into both main and specialized services</Item>
+        <Item>Transaction boundaries managed by main service @Transactional annotation</Item>
+      </Pattern>
+      <Benefits>
+        <Item>Maintains API compatibility (existing interfaces unchanged)</Item>
+        <Item>Each specialized service has single responsibility</Item>
+        <Item>Easier unit testing of individual components</Item>
+        <Item>Gradual migration possible</Item>
+      </Benefits>
+      <Threshold>
+        <Item>Decompose when: >500 lines of actual code (excluding comments)</Item>
+        <Item>Decompose when: >3 distinct use case groups with separate repositories</Item>
+        <Item>Keep when: Operations are cohesive and share state</Item>
+      </Threshold>
+      <Links>
+        <Link ref="DEC-ACCOUNT-DECOMPOSITION" />
+        <Link ref="DEC-CART-DECOMPOSITION" />
+        <Link ref="DEC-SEARCH-DECOMPOSITION" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-ACCOUNT-DECOMPOSITION" status="APPROVED">
+      <Title>AccountApplicationService Decomposition</Title>
+      <Context>AccountApplicationService (964 lines) has 4 use case groups with distinct repositories</Context>
+      <Selected>DECOMPOSE into 3 specialized services + facade</Selected>
+      <Decomposition>
+        <FacadeService name="AccountApplicationService">
+          <Role>Implements use case interfaces, delegates to specialized services</Role>
+          <Interfaces>GetProfileUseCase, UpdateProfileUseCase, AddressManagementUseCase, ConfigurationManagementUseCase</Interfaces>
+        </FacadeService>
+        <SpecializedService name="ProfileService">
+          <Package>com.kanokna.account.application.service</Package>
+          <Responsibility>User profile CRUD operations</Responsibility>
+          <Methods>getProfile, updateProfile, createProfileFromKeycloak</Methods>
+          <Dependencies>UserProfileRepository, EventPublisher, CurrentUserProvider, AccountProperties</Dependencies>
+        </SpecializedService>
+        <SpecializedService name="AddressService">
+          <Package>com.kanokna.account.application.service</Package>
+          <Responsibility>Address management operations</Responsibility>
+          <Methods>addAddress, updateAddress, deleteAddress, listAddresses</Methods>
+          <Dependencies>SavedAddressRepository, UserProfileRepository, EventPublisher, CurrentUserProvider</Dependencies>
+        </SpecializedService>
+        <SpecializedService name="SavedConfigurationService">
+          <Package>com.kanokna.account.application.service</Package>
+          <Responsibility>Saved product configuration management</Responsibility>
+          <Methods>saveConfiguration, listConfigurations, deleteConfiguration</Methods>
+          <Dependencies>SavedConfigurationRepository, EventPublisher, CurrentUserProvider, ConfigurationSnapshotValidator</Dependencies>
+        </SpecializedService>
+      </Decomposition>
+      <TransactionStrategy>
+        <Item>Each specialized service method is transactional via @Transactional</Item>
+        <Item>Facade delegates directly - no additional transaction wrapping needed</Item>
+      </TransactionStrategy>
+      <Rationale>
+        Each group uses distinct repository (except Address needs UserProfile for loading).
+        Clear separation of concerns improves testability and maintainability.
+      </Rationale>
+      <PromotedFrom handoff="Handoff-20260117-03-W1-SRP-DECOMPOSITION" />
+    </Decision>
+
+    <Decision id="DEC-CART-DECOMPOSITION" status="APPROVED">
+      <Title>CartApplicationService Decomposition</Title>
+      <Context>CartApplicationService (461 lines) reviewed for SRP compliance</Context>
+      <Selected>KEEP - already well-structured with helper services</Selected>
+      <ExistingStructure>
+        <HelperService name="CartItemValidationService">Item validation logic</HelperService>
+        <HelperService name="CartPricingService">Price calculation and refresh</HelperService>
+        <HelperService name="CartMergingService">Anonymous to authenticated cart merge</HelperService>
+        <HelperService name="CartCheckoutService">Checkout snapshot generation</HelperService>
+        <HelperService name="CartPromoCodeService">Promo code application</HelperService>
+        <HelperService name="CartDtoMapper">DTO mapping utilities</HelperService>
+      </ExistingStructure>
+      <Rationale>Cart-service already follows the decomposition pattern; no further action needed</Rationale>
+    </Decision>
+
+    <Decision id="DEC-SEARCH-DECOMPOSITION" status="APPROVED">
+      <Title>SearchApplicationService Decomposition</Title>
+      <Context>SearchApplicationService (1095 lines) reviewed for SRP compliance</Context>
+      <Selected>KEEP - operations are cohesive around search domain</Selected>
+      <Analysis>
+        <UseCaseGroup name="Query" methods="searchProducts, autocomplete, getFacetValues, getProductById">Read-only operations</UseCaseGroup>
+        <UseCaseGroup name="IndexManagement" methods="indexProduct, deleteProduct, reindexCatalog">Write operations</UseCaseGroup>
+      </Analysis>
+      <Rationale>
+        All operations share SearchRepository and are cohesive around the search bounded context.
+        Query and Index operations are complementary, not independent responsibilities.
+        Future consideration: extract SearchIndexManagementService if complexity grows.
+      </Rationale>
+      <FutureConsideration>
+        If reindexCatalog grows more complex or index management gets additional operations,
+        consider extracting SearchIndexManagementService.
+      </FutureConsideration>
+    </Decision>
   </Decisions>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════

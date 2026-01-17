@@ -36,15 +36,25 @@ class AccountApplicationServiceUpdateProfileTest {
         savedConfigurationRepository = new AccountServiceTestFixture.InMemorySavedConfigurationRepository();
         eventPublisher = new AccountServiceTestFixture.RecordingEventPublisher();
         currentUserProvider = new AccountServiceTestFixture.FixedCurrentUserProvider();
-        service = new AccountApplicationService(
+        ProfileService profileService = new ProfileService(
             userProfileRepository,
+            eventPublisher,
+            currentUserProvider,
+            new AccountProperties()
+        );
+        AddressService addressService = new AddressService(
             savedAddressRepository,
+            userProfileRepository,
+            eventPublisher,
+            currentUserProvider
+        );
+        SavedConfigurationService savedConfigurationService = new SavedConfigurationService(
             savedConfigurationRepository,
             eventPublisher,
             currentUserProvider,
-            new AccountProperties(),
             new ConfigurationSnapshotValidator(new ObjectMapper())
         );
+        service = new AccountApplicationService(profileService, addressService, savedConfigurationService);
     }
 
     @Test

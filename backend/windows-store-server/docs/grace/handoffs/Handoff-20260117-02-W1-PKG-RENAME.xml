@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff: Package Naming Convention Standardization
+  Task: W1-PKG-RENAME
+  Service: pricing-service
+  Created: 2026-01-17T17:30:00+03:00
+  Author: GRACE-ARCHITECT
+-->
+<GRACE_HANDOFF
+  id="Handoff-20260117-02-W1-PKG-RENAME"
+  status="APPROVED"
+  schemaVersion="grace-markup-v2"
+  created="2026-01-17T17:30:00+03:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W1-PKG-RENAME"
+  awoRef="AWO-20260117-03-REFACTORING"
+  techRef="Technology.xml#DEC-PACKAGE-NAMING-CONVENTION"
+>
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Scope>
+    <Services>
+      <ServiceRef ref="DP-SVC-pricing-service" />
+    </Services>
+    <Description>
+      Rename all packages in pricing-service from com.kanokna.pricing_service.*
+      to com.kanokna.pricing.* to conform to DEC-PACKAGE-NAMING-CONVENTION.
+    </Description>
+    <AffectedLayers>
+      <Layer>ALL layers in pricing-service</Layer>
+    </AffectedLayers>
+  </Scope>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       DECISIONS SNAPSHOT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DecisionsSnapshot>
+    <Decision id="DEC-PACKAGE-NAMING-CONVENTION" status="APPROVED">
+      <Title>Java Package Naming Convention</Title>
+      <Selected>Package root follows bounded context name: com.kanokna.{bounded-context}.*</Selected>
+      <Convention>
+        <Item>Package root: com.kanokna.{bounded-context}.*</Item>
+        <Item>Bounded context name uses lowercase, NO underscores</Item>
+        <Item>Service name may differ from bounded context</Item>
+      </Convention>
+      <Registry>
+        <Service name="account-service" package="com.kanokna.account" />
+        <Service name="cart-service" package="com.kanokna.cart" />
+        <Service name="catalog-configuration-service" package="com.kanokna.catalog" />
+        <Service name="pricing-service" package="com.kanokna.pricing" />
+        <Service name="search-service" package="com.kanokna.search" />
+      </Registry>
+    </Decision>
+  </DecisionsSnapshot>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       MIGRATION PLAN
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <MigrationPlan service="pricing-service">
+    <Phase id="PHASE-1" name="Directory Structure">
+      <Description>Rename the package directory structure</Description>
+      <Operations>
+        <Operation id="OP-001">
+          <Type>RENAME_DIRECTORY</Type>
+          <Source>src/main/java/com/kanokna/pricing_service</Source>
+          <Target>src/main/java/com/kanokna/pricing</Target>
+        </Operation>
+        <Operation id="OP-002">
+          <Type>RENAME_DIRECTORY</Type>
+          <Source>src/test/java/com/kanokna/pricing_service</Source>
+          <Target>src/test/java/com/kanokna/pricing</Target>
+        </Operation>
+      </Operations>
+    </Phase>
+
+    <Phase id="PHASE-2" name="Package Declarations">
+      <Description>Update package declarations in all Java files</Description>
+      <Pattern>
+        <Find>package com.kanokna.pricing_service</Find>
+        <Replace>package com.kanokna.pricing</Replace>
+      </Pattern>
+      <AffectedPackages>
+        <Package old="com.kanokna.pricing_service" new="com.kanokna.pricing" />
+        <Package old="com.kanokna.pricing_service.domain.model"
+          new="com.kanokna.pricing.domain.model" />
+        <Package old="com.kanokna.pricing_service.domain.service"
+          new="com.kanokna.pricing.domain.service" />
+        <Package old="com.kanokna.pricing_service.domain.event"
+          new="com.kanokna.pricing.domain.event" />
+        <Package old="com.kanokna.pricing_service.domain.exception"
+          new="com.kanokna.pricing.domain.exception" />
+        <Package old="com.kanokna.pricing_service.application.port.in"
+          new="com.kanokna.pricing.application.port.in" />
+        <Package old="com.kanokna.pricing_service.application.port.out"
+          new="com.kanokna.pricing.application.port.out" />
+        <Package old="com.kanokna.pricing_service.application.service"
+          new="com.kanokna.pricing.application.service" />
+        <Package old="com.kanokna.pricing_service.application.dto"
+          new="com.kanokna.pricing.application.dto" />
+        <Package old="com.kanokna.pricing_service.adapters.in.web"
+          new="com.kanokna.pricing.adapters.in.web" />
+        <Package old="com.kanokna.pricing_service.adapters.in.grpc"
+          new="com.kanokna.pricing.adapters.in.grpc" />
+        <Package old="com.kanokna.pricing_service.adapters.out.persistence"
+          new="com.kanokna.pricing.adapters.out.persistence" />
+        <Package old="com.kanokna.pricing_service.adapters.out.redis"
+          new="com.kanokna.pricing.adapters.out.redis" />
+        <Package old="com.kanokna.pricing_service.adapters.out.kafka"
+          new="com.kanokna.pricing.adapters.out.kafka" />
+        <Package old="com.kanokna.pricing_service.adapters.config"
+          new="com.kanokna.pricing.adapters.config" />
+      </AffectedPackages>
+      <FileCount>81 Java files (main) + test files</FileCount>
+    </Phase>
+
+    <Phase id="PHASE-3" name="Import Statements">
+      <Description>Update all import statements</Description>
+      <Pattern>
+        <Find>import com.kanokna.pricing_service</Find>
+        <Replace>import com.kanokna.pricing</Replace>
+      </Pattern>
+      <Note>This includes both internal imports within pricing-service and any external imports</Note>
+    </Phase>
+
+    <Phase id="PHASE-4" name="Configuration Updates">
+      <Description>Update Spring configuration and JPA entity scan paths</Description>
+      <Files>
+        <File path="src/main/resources/application.yml">
+          <Check>JPA entity-scan, component-scan paths if explicitly configured</Check>
+        </File>
+        <File path="src/main/java/com/kanokna/pricing/PricingServiceApplication.java">
+          <Check>@SpringBootApplication scanBasePackages if present</Check>
+        </File>
+        <File path="src/main/java/com/kanokna/pricing/adapters/config/PersistenceConfig.java">
+          <Check>@EntityScan, @EnableJpaRepositories base packages</Check>
+        </File>
+      </Files>
+    </Phase>
+
+    <Phase id="PHASE-5" name="Verification">
+      <Description>Build and test to verify refactoring success</Description>
+      <Commands>
+        <Command>cd services/pricing-service &amp;&amp; mvn clean compile</Command>
+        <Command>cd services/pricing-service &amp;&amp; mvn test</Command>
+        <Command>cd services/cart-service &amp;&amp; mvn clean compile</Command>
+      </Commands>
+      <SuccessCriteria>
+        <Criterion>No compilation errors in pricing-service</Criterion>
+        <Criterion>All pricing-service tests pass</Criterion>
+        <Criterion>Cart-service compiles (uses pricing-service via gRPC)</Criterion>
+        <Criterion>No references to pricing_service remain in codebase</Criterion>
+      </SuccessCriteria>
+    </Phase>
+  </MigrationPlan>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       EXTERNAL DEPENDENCIES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ExternalDependencies>
+    <Dependency service="cart-service">
+      <Type>gRPC client</Type>
+      <Impact>NO CHANGE - gRPC uses protobuf-generated code, not Java imports</Impact>
+      <Verification>Cart-service should compile without changes</Verification>
+    </Dependency>
+    <Dependency type="Protobuf">
+      <File>api-contracts/protobuf/pricing_service.proto</File>
+      <Impact>
+        Proto package names are independent of Java package names.
+        The java_package option in .proto files may need update if present.
+      </Impact>
+      <Check>Verify java_package option in pricing_service.proto</Check>
+    </Dependency>
+  </ExternalDependencies>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       RISK ASSESSMENT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <RiskAssessment>
+    <Risk level="LOW">
+      <Description>IDE refactoring should handle most changes automatically</Description>
+      <Mitigation>Use IDE "Rename Package" refactoring feature</Mitigation>
+    </Risk>
+    <Risk level="MEDIUM">
+      <Description>String-based references (reflection, Spring beans) may be missed</Description>
+      <Mitigation>Run full test suite and grep for "pricing_service" after refactoring</Mitigation>
+    </Risk>
+    <Risk level="LOW">
+      <Description>gRPC generated code compatibility</Description>
+      <Mitigation>Verify proto java_package settings and regenerate if needed</Mitigation>
+    </Risk>
+  </RiskAssessment>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       CODER INSTRUCTIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <CoderInstructions>
+    <Instruction priority="1">
+      Use IDE refactoring: Right-click on com.kanokna.pricing_service package → Refactor → Rename
+      to com.kanokna.pricing. This will handle package declarations and imports.
+    </Instruction>
+    <Instruction priority="2">
+      If IDE refactoring is not available, use find-replace:
+      1. Rename directories: mv pricing_service pricing
+      2. Replace all "package com.kanokna.pricing_service" → "package com.kanokna.pricing"
+      3. Replace all "import com.kanokna.pricing_service" → "import com.kanokna.pricing"
+    </Instruction>
+    <Instruction priority="3">
+      Check application.yml and @Configuration classes for hardcoded package paths
+    </Instruction>
+    <Instruction priority="4">
+      Run mvn clean compile test in pricing-service to verify
+    </Instruction>
+    <Instruction priority="5">
+      Run mvn clean compile in cart-service to verify no breaking changes
+    </Instruction>
+    <Instruction priority="6">
+      Search for any remaining "pricing_service" strings: grep -r "pricing_service" services/
+    </Instruction>
+  </CoderInstructions>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria>
+    <Criterion id="AC-PKG-001">All pricing-service packages use com.kanokna.pricing.*</Criterion>
+    <Criterion id="AC-PKG-002">No references to pricing_service remain in source code</Criterion>
+    <Criterion id="AC-PKG-003">pricing-service compiles without errors</Criterion>
+    <Criterion id="AC-PKG-004">All pricing-service tests pass</Criterion>
+    <Criterion id="AC-PKG-005">cart-service compiles without errors (gRPC integration)</Criterion>
+    <Criterion id="AC-PKG-006">DevelopmentPlan.xml PackageLayout matches implementation</Criterion>
+  </AcceptanceCriteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ORDERING NOTE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <OrderingNote>
+    <Important>
+      This handoff (PKG-RENAME) should be executed BEFORE Handoff-20260117-01-W1-ERROR-HANDLING
+      to ensure the new PricingDomainErrors.java is created with the correct package name.
+      Alternatively, both can be done together if the Coder:
+      1. First renames the packages
+      2. Then creates the new error handling classes in the renamed packages
+
+      The ERROR-HANDLING handoff has been updated to use com.kanokna.pricing.* paths.
+    </Important>
+  </OrderingNote>
+
+</GRACE_HANDOFF>

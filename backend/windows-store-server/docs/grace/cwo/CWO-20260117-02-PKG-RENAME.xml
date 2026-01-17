@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CODER_WORK_ORDER id="CWO-20260117-02" status="APPROVED">
+    <Meta>
+        <Created>2026-01-17T19:48:30+03:00</Created>
+        <HandoffRef>Handoff-20260117-02-W1-PKG-RENAME</HandoffRef>
+        <TaskRef>W1-PKG-RENAME</TaskRef>
+        <ApprovalRef>GRACE_APPROVAL approved="2026-01-17T19:48:30+03:00" approver="Human"</ApprovalRef>
+        <Priority>HIGH</Priority>
+        <EstimatedEffort>1-2 hours</EstimatedEffort>
+    </Meta>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Scope>
+        <Service name="pricing-service">
+            <CurrentPackage>com.kanokna.pricing_service.*</CurrentPackage>
+            <TargetPackage>com.kanokna.pricing.*</TargetPackage>
+            <FileCount>80+ Java files</FileCount>
+        </Service>
+    </Scope>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       PHASE 1: DIRECTORY RENAME
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Phase id="1" name="Directory Structure">
+        <Description>Rename the package directory structure</Description>
+
+        <Task id="1.1">
+            <Action>RENAME_DIRECTORY</Action>
+            <Source>services/pricing-service/src/main/java/com/kanokna/pricing_service</Source>
+            <Target>services/pricing-service/src/main/java/com/kanokna/pricing</Target>
+            <Command>
+                cd services/pricing-service/src/main/java/com/kanokna
+                mv pricing_service pricing
+            </Command>
+        </Task>
+
+        <Task id="1.2">
+            <Action>RENAME_DIRECTORY</Action>
+            <Source>services/pricing-service/src/test/java/com/kanokna/pricing_service</Source>
+            <Target>services/pricing-service/src/test/java/com/kanokna/pricing</Target>
+            <Command>
+                cd services/pricing-service/src/test/java/com/kanokna
+                mv pricing_service pricing
+            </Command>
+        </Task>
+    </Phase>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       PHASE 2: PACKAGE DECLARATIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Phase id="2" name="Package Declarations">
+        <Description>Update package declarations in all Java files</Description>
+
+        <Task id="2.1">
+            <Action>FIND_REPLACE</Action>
+            <Scope>services/pricing-service/src/main/java/**/*.java</Scope>
+            <Find>package com.kanokna.pricing_service</Find>
+            <Replace>package com.kanokna.pricing</Replace>
+            <Note>This will update all subpackages automatically (e.g., .domain.model,
+                .application.service)</Note>
+        </Task>
+
+        <Task id="2.2">
+            <Action>FIND_REPLACE</Action>
+            <Scope>services/pricing-service/src/test/java/**/*.java</Scope>
+            <Find>package com.kanokna.pricing_service</Find>
+            <Replace>package com.kanokna.pricing</Replace>
+        </Task>
+    </Phase>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       PHASE 3: IMPORT STATEMENTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Phase id="3" name="Import Statements">
+        <Description>Update all import statements</Description>
+
+        <Task id="3.1">
+            <Action>FIND_REPLACE</Action>
+            <Scope>services/pricing-service/src/**/*.java</Scope>
+            <Find>import com.kanokna.pricing_service</Find>
+            <Replace>import com.kanokna.pricing</Replace>
+        </Task>
+
+        <Task id="3.2">
+            <Action>VERIFY_NO_EXTERNAL_IMPORTS</Action>
+            <Description>Check if any other services import from pricing_service</Description>
+            <Command>grep -r "import com.kanokna.pricing_service" services/ --include="*.java" |
+                grep -v pricing-service</Command>
+            <ExpectedResult>No matches (cart-service uses gRPC, not direct imports)</ExpectedResult>
+        </Task>
+    </Phase>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       PHASE 4: CONFIGURATION FILES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Phase id="4" name="Configuration Updates">
+        <Description>Check and update configuration files</Description>
+
+        <Task id="4.1">
+            <Action>CHECK_AND_UPDATE</Action>
+            <File>services/pricing-service/src/main/resources/application.yml</File>
+            <Check>JPA entity-scan, component-scan paths</Check>
+            <Pattern>pricing_service</Pattern>
+            <Note>Update if found</Note>
+        </Task>
+
+        <Task id="4.2">
+            <Action>CHECK_AND_UPDATE</Action>
+            <File>
+                services/pricing-service/src/main/java/com/kanokna/pricing/PricingServiceApplication.java</File>
+            <Check>@SpringBootApplication scanBasePackages if present</Check>
+        </Task>
+
+        <Task id="4.3">
+            <Action>CHECK_AND_UPDATE</Action>
+            <File>services/pricing-service/src/main/java/com/kanokna/pricing/adapters/config/*.java</File>
+            <Check>@EntityScan, @EnableJpaRepositories, @ComponentScan base packages</Check>
+        </Task>
+
+        <Task id="4.4">
+            <Action>CHECK_PROTO_FILE</Action>
+            <File>shared/api-contracts/src/main/proto/pricing*.proto</File>
+            <Check>java_package option</Check>
+            <CurrentValue>option java_package = "com.kanokna.pricing_service..."</CurrentValue>
+            <UpdateTo>option java_package = "com.kanokna.pricing..."</UpdateTo>
+            <Note>May require regenerating gRPC stubs</Note>
+        </Task>
+    </Phase>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       PHASE 5: VERIFICATION
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Phase id="5" name="Verification">
+        <Description>Build and test to verify refactoring success</Description>
+
+        <Task id="5.1">
+            <Action>RUN</Action>
+            <Command>mvn clean compile -pl services/pricing-service</Command>
+            <ExpectedResult>BUILD SUCCESS</ExpectedResult>
+        </Task>
+
+        <Task id="5.2">
+            <Action>RUN</Action>
+            <Command>mvn test -pl services/pricing-service</Command>
+            <ExpectedResult>All tests pass</ExpectedResult>
+        </Task>
+
+        <Task id="5.3">
+            <Action>RUN</Action>
+            <Command>mvn clean compile -pl services/cart-service</Command>
+            <ExpectedResult>BUILD SUCCESS (gRPC integration unaffected)</ExpectedResult>
+        </Task>
+
+        <Task id="5.4">
+            <Action>VERIFY</Action>
+            <Check>No remaining pricing_service references</Check>
+            <Command>grep -r "pricing_service" services/pricing-service/src/</Command>
+            <ExpectedResult>No matches (exit code 1)</ExpectedResult>
+        </Task>
+
+        <Task id="5.5">
+            <Action>VERIFY</Action>
+            <Check>No remaining pricing_service references in other services</Check>
+            <Command>grep -r "pricing_service" services/ --include="*.java" | grep -v "/target/"</Command>
+            <ExpectedResult>No matches</ExpectedResult>
+        </Task>
+    </Phase>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA CHECKLIST
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <AcceptanceCriteria>
+        <Criterion id="AC-PKG-001" phase="2">All pricing-service packages use com.kanokna.pricing.*</Criterion>
+        <Criterion id="AC-PKG-002" phase="5.4,5.5">No references to pricing_service remain in source
+            code</Criterion>
+        <Criterion id="AC-PKG-003" phase="5.1">pricing-service compiles without errors</Criterion>
+        <Criterion id="AC-PKG-004" phase="5.2">All pricing-service tests pass</Criterion>
+        <Criterion id="AC-PKG-005" phase="5.3">cart-service compiles without errors</Criterion>
+        <Criterion id="AC-PKG-006">DevelopmentPlan.xml PackageLayout matches implementation (already
+            updated)</Criterion>
+    </AcceptanceCriteria>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       CODER NOTES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <CoderNotes>
+        <Note priority="HIGH">
+            RECOMMENDED: Use IDE refactoring feature for safety.
+            IntelliJ/Eclipse: Right-click com.kanokna.pricing_service → Refactor → Rename Package
+            This will handle all references automatically.
+        </Note>
+        <Note priority="HIGH">
+            If using manual find-replace, do phases in ORDER:
+            1. First rename directories
+            2. Then update package declarations
+            3. Then update imports
+        </Note>
+        <Note priority="MEDIUM">
+            The recently created PricingDomainErrors.java (from ERROR-HANDLING handoff)
+            is in pricing_service package and will be renamed as part of this refactoring.
+        </Note>
+        <Note priority="MEDIUM">
+            Proto files may have java_package option - check and update if needed.
+            After updating proto, run: mvn clean compile -pl shared/api-contracts
+        </Note>
+    </CoderNotes>
+
+</CODER_WORK_ORDER>

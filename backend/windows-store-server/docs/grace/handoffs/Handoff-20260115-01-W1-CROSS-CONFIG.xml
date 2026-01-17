@@ -10,7 +10,7 @@
   Task:            W1-CROSS-CONFIG
   Created:         2026-01-15T10:00:00+03:00
   Author:          GRACE-ARCHITECT
-  Status:          PROPOSED
+  Status:          APPROVED
 
   Purpose:
     Standardize externalized configuration across all microservices by extracting
@@ -30,7 +30,7 @@
 -->
 <GRACE_HANDOFF
   id="Handoff-20260115-01-W1-CROSS-CONFIG"
-  status="PROPOSED"
+  status="APPROVED"
   schemaVersion="grace-markup-v2"
   created="2026-01-15T10:00:00+03:00"
   author="GRACE-ARCHITECT"
@@ -233,16 +233,19 @@ public record {Service}Properties(
         <Item name="maxAddressLabelLength" value="50" location="SavedAddress.java:97" enforced="yes">
           Maximum characters for address labels (Home, Work, etc.)
         </Item>
-        <Item name="maxConfigNameLength" value="255" location="AccountApplicationService.java:519" enforced="yes">
+        <Item name="maxConfigNameLength" value="255" location="AccountApplicationService.java:519"
+          enforced="yes">
           Maximum characters for saved configuration names
         </Item>
-        <Item name="maxAddressesPerUser" value="10" location="AccountProperties.java:11" enforced="no">
+        <Item name="maxAddressesPerUser" value="10" location="AccountProperties.java:11"
+          enforced="no">
           Maximum saved addresses per user account
         </Item>
         <Item name="maxConfigsPerUser" value="50" location="AccountProperties.java:48" enforced="no">
           Maximum saved product configurations per user
         </Item>
-        <Item name="minAccessoryQuantity" value="1" location="ConfigurationSnapshotValidator.java:132" enforced="yes">
+        <Item name="minAccessoryQuantity" value="1"
+          location="ConfigurationSnapshotValidator.java:132" enforced="yes">
           Minimum quantity for accessories in configurations
         </Item>
       </Category>
@@ -277,7 +280,8 @@ public record {Service}Properties(
         <Item name="absoluteMinCm" value="50" location="DimensionConstraints.java:16" enforced="yes">
           Minimum allowed dimension in centimeters for any product
         </Item>
-        <Item name="absoluteMaxCm" value="400" location="DimensionConstraints.java:17" enforced="yes">
+        <Item name="absoluteMaxCm" value="400" location="DimensionConstraints.java:17"
+          enforced="yes">
           Maximum allowed dimension in centimeters for any product
         </Item>
       </Category>
@@ -321,7 +325,8 @@ public record {Service}Properties(
         </Item>
       </Category>
       <Category name="Discounts">
-        <Item name="maxCombinedDiscountPercent" value="30" location="DiscountService.java:19" enforced="yes">
+        <Item name="maxCombinedDiscountPercent" value="30" location="DiscountService.java:19"
+          enforced="yes">
           Maximum combined discount percentage cap
         </Item>
       </Category>
@@ -368,7 +373,8 @@ public record {Service}Properties(
         </Item>
       </Category>
       <Category name="Facets">
-        <Item name="facetAggregationSize" value="50" location="ElasticsearchSearchRepository.java:124">
+        <Item name="facetAggregationSize" value="50"
+          location="ElasticsearchSearchRepository.java:124">
           Maximum terms returned per facet field
         </Item>
       </Category>
@@ -421,13 +427,15 @@ public record {Service}Properties(
         <Item name="failureRateThreshold" value="50" location="CircuitBreakerConfig.java:19">
           Failure rate percentage to open circuit
         </Item>
-        <Item name="waitDurationInOpenStateSeconds" value="10" location="CircuitBreakerConfig.java:20">
+        <Item name="waitDurationInOpenStateSeconds" value="10"
+          location="CircuitBreakerConfig.java:20">
           Seconds to wait in open state before half-open
         </Item>
         <Item name="permittedCallsInHalfOpen" value="3" location="CircuitBreakerConfig.java:21">
           Test calls allowed in half-open state
         </Item>
-        <Item name="slowCallDurationThresholdSeconds" value="2" location="CircuitBreakerConfig.java:22">
+        <Item name="slowCallDurationThresholdSeconds" value="2"
+          location="CircuitBreakerConfig.java:22">
           Threshold for slow call detection
         </Item>
         <Item name="slowCallRateThreshold" value="50" location="CircuitBreakerConfig.java:23">
@@ -1496,7 +1504,8 @@ kanokna:
         Replace SavedAddress hardcoded 50 with properties.addresses.maxLabelLength
       </Task>
       <Task id="IMPL-021" service="account-service" priority="HIGH">
-        Replace AccountApplicationService hardcoded 255 with properties.savedConfigurations.maxNameLength
+        Replace AccountApplicationService hardcoded 255 with
+        properties.savedConfigurations.maxNameLength
       </Task>
       <Task id="IMPL-022" service="catalog-configuration-service" priority="HIGH">
         Replace DimensionConstraints hardcoded 50/400 with properties.dimensions.*

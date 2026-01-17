@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BlueprintIssueReport
+    id="ISSUE-RPT-20260117-01"
+    handoffRef="Handoff-20260117-03-W1-SRP-DECOMPOSITION"
+    gateStatus="FAIL"
+    created="2026-01-17T20:43:42+03:00"
+    validatedBy="GRACE-COORDINATOR"
+>
+    <Summary>
+        Handoff failed Consistency Gate due to missing decisions in Technology.xml.
+        The handoff references DEC-SRP-DECOMPOSITION-STRATEGY and DEC-ACCOUNT-DECOMPOSITION
+        in its DecisionsSnapshot, but these decisions do not exist in the Technology.xml
+        source of truth.
+    </Summary>
+
+    <Issue id="ISS-SRP-001">
+        <Severity>BLOCKING</Severity>
+        <Description>
+            Decision DEC-SRP-DECOMPOSITION-STRATEGY is referenced in handoff DecisionsSnapshot
+            but does not exist in Technology.xml.
+        </Description>
+        <Evidence>
+            - Handoff line 43: &lt;Decision id="DEC-SRP-DECOMPOSITION-STRATEGY"
+            status="APPROVED"&gt;
+            - Technology.xml: No matching entry found (grep returned 0 results)
+        </Evidence>
+        <Impact>
+            Violates GRACE Safety Rail B4: Decision identity consistency.
+            DEC-* must match across Technology.xml (source of truth) and Handoff DecisionsSnapshot.
+        </Impact>
+        <ProposedFix>
+            Add the following to Technology.xml Decisions section:
+
+            &lt;Decision id="DEC-SRP-DECOMPOSITION-STRATEGY" status="APPROVED"&gt;
+            &lt;Statement&gt;
+            Application service decomposition follows the Delegate Pattern:
+            main service implements port.in interfaces, delegates to specialized services.
+            &lt;/Statement&gt;
+            &lt;Rationale&gt;
+            Preserves API compatibility while enforcing SRP. Allows gradual migration.
+            &lt;/Rationale&gt;
+            &lt;Implications&gt;
+            - Facade service has thin delegation methods
+            - Specialized services own their repositories
+            - Transaction propagation through Spring
+            &lt;/Implications&gt;
+            &lt;/Decision&gt;
+        </ProposedFix>
+        <RequiredAgent>GRACE-ARCHITECT</RequiredAgent>
+    </Issue>
+
+    <Issue id="ISS-SRP-002">
+        <Severity>BLOCKING</Severity>
+        <Description>
+            Decision DEC-ACCOUNT-DECOMPOSITION is referenced in handoff DecisionsSnapshot
+            but does not exist in Technology.xml.
+        </Description>
+        <Evidence>
+            - Handoff line 47: &lt;Decision id="DEC-ACCOUNT-DECOMPOSITION" status="APPROVED"&gt;
+            - Technology.xml: No matching entry found (grep returned 0 results)
+        </Evidence>
+        <Impact>
+            Violates GRACE Safety Rail B4: Decision identity consistency.
+        </Impact>
+        <ProposedFix>
+            Add the following to Technology.xml Decisions section:
+
+            &lt;Decision id="DEC-ACCOUNT-DECOMPOSITION" status="APPROVED"&gt;
+            &lt;Statement&gt;
+            AccountApplicationService (964 lines) decomposed into:
+            - ProfileService: profile CRUD operations
+            - AddressService: address management
+            - SavedConfigurationService: saved configuration operations
+            - AccountApplicationService: facade implementing port.in interfaces
+            &lt;/Statement&gt;
+            &lt;Rationale&gt;
+            Enforces SRP, improves testability, reduces class complexity.
+            &lt;/Rationale&gt;
+            &lt;Implications&gt;
+            - Each specialized service ~200-300 lines
+            - Existing port.in interfaces unchanged
+            - Facade delegates to specialized services
+            &lt;/Implications&gt;
+            &lt;/Decision&gt;
+        </ProposedFix>
+        <RequiredAgent>GRACE-ARCHITECT</RequiredAgent>
+    </Issue>
+
+    <Recommendation>
+        Return to GRACE-ARCHITECT to:
+        1. Add DEC-SRP-DECOMPOSITION-STRATEGY to Technology.xml
+        2. Add DEC-ACCOUNT-DECOMPOSITION to Technology.xml
+        3. Re-submit handoff for validation
+
+        Once decisions are added, re-run Blueprint Validation.
+    </Recommendation>
+
+</BlueprintIssueReport>
