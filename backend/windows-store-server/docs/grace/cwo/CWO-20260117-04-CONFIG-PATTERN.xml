@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CODER_WORK_ORDER id="CWO-20260117-04" status="APPROVED">
+    <Meta>
+        <Created>2026-01-17T23:53:20+03:00</Created>
+        <HandoffRef>Handoff-20260117-04-W1-CONFIG-PATTERN</HandoffRef>
+        <TaskRef>W1-CONFIG-PATTERN-REFACTOR</TaskRef>
+        <ApprovalRef>GRACE_APPROVAL approved="2026-01-17T23:51:38+03:00" approver="Human"</ApprovalRef>
+        <Priority>MEDIUM</Priority>
+        <EstimatedEffort>1-2 hours</EstimatedEffort>
+    </Meta>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Scope>
+        <Description>
+            Refactor *Properties.java classes from legacy mutable JavaBean pattern to
+            Spring Boot 4.0 recommended immutable record pattern across 3 services.
+        </Description>
+        <Services>
+            <ServiceRef ref="DP-SVC-cart-service" />
+            <ServiceRef ref="DP-SVC-account-service" />
+            <ServiceRef ref="DP-SVC-search-service" />
+        </Services>
+        <Decisions>
+            <DecisionRef ref="DEC-CONFIG-PROPERTIES-PATTERN" />
+        </Decisions>
+    </Scope>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       FILES TO REPLACE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <FilesToReplace>
+        <File id="F-001">
+            <Service>cart-service</Service>
+            <Path>
+                services/cart-service/src/main/java/com/kanokna/cart/adapters/config/CartProperties.java</Path>
+            <Action>REPLACE with record implementation from handoff IMPL-CART-PROPERTIES</Action>
+            <PrefixChange>kanokna.cart → kanokna.cart (no change)</PrefixChange>
+            <StructureChange>Flat properties → Nested (Timeouts, Limits, Behavior)</StructureChange>
+        </File>
+        <File id="F-002">
+            <Service>account-service</Service>
+            <Path>
+                services/account-service/src/main/java/com/kanokna/account/adapters/config/AccountProperties.java</Path>
+            <Action>REPLACE with record implementation from handoff IMPL-ACCOUNT-PROPERTIES</Action>
+            <PrefixChange>account → kanokna.account (BREAKING)</PrefixChange>
+        </File>
+        <File id="F-003">
+            <Service>search-service</Service>
+            <Path>
+                services/search-service/src/main/java/com/kanokna/search/adapters/config/SearchProperties.java</Path>
+            <Action>REPLACE with record implementation from handoff IMPL-SEARCH-PROPERTIES</Action>
+            <PrefixChange>search → kanokna.search (BREAKING)</PrefixChange>
+        </File>
+    </FilesToReplace>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       YAML FILES TO UPDATE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <YamlFilesToUpdate>
+        <File id="Y-001">
+            <Service>cart-service</Service>
+            <Path>services/cart-service/src/main/resources/application.yml</Path>
+            <Change>Restructure flat properties to nested (timeouts, limits, behavior)</Change>
+        </File>
+        <File id="Y-002">
+            <Service>cart-service</Service>
+            <Path>services/cart-service/src/test/resources/application-test.yml</Path>
+            <Change>Match new nested structure</Change>
+        </File>
+        <File id="Y-003">
+            <Service>account-service</Service>
+            <Path>services/account-service/src/main/resources/application.yml</Path>
+            <Change>Rename prefix account → kanokna.account</Change>
+        </File>
+        <File id="Y-004">
+            <Service>account-service</Service>
+            <Path>services/account-service/src/test/resources/application-test.yml</Path>
+            <Change>Rename prefix account → kanokna.account</Change>
+        </File>
+        <File id="Y-005">
+            <Service>search-service</Service>
+            <Path>services/search-service/src/main/resources/application.yml</Path>
+            <Change>Rename prefix search → kanokna.search</Change>
+        </File>
+        <File id="Y-006">
+            <Service>search-service</Service>
+            <Path>services/search-service/src/test/resources/application-test.yml</Path>
+            <Change>Rename prefix search → kanokna.search</Change>
+        </File>
+    </YamlFilesToUpdate>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCESSOR PATTERN MIGRATION
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <AccessorMigration>
+        <Service name="cart-service">
+            <Pattern from="cartProperties.getAnonymousTtl()"
+                to="cartProperties.timeouts().anonymousTtl()" />
+            <Pattern from="cartProperties.getAbandonedThreshold()"
+                to="cartProperties.timeouts().abandonedThreshold()" />
+            <Pattern from="cartProperties.getSnapshotValidity()"
+                to="cartProperties.timeouts().snapshotValidity()" />
+            <Pattern from="cartProperties.getPriceQuoteStaleness()"
+                to="cartProperties.timeouts().priceQuoteStaleness()" />
+            <Pattern from="cartProperties.getCatalogValidationTimeout()"
+                to="cartProperties.timeouts().catalogValidationTimeout()" />
+            <Pattern from="cartProperties.getPricingQuoteTimeout()"
+                to="cartProperties.timeouts().pricingQuoteTimeout()" />
+            <Pattern from="cartProperties.getMaxItemsPerCart()"
+                to="cartProperties.limits().maxItemsPerCart()" />
+            <Pattern from="cartProperties.getMaxQuantityPerItem()"
+                to="cartProperties.limits().maxQuantityPerItem()" />
+            <Pattern from="cartProperties.getPriceChangeThresholdPercent()"
+                to="cartProperties.behavior().priceChangeThresholdPercent()" />
+            <Pattern from="cartProperties.isAutoRefreshPrices()"
+                to="cartProperties.behavior().autoRefreshPrices()" />
+        </Service>
+        <Service name="account-service">
+            <Pattern from="accountProperties.isAutoCreateProfile()"
+                to="accountProperties.autoCreateProfile()" />
+            <Pattern from="accountProperties.getMaxAddressesPerUser()"
+                to="accountProperties.maxAddressesPerUser()" />
+            <Pattern from="accountProperties.getSavedConfigurations().getMaxPerUser()"
+                to="accountProperties.savedConfigurations().maxPerUser()" />
+            <Pattern from="accountProperties.getSavedConfigurations().getDefaultNamePattern()"
+                to="accountProperties.savedConfigurations().defaultNamePattern()" />
+            <Pattern from="accountProperties.getDefaults().getLanguage()"
+                to="accountProperties.defaults().language()" />
+            <Pattern from="accountProperties.getDefaults().getCurrency()"
+                to="accountProperties.defaults().currency()" />
+            <Pattern from="accountProperties.getDefaults().isNotificationEmail()"
+                to="accountProperties.defaults().notificationEmail()" />
+            <Pattern from="accountProperties.getDefaults().isNotificationSms()"
+                to="accountProperties.defaults().notificationSms()" />
+            <Pattern from="accountProperties.getDefaults().isNotificationPush()"
+                to="accountProperties.defaults().notificationPush()" />
+        </Service>
+        <Service name="search-service">
+            <Pattern from="searchProperties.getIndex().getName()"
+                to="searchProperties.index().name()" />
+            <Pattern from="searchProperties.getIndex().getAlias()"
+                to="searchProperties.index().alias()" />
+            <Pattern from="searchProperties.getIndex().getVersionPrefix()"
+                to="searchProperties.index().versionPrefix()" />
+            <Pattern from="searchProperties.getReindex().getBatchSize()"
+                to="searchProperties.reindex().batchSize()" />
+            <Pattern from="searchProperties.getReindex().getLockName()"
+                to="searchProperties.reindex().lockName()" />
+        </Service>
+    </AccessorMigration>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       EXECUTION PHASES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <ExecutionPhases>
+        <Phase id="1" name="Replace Properties Classes">
+            <Task>Replace CartProperties.java with record implementation</Task>
+            <Task>Replace AccountProperties.java with record implementation</Task>
+            <Task>Replace SearchProperties.java with record implementation</Task>
+        </Phase>
+        <Phase id="2" name="Update YAML Files">
+            <Task>Update cart-service application.yml (nested structure)</Task>
+            <Task>Update account-service application.yml (prefix change)</Task>
+            <Task>Update search-service application.yml (prefix change)</Task>
+            <Task>Update all test application.yml files similarly</Task>
+        </Phase>
+        <Phase id="3" name="Migrate Accessor Patterns">
+            <Task>Find all usages of CartProperties and update accessor calls</Task>
+            <Task>Find all usages of AccountProperties and update accessor calls</Task>
+            <Task>Find all usages of SearchProperties and update accessor calls</Task>
+        </Phase>
+        <Phase id="4" name="Verify Configuration Binding">
+            <Task>Ensure @EnableConfigurationProperties includes each Properties class</Task>
+            <Task>Check for @ConfigurationPropertiesScan if using scan approach</Task>
+        </Phase>
+        <Phase id="5" name="Verification">
+            <Task>mvn compile -pl services/cart-service</Task>
+            <Task>mvn compile -pl services/account-service</Task>
+            <Task>mvn compile -pl services/search-service</Task>
+            <Task>mvn test -pl services/cart-service</Task>
+            <Task>mvn test -pl services/account-service</Task>
+            <Task>mvn test -pl services/search-service</Task>
+        </Phase>
+    </ExecutionPhases>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <AcceptanceCriteria>
+        <Criterion id="AC-CFG-001">All *Properties.java files use record pattern</Criterion>
+        <Criterion id="AC-CFG-002">All properties classes have @Validated annotation</Criterion>
+        <Criterion id="AC-CFG-003">Nested properties use nested records (not inner classes)</Criterion>
+        <Criterion id="AC-CFG-004">Compact constructors provide defaults for null values</Criterion>
+        <Criterion id="AC-CFG-005">Prefix standardized to kanokna.{service-name} for all services</Criterion>
+        <Criterion id="AC-CFG-006">Bean Validation annotations on properties where applicable</Criterion>
+        <Criterion id="AC-CFG-007">application.yml files updated for new structure/prefix</Criterion>
+        <Criterion id="AC-CFG-008">All existing tests pass after refactoring</Criterion>
+        <Criterion id="AC-CFG-009">MODULE_CONTRACT comments preserved where present (CartProperties)</Criterion>
+    </AcceptanceCriteria>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       IMPLEMENTATION RULES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <ImplementationRules>
+        <Item>Use exact record implementations from handoff (do not improvise)</Item>
+        <Item>Preserve all default values exactly as documented</Item>
+        <Item>Update ALL accessor patterns in consuming classes</Item>
+        <Item>YAML structure must match record structure exactly</Item>
+        <Item>Test configuration must match production configuration</Item>
+        <Item>No new properties or configuration changes beyond the handoff scope</Item>
+    </ImplementationRules>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       CODER NOTES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <CoderNotes>
+        <Note priority="HIGH">
+            Full record implementations are provided in the handoff.
+            Use IMPL-CART-PROPERTIES, IMPL-ACCOUNT-PROPERTIES, and IMPL-SEARCH-PROPERTIES sections.
+        </Note>
+        <Note priority="HIGH">
+            account-service and search-service have BREAKING prefix changes.
+            All YAML files using old prefixes (account.*, search.*) must be updated.
+        </Note>
+        <Note priority="MEDIUM">
+            cart-service has structural change from flat to nested.
+            Properties like anonymousTtl move under timeouts nested record.
+        </Note>
+        <Note priority="MEDIUM">
+            After changing Properties classes, search for all usages and update accessor patterns.
+            IDE "Find Usages" on each Properties class will identify all locations.
+        </Note>
+    </CoderNotes>
+
+</CODER_WORK_ORDER>

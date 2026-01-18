@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Architect Work Order: Configuration Properties Pattern Standardization
+  Task: W1-CONFIG-PATTERN-REFACTOR
+  Priority: MEDIUM
+  Created: 2026-01-17T23:21:00+03:00
+  Author: GRACE-COORDINATOR
+-->
+<ARCHITECT_WORK_ORDER id="AWO-20260117-05" status="PROPOSED">
+    <Meta>
+        <Created>2026-01-17T23:21:00+03:00</Created>
+        <TaskRef>W1-CONFIG-PATTERN-REFACTOR</TaskRef>
+        <Priority>MEDIUM</Priority>
+        <EstimatedEffort>1-2 hours</EstimatedEffort>
+        <Origin>Code review finding - legacy configuration pattern</Origin>
+    </Meta>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       TASK DESCRIPTION
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Task>
+        <UserRequest>
+            Refactor *Properties.java classes across services from legacy mutable JavaBean
+            pattern to Spring Boot 4.0 recommended immutable record pattern.
+
+            Current (legacy pattern):
+            - Mutable class with private fields
+            - Getter/setter methods
+            - Default values in field initializers
+
+            Target (Spring Boot 4.0 pattern):
+            - Immutable record with @ConfigurationProperties
+            - Nested records for hierarchical config
+            - @Validated with Bean Validation annotations
+            - Compact constructor for defaults
+        </UserRequest>
+        <PrimaryGoal>
+            Standardize configuration properties across all services to immutable record pattern
+            for improved type safety, thread safety, and Spring Boot 4.0 compatibility.
+        </PrimaryGoal>
+    </Task>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE ANALYSIS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <ScopeAnalysis>
+        <AffectedFiles>
+            <File service="cart-service" path="adapters/config/CartProperties.java" lines="164"
+                pattern="LEGACY">
+                <CurrentPrefix>kanokna.cart</CurrentPrefix>
+                <Properties count="10">
+                    <Property name="anonymousTtl" type="Duration" default="7d" />
+                    <Property name="abandonedThreshold" type="Duration" default="72h" />
+                    <Property name="snapshotValidity" type="Duration" default="15m" />
+                    <Property name="priceChangeThresholdPercent" type="double" default="1.0" />
+                    <Property name="maxItemsPerCart" type="int" default="50" />
+                    <Property name="maxQuantityPerItem" type="int" default="100" />
+                    <Property name="priceQuoteStaleness" type="Duration" default="30m" />
+                    <Property name="autoRefreshPrices" type="boolean" default="false" />
+                    <Property name="catalogValidationTimeout" type="Duration" default="5s" />
+                    <Property name="pricingQuoteTimeout" type="Duration" default="5s" />
+                </Properties>
+            </File>
+            <File service="account-service" path="adapters/config/AccountProperties.java"
+                lines="115" pattern="LEGACY">
+                <CurrentPrefix>account</CurrentPrefix>
+                <TargetPrefix>kanokna.account</TargetPrefix>
+                <Properties count="4 + nested">
+                    <Property name="autoCreateProfile" type="boolean" default="true" />
+                    <Property name="maxAddressesPerUser" type="int" default="10" />
+                    <NestedClass name="SavedConfigurations">
+                        <Property name="maxPerUser" type="int" default="50" />
+                        <Property name="defaultNamePattern" type="String"
+                            default="Config {timestamp}" />
+                    </NestedClass>
+                    <NestedClass name="Defaults">
+                        <Property name="language" type="String" default="ru" />
+                        <Property name="currency" type="String" default="RUB" />
+                        <Property name="notificationEmail" type="boolean" default="true" />
+                        <Property name="notificationSms" type="boolean" default="false" />
+                        <Property name="notificationPush" type="boolean" default="true" />
+                    </NestedClass>
+                </Properties>
+            </File>
+            <File service="search-service" path="adapters/config/SearchProperties.java" lines="72"
+                pattern="LEGACY">
+                <CurrentPrefix>search</CurrentPrefix>
+                <TargetPrefix>kanokna.search</TargetPrefix>
+                <Properties count="nested only">
+                    <NestedClass name="Index">
+                        <Property name="name" type="String" default="product_templates" />
+                        <Property name="alias" type="String" default="product_templates" />
+                        <Property name="versionPrefix" type="String" default="product_templates_v" />
+                    </NestedClass>
+                    <NestedClass name="Reindex">
+                        <Property name="batchSize" type="int" default="200" />
+                        <Property name="lockName" type="String"
+                            default="search-service:reindex-lock" />
+                    </NestedClass>
+                </Properties>
+            </File>
+        </AffectedFiles>
+
+        <AdditionalConsiderations>
+            <Item>Prefix normalization: "account" → "kanokna.account", "search" → "kanokna.search"</Item>
+            <Item>YAML configuration files must be updated to match new structure</Item>
+            <Item>Tests using properties must be updated</Item>
+            <Item>MODULE_CONTRACT comments preserved in CartProperties</Item>
+        </AdditionalConsiderations>
+    </ScopeAnalysis>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       REQUIRED PATTERN
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <TargetPattern>
+        <Description>Spring Boot 4.0 Recommended Configuration Properties Pattern</Description>
+        <Example>
+            <![CDATA[
+@Validated
+@ConfigurationProperties(prefix = "kanokna.cart")
+public record CartProperties(
+    @NotNull Timeouts timeouts,
+    @NotNull Limits limits,
+    @NotNull Behavior behavior
+) {
+    public CartProperties {
+        // Compact constructor with null-safe defaults
+        timeouts = timeouts != null ? timeouts : new Timeouts(
+            Duration.ofDays(7),     // anonymousTtl
+            Duration.ofHours(72),   // abandonedThreshold
+            Duration.ofMinutes(15), // snapshotValidity
+            Duration.ofMinutes(30), // priceQuoteStaleness
+            Duration.ofSeconds(5),  // catalogValidationTimeout
+            Duration.ofSeconds(5)   // pricingQuoteTimeout
+        );
+        limits = limits != null ? limits : new Limits(50, 100);
+        behavior = behavior != null ? behavior : new Behavior(1.0, false);
+    }
+
+    public record Timeouts(
+        @NotNull Duration anonymousTtl,
+        @NotNull Duration abandonedThreshold,
+        @NotNull Duration snapshotValidity,
+        @NotNull Duration priceQuoteStaleness,
+        @NotNull Duration catalogValidationTimeout,
+        @NotNull Duration pricingQuoteTimeout
+    ) {}
+
+    public record Limits(
+        @Positive int maxItemsPerCart,
+        @Positive int maxQuantityPerItem
+    ) {}
+
+    public record Behavior(
+        @PositiveOrZero double priceChangeThresholdPercent,
+        boolean autoRefreshPrices
+    ) {}
+}
+            ]]>
+        </Example>
+        <Benefits>
+            <Item>Immutability: Thread-safe configuration access</Item>
+            <Item>Type safety: Compiler-enforced property types</Item>
+            <Item>Validation: Bean Validation integration with @Validated</Item>
+            <Item>Documentation: Self-documenting nested records</Item>
+            <Item>Spring Boot 4.0+: Recommended pattern per framework guidelines</Item>
+        </Benefits>
+    </TargetPattern>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       REQUIRED OUTPUTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <RequiredOutputs>
+        <Decision id="DEC-CONFIG-PROPERTIES-PATTERN" required="true">
+            <Description>
+                Establish standard configuration properties pattern for all services.
+                Add to Technology.xml Decisions section.
+            </Description>
+        </Decision>
+        <Handoff>
+            <GRACE_HANDOFF required="true">
+                <Description>
+                    Produce Handoff-20260117-XX-W1-CONFIG-PATTERN-REFACTOR with:
+                    - Record-based replacement for each Properties class
+                    - Nested record structure matching logical groupings
+                    - application.yml updates for new structure
+                    - Test updates if property access patterns change
+                    - Migration notes for any prefix changes
+                </Description>
+            </GRACE_HANDOFF>
+        </Handoff>
+    </RequiredOutputs>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <AcceptanceCriteria>
+        <Criterion id="AC-CFG-001">All *Properties.java files use record pattern</Criterion>
+        <Criterion id="AC-CFG-002">All properties classes have @Validated annotation</Criterion>
+        <Criterion id="AC-CFG-003">Nested properties use nested records (not inner classes)</Criterion>
+        <Criterion id="AC-CFG-004">Compact constructors provide defaults for null values</Criterion>
+        <Criterion id="AC-CFG-005">Prefix standardized to kanokna.{service-name}</Criterion>
+        <Criterion id="AC-CFG-006">Bean Validation annotations on properties where applicable</Criterion>
+        <Criterion id="AC-CFG-007">application.yml files updated for new structure</Criterion>
+        <Criterion id="AC-CFG-008">All existing tests pass after refactoring</Criterion>
+        <Criterion id="AC-CFG-009">MODULE_CONTRACT comments preserved where present</Criterion>
+    </AcceptanceCriteria>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       CONSTRAINTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Constraints>
+        <Item>Existing default values MUST be preserved exactly</Item>
+        <Item>No changes to business logic or property semantics</Item>
+        <Item>YAML structure changes must be backward-compatible via aliases if needed</Item>
+        <Item>No new dependencies required (jakarta.validation already in stack)</Item>
+    </Constraints>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       EXECUTION SEQUENCE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <ExecutionSequence>
+        <Step order="1">ARCHITECT: Create DEC-CONFIG-PROPERTIES-PATTERN in Technology.xml</Step>
+        <Step order="2">ARCHITECT: Produce handoff with refactored record classes</Step>
+        <Step order="3">COORDINATOR: Validate handoff (Gate K1)</Step>
+        <Step order="4">COORDINATOR: Approve and create CWO</Step>
+        <Step order="5">CODER: Implement refactoring per handoff</Step>
+        <Step order="6">CODER: Update application.yml files</Step>
+        <Step order="7">CODER: Verify all tests pass</Step>
+        <Step order="8">COORDINATOR: Validate implementation (Gate K2)</Step>
+    </ExecutionSequence>
+
+</ARCHITECT_WORK_ORDER>

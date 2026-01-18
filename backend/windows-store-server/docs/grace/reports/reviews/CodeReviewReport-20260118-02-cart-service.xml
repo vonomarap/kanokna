@@ -1,0 +1,441 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Code Review Report: cart-service
+  Branch: test/new-requirements-analysis
+  Reviewed: 2026-01-18
+  Reviewer: GRACE-REVIEWER
+-->
+<CodeReviewReport version="1.0">
+  <Scope>
+    <ReviewId>CHANGE-20260118-02-CART-CONFIG-SERVICES</ReviewId>
+    <Services>
+      <ServiceRef ref="DP-SVC-cart-service"/>
+    </Services>
+    <Languages>
+      <Language>java</Language>
+    </Languages>
+    <Links>
+      <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service"/>
+      <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE"/>
+      <Link ref="RequirementsAnalysis.xml#UC-ORDER-PLACE"/>
+      <Link ref="Technology.xml#DEC-CONFIG-PROPERTIES-PATTERN"/>
+      <Link ref="Handoff-20260117-04-W1-CONFIG-PATTERN.xml"/>
+    </Links>
+    <FilesReviewed>
+      <File>adapters/config/CartProperties.java</File>
+      <File>adapters/out/redis/RedisSessionCartStore.java</File>
+      <File>application/service/CartApplicationService.java</File>
+      <File>application/service/CartCheckoutService.java</File>
+      <File>application/service/CartPricingService.java</File>
+      <File>resources/application.yml</File>
+      <File>test/**/CartCheckoutServiceTest.java</File>
+      <File>test/**/CartPricingServiceTest.java</File>
+      <File>test/support/CartServiceTestFixture.java</File>
+    </FilesReviewed>
+  </Scope>
+
+  <Summary>
+    <OverallAssessment>CHANGES_REQUESTED</OverallAssessment>
+    <Risk>MEDIUM</Risk>
+    <KeyThemes>
+      <Item>BLOCKER: Test fixture constructor mismatch will cause compilation failure</Item>
+      <Item>Config pattern refactor (CartProperties) is well-implemented</Item>
+      <Item>Service decomposition follows SRP (CartCheckoutService, CartPricingService)</Item>
+      <Item>Hardcoded values (Currency.RUB, product families) should be externalized</Item>
+      <Item>Inconsistent error taxonomy (IllegalArgumentException vs domain errors)</Item>
+    </KeyThemes>
+  </Summary>
+
+  <Findings>
+    <!-- BLOCKER -->
+    <Finding id="FIND-QUAL-0001"
+             severity="BLOCKER"
+             confidence="HIGH"
+             category="Correctness"
+             rule="RULE-COMPILATION">
+      <Title>TestContext constructor parameter mismatch causes compilation failure</Title>
+      <Evidence>
+        <Location>CartServiceTestFixture.java:144-155</Location>
+        <Snippet><![CDATA[
+public final CartApplicationService service = new CartApplicationService(
+    cartRepository,
+    snapshotRepository,
+    catalogPort,
+    pricingPort,
+    eventPublisher,
+    sessionCartStore,
+    totalsCalculator,
+    configurationHashService,
+    mergeService,
+    properties
+);  // 10 parameters
+        ]]></Snippet>
+        <Location>CartApplicationService.java:114-141</Location>
+        <Snippet><![CDATA[
+public CartApplicationService(
+    CartRepository cartRepository,
+    CartSnapshotRepository snapshotRepository,
+    EventPublisher eventPublisher,
+    SessionCartStore sessionCartStore,
+    CatalogConfigurationPort catalogPort,
+    CartItemValidationService validationService,
+    CartPricingService pricingService,
+    CartMergingService mergingService,
+    CartCheckoutService checkoutService,
+    CartPromoCodeService promoCodeService,
+    CartTotalsCalculator totalsCalculator,
+    ConfigurationHashService hashService,
+    CartProperties properties)  // 13 parameters
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        The TestContext attempts to create CartApplicationService with 10 parameters,
+        but the actual constructor requires 13 parameters including the specialized
+        sub-services (CartItemValidationService, CartPricingService, CartMergingService,
+        CartCheckoutService, CartPromoCodeService). This will fail to compile.
+      </Rationale>
+      <Recommendation>
+        Update TestContext to instantiate all required sub-services and pass them
+        to CartApplicationService in the correct order.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Add fields for missing sub-services to TestContext</Step>
+        <Step>Initialize sub-services in TestContext constructor</Step>
+        <Step>Update CartApplicationService instantiation with all 13 parameters</Step>
+        <Step>Verify compilation succeeds</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Run mvn compile on cart-service module</Item>
+        <Item>All existing tests should compile and pass</Item>
+      </Verification>
+    </Finding>
+
+    <!-- MAJOR -->
+    <Finding id="FIND-QUAL-0002"
+             severity="MAJOR"
+             confidence="HIGH"
+             category="Correctness"
+             rule="RULE-ERROR-TAXONOMY">
+      <Title>IllegalArgumentException used instead of domain errors</Title>
+      <Evidence>
+        <Location>CartApplicationService.java:336</Location>
+        <Snippet><![CDATA[
+throw new IllegalArgumentException("customerId and anonymousSessionId required");
+        ]]></Snippet>
+        <Location>CartApplicationService.java:469</Location>
+        <Snippet><![CDATA[
+throw new IllegalArgumentException("customerId or sessionId must be provided");
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        Using IllegalArgumentException bypasses the error taxonomy:
+        1. No structured error code for client consumption
+        2. Controller advice may not map correctly
+        3. Inconsistent with other validation errors using CartDomainErrors
+      </Rationale>
+      <Recommendation>
+        Create CartDomainErrors.missingRequiredParameter() or similar
+        and use consistently for validation failures.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Add CartDomainErrors.missingRequiredParameter(String... params)</Step>
+        <Step>Replace IllegalArgumentException with domain error</Step>
+        <Step>Add test verifying correct error code</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Run CartApplicationServiceTest</Item>
+        <Item>Verify error response contains structured error code</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0003"
+             severity="MAJOR"
+             confidence="HIGH"
+             category="Maintainability"
+             rule="RULE-NO-MAGIC-VALUES">
+      <Title>Hardcoded Currency.RUB in multiple locations</Title>
+      <Evidence>
+        <Location>CartApplicationService.java:403</Location>
+        <Snippet><![CDATA[
+.orElseGet(() -> Cart.createForSession(sessionId, Currency.RUB));
+        ]]></Snippet>
+        <Location>CartApplicationService.java:421</Location>
+        <Snippet><![CDATA[
+CartTotals.empty(Currency.RUB)
+        ]]></Snippet>
+        <Location>CartApplicationService.java:456</Location>
+        <Snippet><![CDATA[
+? cart.totals().subtotal().getCurrency() : Currency.RUB;
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        Hardcoded currency violates the principle of externalizing configuration.
+        When multi-currency support is needed, changes required in multiple places.
+        CartProperties already demonstrates proper externalization pattern.
+      </Rationale>
+      <Recommendation>
+        Add defaultCurrency to CartProperties.Defaults and use throughout.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Add Defaults record to CartProperties with defaultCurrency field</Step>
+        <Step>Update application.yml with kanokna.cart.defaults.default-currency: RUB</Step>
+        <Step>Replace hardcoded Currency.RUB with properties.defaults().defaultCurrency()</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>All tests pass with default config</Item>
+        <Item>Test with different currency config value</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0004"
+             severity="MAJOR"
+             confidence="HIGH"
+             category="Maintainability"
+             rule="RULE-NO-MAGIC-VALUES">
+      <Title>Hardcoded product family list</Title>
+      <Evidence>
+        <Location>CartApplicationService.java:487</Location>
+        <Snippet><![CDATA[
+if (!List.of("WINDOW", "DOOR", "ACCESSORY").contains(norm)) {
+    throw CartDomainErrors.unsupportedProductFamily(family);
+}
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        Product families are business domain values that may change.
+        Hardcoding them makes the codebase harder to maintain and
+        requires code changes for business rule changes.
+      </Rationale>
+      <Recommendation>
+        Externalize to CartProperties.behavior().allowedProductFamilies()
+        or create a domain enum if families are truly fixed.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Add allowedProductFamilies to CartProperties.Behavior</Step>
+        <Step>Update application.yml with default list</Step>
+        <Step>Replace hardcoded list with config value</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Test normalizeFamily with valid and invalid families</Item>
+      </Verification>
+    </Finding>
+
+    <!-- MINOR -->
+    <Finding id="FIND-QUAL-0005"
+             severity="MINOR"
+             confidence="MEDIUM"
+             category="Performance"
+             rule="RULE-PRECISION">
+      <Title>BigDecimal to double conversion loses precision</Title>
+      <Evidence>
+        <Location>CartPricingService.java:302-314</Location>
+        <Snippet><![CDATA[
+private double calculatePercentChange(Money previousTotal, Money newTotal) {
+    // ...
+    return difference
+        .divide(previous, MathContext.DECIMAL64)
+        .multiply(BigDecimal.valueOf(100))
+        .doubleValue();  // Precision loss here
+}
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        Converting BigDecimal to double at the end loses precision.
+        For very large monetary amounts (millions/billions RUB),
+        this could result in incorrect percentage calculations.
+        Impact is low for typical cart values.
+      </Rationale>
+      <Recommendation>
+        Return BigDecimal and only convert to double for display/logging.
+        Or document the precision limits in Javadoc.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Change return type to BigDecimal</Step>
+        <Step>Update callers to handle BigDecimal</Step>
+        <Step>Convert to double only for display purposes</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Test with large monetary values (10^9 range)</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0006"
+             severity="MINOR"
+             confidence="HIGH"
+             category="Style"
+             rule="RULE-REDUNDANT-CODE">
+      <Title>Redundant null check for validated configuration property</Title>
+      <Evidence>
+        <Location>CartCheckoutService.java:114-116</Location>
+        <Snippet><![CDATA[
+Duration validity = properties.timeouts().snapshotValidity() != null
+    ? properties.timeouts().snapshotValidity()
+    : Duration.ofMinutes(15);
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        The @NotNull validation on Timeouts.snapshotValidity() combined with
+        the compact constructor default ensures this value is never null.
+        The null check adds noise and suggests distrust of the configuration.
+      </Rationale>
+      <Recommendation>
+        Remove the null check; trust the validated configuration.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Replace with: Duration validity = properties.timeouts().snapshotValidity();</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Existing tests cover this path</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0007"
+             severity="MINOR"
+             confidence="MEDIUM"
+             category="Maintainability"
+             rule="RULE-IMMUTABILITY">
+      <Title>Direct mutation of CartItem in pricing refresh</Title>
+      <Evidence>
+        <Location>CartPricingService.java:167</Location>
+        <Snippet><![CDATA[
+item.updatePrice(quote.unitPrice(), new PriceQuoteReference(quote.quoteId(), quote.validUntil()));
+        ]]></Snippet>
+        <Location>CartPricingService.java:170</Location>
+        <Snippet><![CDATA[
+item.clearPriceStale();
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        If CartItem is intended as a value object (common in DDD), these
+        mutating methods violate immutability. If CartItem is intentionally
+        mutable (entity pattern), this is acceptable but should be documented.
+      </Rationale>
+      <Recommendation>
+        Verify design intent. If immutable, use copy-with pattern:
+        item = item.withPrice(...).withPriceStaleCleared();
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Review CartItem design (entity vs value object)</Step>
+        <Step>If value object, refactor to immutable updates</Step>
+        <Step>Update cart.items() to use new item instances</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Verify concurrent modification safety</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0008"
+             severity="MINOR"
+             confidence="HIGH"
+             category="Maintainability"
+             rule="RULE-DRY">
+      <Title>Duplicate MergeResult construction in merge event</Title>
+      <Evidence>
+        <Location>CartApplicationService.java:357-360</Location>
+        <Snippet><![CDATA[
+eventPublisher.publish("cart.merged",
+    CartMergedEvent.create(source, savedTarget,
+        new com.kanokna.cart.domain.service.CartMergeService.MergeResult(
+            mergeResult.itemsFromSource(), mergeResult.itemsMerged(),
+            mergeResult.itemsAdded(), mergeResult.promoCodePreserved(),
+            mergeResult.promoCodeSource())));
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        Creates a new MergeResult by copying fields from existing mergeResult.
+        If the types are compatible, pass mergeResult directly.
+        If mapping is needed, extract to helper method.
+      </Rationale>
+      <Recommendation>
+        Pass mergeResult directly if types match, or extract mapping.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Check if CartMergedEvent.create() can accept CartMergingService.MergeResult</Step>
+        <Step>If yes, pass mergeResult directly</Step>
+        <Step>If no, extract mapping to toEventMergeResult(mergeResult)</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Run CartMergeServiceTest</Item>
+      </Verification>
+    </Finding>
+  </Findings>
+
+  <RefactoringPlan>
+    <Item id="REF-01" priority="P0">
+      Fix CartServiceTestFixture.TestContext constructor to match CartApplicationService (FIND-QUAL-0001)
+    </Item>
+    <Item id="REF-02" priority="P1">
+      Replace IllegalArgumentException with domain errors (FIND-QUAL-0002)
+    </Item>
+    <Item id="REF-03" priority="P1">
+      Externalize Currency.RUB to CartProperties.defaults (FIND-QUAL-0003)
+    </Item>
+    <Item id="REF-04" priority="P1">
+      Externalize product families to CartProperties.behavior (FIND-QUAL-0004)
+    </Item>
+    <Item id="REF-05" priority="P2">
+      Remove redundant null check in CartCheckoutService (FIND-QUAL-0006)
+    </Item>
+    <Item id="REF-06" priority="P2">
+      Review and document CartItem mutability design (FIND-QUAL-0007)
+    </Item>
+    <Item id="REF-07" priority="P3">
+      Simplify MergeResult construction in merge event (FIND-QUAL-0008)
+    </Item>
+  </RefactoringPlan>
+
+  <TestingRecommendations>
+    <Item priority="P0">
+      CRITICAL: Fix CartServiceTestFixture.TestContext to compile and run tests
+    </Item>
+    <Item priority="P1">
+      Add test for mergeCarts with blank customerId - verify domain error thrown
+    </Item>
+    <Item priority="P2">
+      Add test for normalizeFamily with invalid family value
+    </Item>
+    <Item priority="P2">
+      Add test for calculatePercentChange with very large monetary values
+    </Item>
+  </TestingRecommendations>
+
+  <ObservabilityRecommendations>
+    <Item priority="P2">
+      Standardize all logging to use structured .addKeyValue() pattern.
+      Some places still use string concatenation for key values.
+    </Item>
+  </ObservabilityRecommendations>
+
+  <ArchitectureCompliance>
+    <Check name="DDD/Hex Layering" status="PASS">
+      Domain model is pure. Application services orchestrate use cases.
+      Adapters (RedisSessionCartStore) implement out-ports.
+    </Check>
+    <Check name="Service Decomposition" status="PASS">
+      CartApplicationService delegates to specialized services:
+      CartCheckoutService, CartPricingService, CartMergingService, etc.
+    </Check>
+    <Check name="Config Pattern" status="PASS">
+      CartProperties uses immutable record pattern with nested structure.
+      Well-documented MODULE_CONTRACT linking to business rules.
+    </Check>
+    <Check name="Error Taxonomy" status="NEEDS_FIX">
+      IllegalArgumentException used in some validation paths instead
+      of CartDomainErrors.
+    </Check>
+    <Check name="Contract Anchors" status="PASS">
+      BLOCK_ANCHOR logging consistent in CartCheckoutService and CartPricingService.
+    </Check>
+  </ArchitectureCompliance>
+
+  <Standards>
+    <Java>
+      <Item>Immutable record pattern for configuration properties - COMPLIANT</Item>
+      <Item>Nested records for hierarchical config - COMPLIANT</Item>
+      <Item>@Validated annotation on config records - COMPLIANT</Item>
+      <Item>Constructor injection for dependencies - COMPLIANT</Item>
+      <Item>Consistent error taxonomy via DomainErrors - PARTIAL (two exceptions)</Item>
+      <Item>No hardcoded magic values - PARTIAL (currency, families)</Item>
+    </Java>
+  </Standards>
+</CodeReviewReport>

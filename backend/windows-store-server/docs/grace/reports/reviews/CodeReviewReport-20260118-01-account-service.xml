@@ -1,0 +1,394 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Code Review Report: account-service
+  Branch: test/new-requirements-analysis
+  Reviewed: 2026-01-18
+  Reviewer: GRACE-REVIEWER
+-->
+<CodeReviewReport version="1.0">
+  <Scope>
+    <ReviewId>CHANGE-20260118-01-ACCOUNT-CONFIG-SRP</ReviewId>
+    <Services>
+      <ServiceRef ref="DP-SVC-account-service"/>
+    </Services>
+    <Languages>
+      <Language>java</Language>
+    </Languages>
+    <Links>
+      <Link ref="DevelopmentPlan.xml#DP-SVC-account-service"/>
+      <Link ref="RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE"/>
+      <Link ref="Technology.xml#DEC-CONFIG-PROPERTIES-PATTERN"/>
+      <Link ref="Technology.xml#DEC-ACCOUNT-DECOMPOSITION"/>
+      <Link ref="Handoff-20260117-04-W1-CONFIG-PATTERN.xml"/>
+    </Links>
+    <FilesReviewed>
+      <File>adapters/config/AccountProperties.java</File>
+      <File>application/service/ProfileService.java</File>
+      <File>application/service/AddressService.java</File>
+      <File>application/service/SavedConfigurationService.java</File>
+      <File>application/service/AccountApplicationService.java</File>
+      <File>application/service/AccountServiceUtils.java</File>
+      <File>resources/application.yml</File>
+      <File>test/**/AccountApplicationService*Test.java</File>
+      <File>test/**/ProfileServiceTest.java</File>
+      <File>test/support/AccountServiceTestFixture.java</File>
+    </FilesReviewed>
+  </Scope>
+
+  <Summary>
+    <OverallAssessment>APPROVE_WITH_NITS</OverallAssessment>
+    <Risk>LOW</Risk>
+    <KeyThemes>
+      <Item>Good SRP decomposition: AccountApplicationService correctly delegates to specialized services</Item>
+      <Item>Config pattern refactor (immutable records) properly implemented</Item>
+      <Item>DDD/Hex boundaries respected - no layer violations detected</Item>
+      <Item>Minor inconsistency in error handling (SavedConfigurationService)</Item>
+      <Item>Test duplication could be reduced via fixture factory methods</Item>
+    </KeyThemes>
+  </Summary>
+
+  <Findings>
+    <!-- MAJOR FINDINGS -->
+    <Finding id="FIND-QUAL-0001"
+             severity="MAJOR"
+             confidence="HIGH"
+             category="Correctness"
+             rule="RULE-ERROR-TAXONOMY">
+      <Title>Inconsistent exception type for "configuration not found"</Title>
+      <Evidence>
+        <Location>SavedConfigurationService.java:233</Location>
+        <Snippet><![CDATA[
+.orElseThrow(() -> new IllegalArgumentException("Saved configuration not found"));
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        All other services use AccountDomainErrors for domain-level exceptions.
+        Using IllegalArgumentException here:
+        1. Bypasses the error taxonomy (no error code for clients)
+        2. Will not be mapped correctly by controller advice
+        3. Inconsistent with addressNotFound, profileNotFound patterns
+      </Rationale>
+      <Recommendation>
+        Replace with AccountDomainErrors.configurationNotFound() to maintain
+        consistent error handling across the service.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Create AccountDomainErrors.configurationNotFound(String configurationId) if not exists</Step>
+        <Step>Replace IllegalArgumentException with domain error</Step>
+        <Step>Add test case verifying correct error code</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Run AccountApplicationServiceConfigurationTest</Item>
+        <Item>Verify error code matches ERR-ACCT-CONFIG-NOT-FOUND pattern</Item>
+      </Verification>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service"/>
+      </Links>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0002"
+             severity="MAJOR"
+             confidence="HIGH"
+             category="Style"
+             rule="RULE-NO-OP-CODE">
+      <Title>No-op assignment in AccountProperties compact constructor</Title>
+      <Evidence>
+        <Location>AccountProperties.java:25</Location>
+        <Snippet><![CDATA[
+autoCreateProfile = autoCreateProfile;  // primitive, always has value
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        This line has no effect. Primitive boolean defaults to false if not provided.
+        The comment acknowledges this but the assignment is confusing.
+        Unlike object fields where we check for null, primitives cannot be defaulted
+        in compact constructors using this pattern.
+      </Rationale>
+      <Recommendation>
+        Remove the no-op line. If a different default (true) is needed when property
+        is not specified in YAML, document this in Javadoc but note that Spring's
+        relaxed binding already handles primitive defaults.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Remove line 25 entirely</Step>
+        <Step>Document in Javadoc that default is driven by YAML configuration</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Run ProfileServiceTest to verify auto-create behavior unchanged</Item>
+      </Verification>
+      <Links>
+        <Link ref="Technology.xml#DEC-CONFIG-PROPERTIES-PATTERN"/>
+      </Links>
+    </Finding>
+
+    <!-- MINOR FINDINGS -->
+    <Finding id="FIND-QUAL-0003"
+             severity="MINOR"
+             confidence="HIGH"
+             category="Maintainability"
+             rule="RULE-READABILITY">
+      <Title>Long null-check chain reduces readability</Title>
+      <Evidence>
+        <Location>ProfileService.java:252-256</Location>
+        <Snippet><![CDATA[
+if (command.firstName() == null && command.lastName() == null
+    && command.phoneNumber() == null && command.preferredLanguage() == null
+    && command.preferredCurrency() == null) {
+    throw new IllegalArgumentException("At least one field must be provided");
+}
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        Five-part null check chain is hard to scan and error-prone to extend.
+        Extracting to a helper method improves readability and testability.
+      </Rationale>
+      <Recommendation>
+        Extract to private helper method hasNoUpdateFields(command) or use
+        Stream-based approach with List.of(command.firstName(), ...).allMatch(Objects::isNull).
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Add private boolean hasNoUpdateFields(UpdateProfileCommand command)</Step>
+        <Step>Replace inline check with method call</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Existing tests cover this path (TC-FUNC-UPD-004)</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0004"
+             severity="MINOR"
+             confidence="MEDIUM"
+             category="Performance"
+             rule="RULE-UNNECESSARY-ITERATION">
+      <Title>Unconditional stream iteration for default address lookup</Title>
+      <Evidence>
+        <Location>AddressService.java:177-183</Location>
+        <Snippet><![CDATA[
+Optional<SavedAddress> oldDefault = profile.addresses().stream().filter(SavedAddress::isDefault).findFirst();
+if (command.setAsDefault() && oldDefault.isPresent()) {
+    // log
+}
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        The stream iteration happens regardless of whether setAsDefault is true.
+        For most address additions (setAsDefault=false), this is wasted work.
+        Impact is minimal for small address lists but violates KISS.
+      </Rationale>
+      <Recommendation>
+        Move the Optional lookup inside the setAsDefault condition.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Move lines 177 inside the if (command.setAsDefault()) block</Step>
+        <Step>Similar pattern appears in updateAddress - apply same fix</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Run AccountApplicationServiceAddressTest</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0005"
+             severity="MINOR"
+             confidence="HIGH"
+             category="Maintainability"
+             rule="RULE-TEST-CLARITY">
+      <Title>Magic value "x" used in test assertions</Title>
+      <Evidence>
+        <Location>ProfileServiceTest.java:107</Location>
+        <Location>AccountApplicationServiceProfileTest.java:101</Location>
+        <Snippet><![CDATA[
+assertEquals(AccountDomainErrors.invalidPhone("x").getCode(), ex.getCode());
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        Using "x" as a dummy value to extract error codes is non-obvious.
+        Future maintainers may wonder why "x" is used or if it has significance.
+      </Rationale>
+      <Recommendation>
+        Define a constant DUMMY_ARG = "ignored" in test fixture, or extract
+        error codes as constants (e.g., ERR_INVALID_PHONE = "ERR-ACCT-INVALID-PHONE").
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Add static final String DUMMY_ARG = "ignored" to AccountServiceTestFixture</Step>
+        <Step>Replace all "x" usages with DUMMY_ARG</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Compile and run tests</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0006"
+             severity="MINOR"
+             confidence="HIGH"
+             category="Maintainability"
+             rule="RULE-DRY">
+      <Title>Duplicated test setup across multiple test classes</Title>
+      <Evidence>
+        <Location>AccountApplicationServiceProfileTest.java:35-61</Location>
+        <Location>AccountApplicationServiceUpdateProfileTest.java:33-58</Location>
+        <Location>AccountApplicationServiceAddressTest.java:33-58</Location>
+        <Location>AccountApplicationServiceConfigurationTest.java:33-58</Location>
+      </Evidence>
+      <Rationale>
+        Each test class repeats the same ~25 lines of setup code creating
+        ProfileService, AddressService, SavedConfigurationService, and
+        AccountApplicationService. Changes to service composition require
+        updating 4+ files.
+      </Rationale>
+      <Recommendation>
+        Extract factory method to AccountServiceTestFixture that returns
+        a configured AccountApplicationService (or a record containing all
+        services and repositories).
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Add record TestHarness(AccountApplicationService service, repos...) to fixture</Step>
+        <Step>Add static TestHarness createDefault() factory method</Step>
+        <Step>Simplify setUp() in all test classes to use factory</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>All existing tests pass unchanged</Item>
+      </Verification>
+    </Finding>
+
+    <!-- NIT FINDINGS -->
+    <Finding id="FIND-QUAL-0007"
+             severity="NIT"
+             confidence="MEDIUM"
+             category="Style"
+             rule="RULE-CONSISTENCY">
+      <Title>Default value mismatch between compact constructor and YAML</Title>
+      <Evidence>
+        <Location>AccountProperties.java:26</Location>
+        <Snippet><![CDATA[
+maxAddressesPerUser = maxAddressesPerUser > 0 ? maxAddressesPerUser : 100;
+        ]]></Snippet>
+        <Location>application.yml:35</Location>
+        <Snippet><![CDATA[
+max-addresses-per-user: 10
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        Compact constructor defaults to 100 but YAML specifies 10.
+        If YAML is removed, the fallback behavior differs from documented default.
+        The Handoff document specifies 10 as the intended default.
+      </Rationale>
+      <Recommendation>
+        Align compact constructor default with YAML (change 100 to 10).
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Change line 26: maxAddressesPerUser > 0 ? maxAddressesPerUser : 10</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>No test changes needed - YAML always provides value</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0008"
+             severity="NIT"
+             confidence="LOW"
+             category="Documentation"
+             rule="RULE-JAVADOC">
+      <Title>MODULE_CONTRACT uses non-Javadoc comment format</Title>
+      <Evidence>
+        <Location>ProfileService.java:178-183</Location>
+        <Snippet><![CDATA[
+/**
+ * MODULE_CONTRACT id="MC-account-profile-service"
+ * LAYER="application.service"
+ * ...
+ */
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        Using Javadoc format (/**) for MODULE_CONTRACT is good practice as it
+        enables IDE hover documentation. This is already correctly done here.
+        However, the content is attribute-style rather than prose, which some
+        IDEs render awkwardly. Minor cosmetic issue.
+      </Rationale>
+      <Recommendation>
+        No change required - current format is acceptable. Consider adding
+        a one-line prose summary before attributes for IDE readability.
+      </Recommendation>
+    </Finding>
+  </Findings>
+
+  <RefactoringPlan>
+    <Item id="REF-01" priority="P1">
+      Fix SavedConfigurationService.deleteConfiguration() to use domain error (FIND-QUAL-0001)
+    </Item>
+    <Item id="REF-02" priority="P2">
+      Remove no-op assignment in AccountProperties compact constructor (FIND-QUAL-0002)
+    </Item>
+    <Item id="REF-03" priority="P2">
+      Align maxAddressesPerUser default with YAML (FIND-QUAL-0007)
+    </Item>
+    <Item id="REF-04" priority="P2">
+      Extract hasNoUpdateFields() helper in ProfileService (FIND-QUAL-0003)
+    </Item>
+    <Item id="REF-05" priority="P2">
+      Optimize default address lookup in AddressService (FIND-QUAL-0004)
+    </Item>
+    <Item id="REF-06" priority="P3">
+      Extract test fixture factory method (FIND-QUAL-0006)
+    </Item>
+    <Item id="REF-07" priority="P3">
+      Replace magic "x" values in tests with constants (FIND-QUAL-0005)
+    </Item>
+  </RefactoringPlan>
+
+  <TestingRecommendations>
+    <Item priority="P1">
+      Add test: SavedConfigurationService.deleteConfiguration() with non-existent ID throws
+      domain error with code ERR-ACCT-CONFIG-NOT-FOUND
+    </Item>
+    <Item priority="P2">
+      Add edge case test: ProfileService.updateProfile() when existing profile has null
+      personName and only firstName is provided
+    </Item>
+    <Item priority="P3">
+      Refactor test setup to use shared factory method from AccountServiceTestFixture
+    </Item>
+  </TestingRecommendations>
+
+  <ObservabilityRecommendations>
+    <Item priority="P2">
+      SavedConfigurationService line 173: Add BLOCK_ANCHOR ID to validation failure log.
+      Current format: "[SVC=account-service][UC=UC-B2C-CPQ-01][BLOCK=BA-ACCT-CFG-01][STATE=INVALID]"
+      This is correct but constructed manually instead of using AccountServiceUtils.logLine()
+      for consistency.
+    </Item>
+  </ObservabilityRecommendations>
+
+  <ArchitectureCompliance>
+    <Check name="DDD/Hex Layering" status="PASS">
+      Domain model is pure (no Spring/JPA dependencies in domain package).
+      Application services orchestrate use cases. Repositories are out-ports.
+    </Check>
+    <Check name="SRP Decomposition" status="PASS">
+      AccountApplicationService correctly delegates to specialized services.
+      Each service has single responsibility (Profile, Address, Configuration).
+    </Check>
+    <Check name="Config Pattern" status="PASS_WITH_NITS">
+      AccountProperties uses immutable record pattern as per DEC-CONFIG-PROPERTIES-PATTERN.
+      Minor issues with no-op assignment and default value mismatch.
+    </Check>
+    <Check name="Error Taxonomy" status="NEEDS_FIX">
+      SavedConfigurationService uses IllegalArgumentException instead of domain error.
+      All other services correctly use AccountDomainErrors.
+    </Check>
+    <Check name="Contract Anchors" status="PASS">
+      FUNCTION_CONTRACT and BLOCK_ANCHOR annotations are present and consistent.
+      Logging follows GRACE specification.
+    </Check>
+  </ArchitectureCompliance>
+
+  <Standards>
+    <Java>
+      <Item>Immutable record pattern for configuration properties - COMPLIANT</Item>
+      <Item>@Validated annotation on config records - COMPLIANT</Item>
+      <Item>Constructor injection for dependencies - COMPLIANT</Item>
+      <Item>@Transactional on service classes - COMPLIANT</Item>
+      <Item>Consistent error taxonomy via DomainErrors - PARTIAL (one exception)</Item>
+    </Java>
+  </Standards>
+</CodeReviewReport>
