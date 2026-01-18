@@ -166,4 +166,14 @@ public final class CartDomainErrors {
     public static CartDomainException unauthorized(String message) {
         return new CartDomainException("ERR-CART-UNAUTHORIZED", message);
     }
+
+    // ========== Missing Parameter Errors ==========
+
+    public static CartDomainException missingRequiredParameters(String... parameters) {
+        String message = "Missing required parameters";
+        if (parameters != null && parameters.length > 0) {
+            message = message + ": " + String.join(", ", parameters);
+        }
+        return new CartDomainException("ERR-CART-MISSING-PARAM", message);
+    }
 }

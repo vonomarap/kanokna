@@ -1,5 +1,14 @@
 package com.kanokna.cart.application.service;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
 import com.kanokna.cart.adapters.config.CartProperties;
 import com.kanokna.cart.application.service.dto.CheckoutValidationResult;
 import com.kanokna.cart.application.service.dto.PriceRefreshResult;
@@ -7,14 +16,6 @@ import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.cart.domain.model.CartItem;
 import com.kanokna.cart.domain.model.CartSnapshot;
 import com.kanokna.cart.domain.model.SnapshotId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * MODULE_CONTRACT id="MC-cart-checkout"
@@ -110,9 +111,7 @@ public class CartCheckoutService {
         }
 
         // BA-CART-SNAP-04: Create immutable snapshot
-        Duration validity = properties.getSnapshotValidity() != null
-            ? properties.getSnapshotValidity()
-            : Duration.ofMinutes(15);
+        Duration validity = properties.timeouts().snapshotValidity();
 
         Instant now = Instant.now();
         CartSnapshot snapshot = cart.createSnapshot(SnapshotId.generate(), validity, now);
@@ -176,7 +175,7 @@ public class CartCheckoutService {
         if (!priceResult.totalChanged()) {
             return false;
         }
-        return priceResult.changePercent() > properties.getPriceChangeThresholdPercent();
+        return priceResult.changePercent() > properties.behavior().priceChangeThresholdPercent();
     }
 
     /**

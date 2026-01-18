@@ -2,6 +2,7 @@ package com.kanokna.cart.application.service;
 
 import com.kanokna.cart.application.dto.CartDto;
 import com.kanokna.cart.application.dto.GetCartQuery;
+import com.kanokna.cart.domain.exception.CartDomainException;
 import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.cart.domain.model.CartItem;
 import com.kanokna.cart.domain.model.CartItemId;
@@ -18,6 +19,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CartApplicationServiceGetCartTest {
@@ -147,5 +149,16 @@ class CartApplicationServiceGetCartTest {
         CartDto result = context.service.getCart(new GetCartQuery("cust-13", null));
 
         assertEquals(ValidationStatus.UNKNOWN, result.items().get(0).validationStatus());
+    }
+
+    @Test
+    @DisplayName("TC-FUNC-CART-GET-006: missing identifiers returns error code")
+    void getCartMissingIdentifiersReturnsErrorCode() {
+        CartServiceTestFixture.TestContext context = new CartServiceTestFixture.TestContext();
+
+        CartDomainException ex = assertThrows(CartDomainException.class,
+            () -> context.service.getCart(new GetCartQuery(null, null)));
+
+        assertEquals("ERR-CART-MISSING-PARAM", ex.getErrorCode());
     }
 }

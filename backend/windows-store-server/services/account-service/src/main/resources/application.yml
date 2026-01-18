@@ -28,6 +28,21 @@ spring:
     server:
       port: 9085
 
+# Account service configuration
+kanokna:
+  account:
+    auto-create-profile: true
+    max-addresses-per-user: 10
+    saved-configurations:
+      max-per-user: 50
+      default-name-pattern: "Config {timestamp}"
+    defaults:
+      language: ru
+      currency: RUB
+      notification-email: true
+      notification-sms: false
+      notification-push: true
+
 management:
   endpoints:
     web:

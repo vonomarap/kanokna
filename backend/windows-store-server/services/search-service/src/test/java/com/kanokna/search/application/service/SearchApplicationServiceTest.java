@@ -77,7 +77,7 @@ class SearchApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        searchProperties = new SearchProperties();
+        searchProperties = new SearchProperties(null, null);
         service = new SearchApplicationService(
                 searchRepository,
                 searchIndexAdminPort,
@@ -503,7 +503,7 @@ class SearchApplicationServiceTest {
     @DisplayName("TC-FUNC-REINDEX-001: Successful reindex creates new index and swaps alias")
     void reindexCatalog_success_createsNewIndexAndSwapsAlias() {
         when(distributedLockPort.tryAcquire(anyString())).thenReturn(new TestLockHandle());
-        when(searchIndexAdminPort.resolveAlias(searchProperties.getIndex().getAlias()))
+        when(searchIndexAdminPort.resolveAlias(searchProperties.index().alias()))
                 .thenReturn(List.of("product_templates_v1"));
         when(catalogConfigurationPort.listProductTemplates(anyInt(), any()))
                 .thenReturn(SearchTestFixture.catalogProductPage(
@@ -521,7 +521,7 @@ class SearchApplicationServiceTest {
     @DisplayName("TC-FUNC-REINDEX-002: Reindex populates all active products")
     void reindexCatalog_populatesAllActiveProducts() {
         when(distributedLockPort.tryAcquire(anyString())).thenReturn(new TestLockHandle());
-        when(searchIndexAdminPort.resolveAlias(searchProperties.getIndex().getAlias()))
+        when(searchIndexAdminPort.resolveAlias(searchProperties.index().alias()))
                 .thenReturn(List.of());
         CatalogProductEvent first = SearchTestFixture.catalogProductEvent("p1", ProductStatus.ACTIVE);
         CatalogProductEvent second = SearchTestFixture.catalogProductEvent("p2", ProductStatus.ACTIVE);
@@ -549,7 +549,7 @@ class SearchApplicationServiceTest {
     @DisplayName("TC-FUNC-REINDEX-004: Failed reindex does not swap alias")
     void reindexCatalog_failedReindex_doesNotSwapAlias() {
         when(distributedLockPort.tryAcquire(anyString())).thenReturn(new TestLockHandle());
-        when(searchIndexAdminPort.resolveAlias(searchProperties.getIndex().getAlias()))
+        when(searchIndexAdminPort.resolveAlias(searchProperties.index().alias()))
                 .thenReturn(List.of("product_templates_v1"));
         when(catalogConfigurationPort.listProductTemplates(anyInt(), any()))
                 .thenReturn(SearchTestFixture.catalogProductPage(
@@ -566,7 +566,7 @@ class SearchApplicationServiceTest {
     @DisplayName("TC-FUNC-REINDEX-005: Previous index remains after successful swap")
     void reindexCatalog_previousIndexRemains_afterSuccessfulSwap() {
         when(distributedLockPort.tryAcquire(anyString())).thenReturn(new TestLockHandle());
-        when(searchIndexAdminPort.resolveAlias(searchProperties.getIndex().getAlias()))
+        when(searchIndexAdminPort.resolveAlias(searchProperties.index().alias()))
                 .thenReturn(List.of("product_templates_v1"));
         when(catalogConfigurationPort.listProductTemplates(anyInt(), any()))
                 .thenReturn(SearchTestFixture.catalogProductPage(

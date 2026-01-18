@@ -16,7 +16,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -38,8 +37,7 @@ class CartPricingServiceTest {
 
     @BeforeEach
     void setUp() {
-        properties = new CartProperties();
-        properties.setPriceChangeThresholdPercent(1.0);
+        properties = new CartProperties(null, null, null, null);
         pricingService = new CartPricingService(pricingPort, totalsCalculator, properties);
     }
 

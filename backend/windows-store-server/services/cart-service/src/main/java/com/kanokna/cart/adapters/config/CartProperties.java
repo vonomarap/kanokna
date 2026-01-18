@@ -1,7 +1,14 @@
 package com.kanokna.cart.adapters.config;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import java.time.Duration;
+import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+import com.kanokna.shared.money.Currency;
 
 /**
  * MODULE_CONTRACT id="MC-cart-properties"
@@ -9,155 +16,82 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * INTENT="Externalize all cart-service configuration; eliminate magic numbers"
  * LINKS="RequirementsAnalysis.xml#BR-CART-015;RequirementsAnalysis.xml#BR-CART-028"
  *
- * Configuration properties for cart-service.
+ * Configuration properties for cart-service using immutable record pattern.
  * All configurable values are externalized here to eliminate magic numbers
- * and allow environment-specific tuning.
+ * and allow environment-specific tuning, including defaults like currency
+ * and allowed product families.
  */
+@Validated
 @ConfigurationProperties(prefix = "kanokna.cart")
-public class CartProperties {
+public record CartProperties(
+    @Valid @NotNull Timeouts timeouts,
+    @Valid @NotNull Limits limits,
+    @Valid @NotNull Behavior behavior,
+    @Valid @NotNull Defaults defaults
+) {
+    /**
+     * Compact constructor providing null-safe defaults.
+     */
+    public CartProperties {
+        timeouts = timeouts != null ? timeouts : new Timeouts(
+            Duration.ofDays(7),      // anonymousTtl (BR-CART-SESSION-TTL)
+            Duration.ofHours(72),    // abandonedThreshold (BR-CART-ABANDONED)
+            Duration.ofMinutes(15),  // snapshotValidity (BR-CART-028)
+            Duration.ofMinutes(30),  // priceQuoteStaleness
+            Duration.ofSeconds(5),   // catalogValidationTimeout
+            Duration.ofSeconds(5)    // pricingQuoteTimeout
+        );
+        limits = limits != null ? limits : new Limits(50, 100);
+        behavior = behavior != null ? behavior : new Behavior(1.0, false,
+            List.of("WINDOW", "DOOR", "ACCESSORY"));
+        defaults = defaults != null ? defaults : new Defaults(Currency.RUB);
+    }
 
     /**
-     * Time-to-live for anonymous (session-based) carts before cleanup.
-     * Default: 7 days (BR-CART-SESSION-TTL)
+     * Timeout-related configuration values.
      */
-    private Duration anonymousTtl = Duration.ofDays(7);
+    public record Timeouts(
+        /** TTL for anonymous carts. Default: 7 days */
+        @NotNull Duration anonymousTtl,
+        /** Threshold for abandoned cart detection. Default: 72 hours */
+        @NotNull Duration abandonedThreshold,
+        /** Validity of cart snapshot for checkout. Default: 15 minutes */
+        @NotNull Duration snapshotValidity,
+        /** Duration after which price quotes are stale. Default: 30 minutes */
+        @NotNull Duration priceQuoteStaleness,
+        /** Timeout for catalog validation calls. Default: 5 seconds */
+        @NotNull Duration catalogValidationTimeout,
+        /** Timeout for pricing quote calls. Default: 5 seconds */
+        @NotNull Duration pricingQuoteTimeout
+    ) {}
 
     /**
-     * Threshold after which a cart is considered abandoned.
-     * Default: 72 hours (BR-CART-ABANDONED)
+     * Cart limits configuration.
      */
-    private Duration abandonedThreshold = Duration.ofHours(72);
+    public record Limits(
+        /** Maximum items allowed in a single cart. Default: 50 */
+        @Positive int maxItemsPerCart,
+        /** Maximum quantity per line item. Default: 100 */
+        @Positive int maxQuantityPerItem
+    ) {}
 
     /**
-     * Validity duration for cart snapshots used in checkout.
-     * After this period, snapshot expires and checkout must restart.
-     * Default: 15 minutes (BR-CART-028)
+     * Cart behavior configuration.
      */
-    private Duration snapshotValidity = Duration.ofMinutes(15);
+    public record Behavior(
+        /** Price change threshold % for user notification. Default: 1.0 */     
+        @PositiveOrZero double priceChangeThresholdPercent,
+        /** Auto-refresh prices on cart retrieval. Default: false */
+        boolean autoRefreshPrices,
+        /** Allowed product families for cart items. Default: WINDOW, DOOR, ACCESSORY */
+        @NotNull List<String> allowedProductFamilies
+    ) {}
 
     /**
-     * Price change threshold percentage for user notification/acknowledgment.
-     * If total price changes by more than this percentage during checkout,
-     * user must acknowledge before proceeding.
-     * Default: 1.0% (BR-CART-015)
+     * Default values for cart creation.
      */
-    private double priceChangeThresholdPercent = 1.0;
-
-    /**
-     * Maximum number of items allowed in a single cart.
-     * Default: 50 items
-     */
-    private int maxItemsPerCart = 50;
-
-    /**
-     * Maximum quantity allowed for a single line item.
-     * Default: 100 units
-     */
-    private int maxQuantityPerItem = 100;
-
-    /**
-     * Duration after which price quotes are considered stale.
-     * Default: 30 minutes
-     */
-    private Duration priceQuoteStaleness = Duration.ofMinutes(30);
-
-    /**
-     * Whether to auto-refresh prices when retrieving cart.
-     * Default: false (lazy refresh on explicit action)
-     */
-    private boolean autoRefreshPrices = false;
-
-    /**
-     * Timeout for catalog service validation calls.
-     * Default: 5 seconds
-     */
-    private Duration catalogValidationTimeout = Duration.ofSeconds(5);
-
-    /**
-     * Timeout for pricing service quote calls.
-     * Default: 5 seconds
-     */
-    private Duration pricingQuoteTimeout = Duration.ofSeconds(5);
-
-    // Getters and Setters
-
-    public Duration getAnonymousTtl() {
-        return anonymousTtl;
-    }
-
-    public void setAnonymousTtl(Duration anonymousTtl) {
-        this.anonymousTtl = anonymousTtl;
-    }
-
-    public Duration getAbandonedThreshold() {
-        return abandonedThreshold;
-    }
-
-    public void setAbandonedThreshold(Duration abandonedThreshold) {
-        this.abandonedThreshold = abandonedThreshold;
-    }
-
-    public Duration getSnapshotValidity() {
-        return snapshotValidity;
-    }
-
-    public void setSnapshotValidity(Duration snapshotValidity) {
-        this.snapshotValidity = snapshotValidity;
-    }
-
-    public double getPriceChangeThresholdPercent() {
-        return priceChangeThresholdPercent;
-    }
-
-    public void setPriceChangeThresholdPercent(double priceChangeThresholdPercent) {
-        this.priceChangeThresholdPercent = priceChangeThresholdPercent;
-    }
-
-    public int getMaxItemsPerCart() {
-        return maxItemsPerCart;
-    }
-
-    public void setMaxItemsPerCart(int maxItemsPerCart) {
-        this.maxItemsPerCart = maxItemsPerCart;
-    }
-
-    public int getMaxQuantityPerItem() {
-        return maxQuantityPerItem;
-    }
-
-    public void setMaxQuantityPerItem(int maxQuantityPerItem) {
-        this.maxQuantityPerItem = maxQuantityPerItem;
-    }
-
-    public Duration getPriceQuoteStaleness() {
-        return priceQuoteStaleness;
-    }
-
-    public void setPriceQuoteStaleness(Duration priceQuoteStaleness) {
-        this.priceQuoteStaleness = priceQuoteStaleness;
-    }
-
-    public boolean isAutoRefreshPrices() {
-        return autoRefreshPrices;
-    }
-
-    public void setAutoRefreshPrices(boolean autoRefreshPrices) {
-        this.autoRefreshPrices = autoRefreshPrices;
-    }
-
-    public Duration getCatalogValidationTimeout() {
-        return catalogValidationTimeout;
-    }
-
-    public void setCatalogValidationTimeout(Duration catalogValidationTimeout) {
-        this.catalogValidationTimeout = catalogValidationTimeout;
-    }
-
-    public Duration getPricingQuoteTimeout() {
-        return pricingQuoteTimeout;
-    }
-
-    public void setPricingQuoteTimeout(Duration pricingQuoteTimeout) {
-        this.pricingQuoteTimeout = pricingQuoteTimeout;
-    }
+    public record Defaults(
+        /** Default currency for new carts. Default: RUB */
+        @NotNull Currency defaultCurrency
+    ) {}
 }

@@ -14,7 +14,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -36,9 +35,7 @@ class CartCheckoutServiceTest {
 
     @BeforeEach
     void setUp() {
-        properties = new CartProperties();
-        properties.setSnapshotValidity(Duration.ofMinutes(15));
-        properties.setPriceChangeThresholdPercent(1.0);
+        properties = new CartProperties(null, null, null, null);
         checkoutService = new CartCheckoutService(validationService, pricingService, properties);
     }
 

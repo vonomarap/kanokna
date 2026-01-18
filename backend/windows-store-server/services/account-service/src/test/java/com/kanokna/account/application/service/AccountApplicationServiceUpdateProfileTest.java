@@ -40,7 +40,7 @@ class AccountApplicationServiceUpdateProfileTest {
             userProfileRepository,
             eventPublisher,
             currentUserProvider,
-            new AccountProperties()
+            new AccountProperties(true, 0, null, null)
         );
         AddressService addressService = new AddressService(
             savedAddressRepository,

@@ -1,5 +1,17 @@
 package com.kanokna.search.application.service;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.kanokna.search.adapters.config.SearchProperties;
 import com.kanokna.search.application.dto.BulkIndexResult;
 import com.kanokna.search.application.dto.CatalogProductDeleteEvent;
@@ -37,17 +49,6 @@ import com.kanokna.shared.i18n.Language;
 import com.kanokna.shared.i18n.LocalizedString;
 import com.kanokna.shared.money.Currency;
 import com.kanokna.shared.money.Money;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
 
 /**
  * Application service implementing search use cases.
@@ -191,7 +192,7 @@ public class SearchApplicationService implements
         // BA-SEARCH-QUERY-02: Execute query and collect results
         log.info(logLine(USE_CASE_BROWSE, "BA-SEARCH-QUERY-02", "EXECUTE_QUERY",
             "ELASTICSEARCH_QUERY_START", "START",
-            "indexName=" + searchProperties.getIndex().getAlias()));
+            "indexName=" + searchProperties.index().alias()));
 
         SearchResult result = searchRepository.search(normalized);
 
@@ -747,7 +748,7 @@ public class SearchApplicationService implements
         Objects.requireNonNull(command, "command");
 
         String requestedBy = "admin";
-        String lockName = searchProperties.getReindex().getLockName();
+        String lockName = searchProperties.reindex().lockName();
         long start = System.currentTimeMillis();
 
         // BA-REINDEX-01: Acquire distributed lock for reindex (Redis via Redisson)
@@ -767,8 +768,8 @@ public class SearchApplicationService implements
         }
 
         try (lock) {
-            String alias = searchProperties.getIndex().getAlias();
-            String versionPrefix = searchProperties.getIndex().getVersionPrefix();
+            String alias = searchProperties.index().alias();
+            String versionPrefix = searchProperties.index().versionPrefix();
             List<String> existing;
 
             try {
@@ -790,7 +791,7 @@ public class SearchApplicationService implements
                 "NEW_INDEX_CREATED", "SUCCESS",
                 "indexName=" + newIndexName));
 
-            int batchSize = searchProperties.getReindex().getBatchSize();
+            int batchSize = searchProperties.reindex().batchSize();
             String pageToken = null;
             long indexedCount = 0;
             long failedCount = 0;

@@ -102,7 +102,7 @@ public class ElasticsearchSearchRepository implements SearchRepository {
     public ElasticsearchSearchRepository(ElasticsearchClient client, SearchProperties searchProperties) {
         this.client = client;
         this.searchProperties = searchProperties;
-        if (this.searchProperties.getIndex() == null || this.searchProperties.getIndex().getAlias() == null) {
+        if (this.searchProperties.index() == null || this.searchProperties.index().alias() == null) {
             throw new IllegalStateException("Search index alias must be configured");
         }
     }
@@ -639,6 +639,6 @@ public class ElasticsearchSearchRepository implements SearchRepository {
     }
 
     private String indexAlias() {
-        return searchProperties.getIndex().getAlias();
+        return searchProperties.index().alias();
     }
 }

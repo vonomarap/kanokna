@@ -46,7 +46,7 @@ class ElasticsearchSearchRepositoryTest {
         @Mock
         private ElasticsearchClient client;
 
-        private final SearchProperties searchProperties = new SearchProperties();
+        private final SearchProperties searchProperties = new SearchProperties(null, null);
 
         @Test
         @DisplayName("TC-FUNC-SEARCH-001: search_buildsCorrectQuery")
@@ -73,7 +73,7 @@ class ElasticsearchSearchRepositoryTest {
                 ArgumentCaptor<SearchRequest> captor = ArgumentCaptor.forClass(SearchRequest.class);
                 verify(client).search(captor.capture(), eq(SearchIndexDocument.class));
                 SearchRequest request = captor.getValue();
-                assertTrue(request.index().contains(searchProperties.getIndex().getAlias()));
+                assertTrue(request.index().contains(searchProperties.index().alias()));
                 assertEquals(20, request.size());
                 assertEquals(20, request.from());
                 assertNotNull(request.query());
@@ -122,7 +122,7 @@ class ElasticsearchSearchRepositoryTest {
                  * verify(client).index((Function) captor.capture());
                  * IndexRequest request = captor.getValue().apply(new
                  * IndexRequest.Builder()).build();
-                 * assertEquals(searchProperties.getIndex().getAlias(), request.index());
+                 * assertEquals(searchProperties.index().alias(), request.index());
                  * assertEquals("p1", request.id());
                  */
         }
@@ -165,7 +165,7 @@ class ElasticsearchSearchRepositoryTest {
                  * verify(client).delete((Function) captor.capture());
                  * DeleteRequest request = captor.getValue().apply(new
                  * DeleteRequest.Builder()).build();
-                 * assertEquals(searchProperties.getIndex().getAlias(), request.index());
+                 * assertEquals(searchProperties.index().alias(), request.index());
                  * assertEquals("p1", request.id());
                  */
         }

@@ -41,7 +41,7 @@ class ProfileServiceTest {
         userProfileRepository = new AccountServiceTestFixture.InMemoryUserProfileRepository();
         eventPublisher = new AccountServiceTestFixture.RecordingEventPublisher();
         currentUserProvider = new AccountServiceTestFixture.FixedCurrentUserProvider();
-        accountProperties = new AccountProperties();
+        accountProperties = new AccountProperties(true, 0, null, null);
         service = new ProfileService(
             userProfileRepository,
             eventPublisher,

@@ -12,6 +12,11 @@ import com.kanokna.cart.application.port.out.EventPublisher;
 import com.kanokna.cart.application.port.out.PricingPort;
 import com.kanokna.cart.application.port.out.SessionCartStore;
 import com.kanokna.cart.application.service.CartApplicationService;
+import com.kanokna.cart.application.service.CartCheckoutService;
+import com.kanokna.cart.application.service.CartItemValidationService;
+import com.kanokna.cart.application.service.CartMergingService;
+import com.kanokna.cart.application.service.CartPricingService;
+import com.kanokna.cart.application.service.CartPromoCodeService;
 import com.kanokna.cart.domain.model.AppliedPromoCode;
 import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.cart.domain.model.CartItem;
@@ -25,7 +30,6 @@ import com.kanokna.cart.domain.service.ConfigurationHashService;
 import com.kanokna.shared.money.Currency;
 import com.kanokna.shared.money.Money;
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -40,11 +44,7 @@ public final class CartServiceTestFixture {
     }
 
     public static CartProperties cartProperties() {
-        CartProperties props = new CartProperties();
-        props.setAnonymousTtl(Duration.ofDays(7));
-        props.setAbandonedThreshold(Duration.ofHours(72));
-        props.setSnapshotValidity(Duration.ofMinutes(15));
-        return props;
+        return new CartProperties(null, null, null, null);
     }
 
     public static DimensionsDto dimensions() {
@@ -146,16 +146,39 @@ public final class CartServiceTestFixture {
         public final ConfigurationHashService configurationHashService = new ConfigurationHashService();
         public final CartMergeService mergeService = new CartMergeService();
         public final CartProperties properties = cartProperties();
+        public final CartItemValidationService validationService = new CartItemValidationService(
+            catalogPort);
+        public final CartPricingService pricingService = new CartPricingService(
+            pricingPort,
+            totalsCalculator,
+            properties
+        );
+        public final CartMergingService mergingService = new CartMergingService(
+            mergeService,
+            totalsCalculator
+        );
+        public final CartCheckoutService checkoutService = new CartCheckoutService(
+            validationService,
+            pricingService,
+            properties
+        );
+        public final CartPromoCodeService promoCodeService = new CartPromoCodeService(
+            pricingPort,
+            totalsCalculator
+        );
         public final CartApplicationService service = new CartApplicationService(
             cartRepository,
             snapshotRepository,
-            catalogPort,
-            pricingPort,
             eventPublisher,
             sessionCartStore,
+            catalogPort,
+            validationService,
+            pricingService,
+            mergingService,
+            checkoutService,
+            promoCodeService,
             totalsCalculator,
             configurationHashService,
-            mergeService,
             properties
         );
     }

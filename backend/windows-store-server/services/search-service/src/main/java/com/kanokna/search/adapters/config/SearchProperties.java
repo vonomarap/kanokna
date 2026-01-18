@@ -1,71 +1,50 @@
 package com.kanokna.search.adapters.config;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 /**
- * Configuration properties for search-service.
+ * Configuration properties for search-service using immutable record pattern.
  */
-@ConfigurationProperties(prefix = "search")
-public class SearchProperties {
-    private final Index index = new Index();
-    private final Reindex reindex = new Reindex();
-
-    public Index getIndex() {
-        return index;
+@Validated
+@ConfigurationProperties(prefix = "kanokna.search")
+public record SearchProperties(
+    @Valid @NotNull Index index,
+    @Valid @NotNull Reindex reindex
+) {
+    /**
+     * Compact constructor providing null-safe defaults.
+     */
+    public SearchProperties {
+        index = index != null ? index
+            : new Index("product_templates", "product_templates", "product_templates_v");
+        reindex = reindex != null ? reindex
+            : new Reindex(200, "search-service:reindex-lock");
     }
 
-    public Reindex getReindex() {
-        return reindex;
-    }
+    /**
+     * Elasticsearch index configuration.
+     */
+    public record Index(
+        /** Index name. Default: "product_templates" */
+        @NotBlank String name,
+        /** Index alias. Default: "product_templates" */
+        @NotBlank String alias,
+        /** Version prefix for index naming. Default: "product_templates_v" */
+        @NotBlank String versionPrefix
+    ) {}
 
-    public static class Index {
-        private String name = "product_templates";
-        private String alias = "product_templates";
-        private String versionPrefix = "product_templates_v";
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getAlias() {
-            return alias;
-        }
-
-        public void setAlias(String alias) {
-            this.alias = alias;
-        }
-
-        public String getVersionPrefix() {
-            return versionPrefix;
-        }
-
-        public void setVersionPrefix(String versionPrefix) {
-            this.versionPrefix = versionPrefix;
-        }
-    }
-
-    public static class Reindex {
-        private int batchSize = 200;
-        private String lockName = "search-service:reindex-lock";
-
-        public int getBatchSize() {
-            return batchSize;
-        }
-
-        public void setBatchSize(int batchSize) {
-            this.batchSize = batchSize;
-        }
-
-        public String getLockName() {
-            return lockName;
-        }
-
-        public void setLockName(String lockName) {
-            this.lockName = lockName;
-        }
-    }
+    /**
+     * Reindexing configuration.
+     */
+    public record Reindex(
+        /** Batch size for reindexing. Default: 200 */
+        @Positive int batchSize,
+        /** Distributed lock name. Default: "search-service:reindex-lock" */
+        @NotBlank String lockName
+    ) {}
 }

@@ -38,7 +38,7 @@ class AccountApplicationServiceProfileTest {
         savedConfigurationRepository = new AccountServiceTestFixture.InMemorySavedConfigurationRepository();
         eventPublisher = new AccountServiceTestFixture.RecordingEventPublisher();
         currentUserProvider = new AccountServiceTestFixture.FixedCurrentUserProvider();
-        accountProperties = new AccountProperties();
+        accountProperties = new AccountProperties(true, 0, null, null);
         ProfileService profileService = new ProfileService(
             userProfileRepository,
             eventPublisher,
@@ -118,7 +118,26 @@ class AccountApplicationServiceProfileTest {
     @DisplayName("TC-ACCT-002: Get profile for non-existent user returns NOT_FOUND when auto-create disabled")
     void getProfileNotFoundWhenAutoCreateDisabled() {
         String userId = UUID.randomUUID().toString();
-        accountProperties.setAutoCreateProfile(false);
+        accountProperties = new AccountProperties(false, 0, null, null);
+        ProfileService profileService = new ProfileService(
+            userProfileRepository,
+            eventPublisher,
+            currentUserProvider,
+            accountProperties
+        );
+        AddressService addressService = new AddressService(
+            savedAddressRepository,
+            userProfileRepository,
+            eventPublisher,
+            currentUserProvider
+        );
+        SavedConfigurationService savedConfigurationService = new SavedConfigurationService(
+            savedConfigurationRepository,
+            eventPublisher,
+            currentUserProvider,
+            new ConfigurationSnapshotValidator(new ObjectMapper())
+        );
+        service = new AccountApplicationService(profileService, addressService, savedConfigurationService);
         currentUserProvider.setCurrentUser(new CurrentUser(userId, "user@example.com", "Jane", "Doe", null, Set.of("CUSTOMER")));
 
         DomainException ex = assertThrows(DomainException.class,
