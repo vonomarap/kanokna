@@ -42,14 +42,15 @@ spring:
           negotiation-type: PLAINTEXT
           enable-keep-alive: true
 
-search:
-  index:
-    name: product_templates
-    alias: product_templates
-    version-prefix: product_templates_v
-  reindex:
-    batch-size: 200
-    lock-name: search-service:reindex-lock
+kanokna:
+  search:
+    index:
+      name: product_templates
+      alias: product_templates
+      version-prefix: product_templates_v
+    reindex:
+      batch-size: 200
+      lock-name: search-service:reindex-lock
 
 kafka:
   topics:

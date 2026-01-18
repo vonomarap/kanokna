@@ -40,7 +40,7 @@ class AutocompleteQueryTest {
             searchIndexAdminPort,
             catalogConfigurationPort,
             distributedLockPort,
-            new SearchProperties()
+            new SearchProperties(null, null)
         );
     }
 

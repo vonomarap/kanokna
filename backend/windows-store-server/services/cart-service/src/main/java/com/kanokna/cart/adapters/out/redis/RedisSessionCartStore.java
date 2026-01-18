@@ -1,11 +1,13 @@
 package com.kanokna.cart.adapters.out.redis;
 
-import com.kanokna.cart.adapters.config.CartProperties;
-import com.kanokna.cart.application.port.out.SessionCartStore;
 import java.time.Duration;
 import java.util.Optional;
+
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+
+import com.kanokna.cart.adapters.config.CartProperties;
+import com.kanokna.cart.application.port.out.SessionCartStore;
 
 /**
  * Redis-backed store for anonymous cart session IDs.
@@ -35,7 +37,7 @@ public class RedisSessionCartStore implements SessionCartStore {
         if (sessionId == null || sessionId.isBlank() || cartId == null || cartId.isBlank()) {
             return;
         }
-        Duration ttl = properties.getAnonymousTtl();
+        Duration ttl = properties.timeouts().anonymousTtl();
         redisTemplate.opsForValue().set(key(sessionId), cartId, ttl);
     }
 

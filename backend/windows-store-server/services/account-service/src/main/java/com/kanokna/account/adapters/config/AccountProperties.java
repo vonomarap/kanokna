@@ -1,115 +1,58 @@
 package com.kanokna.account.adapters.config;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 /**
- * Configuration properties for account-service.
+ * Configuration properties for account-service using immutable record pattern.
  */
-@ConfigurationProperties(prefix = "account")
-public class AccountProperties {
-    private boolean autoCreateProfile = true;
-    private int maxAddressesPerUser = 10;
-    private SavedConfigurations savedConfigurations = new SavedConfigurations();
-    private Defaults defaults = new Defaults();
-
-    public boolean isAutoCreateProfile() {
-        return autoCreateProfile;
+@Validated
+@ConfigurationProperties(prefix = "kanokna.account")
+public record AccountProperties(
+    boolean autoCreateProfile,
+    @Positive int maxAddressesPerUser,
+    @Valid @NotNull SavedConfigurations savedConfigurations,
+    @Valid @NotNull Defaults defaults
+) {
+    /**
+     * Compact constructor providing null-safe defaults.
+     */
+    public AccountProperties {
+        autoCreateProfile = autoCreateProfile;  // primitive, always has value
+        maxAddressesPerUser = maxAddressesPerUser > 0 ? maxAddressesPerUser : 100;
+        savedConfigurations = savedConfigurations != null ? savedConfigurations
+            : new SavedConfigurations(50, "Config {timestamp}");
+        defaults = defaults != null ? defaults
+            : new Defaults("ru", "RUB", true, false, true);
     }
 
-    public void setAutoCreateProfile(boolean autoCreateProfile) {
-        this.autoCreateProfile = autoCreateProfile;
-    }
+    /**
+     * Saved configuration limits.
+     */
+    public record SavedConfigurations(
+        /** Maximum saved configurations per user. Default: 50 */
+        @Positive int maxPerUser,
+        /** Default name pattern for saved configs. Default: "Config {timestamp}" */
+        @NotBlank String defaultNamePattern
+    ) {}
 
-    public int getMaxAddressesPerUser() {
-        return maxAddressesPerUser;
-    }
-
-    public void setMaxAddressesPerUser(int maxAddressesPerUser) {
-        this.maxAddressesPerUser = maxAddressesPerUser;
-    }
-
-    public SavedConfigurations getSavedConfigurations() {
-        return savedConfigurations;
-    }
-
-    public void setSavedConfigurations(SavedConfigurations savedConfigurations) {
-        this.savedConfigurations = savedConfigurations;
-    }
-
-    public Defaults getDefaults() {
-        return defaults;
-    }
-
-    public void setDefaults(Defaults defaults) {
-        this.defaults = defaults;
-    }
-
-    public static class SavedConfigurations {
-        private int maxPerUser = 50;
-        private String defaultNamePattern = "Config {timestamp}";
-
-        public int getMaxPerUser() {
-            return maxPerUser;
-        }
-
-        public void setMaxPerUser(int maxPerUser) {
-            this.maxPerUser = maxPerUser;
-        }
-
-        public String getDefaultNamePattern() {
-            return defaultNamePattern;
-        }
-
-        public void setDefaultNamePattern(String defaultNamePattern) {
-            this.defaultNamePattern = defaultNamePattern;
-        }
-    }
-
-    public static class Defaults {
-        private String language = "ru";
-        private String currency = "RUB";
-        private boolean notificationEmail = true;
-        private boolean notificationSms = false;
-        private boolean notificationPush = true;
-
-        public String getLanguage() {
-            return language;
-        }
-
-        public void setLanguage(String language) {
-            this.language = language;
-        }
-
-        public String getCurrency() {
-            return currency;
-        }
-
-        public void setCurrency(String currency) {
-            this.currency = currency;
-        }
-
-        public boolean isNotificationEmail() {
-            return notificationEmail;
-        }
-
-        public void setNotificationEmail(boolean notificationEmail) {
-            this.notificationEmail = notificationEmail;
-        }
-
-        public boolean isNotificationSms() {
-            return notificationSms;
-        }
-
-        public void setNotificationSms(boolean notificationSms) {
-            this.notificationSms = notificationSms;
-        }
-
-        public boolean isNotificationPush() {
-            return notificationPush;
-        }
-
-        public void setNotificationPush(boolean notificationPush) {
-            this.notificationPush = notificationPush;
-        }
-    }
+    /**
+     * Default values for new user preferences.
+     */
+    public record Defaults(
+        /** Default language code. Default: "ru" */
+        @NotBlank String language,
+        /** Default currency code. Default: "RUB" */
+        @NotBlank String currency,
+        /** Email notifications enabled by default. Default: true */
+        boolean notificationEmail,
+        /** SMS notifications enabled by default. Default: false */
+        boolean notificationSms,
+        /** Push notifications enabled by default. Default: true */
+        boolean notificationPush
+    ) {}
 }

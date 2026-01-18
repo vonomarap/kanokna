@@ -1,27 +1,79 @@
 package com.kanokna.cart.application.service;
 
-import com.kanokna.cart.adapters.config.CartProperties;
-import com.kanokna.cart.application.dto.*;
-import com.kanokna.cart.application.port.in.*;
-import com.kanokna.cart.application.port.out.*;
-import com.kanokna.cart.application.service.dto.ApplyPromoResult;
-import com.kanokna.cart.application.service.dto.PriceRefreshResult;
-import com.kanokna.cart.domain.event.*;
-import com.kanokna.cart.domain.exception.CartDomainErrors;
-import com.kanokna.cart.domain.model.*;
-import com.kanokna.cart.domain.service.CartTotalsCalculator;
-import com.kanokna.cart.domain.service.ConfigurationHashService;
-import com.kanokna.shared.money.Currency;
-import com.kanokna.shared.money.Money;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
+import com.kanokna.cart.adapters.config.CartProperties;
+import com.kanokna.cart.application.dto.AddItemCommand;
+import com.kanokna.cart.application.dto.AddItemResult;
+import com.kanokna.cart.application.dto.ApplyPromoCodeCommand;
+import com.kanokna.cart.application.dto.ApplyPromoCodeResult;
+import com.kanokna.cart.application.dto.BomLineDto;
+import com.kanokna.cart.application.dto.CartDto;
+import com.kanokna.cart.application.dto.ClearCartCommand;
+import com.kanokna.cart.application.dto.CreateSnapshotCommand;
+import com.kanokna.cart.application.dto.CreateSnapshotResult;
+import com.kanokna.cart.application.dto.GetCartQuery;
+import com.kanokna.cart.application.dto.MergeCartsCommand;
+import com.kanokna.cart.application.dto.MergeCartsResult;
+import com.kanokna.cart.application.dto.RefreshPricesCommand;
+import com.kanokna.cart.application.dto.RefreshPricesResult;
+import com.kanokna.cart.application.dto.RemoveItemCommand;
+import com.kanokna.cart.application.dto.RemovePromoCodeCommand;
+import com.kanokna.cart.application.dto.SelectedOptionDto;
+import com.kanokna.cart.application.dto.UpdateItemCommand;
+import com.kanokna.cart.application.port.in.AddItemUseCase;
+import com.kanokna.cart.application.port.in.ApplyPromoCodeUseCase;
+import com.kanokna.cart.application.port.in.ClearCartUseCase;
+import com.kanokna.cart.application.port.in.CreateSnapshotUseCase;
+import com.kanokna.cart.application.port.in.GetCartUseCase;
+import com.kanokna.cart.application.port.in.MergeCartsUseCase;
+import com.kanokna.cart.application.port.in.RefreshPricesUseCase;
+import com.kanokna.cart.application.port.in.RemoveItemUseCase;
+import com.kanokna.cart.application.port.in.RemovePromoCodeUseCase;
+import com.kanokna.cart.application.port.in.UpdateItemUseCase;
+import com.kanokna.cart.application.port.out.CartRepository;
+import com.kanokna.cart.application.port.out.CartSnapshotRepository;
+import com.kanokna.cart.application.port.out.CatalogConfigurationPort;
+import com.kanokna.cart.application.port.out.EventPublisher;
+import com.kanokna.cart.application.port.out.SessionCartStore;
+import com.kanokna.cart.application.service.dto.ApplyPromoResult;
+import com.kanokna.cart.application.service.dto.MergeResult;
+import com.kanokna.cart.application.service.dto.PriceRefreshResult;
+import com.kanokna.cart.domain.event.CartCheckedOutEvent;
+import com.kanokna.cart.domain.event.CartClearedEvent;
+import com.kanokna.cart.domain.event.CartCreatedEvent;
+import com.kanokna.cart.domain.event.CartItemAddedEvent;
+import com.kanokna.cart.domain.event.CartItemRemovedEvent;
+import com.kanokna.cart.domain.event.CartItemUpdatedEvent;
+import com.kanokna.cart.domain.event.CartMergedEvent;
+import com.kanokna.cart.domain.event.CartPricesRefreshedEvent;
+import com.kanokna.cart.domain.event.PromoCodeAppliedEvent;
+import com.kanokna.cart.domain.event.PromoCodeRemovedEvent;
+import com.kanokna.cart.domain.exception.CartDomainErrors;
+import com.kanokna.cart.domain.model.AppliedPromoCode;
+import com.kanokna.cart.domain.model.Cart;
+import com.kanokna.cart.domain.model.CartId;
+import com.kanokna.cart.domain.model.CartItem;
+import com.kanokna.cart.domain.model.CartItemId;
+import com.kanokna.cart.domain.model.CartSnapshot;
+import com.kanokna.cart.domain.model.CartStatus;
+import com.kanokna.cart.domain.model.CartTotals;
+import com.kanokna.cart.domain.model.ConfigurationSnapshot;
+import com.kanokna.cart.domain.model.PriceQuoteReference;
+import com.kanokna.cart.domain.model.ValidationStatus;
+import com.kanokna.cart.domain.service.CartMergeService;
+import com.kanokna.cart.domain.service.CartTotalsCalculator;
+import com.kanokna.cart.domain.service.ConfigurationHashService;
+import com.kanokna.shared.money.Currency;
+import com.kanokna.shared.money.Money;
 
 /**
  * MODULE_CONTRACT id="MC-cart-orchestrator"
@@ -283,7 +335,8 @@ public class CartApplicationService implements
         String customerId = normalize(cmd.customerId());
         String sessionId = normalize(cmd.anonymousSessionId());
         if (!hasText(customerId) || !hasText(sessionId)) {
-            throw new IllegalArgumentException("customerId and anonymousSessionId required");
+            throw CartDomainErrors.missingRequiredParameters(
+                "customerId", "anonymousSessionId");
         }
 
         Cart target = findOrCreateCart(customerId, null);
@@ -304,10 +357,7 @@ public class CartApplicationService implements
 
         eventPublisher.publish("cart.merged",
             CartMergedEvent.create(source, savedTarget,
-                new com.kanokna.cart.domain.service.CartMergeService.MergeResult(
-                    mergeResult.itemsFromSource(), mergeResult.itemsMerged(),
-                    mergeResult.itemsAdded(), mergeResult.promoCodePreserved(),
-                    mergeResult.promoCodeSource())));
+                toEventMergeResult(mergeResult)));
 
         return new MergeCartsResult(CartDtoMapper.toDto(savedTarget), mergeResult.itemsFromSource(),
             mergeResult.itemsMerged(), mergeResult.itemsAdded(),
@@ -350,7 +400,7 @@ public class CartApplicationService implements
                 .orElseGet(() -> createCart(customerId, null));
         }
         return cartRepository.findBySessionId(sessionId)
-            .orElseGet(() -> Cart.createForSession(sessionId, Currency.RUB));
+            .orElseGet(() -> Cart.createForSession(sessionId, defaultCurrency()));
     }
 
     private Cart resolveExistingCart(String customerId, String sessionId) {
@@ -368,7 +418,7 @@ public class CartApplicationService implements
     private Cart createCart(String customerId, String sessionId) {
         CartId cartId = hasText(customerId) ? stableCartId(customerId) : CartId.generate();
         return Cart.rehydrate(cartId, customerId, sessionId, CartStatus.ACTIVE, null,
-            CartTotals.empty(Currency.RUB), List.of(), Instant.now(), Instant.now(), 0);
+            CartTotals.empty(defaultCurrency()), List.of(), Instant.now(), Instant.now(), 0);
     }
 
     private CartId stableCartId(String customerId) {
@@ -403,7 +453,7 @@ public class CartApplicationService implements
 
     private Currency resolveCurrency(Cart cart) {
         return cart.totals() != null && cart.totals().subtotal() != null
-            ? cart.totals().subtotal().getCurrency() : Currency.RUB;
+            ? cart.totals().subtotal().getCurrency() : defaultCurrency();
     }
 
     private CartItemId parseItemId(String itemId) {
@@ -416,14 +466,14 @@ public class CartApplicationService implements
 
     private void requireCustomerOrSession(String customerId, String sessionId) {
         if (!hasText(customerId) && !hasText(sessionId)) {
-            throw new IllegalArgumentException("customerId or sessionId must be provided");
+            throw CartDomainErrors.missingRequiredParameters("customerId", "sessionId");
         }
     }
 
     private void validateQuantity(int quantity) {
         if (quantity < 1) throw CartDomainErrors.invalidQuantity(quantity);
-        if (quantity > properties.getMaxQuantityPerItem()) {
-            throw CartDomainErrors.quantityOutOfRange(quantity, 1, properties.getMaxQuantityPerItem());
+        if (quantity > properties.limits().maxQuantityPerItem()) {
+            throw CartDomainErrors.quantityOutOfRange(quantity, 1, properties.limits().maxQuantityPerItem());
         }
     }
 
@@ -434,10 +484,24 @@ public class CartApplicationService implements
     private String normalizeFamily(String family) {
         if (!hasText(family)) return null;
         String norm = family.strip().toUpperCase();
-        if (!List.of("WINDOW", "DOOR", "ACCESSORY").contains(norm)) {
+        if (!properties.behavior().allowedProductFamilies().contains(norm)) {
             throw CartDomainErrors.unsupportedProductFamily(family);
         }
         return norm;
+    }
+
+    private CartMergeService.MergeResult toEventMergeResult(MergeResult mergeResult) {
+        return new CartMergeService.MergeResult(
+            mergeResult.itemsFromSource(),
+            mergeResult.itemsMerged(),
+            mergeResult.itemsAdded(),
+            mergeResult.promoCodePreserved(),
+            mergeResult.promoCodeSource()
+        );
+    }
+
+    private Currency defaultCurrency() {
+        return properties.defaults().defaultCurrency();
     }
 
     private CreateSnapshotResult handleSnapshotFailure(Cart cart, CartCheckoutService.SnapshotCreationResult result) {

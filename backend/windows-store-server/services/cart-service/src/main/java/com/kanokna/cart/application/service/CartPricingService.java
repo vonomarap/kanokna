@@ -1,5 +1,13 @@
 package com.kanokna.cart.application.service;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.time.Instant;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
 import com.kanokna.cart.adapters.config.CartProperties;
 import com.kanokna.cart.application.port.out.PricingPort;
 import com.kanokna.cart.application.service.dto.PriceRefreshResult;
@@ -11,13 +19,6 @@ import com.kanokna.cart.domain.model.PriceQuoteReference;
 import com.kanokna.cart.domain.service.CartTotalsCalculator;
 import com.kanokna.shared.money.Currency;
 import com.kanokna.shared.money.Money;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.time.Instant;
 
 /**
  * MODULE_CONTRACT id="MC-cart-pricing"
@@ -252,7 +253,7 @@ public class CartPricingService {
      */
     public boolean isPriceChangeSignificant(Money previousTotal, Money newTotal) {
         double changePercent = calculatePercentChange(previousTotal, newTotal);
-        return changePercent > properties.getPriceChangeThresholdPercent();
+        return changePercent > properties.behavior().priceChangeThresholdPercent();
     }
 
     private AppliedPromoCode refreshPromoDiscount(AppliedPromoCode promoCode, Money subtotal) {

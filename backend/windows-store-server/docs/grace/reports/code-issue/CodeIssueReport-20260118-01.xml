@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Code Issue Report: Pre-existing MapStruct Compilation Error
+  Created: 2026-01-18T21:05:11+03:00
+  Validator: GRACE-COORDINATOR
+  
+  This issue was discovered during verification of CWO-20260118-01-CART-REMEDIATION.
+  The issue is PRE-EXISTING and NOT caused by the CWO remediation work.
+-->
+<CodeIssueReport
+    id="CodeIssueReport-20260118-01"
+    cwoRef="CWO-20260118-01-CART-REMEDIATION"
+    gateStatus="BLOCKED_BY_PREEXISTING_ISSUE"
+    created="2026-01-18T21:05:11+03:00"
+    validatedBy="GRACE-COORDINATOR">
+
+    <Summary>
+        Compilation of cart-service fails due to a pre-existing MapStruct issue in
+        CartEntityMapper.java. This is NOT caused by the CWO remediation work.
+        The mapper is unused (CartRepositoryAdapter uses CartPersistenceMapper instead)
+        but MapStruct still tries to generate code for it and fails because Cart class
+        uses record-style accessors (e.g., version()) instead of JavaBean getters (getVersion()).
+    </Summary>
+
+    <Issue id="ISS-PREEXIST-001">
+        <Severity>BLOCKING</Severity>
+        <Category>Pre-existing Issue</Category>
+        <Description>
+            CartEntityMapper.java uses MapStruct annotations to map Cart domain to CartJpaEntity.
+            However, the Cart class uses record-style accessors (version(), status(), etc.)
+            instead of JavaBean getters (getVersion(), getStatus(), etc.).
+            MapStruct by default expects JavaBean naming conventions and fails:
+            "No property named 'version' exists in source parameter(s). Type 'Cart' has no
+            properties."
+        </Description>
+        <Evidence>
+            <File>
+                services/cart-service/src/main/java/com/kanokna/cart/adapters/mapper/CartEntityMapper.java</File>
+            <Line>37</Line>
+            <Snippet>CartJpaEntity toEntity(Cart cart);</Snippet>
+            <ErrorMessage>No property named "version" exists in source parameter(s). Type "Cart" has
+                no properties.</ErrorMessage>
+        </Evidence>
+        <Impact>
+            Blocks ALL cart-service compilation and prevents verification of CWO remediation work.
+        </Impact>
+        <Analysis>
+            <Item>CartEntityMapper is NOT actually used by any adapter</Item>
+            <Item>CartRepositoryAdapter uses CartPersistenceMapper (manual, working)</Item>
+            <Item>CartSnapshotRepositoryAdapter uses CartPersistenceMapper (manual, working)</Item>
+            <Item>This is a dead code / incomplete refactoring issue</Item>
+        </Analysis>
+        <ProposedFixes>
+            <Fix id="FIX-PREEXIST-001A" recommendation="PREFERRED">
+                Delete CartEntityMapper.java entirely - it is unused dead code.
+                Also delete MoneyMapper.java and CartIdMapper.java if only used by CartEntityMapper.
+            </Fix>
+            <Fix id="FIX-PREEXIST-001B" recommendation="ALTERNATIVE">
+                If mapper is needed for future use, add @BeanMapping(builder =
+                @Builder(disableBuilder = true))
+                and fix the accessor strategy in MapStruct configuration.
+            </Fix>
+        </ProposedFixes>
+        <RequiredAgent>GRACE-CODER (cleanup) or GRACE-ARCHITECT (if keeping mapper for future)</RequiredAgent>
+    </Issue>
+
+    <CWORemediationVerification>
+        <Item id="VER-001" status="IMPLEMENTED">
+            FIX-P0-001 (BLOCKER): TestContext constructor updated from 10 to 13 parameters.
+            All required sub-services (CartItemValidationService, CartPricingService,
+            CartMergingService, CartCheckoutService, CartPromoCodeService) are now instantiated.
+        </Item>
+        <Item id="VER-002" status="IMPLEMENTED">
+            FIX-P1-001: IllegalArgumentException replaced with
+            CartDomainErrors.missingRequiredParameters()
+            at lines 338-340 and 468-470 in CartApplicationService.java.
+        </Item>
+        <Item id="VER-003" status="IMPLEMENTED">
+            FIX-P1-002: Currency.RUB externalized to CartProperties.Defaults.defaultCurrency.
+            CartApplicationService now uses properties.defaults().defaultCurrency() via
+            defaultCurrency() helper.
+        </Item>
+        <Item id="VER-004" status="IMPLEMENTED">
+            FIX-P1-003: Product families externalized to
+            CartProperties.Behavior.allowedProductFamilies.
+            normalizeFamily() now checks properties.behavior().allowedProductFamilies().
+        </Item>
+        <Item id="VER-005" status="IMPLEMENTED">
+            FIX-P2-001: Redundant null check removed in CartCheckoutService.java line 114.
+            Now directly uses properties.timeouts().snapshotValidity().
+        </Item>
+        <Item id="VER-006" status="IMPLEMENTED">
+            FIX-P2-002: MergeResult mapping extracted to toEventMergeResult() helper method.
+        </Item>
+        <Item id="VER-007" status="IMPLEMENTED">
+            application.yml updated with new configuration structure including
+            defaults.default-currency: RUB and behavior.allowed-product-families list.
+        </Item>
+    </CWORemediationVerification>
+
+    <Recommendation>
+        1. QUICK FIX (5 minutes): Delete CartEntityMapper.java and related unused mappers
+        to unblock compilation and allow verification of CWO remediation.
+
+        2. After fix, run:
+        - mvn compile -pl services/cart-service
+        - mvn test -pl services/cart-service
+
+        3. If tests pass, mark CWO-20260118-01-CART-REMEDIATION as COMPLETED.
+    </Recommendation>
+
+</CodeIssueReport>

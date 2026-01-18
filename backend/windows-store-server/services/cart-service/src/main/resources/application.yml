@@ -61,26 +61,37 @@ resilience4j:
 # Cart service configuration (MC-cart-properties)
 kanokna:
   cart:
-    # Time-to-live for anonymous carts (BR-CART-SESSION-TTL)
-    anonymous-ttl: 7d
-    # Threshold for cart abandonment detection (BR-CART-ABANDONED)
-    abandoned-threshold: 72h
-    # Validity duration for checkout snapshots (BR-CART-028)
-    snapshot-validity: 15m
-    # Price change threshold for user acknowledgment (BR-CART-015)
-    price-change-threshold-percent: 1.0
-    # Maximum items per cart
-    max-items-per-cart: 50
-    # Maximum quantity per line item
-    max-quantity-per-item: 100
-    # Duration after which price quotes are considered stale
-    price-quote-staleness: 30m
-    # Auto-refresh prices on cart retrieval
-    auto-refresh-prices: false
-    # Timeout for catalog validation calls
-    catalog-validation-timeout: 5s
-    # Timeout for pricing quote calls
-    pricing-quote-timeout: 5s
+    timeouts:
+      # Time-to-live for anonymous carts (BR-CART-SESSION-TTL)
+      anonymous-ttl: 7d
+      # Threshold for cart abandonment detection (BR-CART-ABANDONED)
+      abandoned-threshold: 72h
+      # Validity duration for checkout snapshots (BR-CART-028)
+      snapshot-validity: 15m
+      # Duration after which price quotes are considered stale
+      price-quote-staleness: 30m
+      # Timeout for catalog validation calls
+      catalog-validation-timeout: 5s
+      # Timeout for pricing quote calls
+      pricing-quote-timeout: 5s
+    limits:
+      # Maximum items per cart
+      max-items-per-cart: 50
+      # Maximum quantity per line item
+      max-quantity-per-item: 100
+    behavior:
+      # Price change threshold for user acknowledgment (BR-CART-015)
+      price-change-threshold-percent: 1.0
+      # Auto-refresh prices on cart retrieval
+      auto-refresh-prices: false
+      # Allowed product families for cart items
+      allowed-product-families:
+        - WINDOW
+        - DOOR
+        - ACCESSORY
+    defaults:
+      # Default currency for new carts
+      default-currency: RUB
 
 management:
   endpoints:

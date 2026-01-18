@@ -1,0 +1,426 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Code Review Report: search-service
+  Branch: test/new-requirements-analysis
+  Reviewed: 2026-01-18
+  Reviewer: GRACE-REVIEWER
+-->
+<CodeReviewReport version="1.0">
+  <Scope>
+    <ReviewId>CHANGE-20260118-03-SEARCH-CONFIG-PATTERN</ReviewId>
+    <Services>
+      <ServiceRef ref="DP-SVC-search-service"/>
+    </Services>
+    <Languages>
+      <Language>java</Language>
+    </Languages>
+    <Links>
+      <Link ref="DevelopmentPlan.xml#DP-SVC-search-service"/>
+      <Link ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE"/>
+      <Link ref="Technology.xml#DEC-CONFIG-PROPERTIES-PATTERN"/>
+      <Link ref="Technology.xml#TECH-elasticsearch"/>
+      <Link ref="Technology.xml#DEC-DISTRIBUTED-LOCK"/>
+      <Link ref="Handoff-20260117-04-W1-CONFIG-PATTERN.xml"/>
+    </Links>
+    <FilesReviewed>
+      <File>adapters/config/SearchProperties.java</File>
+      <File>adapters/out/elasticsearch/ElasticsearchSearchRepository.java</File>
+      <File>application/service/SearchApplicationService.java</File>
+      <File>resources/application.yml</File>
+      <File>test/**/SearchApplicationServiceTest.java</File>
+      <File>test/**/ElasticsearchSearchRepositoryTest.java</File>
+      <File>test/**/AutocompleteQueryTest.java</File>
+      <File>test/**/SearchServiceIntegrationTest.java</File>
+    </FilesReviewed>
+  </Scope>
+
+  <Summary>
+    <OverallAssessment>APPROVE_WITH_NITS</OverallAssessment>
+    <Risk>LOW</Risk>
+    <KeyThemes>
+      <Item>Excellent FUNCTION_CONTRACT and BLOCK_ANCHOR documentation - reference implementation</Item>
+      <Item>Config pattern refactor (SearchProperties) properly implemented</Item>
+      <Item>Comprehensive test coverage with DisplayName linking to test case IDs</Item>
+      <Item>Minor inconsistency in error handling (IllegalArgumentException vs domain errors)</Item>
+      <Item>Some configuration values hardcoded that should be externalized</Item>
+      <Item>Test file in wrong package (AutocompleteQueryTest in domain.model)</Item>
+    </KeyThemes>
+  </Summary>
+
+  <Findings>
+    <!-- MAJOR -->
+    <Finding id="FIND-QUAL-0001"
+             severity="MAJOR"
+             confidence="HIGH"
+             category="Correctness"
+             rule="RULE-ERROR-TAXONOMY">
+      <Title>IllegalArgumentException used instead of domain errors in three locations</Title>
+      <Evidence>
+        <Location>SearchApplicationService.java:465</Location>
+        <Snippet><![CDATA[
+if (productId.isBlank()) {
+    throw new IllegalArgumentException("productId is required");
+}
+        ]]></Snippet>
+        <Location>SearchApplicationService.java:633</Location>
+        <Snippet><![CDATA[
+if (productId == null || productId.isBlank()) {
+    throw new IllegalArgumentException("productId is required");
+}
+        ]]></Snippet>
+        <Location>SearchApplicationService.java:943</Location>
+        <Snippet><![CDATA[
+if (fields.isEmpty()) {
+    throw new IllegalArgumentException("At least one facet field is required");
+}
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        Using IllegalArgumentException bypasses the error taxonomy:
+        1. No structured error code for client consumption
+        2. Controller advice may not map correctly
+        3. Inconsistent with SearchDomainErrors used elsewhere in the service
+        4. Same issue was flagged in account-service and cart-service reviews
+      </Rationale>
+      <Recommendation>
+        Create domain errors and use consistently:
+        - SearchDomainErrors.invalidProductId(String reason)
+        - SearchDomainErrors.emptyFacetFields()
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Add SearchDomainErrors.invalidProductId(String reason) method</Step>
+        <Step>Add SearchDomainErrors.emptyFacetFields() method</Step>
+        <Step>Replace IllegalArgumentException with domain errors</Step>
+        <Step>Add tests verifying correct error codes</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Run SearchApplicationServiceTest</Item>
+        <Item>Verify error codes match ERR-SEARCH-* pattern</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0002"
+             severity="MAJOR"
+             confidence="HIGH"
+             category="Maintainability"
+             rule="RULE-NO-MAGIC-VALUES">
+      <Title>Multiple hardcoded configuration constants should be externalized</Title>
+      <Evidence>
+        <Location>SearchApplicationService.java:73-83</Location>
+        <Snippet><![CDATA[
+private static final int MIN_AUTOCOMPLETE_PREFIX = 2;
+private static final int DEFAULT_AUTOCOMPLETE_LIMIT = 10;
+private static final int MAX_AUTOCOMPLETE_LIMIT = 20;
+private static final Language DEFAULT_LANGUAGE = Language.RU;
+private static final Set<String> VALID_FACET_FIELDS = Set.of(
+    "family",
+    "profileSystem",
+    "materials",
+    "colors",
+    "openingTypes"
+);
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        These values are business configuration that may need adjustment without code changes:
+        - MIN_AUTOCOMPLETE_PREFIX could vary by language/market
+        - VALID_FACET_FIELDS may expand as catalog grows
+        - DEFAULT_LANGUAGE is market-specific
+        SearchProperties already demonstrates the proper pattern with Index and Reindex records.
+      </Rationale>
+      <Recommendation>
+        Add Autocomplete, Facets, and Defaults nested records to SearchProperties.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Add Autocomplete record with minPrefixLength, defaultLimit, maxLimit</Step>
+        <Step>Add Facets record with validFields list</Step>
+        <Step>Add Defaults record with defaultLanguage, defaultCurrency</Step>
+        <Step>Update application.yml with default values</Step>
+        <Step>Replace static constants with properties accessors</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>All tests pass with default config</Item>
+        <Item>Test with modified config values</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0003"
+             severity="MAJOR"
+             confidence="HIGH"
+             category="Architecture"
+             rule="RULE-PACKAGE-STRUCTURE">
+      <Title>Test file in wrong package violates architecture conventions</Title>
+      <Evidence>
+        <Location>test/java/com/kanokna/search/domain/model/AutocompleteQueryTest.java</Location>
+        <Snippet><![CDATA[
+package com.kanokna.search.domain.model;
+// ...
+private SearchApplicationService service;  // Tests application layer!
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        AutocompleteQueryTest is in domain.model package but:
+        1. Creates and tests SearchApplicationService (application layer)
+        2. Uses mocks of application ports
+        3. Does not test domain model AutocompleteQuery directly
+        This violates the package-by-layer convention where tests should be
+        colocated with the code they test.
+      </Rationale>
+      <Recommendation>
+        Move to application.service package or rewrite to test domain model
+        validation directly (if AutocompleteQuery has validation logic).
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Move file to test/.../application/service/AutocompleteValidationTest.java</Step>
+        <Step>Or rename and keep in domain.model if testing domain validation</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Tests compile and pass after move</Item>
+        <Item>Package structure follows conventions</Item>
+      </Verification>
+    </Finding>
+
+    <!-- MINOR -->
+    <Finding id="FIND-QUAL-0004"
+             severity="MINOR"
+             confidence="HIGH"
+             category="Maintainability"
+             rule="RULE-NO-MAGIC-VALUES">
+      <Title>Fallback Currency.RUB hardcoded in resolveCurrency</Title>
+      <Evidence>
+        <Location>SearchApplicationService.java:1045</Location>
+        <Snippet><![CDATA[
+private String resolveCurrency(Money basePrice, Money maxPrice) {
+    if (basePrice != null) {
+        return basePrice.getCurrency().name();
+    }
+    if (maxPrice != null) {
+        return maxPrice.getCurrency().name();
+    }
+    return Currency.RUB.name();  // Hardcoded fallback
+}
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        Same issue as identified in cart-service review.
+        Default currency should be externalized for multi-currency support.
+      </Rationale>
+      <Recommendation>
+        Add defaultCurrency to SearchProperties.Defaults record.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Add Defaults record to SearchProperties</Step>
+        <Step>Replace Currency.RUB.name() with properties.defaults().defaultCurrency()</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Tests pass with default config</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0005"
+             severity="MINOR"
+             confidence="MEDIUM"
+             category="Maintainability"
+             rule="RULE-CONFIGURATION">
+      <Title>VALID_FACET_FIELDS as static Set limits runtime flexibility</Title>
+      <Evidence>
+        <Location>SearchApplicationService.java:77-83</Location>
+        <Snippet><![CDATA[
+private static final Set<String> VALID_FACET_FIELDS = Set.of(
+    "family",
+    "profileSystem",
+    "materials",
+    "colors",
+    "openingTypes"
+);
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        As the catalog evolves, new facet fields may be added (e.g., "brand",
+        "certifications", "energyRating"). Having this as a static set requires
+        code changes and deployment to add new facets.
+      </Rationale>
+      <Recommendation>
+        Move to SearchProperties.Facets.validFields for runtime configuration.
+      </Recommendation>
+      <SuggestedRefactor>
+        <Step>Add validFields list to SearchProperties.Facets</Step>
+        <Step>Update application.yml with default list</Step>
+        <Step>Replace VALID_FACET_FIELDS with properties.facets().validFields()</Step>
+      </SuggestedRefactor>
+      <Verification>
+        <Item>Existing tests pass</Item>
+        <Item>Test adding new facet field via config only</Item>
+      </Verification>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0006"
+             severity="MINOR"
+             confidence="LOW"
+             category="Maintainability"
+             rule="RULE-SRP">
+      <Title>ElasticsearchSearchRepository could benefit from helper extraction</Title>
+      <Evidence>
+        <Location>ElasticsearchSearchRepository.java</Location>
+      </Evidence>
+      <Rationale>
+        The repository handles query building, mapping, and execution in a single class.
+        Extracting an ElasticsearchQueryBuilder could improve testability and clarity.
+        However, current structure is acceptable and follows adapter pattern.
+        Low priority - consider only if file continues to grow.
+      </Rationale>
+      <Recommendation>
+        No immediate action required. Flag for future consideration if complexity increases.
+      </Recommendation>
+    </Finding>
+
+    <!-- NIT -->
+    <Finding id="FIND-QUAL-0007"
+             severity="NIT"
+             confidence="HIGH"
+             category="Documentation"
+             rule="RULE-MODULE-CONTRACT">
+      <Title>SearchProperties missing MODULE_CONTRACT documentation</Title>
+      <Evidence>
+        <Location>SearchProperties.java:1-40</Location>
+      </Evidence>
+      <Rationale>
+        Other config classes (AccountProperties, CartProperties) have MODULE_CONTRACT
+        comments. SearchProperties should follow the same pattern for consistency.
+      </Rationale>
+      <Recommendation>
+        Add MODULE_CONTRACT linking to DEC-CONFIG-PROPERTIES-PATTERN.
+      </Recommendation>
+    </Finding>
+
+    <Finding id="FIND-QUAL-0008"
+             severity="NIT"
+             confidence="HIGH"
+             category="Style"
+             rule="RULE-CONFIG-COMPLETENESS">
+      <Title>application.yml missing autocomplete and facet configuration sections</Title>
+      <Evidence>
+        <Location>application.yml:45-53</Location>
+        <Snippet><![CDATA[
+kanokna:
+  search:
+    index:
+      name: product_templates
+      alias: product_templates
+      version-prefix: product_templates_v
+    reindex:
+      batch-size: 200
+      lock-name: search-service:reindex-lock
+    # Missing: autocomplete, facets, defaults sections
+        ]]></Snippet>
+      </Evidence>
+      <Rationale>
+        application.yml has index and reindex sections but not autocomplete/facets,
+        which are hardcoded in the service. Adding these sections (even with
+        defaults that match current behavior) documents the configuration options.
+      </Rationale>
+      <Recommendation>
+        Add autocomplete, facets, and defaults sections to application.yml after
+        adding the corresponding records to SearchProperties.
+      </Recommendation>
+    </Finding>
+  </Findings>
+
+  <RefactoringPlan>
+    <Item id="REF-01" priority="P1">
+      Replace IllegalArgumentException with domain errors (FIND-QUAL-0001)
+    </Item>
+    <Item id="REF-02" priority="P1">
+      Externalize autocomplete config to SearchProperties.Autocomplete (FIND-QUAL-0002)
+    </Item>
+    <Item id="REF-03" priority="P1">
+      Externalize facets config to SearchProperties.Facets (FIND-QUAL-0002, FIND-QUAL-0005)
+    </Item>
+    <Item id="REF-04" priority="P2">
+      Move AutocompleteQueryTest to correct package (FIND-QUAL-0003)
+    </Item>
+    <Item id="REF-05" priority="P2">
+      Add SearchProperties.Defaults with defaultLanguage and defaultCurrency (FIND-QUAL-0004)
+    </Item>
+    <Item id="REF-06" priority="P3">
+      Add MODULE_CONTRACT to SearchProperties (FIND-QUAL-0007)
+    </Item>
+  </RefactoringPlan>
+
+  <TestingRecommendations>
+    <Item priority="P1">
+      Add test: deleteProduct with blank productId throws domain error
+    </Item>
+    <Item priority="P1">
+      Add test: getProductById with null productId throws domain error
+    </Item>
+    <Item priority="P1">
+      Add test: getFacetValues with empty fields list throws domain error
+    </Item>
+    <Item priority="P2">
+      Move AutocompleteQueryTest to application.service package
+    </Item>
+  </TestingRecommendations>
+
+  <ObservabilityRecommendations>
+    <Item priority="INFO">
+      Excellent: SearchApplicationService has exemplary FUNCTION_CONTRACT documentation
+      for all 7 use case methods. Consider this as reference implementation for other services.
+    </Item>
+    <Item priority="INFO">
+      BLOCK_ANCHOR coverage is comprehensive with consistent naming:
+      BA-SEARCH-*, BA-AUTO-*, BA-INDEX-*, BA-DELETE-*, BA-FACET-*, BA-GET-*, BA-REINDEX-*
+    </Item>
+  </ObservabilityRecommendations>
+
+  <ArchitectureCompliance>
+    <Check name="DDD/Hex Layering" status="PASS">
+      Domain model is pure. Application service implements use case ports.
+      ElasticsearchSearchRepository correctly implements SearchRepository out-port.
+    </Check>
+    <Check name="Config Pattern" status="PASS">
+      SearchProperties uses immutable record pattern with Index/Reindex nested records.
+      Needs extension for Autocomplete/Facets/Defaults.
+    </Check>
+    <Check name="Error Taxonomy" status="NEEDS_FIX">
+      IllegalArgumentException used in 3 locations instead of SearchDomainErrors.
+    </Check>
+    <Check name="Contract Anchors" status="EXCELLENT">
+      Comprehensive FUNCTION_CONTRACT for all methods.
+      BLOCK_ANCHOR logging on all critical paths.
+      Reference implementation for other services.
+    </Check>
+    <Check name="Package Structure" status="NEEDS_FIX">
+      AutocompleteQueryTest in wrong package (domain.model instead of application.service).
+    </Check>
+  </ArchitectureCompliance>
+
+  <Standards>
+    <Java>
+      <Item>Immutable record pattern for configuration properties - COMPLIANT</Item>
+      <Item>Nested records for hierarchical config - PARTIAL (needs Autocomplete/Facets)</Item>
+      <Item>@Validated annotation on config records - COMPLIANT</Item>
+      <Item>Constructor injection for dependencies - COMPLIANT</Item>
+      <Item>FUNCTION_CONTRACT documentation - EXCELLENT (reference implementation)</Item>
+      <Item>BLOCK_ANCHOR logging coverage - EXCELLENT</Item>
+      <Item>Consistent error taxonomy via DomainErrors - PARTIAL (3 exceptions)</Item>
+    </Java>
+  </Standards>
+
+  <PositiveObservations>
+    <Item>
+      SearchApplicationService.java has the best FUNCTION_CONTRACT documentation in the codebase.
+      Each of the 7 use case methods has comprehensive contracts including:
+      PRECONDITIONS, POSTCONDITIONS, INVARIANTS, ERROR_HANDLING, BLOCK_ANCHORS, LOGGING, TESTS.
+      This should be promoted as the reference pattern for other services.
+    </Item>
+    <Item>
+      Test coverage is excellent with @DisplayName linking to test case IDs (TC-FUNC-*).
+      Integration tests use Testcontainers appropriately for Elasticsearch and Kafka.
+    </Item>
+    <Item>
+      The reindexCatalog implementation correctly uses distributed locking (Redis/Redisson)
+      and implements zero-downtime alias swap pattern for Elasticsearch.
+    </Item>
+  </PositiveObservations>
+</CodeReviewReport>

@@ -3,6 +3,7 @@ package com.kanokna.cart.application.service;
 import com.kanokna.cart.application.dto.AddItemCommand;
 import com.kanokna.cart.application.dto.AddItemResult;
 import com.kanokna.cart.application.port.out.PricingPort;
+import com.kanokna.cart.domain.exception.CartDomainException;
 import com.kanokna.cart.domain.event.CartItemAddedEvent;
 import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.cart.domain.model.CartItem;
@@ -174,5 +175,24 @@ class CartApplicationServiceAddItemTest {
         boolean published = context.eventPublisher.events().stream()
             .anyMatch(event -> "cart.item.added".equals(event.topic()) && event.event() instanceof CartItemAddedEvent);
         assertTrue(published);
+    }
+
+    @Test
+    @DisplayName("TC-FUNC-CART-ADD-007: unsupported product family returns error code")
+    void addItemRejectsUnsupportedFamily() {
+        CartServiceTestFixture.TestContext context = new CartServiceTestFixture.TestContext();
+        AddItemCommand command = CartServiceTestFixture.addItemCommand(
+            "cust-26",
+            null,
+            "T-28",
+            "Window",
+            "UNKNOWN",
+            1,
+            null
+        );
+
+        CartDomainException ex = assertThrows(CartDomainException.class, () -> context.service.addItem(command));
+
+        assertEquals("ERR-CART-INVALID-CONFIG", ex.getErrorCode());
     }
 }

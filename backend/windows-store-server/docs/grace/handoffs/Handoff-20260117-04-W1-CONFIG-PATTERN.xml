@@ -1,0 +1,536 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff: Configuration Properties Pattern Standardization
+  Task: W1-CONFIG-PATTERN-REFACTOR
+  Created: 2026-01-17T23:30:00+03:00
+  Author: GRACE-ARCHITECT
+  Status: PENDING_REVIEW
+-->
+<GRACE_HANDOFF
+    id="Handoff-20260117-04-W1-CONFIG-PATTERN"
+    status="APPROVED"
+    schemaVersion="grace-markup-v2"
+    created="2026-01-17T23:30:00+03:00"
+    author="GRACE-ARCHITECT"
+    taskRef="W1-CONFIG-PATTERN-REFACTOR"
+    awoRef="AWO-20260117-05-CONFIG-PATTERN-REFACTOR"
+    techRef="Technology.xml#DEC-CONFIG-PROPERTIES-PATTERN"
+>
+    <Meta>
+        <Created>2026-01-17T23:30:00+03:00</Created>
+        <AWORef>AWO-20260117-05-CONFIG-PATTERN-REFACTOR</AWORef>
+        <TaskRef>W1-CONFIG-PATTERN-REFACTOR</TaskRef>
+        <TargetPhase>CODER</TargetPhase>
+        <EstimatedEffort>1-2 hours</EstimatedEffort>
+        <Author>GRACE-ARCHITECT</Author>
+    </Meta>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       DECISIONS SNAPSHOT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <DecisionsSnapshot>
+        <Decision id="DEC-CONFIG-PROPERTIES-PATTERN" status="APPROVED">
+            <Statement>
+                Configuration properties classes use immutable record pattern with
+                @ConfigurationProperties
+                and @Validated annotations, nested records for hierarchical config, and compact
+                constructors for default values.
+            </Statement>
+        </Decision>
+    </DecisionsSnapshot>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE (Required for GRACE v2)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Scope>
+        <Services>
+            <ServiceRef ref="DP-SVC-cart-service" />
+            <ServiceRef ref="DP-SVC-account-service" />
+            <ServiceRef ref="DP-SVC-search-service" />
+        </Services>
+        <Description>
+            Refactor configuration properties classes to immutable record pattern
+            per DEC-CONFIG-PROPERTIES-PATTERN. Standardize prefixes to kanokna.{service}.
+        </Description>
+        <AffectedLayers>
+            <Layer>adapters.config (configuration properties classes)</Layer>
+        </AffectedLayers>
+        <Contracts>
+            <ModuleContractRef id="MC-cart-properties">Preserved in CartProperties record</ModuleContractRef>
+        </Contracts>
+    </Scope>
+
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Summary>
+        Refactor *Properties.java classes across 3 services from legacy mutable JavaBean pattern
+        to Spring Boot 4.0 recommended immutable record pattern. Also standardize prefixes to
+        kanokna.{service-name} format.
+
+        Services affected:
+        1. cart-service: CartProperties.java (prefix unchanged: kanokna.cart)
+        2. account-service: AccountProperties.java (prefix: account → kanokna.account)
+        3. search-service: SearchProperties.java (prefix: search → kanokna.search)
+    </Summary>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       IMPLEMENTATION: CART-SERVICE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Implementation id="IMPL-CART-PROPERTIES">
+        <Service>cart-service</Service>
+        <TargetFile>src/main/java/com/kanokna/cart/adapters/config/CartProperties.java</TargetFile>
+        <Action>REPLACE</Action>
+        <PrefixChange from="kanokna.cart" to="kanokna.cart">No change</PrefixChange>
+        <Code><![CDATA[
+package com.kanokna.cart.adapters.config;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import java.time.Duration;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * MODULE_CONTRACT id="MC-cart-properties"
+ * LAYER="adapters.config"
+ * INTENT="Externalize all cart-service configuration; eliminate magic numbers"
+ * LINKS="RequirementsAnalysis.xml#BR-CART-015;RequirementsAnalysis.xml#BR-CART-028"
+ *
+ * Configuration properties for cart-service using immutable record pattern.
+ * All configurable values are externalized here to eliminate magic numbers
+ * and allow environment-specific tuning.
+ */
+@Validated
+@ConfigurationProperties(prefix = "kanokna.cart")
+public record CartProperties(
+    @Valid @NotNull Timeouts timeouts,
+    @Valid @NotNull Limits limits,
+    @Valid @NotNull Behavior behavior
+) {
+    /**
+     * Compact constructor providing null-safe defaults.
+     */
+    public CartProperties {
+        timeouts = timeouts != null ? timeouts : new Timeouts(
+            Duration.ofDays(7),      // anonymousTtl (BR-CART-SESSION-TTL)
+            Duration.ofHours(72),    // abandonedThreshold (BR-CART-ABANDONED)
+            Duration.ofMinutes(15),  // snapshotValidity (BR-CART-028)
+            Duration.ofMinutes(30),  // priceQuoteStaleness
+            Duration.ofSeconds(5),   // catalogValidationTimeout
+            Duration.ofSeconds(5)    // pricingQuoteTimeout
+        );
+        limits = limits != null ? limits : new Limits(50, 100);
+        behavior = behavior != null ? behavior : new Behavior(1.0, false);
+    }
+
+    /**
+     * Timeout-related configuration values.
+     */
+    public record Timeouts(
+        /** TTL for anonymous carts. Default: 7 days */
+        @NotNull Duration anonymousTtl,
+        /** Threshold for abandoned cart detection. Default: 72 hours */
+        @NotNull Duration abandonedThreshold,
+        /** Validity of cart snapshot for checkout. Default: 15 minutes */
+        @NotNull Duration snapshotValidity,
+        /** Duration after which price quotes are stale. Default: 30 minutes */
+        @NotNull Duration priceQuoteStaleness,
+        /** Timeout for catalog validation calls. Default: 5 seconds */
+        @NotNull Duration catalogValidationTimeout,
+        /** Timeout for pricing quote calls. Default: 5 seconds */
+        @NotNull Duration pricingQuoteTimeout
+    ) {}
+
+    /**
+     * Cart limits configuration.
+     */
+    public record Limits(
+        /** Maximum items allowed in a single cart. Default: 50 */
+        @Positive int maxItemsPerCart,
+        /** Maximum quantity per line item. Default: 100 */
+        @Positive int maxQuantityPerItem
+    ) {}
+
+    /**
+     * Cart behavior configuration.
+     */
+    public record Behavior(
+        /** Price change threshold % for user notification. Default: 1.0 */
+        @PositiveOrZero double priceChangeThresholdPercent,
+        /** Auto-refresh prices on cart retrieval. Default: false */
+        boolean autoRefreshPrices
+    ) {}
+}
+]]></Code>
+        <YamlUpdate><![CDATA[
+# application.yml change for cart-service
+# FROM (flat structure):
+kanokna:
+  cart:
+    anonymous-ttl: 7d
+    abandoned-threshold: 72h
+    snapshot-validity: 15m
+    price-change-threshold-percent: 1.0
+    max-items-per-cart: 50
+    max-quantity-per-item: 100
+    price-quote-staleness: 30m
+    auto-refresh-prices: false
+    catalog-validation-timeout: 5s
+    pricing-quote-timeout: 5s
+
+# TO (nested structure):
+kanokna:
+  cart:
+    timeouts:
+      anonymous-ttl: 7d
+      abandoned-threshold: 72h
+      snapshot-validity: 15m
+      price-quote-staleness: 30m
+      catalog-validation-timeout: 5s
+      pricing-quote-timeout: 5s
+    limits:
+      max-items-per-cart: 50
+      max-quantity-per-item: 100
+    behavior:
+      price-change-threshold-percent: 1.0
+      auto-refresh-prices: false
+]]></YamlUpdate>
+        <MigrationNote>
+            Property access pattern changes from:
+            - cartProperties.getAnonymousTtl() → cartProperties.timeouts().anonymousTtl()
+            - cartProperties.getMaxItemsPerCart() → cartProperties.limits().maxItemsPerCart()
+            - cartProperties.isAutoRefreshPrices() → cartProperties.behavior().autoRefreshPrices()
+        </MigrationNote>
+    </Implementation>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       IMPLEMENTATION: ACCOUNT-SERVICE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Implementation id="IMPL-ACCOUNT-PROPERTIES">
+        <Service>account-service</Service>
+        <TargetFile>src/main/java/com/kanokna/account/adapters/config/AccountProperties.java</TargetFile>
+        <Action>REPLACE</Action>
+        <PrefixChange from="account" to="kanokna.account">BREAKING - update YAML</PrefixChange>
+        <Code><![CDATA[
+package com.kanokna.account.adapters.config;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * Configuration properties for account-service using immutable record pattern.
+ */
+@Validated
+@ConfigurationProperties(prefix = "kanokna.account")
+public record AccountProperties(
+    boolean autoCreateProfile,
+    @Positive int maxAddressesPerUser,
+    @Valid @NotNull SavedConfigurations savedConfigurations,
+    @Valid @NotNull Defaults defaults
+) {
+    /**
+     * Compact constructor providing null-safe defaults.
+     */
+    public AccountProperties {
+        autoCreateProfile = autoCreateProfile;  // primitive, always has value
+        maxAddressesPerUser = maxAddressesPerUser > 0 ? maxAddressesPerUser : 10;
+        savedConfigurations = savedConfigurations != null ? savedConfigurations
+            : new SavedConfigurations(50, "Config {timestamp}");
+        defaults = defaults != null ? defaults
+            : new Defaults("ru", "RUB", true, false, true);
+    }
+
+    /**
+     * Saved configuration limits.
+     */
+    public record SavedConfigurations(
+        /** Maximum saved configurations per user. Default: 50 */
+        @Positive int maxPerUser,
+        /** Default name pattern for saved configs. Default: "Config {timestamp}" */
+        @NotBlank String defaultNamePattern
+    ) {}
+
+    /**
+     * Default values for new user preferences.
+     */
+    public record Defaults(
+        /** Default language code. Default: "ru" */
+        @NotBlank String language,
+        /** Default currency code. Default: "RUB" */
+        @NotBlank String currency,
+        /** Email notifications enabled by default. Default: true */
+        boolean notificationEmail,
+        /** SMS notifications enabled by default. Default: false */
+        boolean notificationSms,
+        /** Push notifications enabled by default. Default: true */
+        boolean notificationPush
+    ) {}
+}
+]]></Code>
+        <YamlUpdate><![CDATA[
+# application.yml change for account-service
+# FROM (old prefix):
+account:
+  auto-create-profile: true
+  max-addresses-per-user: 10
+  saved-configurations:
+    max-per-user: 50
+    default-name-pattern: "Config {timestamp}"
+  defaults:
+    language: ru
+    currency: RUB
+    notification-email: true
+    notification-sms: false
+    notification-push: true
+
+# TO (new prefix):
+kanokna:
+  account:
+    auto-create-profile: true
+    max-addresses-per-user: 10
+    saved-configurations:
+      max-per-user: 50
+      default-name-pattern: "Config {timestamp}"
+    defaults:
+      language: ru
+      currency: RUB
+      notification-email: true
+      notification-sms: false
+      notification-push: true
+]]></YamlUpdate>
+        <MigrationNote>
+            Property access pattern changes from:
+            - accountProperties.isAutoCreateProfile() → accountProperties.autoCreateProfile()
+            - accountProperties.getSavedConfigurations().getMaxPerUser() →
+            accountProperties.savedConfigurations().maxPerUser()
+            - accountProperties.getDefaults().getLanguage() →
+            accountProperties.defaults().language()
+        </MigrationNote>
+    </Implementation>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       IMPLEMENTATION: SEARCH-SERVICE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Implementation id="IMPL-SEARCH-PROPERTIES">
+        <Service>search-service</Service>
+        <TargetFile>src/main/java/com/kanokna/search/adapters/config/SearchProperties.java</TargetFile>
+        <Action>REPLACE</Action>
+        <PrefixChange from="search" to="kanokna.search">BREAKING - update YAML</PrefixChange>
+        <Code><![CDATA[
+package com.kanokna.search.adapters.config;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * Configuration properties for search-service using immutable record pattern.
+ */
+@Validated
+@ConfigurationProperties(prefix = "kanokna.search")
+public record SearchProperties(
+    @Valid @NotNull Index index,
+    @Valid @NotNull Reindex reindex
+) {
+    /**
+     * Compact constructor providing null-safe defaults.
+     */
+    public SearchProperties {
+        index = index != null ? index
+            : new Index("product_templates", "product_templates", "product_templates_v");
+        reindex = reindex != null ? reindex
+            : new Reindex(200, "search-service:reindex-lock");
+    }
+
+    /**
+     * Elasticsearch index configuration.
+     */
+    public record Index(
+        /** Index name. Default: "product_templates" */
+        @NotBlank String name,
+        /** Index alias. Default: "product_templates" */
+        @NotBlank String alias,
+        /** Version prefix for index naming. Default: "product_templates_v" */
+        @NotBlank String versionPrefix
+    ) {}
+
+    /**
+     * Reindexing configuration.
+     */
+    public record Reindex(
+        /** Batch size for reindexing. Default: 200 */
+        @Positive int batchSize,
+        /** Distributed lock name. Default: "search-service:reindex-lock" */
+        @NotBlank String lockName
+    ) {}
+}
+]]></Code>
+        <YamlUpdate><![CDATA[
+# application.yml change for search-service
+# FROM (old prefix):
+search:
+  index:
+    name: product_templates
+    alias: product_templates
+    version-prefix: product_templates_v
+  reindex:
+    batch-size: 200
+    lock-name: search-service:reindex-lock
+
+# TO (new prefix):
+kanokna:
+  search:
+    index:
+      name: product_templates
+      alias: product_templates
+      version-prefix: product_templates_v
+    reindex:
+      batch-size: 200
+      lock-name: search-service:reindex-lock
+]]></YamlUpdate>
+        <MigrationNote>
+            Property access pattern changes from:
+            - searchProperties.getIndex().getName() → searchProperties.index().name()
+            - searchProperties.getReindex().getBatchSize() → searchProperties.reindex().batchSize()
+        </MigrationNote>
+    </Implementation>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       CODER INSTRUCTIONS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <CoderInstructions>
+        <Instruction order="1">
+            <Step>Replace each *Properties.java file with the record implementation provided above</Step>
+            <Rationale>Immutable records are thread-safe and align with Spring Boot 4.0 best
+                practices</Rationale>
+        </Instruction>
+        <Instruction order="2">
+            <Step>Update application.yml in each service to match the new structure/prefix</Step>
+            <Rationale>Prefix standardization to kanokna.{service} and nested structure for
+                cart-service</Rationale>
+        </Instruction>
+        <Instruction order="3">
+            <Step>Update test application.yml files with the same changes</Step>
+            <Rationale>Test configuration must match production structure</Rationale>
+        </Instruction>
+        <Instruction order="4">
+            <Step>Update all property access patterns in consuming classes</Step>
+            <Detail>
+                Search for usages of each Properties class and update:
+                - Getter methods → record accessor methods
+                - .getX() → .x() for top-level properties
+                - .getNestedClass().getY() → .nestedRecord().y()
+            </Detail>
+        </Instruction>
+        <Instruction order="5">
+            <Step>Ensure @EnableConfigurationProperties includes the Properties class</Step>
+            <Rationale>Required for record-based @ConfigurationProperties binding</Rationale>
+        </Instruction>
+        <Instruction order="6">
+            <Step>Run all tests to verify no regressions</Step>
+            <Rationale>Ensure default values and property binding work correctly</Rationale>
+        </Instruction>
+    </CoderInstructions>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       FILES TO UPDATE (summary)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <FilesToUpdate>
+        <File service="cart-service" action="REPLACE">
+            src/main/java/com/kanokna/cart/adapters/config/CartProperties.java
+        </File>
+        <File service="cart-service" action="UPDATE">
+            src/main/resources/application.yml (nested structure)
+        </File>
+        <File service="cart-service" action="UPDATE">
+            src/test/resources/application-test.yml
+        </File>
+        <File service="cart-service" action="UPDATE">
+            All classes using CartProperties (update accessor patterns)
+        </File>
+
+        <File service="account-service" action="REPLACE">
+            src/main/java/com/kanokna/account/adapters/config/AccountProperties.java
+        </File>
+        <File service="account-service" action="UPDATE">
+            src/main/resources/application.yml (prefix change)
+        </File>
+        <File service="account-service" action="UPDATE">
+            src/test/resources/application-test.yml
+        </File>
+        <File service="account-service" action="UPDATE">
+            All classes using AccountProperties (update accessor patterns)
+        </File>
+
+        <File service="search-service" action="REPLACE">
+            src/main/java/com/kanokna/search/adapters/config/SearchProperties.java
+        </File>
+        <File service="search-service" action="UPDATE">
+            src/main/resources/application.yml (prefix change)
+        </File>
+        <File service="search-service" action="UPDATE">
+            src/test/resources/application-test.yml
+        </File>
+        <File service="search-service" action="UPDATE">
+            All classes using SearchProperties (update accessor patterns)
+        </File>
+    </FilesToUpdate>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <AcceptanceCriteria>
+        <Criterion id="AC-CFG-001" status="PENDING">
+            All *Properties.java files use record pattern
+        </Criterion>
+        <Criterion id="AC-CFG-002" status="PENDING">
+            All properties classes have @Validated annotation
+        </Criterion>
+        <Criterion id="AC-CFG-003" status="PENDING">
+            Nested properties use nested records (not inner classes)
+        </Criterion>
+        <Criterion id="AC-CFG-004" status="PENDING">
+            Compact constructors provide defaults for null values
+        </Criterion>
+        <Criterion id="AC-CFG-005" status="PENDING">
+            Prefix standardized to kanokna.{service-name} for all services
+        </Criterion>
+        <Criterion id="AC-CFG-006" status="PENDING">
+            Bean Validation annotations on properties where applicable
+        </Criterion>
+        <Criterion id="AC-CFG-007" status="PENDING">
+            application.yml files updated for new structure/prefix
+        </Criterion>
+        <Criterion id="AC-CFG-008" status="PENDING">
+            All existing tests pass after refactoring
+        </Criterion>
+        <Criterion id="AC-CFG-009" status="PENDING">
+            MODULE_CONTRACT comments preserved where present (CartProperties)
+        </Criterion>
+    </AcceptanceCriteria>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ROLLBACK PLAN
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <RollbackPlan>
+        <Step>Revert Properties class changes via git checkout</Step>
+        <Step>Revert application.yml changes</Step>
+        <Step>Revert property accessor changes in consuming classes</Step>
+        <Rationale>
+            All changes are code-level refactoring with no database migration or
+            external system integration, making rollback straightforward.
+        </Rationale>
+    </RollbackPlan>
+
+</GRACE_HANDOFF>

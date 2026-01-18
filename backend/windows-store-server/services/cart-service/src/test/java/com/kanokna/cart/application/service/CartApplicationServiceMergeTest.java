@@ -2,6 +2,7 @@ package com.kanokna.cart.application.service;
 
 import com.kanokna.cart.application.dto.MergeCartsCommand;
 import com.kanokna.cart.application.dto.MergeCartsResult;
+import com.kanokna.cart.domain.exception.CartDomainException;
 import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.cart.domain.model.CartStatus;
 import com.kanokna.cart.support.CartServiceTestFixture;
@@ -12,6 +13,7 @@ import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CartApplicationServiceMergeTest {
@@ -260,5 +262,16 @@ class CartApplicationServiceMergeTest {
         assertTrue(result.promoCodePreserved());
         assertEquals("ANONYMOUS", result.promoCodeSource());
         assertEquals("ANON20", result.mergedCart().appliedPromoCode().code());
+    }
+
+    @Test
+    @DisplayName("TC-FUNC-CART-MERGE-006: missing identifiers returns error code")
+    void mergeMissingIdentifiersReturnsErrorCode() {
+        CartServiceTestFixture.TestContext context = new CartServiceTestFixture.TestContext();
+
+        CartDomainException ex = assertThrows(CartDomainException.class,
+            () -> context.service.mergeCarts(new MergeCartsCommand(null, null)));
+
+        assertEquals("ERR-CART-MISSING-PARAM", ex.getErrorCode());
     }
 }

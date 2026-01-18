@@ -142,8 +142,8 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
 
         ReindexResult result = searchApplicationService.reindexCatalog(new ReindexCommand(null));
 
-        assertEquals(searchProperties.getIndex().getVersionPrefix() + "2", result.newIndexName());
-        assertTrue(searchIndexAdminPort.resolveAlias(searchProperties.getIndex().getAlias())
+        assertEquals(searchProperties.index().versionPrefix() + "2", result.newIndexName());
+        assertTrue(searchIndexAdminPort.resolveAlias(searchProperties.index().alias())
             .contains(result.newIndexName()));
     }
 
@@ -151,7 +151,7 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
     @DisplayName("TC-FUNC-REINDEX-003: reindex_concurrentRequests_secondIsRejected")
     void reindex_concurrentRequests_secondIsRejected() {
         DistributedLockPort.LockHandle handle = distributedLockPort.tryAcquire(
-            searchProperties.getReindex().getLockName());
+            searchProperties.reindex().lockName());
         assertNotNull(handle);
         try {
             DomainException ex = assertThrows(
@@ -232,8 +232,8 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
     }
 
     private void resetIndices() throws IOException {
-        String alias = searchProperties.getIndex().getAlias();
-        String versionPrefix = searchProperties.getIndex().getVersionPrefix();
+        String alias = searchProperties.index().alias();
+        String versionPrefix = searchProperties.index().versionPrefix();
         deleteIndex(alias);
         deleteIndex(versionPrefix + "*");
 
@@ -256,7 +256,7 @@ class SearchServiceIntegrationTest extends TestContainersConfig {
     }
 
     private void refreshAlias() throws IOException {
-        elasticsearchClient.indices().refresh(r -> r.index(searchProperties.getIndex().getAlias()));
+        elasticsearchClient.indices().refresh(r -> r.index(searchProperties.index().alias()));
     }
 
     private void publishEvent(String topic, Object payload) {

@@ -1,5 +1,18 @@
 package com.kanokna.account.application.service;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Currency;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.kanokna.account.adapters.config.AccountProperties;
 import com.kanokna.account.application.dto.GetProfileQuery;
 import com.kanokna.account.application.dto.NotificationPreferencesDto;
@@ -21,17 +34,6 @@ import com.kanokna.account.domain.model.UserProfile;
 import com.kanokna.shared.core.Email;
 import com.kanokna.shared.core.Id;
 import com.kanokna.shared.core.PhoneNumber;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Currency;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /* <FUNCTION_CONTRACT id="FC-account-getProfile"
         LAYER="application.service"
@@ -216,7 +218,7 @@ public class ProfileService {
         if (existing.isPresent()) {
             profile = existing.get();
         } else {
-            if (!accountProperties.isAutoCreateProfile()) {
+            if (!accountProperties.autoCreateProfile()) {
                 throw AccountDomainErrors.profileNotFound(requestedUserId.value());
             }
             // BA-ACCT-PROF-03: Sync profile from Keycloak on first login
@@ -372,12 +374,12 @@ public class ProfileService {
             }
         }
 
-        LocalePreference defaultLanguage = parseLanguage(accountProperties.getDefaults().getLanguage());
-        CurrencyPreference defaultCurrency = parseCurrency(accountProperties.getDefaults().getCurrency());
+        LocalePreference defaultLanguage = parseLanguage(accountProperties.defaults().language());
+        CurrencyPreference defaultCurrency = parseCurrency(accountProperties.defaults().currency());
         NotificationPreferences notificationPreferences = NotificationPreferences.of(
-            accountProperties.getDefaults().isNotificationEmail(),
-            accountProperties.getDefaults().isNotificationSms(),
-            accountProperties.getDefaults().isNotificationPush()
+            accountProperties.defaults().notificationEmail(),
+            accountProperties.defaults().notificationSms(),
+            accountProperties.defaults().notificationPush()
         );
 
         Instant now = Instant.now();

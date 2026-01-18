@@ -1359,6 +1359,55 @@
         consider extracting SearchIndexManagementService.
       </FutureConsideration>
     </Decision>
+
+    <Decision id="DEC-CONFIG-PROPERTIES-PATTERN" status="APPROVED">
+      <Title>Configuration Properties Pattern</Title>
+      <Context>
+        Spring Boot 4.0 recommends immutable configuration properties using records.
+        Legacy mutable JavaBean pattern has thread-safety concerns and verbose boilerplate.
+      </Context>
+      <Selected>Immutable record pattern with @ConfigurationProperties and @Validated</Selected>
+      <Pattern>
+        <Item>Use Java records instead of mutable classes</Item>
+        <Item>Annotate with @ConfigurationProperties(prefix = "kanokna.{service-name}")</Item>
+        <Item>Annotate with @Validated for Bean Validation support</Item>
+        <Item>Use nested records for hierarchical configuration</Item>
+        <Item>Provide defaults via compact constructor with null-coalescing</Item>
+        <Item>Apply Bean Validation annotations (@NotNull, @Positive, etc.) where applicable</Item>
+      </Pattern>
+      <PrefixConvention>
+        <Item>cart-service: kanokna.cart</Item>
+        <Item>account-service: kanokna.account</Item>
+        <Item>search-service: kanokna.search</Item>
+        <Item>pricing-service: kanokna.pricing</Item>
+        <Item>catalog-configuration-service: kanokna.catalog</Item>
+      </PrefixConvention>
+      <Example>
+        <![CDATA[
+@Validated
+@ConfigurationProperties(prefix = "kanokna.example")
+public record ExampleProperties(
+    @NotNull Timeouts timeouts,
+    @NotNull Limits limits
+) {
+    public ExampleProperties {
+        timeouts = timeouts != null ? timeouts : new Timeouts(Duration.ofSeconds(5));
+        limits = limits != null ? limits : new Limits(100);
+    }
+    public record Timeouts(@NotNull Duration requestTimeout) {}
+    public record Limits(@Positive int maxItems) {}
+}
+        ]]>
+      </Example>
+      <Benefits>
+        <Item>Immutability: Thread-safe configuration access</Item>
+        <Item>Type safety: Compiler-enforced property types</Item>
+        <Item>Validation: Bean Validation integration with @Validated</Item>
+        <Item>Conciseness: Records eliminate getter/setter boilerplate</Item>
+        <Item>Spring Boot 4.0+: Recommended pattern per framework guidelines</Item>
+      </Benefits>
+      <PromotedFrom handoff="Handoff-20260117-04-W1-CONFIG-PATTERN" />
+    </Decision>
   </Decisions>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════

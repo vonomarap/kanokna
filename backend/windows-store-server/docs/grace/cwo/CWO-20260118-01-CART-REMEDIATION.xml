@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Coder Work Order: cart-service Code Review Remediation
+  Created: 2026-01-18T17:42:58+03:00
+  Coordinator: GRACE-COORDINATOR
+  
+  This CWO addresses findings from CodeReviewReport-20260118-02-cart-service.xml
+  Overall Assessment was: CHANGES_REQUESTED
+  Contains 1 BLOCKER and 3 MAJOR findings requiring remediation.
+-->
+<CODER_WORK_ORDER id="CWO-20260118-01" status="PROPOSED">
+    <Meta>
+        <Created>2026-01-18T17:42:58+03:00</Created>
+        <Type>REMEDIATION</Type>
+        <ReviewRef>CodeReviewReport-20260118-02-cart-service.xml</ReviewRef>
+        <OriginalHandoffRef>Handoff-20260117-04-W1-CONFIG-PATTERN</OriginalHandoffRef>
+        <TaskRef>W1-CART-REMEDIATION</TaskRef>
+        <Priority>HIGH</Priority>
+        <EstimatedEffort>1-2 hours</EstimatedEffort>
+    </Meta>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Scope>
+        <Description>
+            Remediate code review findings for cart-service from GRACE-REVIEWER assessment.
+            Focus on fixing BLOCKER (compilation failure) and MAJOR issues (error taxonomy,
+            hardcoded values).
+        </Description>
+        <Services>
+            <ServiceRef ref="DP-SVC-cart-service" />
+        </Services>
+        <Decisions>
+            <DecisionRef ref="DEC-CONFIG-PROPERTIES-PATTERN" />
+        </Decisions>
+        <Links>
+            <Link ref="CodeReviewReport-20260118-02-cart-service.xml" />
+            <Link ref="DevelopmentPlan.xml#DP-SVC-cart-service" />
+            <Link ref="RequirementsAnalysis.xml#UC-CART-MANAGE" />
+        </Links>
+    </Scope>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       BLOCKER FIXES (P0 - Must Fix Before Any Other Work)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <BlockerFixes>
+        <Fix id="FIX-P0-001" finding="FIND-QUAL-0001" priority="P0" severity="BLOCKER">
+            <Title>TestContext constructor mismatch - COMPILATION FAILURE</Title>
+            <File>
+                services/cart-service/src/test/java/com/kanokna/cart/test/support/CartServiceTestFixture.java</File>
+            <Location>Lines 144-155</Location>
+            <Problem>
+                TestContext creates CartApplicationService with 10 parameters,
+                but actual constructor requires 13 parameters including:
+                - CartItemValidationService validationService
+                - CartPricingService pricingService
+                - CartCheckoutService checkoutService
+                - CartPromoCodeService promoCodeService
+            </Problem>
+            <RequiredChanges>
+                <Step>Add mock fields for missing sub-services to TestContext</Step>
+                <Step>Initialize CartItemValidationService, CartPricingService, CartMergingService,
+                    CartCheckoutService, CartPromoCodeService in TestContext</Step>
+                <Step>Update CartApplicationService instantiation with all 13 parameters in correct
+                    order</Step>
+            </RequiredChanges>
+            <Verification>
+                <Command>mvn compile -pl services/cart-service</Command>
+                <Expected>BUILD SUCCESS - no compilation errors</Expected>
+            </Verification>
+        </Fix>
+    </BlockerFixes>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       MAJOR FIXES (P1 - Error Taxonomy and Hardcoded Values)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <MajorFixes>
+        <Fix id="FIX-P1-001" finding="FIND-QUAL-0002" priority="P1" severity="MAJOR">
+            <Title>IllegalArgumentException used instead of domain errors</Title>
+            <Files>
+                <File>
+                    services/cart-service/src/main/java/com/kanokna/cart/application/service/CartApplicationService.java</File>
+            </Files>
+            <Locations>
+                <Location line="336">throw new IllegalArgumentException("customerId and
+                    anonymousSessionId required")</Location>
+                <Location line="469">throw new IllegalArgumentException("customerId or sessionId
+                    must be provided")</Location>
+            </Locations>
+            <Problem>
+                Using IllegalArgumentException bypasses the error taxonomy:
+                1. No structured error code for client consumption
+                2. Controller advice may not map correctly
+                3. Inconsistent with other validation errors using CartDomainErrors
+            </Problem>
+            <RequiredChanges>
+                <Step>Create CartDomainErrors.missingRequiredParameter(String... params) if not
+                    exists</Step>
+                <Step>Replace IllegalArgumentException at line 336 with domain error</Step>
+                <Step>Replace IllegalArgumentException at line 469 with domain error</Step>
+                <Step>Add test verifying correct error code returned</Step>
+            </RequiredChanges>
+            <Verification>
+                <Command>mvn test -pl services/cart-service -Dtest=CartApplicationServiceTest</Command>
+                <Expected>All tests pass, error response contains structured error code</Expected>
+            </Verification>
+        </Fix>
+
+        <Fix id="FIX-P1-002" finding="FIND-QUAL-0003" priority="P1" severity="MAJOR">
+            <Title>Hardcoded Currency.RUB in multiple locations</Title>
+            <File>
+                services/cart-service/src/main/java/com/kanokna/cart/application/service/CartApplicationService.java</File>
+            <Locations>
+                <Location line="403">.orElseGet(() -> Cart.createForSession(sessionId,
+                    Currency.RUB))</Location>
+                <Location line="421">CartTotals.empty(Currency.RUB)</Location>
+                <Location line="456">? cart.totals().subtotal().getCurrency() : Currency.RUB</Location>
+            </Locations>
+            <Problem>
+                Hardcoded currency violates the principle of externalizing configuration.
+                When multi-currency support is needed, changes required in multiple places.
+                CartProperties already demonstrates proper externalization pattern.
+            </Problem>
+            <RequiredChanges>
+                <Step>Add Defaults nested record to CartProperties with defaultCurrency field</Step>
+                <Step>Update application.yml: kanokna.cart.defaults.default-currency: RUB</Step>
+                <Step>Replace hardcoded Currency.RUB with properties.defaults().defaultCurrency()</Step>
+                <Step>Update CartProperties MODULE_CONTRACT to include new defaults section</Step>
+            </RequiredChanges>
+            <Verification>
+                <Command>mvn test -pl services/cart-service</Command>
+                <Expected>All tests pass with default config</Expected>
+            </Verification>
+        </Fix>
+
+        <Fix id="FIX-P1-003" finding="FIND-QUAL-0004" priority="P1" severity="MAJOR">
+            <Title>Hardcoded product family list</Title>
+            <File>
+                services/cart-service/src/main/java/com/kanokna/cart/application/service/CartApplicationService.java</File>
+            <Location>Line 487</Location>
+            <Snippet><![CDATA[
+if (!List.of("WINDOW", "DOOR", "ACCESSORY").contains(norm)) {
+    throw CartDomainErrors.unsupportedProductFamily(family);
+}
+            ]]></Snippet>
+            <Problem>
+                Product families are business domain values that may change.
+                Hardcoding them makes the codebase harder to maintain.
+            </Problem>
+            <RequiredChanges>
+                <Step>Add allowedProductFamilies to CartProperties.Behavior nested record</Step>
+                <Step>Update application.yml: kanokna.cart.behavior.allowed-product-families:
+                    [WINDOW, DOOR, ACCESSORY]</Step>
+                <Step>Replace hardcoded List.of() with
+                    properties.behavior().allowedProductFamilies()</Step>
+            </RequiredChanges>
+            <Verification>
+                <Command>mvn test -pl services/cart-service</Command>
+                <Expected>Test normalizeFamily with valid and invalid families</Expected>
+            </Verification>
+        </Fix>
+    </MajorFixes>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       MINOR FIXES (P2 - Optional but Recommended)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <MinorFixes>
+        <Fix id="FIX-P2-001" finding="FIND-QUAL-0006" priority="P2" severity="MINOR">
+            <Title>Redundant null check for validated configuration property</Title>
+            <File>
+                services/cart-service/src/main/java/com/kanokna/cart/application/service/CartCheckoutService.java</File>
+            <Location>Lines 114-116</Location>
+            <Snippet><![CDATA[
+Duration validity = properties.timeouts().snapshotValidity() != null
+    ? properties.timeouts().snapshotValidity()
+    : Duration.ofMinutes(15);
+            ]]></Snippet>
+            <Problem>
+                The @NotNull validation on Timeouts.snapshotValidity() combined with
+                the compact constructor default ensures this value is never null.
+                The null check adds noise.
+            </Problem>
+            <RequiredChanges>
+                <Step>Replace with: Duration validity = properties.timeouts().snapshotValidity();</Step>
+            </RequiredChanges>
+        </Fix>
+
+        <Fix id="FIX-P2-002" finding="FIND-QUAL-0008" priority="P2" severity="MINOR">
+            <Title>Duplicate MergeResult construction in merge event</Title>
+            <File>
+                services/cart-service/src/main/java/com/kanokna/cart/application/service/CartApplicationService.java</File>
+            <Location>Lines 357-360</Location>
+            <Problem>
+                Creates a new MergeResult by copying fields from existing mergeResult.
+                If types are compatible, pass directly; if mapping needed, extract helper.
+            </Problem>
+            <RequiredChanges>
+                <Step>Check if CartMergedEvent.create() can accept CartMergingService.MergeResult</Step>
+                <Step>If yes, pass mergeResult directly</Step>
+                <Step>If no, extract mapping to private toEventMergeResult(mergeResult) method</Step>
+            </RequiredChanges>
+        </Fix>
+    </MinorFixes>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       EXECUTION PHASES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <ExecutionPhases>
+        <Phase id="1" name="Fix BLOCKER - TestContext Constructor">
+            <Task>Update CartServiceTestFixture.TestContext with all required sub-service mocks</Task>
+            <Task>Verify compilation: mvn compile -pl services/cart-service -Dtest-compile</Task>
+            <Blocking>true</Blocking>
+        </Phase>
+        <Phase id="2" name="Fix Error Taxonomy">
+            <Task>Add CartDomainErrors.missingRequiredParameter() if not exists</Task>
+            <Task>Replace IllegalArgumentException at lines 336, 469</Task>
+            <Task>Add tests for new error codes</Task>
+        </Phase>
+        <Phase id="3" name="Externalize Hardcoded Values">
+            <Task>Add Defaults nested record to CartProperties</Task>
+            <Task>Add allowedProductFamilies to Behavior nested record</Task>
+            <Task>Update application.yml with new configuration</Task>
+            <Task>Update CartApplicationService to use properties instead of hardcoded values</Task>
+        </Phase>
+        <Phase id="4" name="Minor Cleanup (Optional)">
+            <Task>Remove redundant null check in CartCheckoutService</Task>
+            <Task>Simplify MergeResult construction in merge event</Task>
+        </Phase>
+        <Phase id="5" name="Verification">
+            <Task>mvn compile -pl services/cart-service</Task>
+            <Task>mvn test -pl services/cart-service</Task>
+            <Task>Verify all tests pass</Task>
+        </Phase>
+    </ExecutionPhases>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <AcceptanceCriteria>
+        <Criterion id="AC-REM-001" priority="P0">cart-service compiles without errors</Criterion>
+        <Criterion id="AC-REM-002" priority="P0">All existing tests pass</Criterion>
+        <Criterion id="AC-REM-003" priority="P1">No IllegalArgumentException for domain validation
+            failures</Criterion>
+        <Criterion id="AC-REM-004" priority="P1">Currency.RUB externalized to
+            CartProperties.defaults</Criterion>
+        <Criterion id="AC-REM-005" priority="P1">Product families externalized to
+            CartProperties.behavior</Criterion>
+        <Criterion id="AC-REM-006" priority="P2">No redundant null checks for validated config</Criterion>
+    </AcceptanceCriteria>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       IMPLEMENTATION RULES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <ImplementationRules>
+        <Item>This is REMEDIATION work - no new features or scope expansion</Item>
+        <Item>Priority order: BLOCKER (P0) → MAJOR (P1) → MINOR (P2)</Item>
+        <Item>Stop after Phase 1 if BLOCKER fix fails verification</Item>
+        <Item>Maintain existing MODULE_CONTRACT and FUNCTION_CONTRACT annotations</Item>
+        <Item>Follow existing error taxonomy pattern from CartDomainErrors</Item>
+        <Item>Follow existing CartProperties nested record pattern for new config</Item>
+        <Item>All changes must pass existing tests before adding new tests</Item>
+    </ImplementationRules>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       CODER NOTES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <CoderNotes>
+        <Note priority="CRITICAL">
+            START WITH PHASE 1 (BLOCKER FIX). The code currently does not compile due to
+            TestContext constructor mismatch. No other work can be verified until this is fixed.
+        </Note>
+        <Note priority="HIGH">
+            Review CartApplicationService constructor signature carefully:
+            - CartRepository, CartSnapshotRepository, EventPublisher, SessionCartStore,
+            CatalogConfigurationPort
+            - CartItemValidationService, CartPricingService, CartMergingService, CartCheckoutService
+            - CartPromoCodeService, CartTotalsCalculator, ConfigurationHashService, CartProperties
+            (13 total parameters)
+        </Note>
+        <Note priority="HIGH">
+            For error taxonomy (FIX-P1-001): use existing pattern from CartDomainErrors.
+            Expected error code format: ERR-CART-MISSING-PARAM or similar.
+        </Note>
+        <Note priority="MEDIUM">
+            For CartProperties updates: follow existing nested record pattern.
+            Add Defaults record similar to existing Timeouts, Limits, Behavior records.
+        </Note>
+    </CoderNotes>
+
+</CODER_WORK_ORDER>

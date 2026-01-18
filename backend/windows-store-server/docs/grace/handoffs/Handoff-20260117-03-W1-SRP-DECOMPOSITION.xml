@@ -8,7 +8,7 @@
 -->
 <GRACE_HANDOFF
   id="Handoff-20260117-03-W1-SRP-DECOMPOSITION"
-  status="PROPOSED"
+  status="APPROVED"
   schemaVersion="grace-markup-v2"
   created="2026-01-17T21:00:00+03:00"
   author="GRACE-ARCHITECT"
@@ -28,7 +28,8 @@
       the Delegate Pattern per DEC-SRP-DECOMPOSITION-STRATEGY.
     </Description>
     <AffectedLayers>
-      <Layer>application.service (decomposition into ProfileService, AddressService, SavedConfigurationService)</Layer>
+      <Layer>application.service (decomposition into ProfileService, AddressService,
+        SavedConfigurationService)</Layer>
     </AffectedLayers>
     <APICompatibility>
       PRESERVED - AccountApplicationService remains as facade implementing use case interfaces.
@@ -42,7 +43,8 @@
   <DecisionsSnapshot>
     <Decision id="DEC-SRP-DECOMPOSITION-STRATEGY" status="APPROVED">
       <Title>Application Service Decomposition Strategy</Title>
-      <Selected>Delegate Pattern - main service implements interfaces, delegates to specialized services</Selected>
+      <Selected>Delegate Pattern - main service implements interfaces, delegates to specialized
+        services</Selected>
     </Decision>
     <Decision id="DEC-ACCOUNT-DECOMPOSITION" status="APPROVED">
       <Title>AccountApplicationService Decomposition</Title>
@@ -73,9 +75,11 @@
        ═══════════════════════════════════════════════════════════════════════════ -->
   <DecompositionPlan>
     <CurrentState>
-      <File>account-service/src/main/java/com/kanokna/account/application/service/AccountApplicationService.java</File>
+      <File>
+        account-service/src/main/java/com/kanokna/account/application/service/AccountApplicationService.java</File>
       <Lines>964</Lines>
-      <Implements>GetProfileUseCase, UpdateProfileUseCase, AddressManagementUseCase, ConfigurationManagementUseCase</Implements>
+      <Implements>GetProfileUseCase, UpdateProfileUseCase, AddressManagementUseCase,
+        ConfigurationManagementUseCase</Implements>
       <Methods>
         <Group name="Profile">
           <Method name="getProfile" lines="412-450" />
@@ -106,7 +110,8 @@
 
     <TargetState>
       <NewFile name="ProfileService.java">
-        <Path>account-service/src/main/java/com/kanokna/account/application/service/ProfileService.java</Path>
+        <Path>
+          account-service/src/main/java/com/kanokna/account/application/service/ProfileService.java</Path>
         <Contract ref="MC-account-profile-service" />
         <MovedMethods>
           <Method>getProfile</Method>
@@ -129,7 +134,8 @@
       </NewFile>
 
       <NewFile name="AddressService.java">
-        <Path>account-service/src/main/java/com/kanokna/account/application/service/AddressService.java</Path>
+        <Path>
+          account-service/src/main/java/com/kanokna/account/application/service/AddressService.java</Path>
         <Contract ref="MC-account-address-service" />
         <MovedMethods>
           <Method>addAddress</Method>
@@ -150,7 +156,8 @@
       </NewFile>
 
       <NewFile name="SavedConfigurationService.java">
-        <Path>account-service/src/main/java/com/kanokna/account/application/service/SavedConfigurationService.java</Path>
+        <Path>
+          account-service/src/main/java/com/kanokna/account/application/service/SavedConfigurationService.java</Path>
         <Contract ref="MC-account-savedconfig-service" />
         <MovedMethods>
           <Method>saveConfiguration</Method>
@@ -166,12 +173,14 @@
       </NewFile>
 
       <NewFile name="AccountServiceUtils.java">
-        <Path>account-service/src/main/java/com/kanokna/account/application/service/AccountServiceUtils.java</Path>
+        <Path>
+          account-service/src/main/java/com/kanokna/account/application/service/AccountServiceUtils.java</Path>
         <Description>Shared utility methods used by multiple specialized services</Description>
         <SharedHelpers>
           <Method>requireCurrentUser(CurrentUserProvider)</Method>
           <Method>authorizeAccess(CurrentUser, Id)</Method>
-          <Method>logLine(String useCase, String block, String state, String eventType, String decision, String keyValues)</Method>
+          <Method>logLine(String useCase, String block, String state, String eventType, String
+            decision, String keyValues)</Method>
         </SharedHelpers>
       </NewFile>
 
@@ -198,7 +207,8 @@
        IMPLEMENTATION SKELETON: ProfileService.java
        ═══════════════════════════════════════════════════════════════════════════ -->
   <ImplementationSkeleton>
-    <File path="account-service/src/main/java/com/kanokna/account/application/service/ProfileService.java">
+    <File
+      path="account-service/src/main/java/com/kanokna/account/application/service/ProfileService.java">
       <![CDATA[
 package com.kanokna.account.application.service;
 
@@ -272,7 +282,8 @@ public class ProfileService {
       ]]>
     </File>
 
-    <File path="account-service/src/main/java/com/kanokna/account/application/service/AddressService.java">
+    <File
+      path="account-service/src/main/java/com/kanokna/account/application/service/AddressService.java">
       <![CDATA[
 package com.kanokna.account.application.service;
 
@@ -347,7 +358,8 @@ public class AddressService {
       ]]>
     </File>
 
-    <File path="account-service/src/main/java/com/kanokna/account/application/service/SavedConfigurationService.java">
+    <File
+      path="account-service/src/main/java/com/kanokna/account/application/service/SavedConfigurationService.java">
       <![CDATA[
 package com.kanokna.account.application.service;
 
@@ -416,7 +428,8 @@ public class SavedConfigurationService {
       ]]>
     </File>
 
-    <File path="account-service/src/main/java/com/kanokna/account/application/service/AccountApplicationService.java (REFACTORED)">
+    <File
+      path="account-service/src/main/java/com/kanokna/account/application/service/AccountApplicationService.java (REFACTORED)">
       <![CDATA[
 package com.kanokna.account.application.service;
 
@@ -517,7 +530,8 @@ public class AccountApplicationService implements
        ═══════════════════════════════════════════════════════════════════════════ -->
   <TestRequirements>
     <NewTests>
-      <TestFile path="account-service/src/test/java/com/kanokna/account/application/service/ProfileServiceTest.java">
+      <TestFile
+        path="account-service/src/test/java/com/kanokna/account/application/service/ProfileServiceTest.java">
         <Cases>
           <Case>getProfile_existingUser_returnsProfile</Case>
           <Case>getProfile_newUser_autoCreatesFromKeycloak</Case>
@@ -525,7 +539,8 @@ public class AccountApplicationService implements
           <Case>updateProfile_invalidPhone_throwsException</Case>
         </Cases>
       </TestFile>
-      <TestFile path="account-service/src/test/java/com/kanokna/account/application/service/AddressServiceTest.java">
+      <TestFile
+        path="account-service/src/test/java/com/kanokna/account/application/service/AddressServiceTest.java">
         <Cases>
           <Case>addAddress_validInput_savesAndPublishesEvent</Case>
           <Case>addAddress_setAsDefault_clearsOldDefault</Case>
@@ -534,7 +549,8 @@ public class AccountApplicationService implements
           <Case>listAddresses_returnsAddressesSortedByLabel</Case>
         </Cases>
       </TestFile>
-      <TestFile path="account-service/src/test/java/com/kanokna/account/application/service/SavedConfigurationServiceTest.java">
+      <TestFile
+        path="account-service/src/test/java/com/kanokna/account/application/service/SavedConfigurationServiceTest.java">
         <Cases>
           <Case>saveConfiguration_validInput_savesAndPublishesEvent</Case>
           <Case>saveConfiguration_invalidSnapshot_throwsException</Case>
@@ -544,7 +560,8 @@ public class AccountApplicationService implements
       </TestFile>
     </NewTests>
     <ExistingTests>
-      <Note>Existing AccountApplicationServiceTest should continue to pass (facade behavior unchanged)</Note>
+      <Note>Existing AccountApplicationServiceTest should continue to pass (facade behavior
+        unchanged)</Note>
     </ExistingTests>
   </TestRequirements>
 
@@ -553,11 +570,13 @@ public class AccountApplicationService implements
        ═══════════════════════════════════════════════════════════════════════════ -->
   <CoderInstructions>
     <Instruction priority="1">
-      Create ProfileService.java with methods moved from AccountApplicationService (getProfile, updateProfile)
+      Create ProfileService.java with methods moved from AccountApplicationService (getProfile,
+      updateProfile)
       and associated helpers. Add MODULE_CONTRACT comment at class level.
     </Instruction>
     <Instruction priority="2">
-      Create AddressService.java with address management methods (addAddress, updateAddress, deleteAddress, listAddresses)
+      Create AddressService.java with address management methods (addAddress, updateAddress,
+      deleteAddress, listAddresses)
       and associated helpers. Add MODULE_CONTRACT comment at class level.
     </Instruction>
     <Instruction priority="3">
@@ -570,7 +589,8 @@ public class AccountApplicationService implements
       Remove direct repository dependencies, keep only service dependencies.
     </Instruction>
     <Instruction priority="5">
-      Create unit tests for each specialized service (ProfileServiceTest, AddressServiceTest, SavedConfigurationServiceTest).
+      Create unit tests for each specialized service (ProfileServiceTest, AddressServiceTest,
+      SavedConfigurationServiceTest).
     </Instruction>
     <Instruction priority="6">
       Verify existing AccountApplicationServiceTest passes (API compatibility preserved).
@@ -605,8 +625,10 @@ public class AccountApplicationService implements
   <Assumptions>
     <Item id="A-SRP-001">Spring can inject specialized services into AccountApplicationService</Item>
     <Item id="A-SRP-002">Transaction propagation works correctly through delegation</Item>
-    <Item id="A-SRP-003">FUNCTION_CONTRACT comments in original file will be migrated to appropriate services</Item>
-    <Item id="A-SRP-004">Logging patterns (logLine helper) can be shared via static utility or duplicated</Item>
+    <Item id="A-SRP-003">FUNCTION_CONTRACT comments in original file will be migrated to appropriate
+      services</Item>
+    <Item id="A-SRP-004">Logging patterns (logLine helper) can be shared via static utility or
+      duplicated</Item>
   </Assumptions>
 
 </GRACE_HANDOFF>
