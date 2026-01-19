@@ -61,6 +61,8 @@ build-output.txt
 maven-output.txt
 dependency_check.txt
 
+!docs/grace/approvals.log
+
 # Reports
 **/grace/reports/DebugReport.xml
 
