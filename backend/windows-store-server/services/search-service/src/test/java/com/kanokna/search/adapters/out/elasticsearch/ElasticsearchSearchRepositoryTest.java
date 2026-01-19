@@ -46,7 +46,7 @@ class ElasticsearchSearchRepositoryTest {
         @Mock
         private ElasticsearchClient client;
 
-        private final SearchProperties searchProperties = new SearchProperties(null, null);
+        private final SearchProperties searchProperties = new SearchProperties(null, null, null, null, null);
 
         @Test
         @DisplayName("TC-FUNC-SEARCH-001: search_buildsCorrectQuery")

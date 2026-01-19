@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Coder Work Order: search-service Code Review Remediation
+  Created: 2026-01-19T09:39:00+03:00
+  Coordinator: GRACE-COORDINATOR
+  
+  This CWO addresses findings from CodeReviewReport-20260118-03-search-service.xml
+  Overall Assessment was: APPROVE_WITH_NITS
+  Contains 3 MAJOR and 2 MINOR findings requiring remediation.
+-->
+<CODER_WORK_ORDER id="CWO-20260119-01" status="PROPOSED">
+    <Meta>
+        <Created>2026-01-19T09:39:00+03:00</Created>
+        <Type>REMEDIATION</Type>
+        <ReviewRef>CodeReviewReport-20260118-03-search-service.xml</ReviewRef>
+        <OriginalHandoffRef>Handoff-20260117-04-W1-CONFIG-PATTERN</OriginalHandoffRef>
+        <TaskRef>W1-SEARCH-REMEDIATION</TaskRef>
+        <Priority>MEDIUM</Priority>
+        <EstimatedEffort>2-3 hours</EstimatedEffort>
+    </Meta>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE SUMMARY
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <Scope>
+        <Description>
+            Remediate code review findings for search-service from GRACE-REVIEWER assessment.
+            Focus on error taxonomy, externalizing configuration constants, and fixing
+            package structure for tests.
+        </Description>
+        <Services>
+            <ServiceRef ref="DP-SVC-search-service" />
+        </Services>
+        <Decisions>
+            <DecisionRef ref="DEC-CONFIG-PROPERTIES-PATTERN" />
+        </Decisions>
+        <Links>
+            <Link ref="CodeReviewReport-20260118-03-search-service.xml" />
+            <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
+            <Link ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE" />
+        </Links>
+    </Scope>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       MAJOR FIXES (P1 - Error Taxonomy and Configuration Externalization)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <MajorFixes>
+        <Fix id="FIX-P1-001" finding="FIND-QUAL-0001" priority="P1" severity="MAJOR">
+            <Title>IllegalArgumentException used instead of domain errors</Title>
+            <File>
+                services/search-service/src/main/java/com/kanokna/search/application/service/SearchApplicationService.java</File>
+            <Locations>
+                <Location line="465">throw new IllegalArgumentException("productId is required")</Location>
+                <Location line="633">throw new IllegalArgumentException("productId is required")</Location>
+                <Location line="943">throw new IllegalArgumentException("At least one facet field is
+                    required")</Location>
+            </Locations>
+            <Problem>
+                Using IllegalArgumentException bypasses the error taxonomy:
+                1. No structured error code for client consumption
+                2. Controller advice may not map correctly
+                3. Inconsistent with SearchDomainErrors used elsewhere
+            </Problem>
+            <RequiredChanges>
+                <Step>Add SearchDomainErrors.invalidProductId(String reason) if not exists</Step>
+                <Step>Add SearchDomainErrors.emptyFacetFields() if not exists</Step>
+                <Step>Replace IllegalArgumentException at line 465 with
+                    SearchDomainErrors.invalidProductId("productId is required")</Step>
+                <Step>Replace IllegalArgumentException at line 633 with
+                    SearchDomainErrors.invalidProductId("productId is required")</Step>
+                <Step>Replace IllegalArgumentException at line 943 with
+                    SearchDomainErrors.emptyFacetFields()</Step>
+                <Step>Add tests verifying correct error codes (ERR-SEARCH-*)</Step>
+            </RequiredChanges>
+            <Verification>
+                <Command>mvn test -pl services/search-service -Dtest=SearchApplicationServiceTest</Command>
+                <Expected>All tests pass, error codes follow ERR-SEARCH-* pattern</Expected>
+            </Verification>
+        </Fix>
+
+        <Fix id="FIX-P1-002" finding="FIND-QUAL-0002" priority="P1" severity="MAJOR">
+            <Title>Hardcoded autocomplete configuration constants</Title>
+            <File>
+                services/search-service/src/main/java/com/kanokna/search/application/service/SearchApplicationService.java</File>
+            <Location>Lines 73-76</Location>
+            <Snippet><![CDATA[
+private static final int MIN_AUTOCOMPLETE_PREFIX = 2;
+private static final int DEFAULT_AUTOCOMPLETE_LIMIT = 10;
+private static final int MAX_AUTOCOMPLETE_LIMIT = 20;
+private static final Language DEFAULT_LANGUAGE = Language.RU;
+            ]]></Snippet>
+            <Problem>
+                These values are business configuration that may need adjustment without code
+                changes.
+            </Problem>
+            <RequiredChanges>
+                <Step>Add Autocomplete nested record to SearchProperties:
+                    record Autocomplete(int minPrefixLength, int defaultLimit, int maxLimit) {}</Step>
+                <Step>Add Defaults nested record to SearchProperties:
+                    record Defaults(Language defaultLanguage, Currency defaultCurrency) {}</Step>
+                <Step>Update SearchProperties compact constructor with defaults</Step>
+                <Step>Update application.yml with autocomplete and defaults sections</Step>
+                <Step>Replace static constants with properties.autocomplete() and
+                    properties.defaults() accessors</Step>
+            </RequiredChanges>
+            <Verification>
+                <Command>mvn test -pl services/search-service</Command>
+                <Expected>All tests pass with default config values</Expected>
+            </Verification>
+        </Fix>
+
+        <Fix id="FIX-P1-003" finding="FIND-QUAL-0002,FIND-QUAL-0005" priority="P1" severity="MAJOR">
+            <Title>Hardcoded VALID_FACET_FIELDS set</Title>
+            <File>
+                services/search-service/src/main/java/com/kanokna/search/application/service/SearchApplicationService.java</File>
+            <Location>Lines 77-83</Location>
+            <Snippet><![CDATA[
+private static final Set<String> VALID_FACET_FIELDS = Set.of(
+    "family",
+    "profileSystem",
+    "materials",
+    "colors",
+    "openingTypes"
+);
+            ]]></Snippet>
+            <Problem>
+                As catalog evolves, new facet fields may need to be added without code changes.
+            </Problem>
+            <RequiredChanges>
+                <Step>Add Facets nested record to SearchProperties:
+                    record Facets(List&lt;String&gt; validFields) {}</Step>
+                <Step>Update application.yml with facets section and default field list</Step>
+                <Step>Replace VALID_FACET_FIELDS with properties.facets().validFields()</Step>
+                <Step>Convert List to Set in validation logic if needed for O(1) lookup</Step>
+            </RequiredChanges>
+            <Verification>
+                <Command>mvn test -pl services/search-service</Command>
+                <Expected>Tests pass with externalized facet fields config</Expected>
+            </Verification>
+        </Fix>
+    </MajorFixes>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       P2 FIXES (Package Structure and Minor Config)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <P2Fixes>
+        <Fix id="FIX-P2-001" finding="FIND-QUAL-0003" priority="P2" severity="MAJOR">
+            <Title>Test file in wrong package</Title>
+            <CurrentPath>
+                services/search-service/src/test/java/com/kanokna/search/domain/model/AutocompleteQueryTest.java</CurrentPath>
+            <TargetPath>
+                services/search-service/src/test/java/com/kanokna/search/application/service/AutocompleteValidationTest.java</TargetPath>
+            <Problem>
+                AutocompleteQueryTest is in domain.model package but tests SearchApplicationService
+                (application layer).
+                This violates package-by-layer convention.
+            </Problem>
+            <RequiredChanges>
+                <Step>Move file to application/service package</Step>
+                <Step>Rename to AutocompleteValidationTest.java (clearer purpose)</Step>
+                <Step>Update package declaration</Step>
+                <Step>Verify imports still resolve</Step>
+            </RequiredChanges>
+            <Verification>
+                <Command>mvn test -pl services/search-service -Dtest=AutocompleteValidationTest</Command>
+                <Expected>Test compiles and passes in new location</Expected>
+            </Verification>
+        </Fix>
+
+        <Fix id="FIX-P2-002" finding="FIND-QUAL-0004" priority="P2" severity="MINOR">
+            <Title>Hardcoded Currency.RUB fallback</Title>
+            <File>
+                services/search-service/src/main/java/com/kanokna/search/application/service/SearchApplicationService.java</File>
+            <Location>Line 1045 (approx)</Location>
+            <Snippet><![CDATA[
+return Currency.RUB.name();  // Hardcoded fallback
+            ]]></Snippet>
+            <Problem>
+                Default currency should be externalized for multi-currency support.
+            </Problem>
+            <RequiredChanges>
+                <Step>Ensure Defaults record includes defaultCurrency field</Step>
+                <Step>Replace Currency.RUB.name() with
+                    properties.defaults().defaultCurrency().name()</Step>
+            </RequiredChanges>
+        </Fix>
+    </P2Fixes>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       P3 FIXES (Documentation)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <P3Fixes>
+        <Fix id="FIX-P3-001" finding="FIND-QUAL-0007" priority="P3" severity="NIT">
+            <Title>Add MODULE_CONTRACT to SearchProperties</Title>
+            <File>
+                services/search-service/src/main/java/com/kanokna/search/adapters/config/SearchProperties.java</File>
+            <Problem>
+                Other config classes have MODULE_CONTRACT comments. SearchProperties should follow
+                same pattern.
+            </Problem>
+            <RequiredChanges>
+                <Step>Add MODULE_CONTRACT comment block linking to DEC-CONFIG-PROPERTIES-PATTERN</Step>
+            </RequiredChanges>
+            <Template><![CDATA[
+/**
+ * MODULE_CONTRACT id="MC-search-properties"
+ * LAYER="adapters.config"
+ * INTENT="Externalize all search-service configuration; eliminate magic numbers"
+ * LINKS="Technology.xml#DEC-CONFIG-PROPERTIES-PATTERN;RequirementsAnalysis.xml#UC-CATALOG-BROWSE"
+ *
+ * Configuration properties for search-service using immutable record pattern.
+ */
+            ]]></Template>
+        </Fix>
+    </P3Fixes>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       SEARCHPROPERTIES TARGET STRUCTURE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <TargetStructure>
+        <SearchPropertiesSpec><![CDATA[
+@Validated
+@ConfigurationProperties(prefix = "kanokna.search")
+public record SearchProperties(
+    @Valid @NotNull Index index,
+    @Valid @NotNull Reindex reindex,
+    @Valid @NotNull Autocomplete autocomplete,  // NEW
+    @Valid @NotNull Facets facets,              // NEW
+    @Valid @NotNull Defaults defaults           // NEW
+) {
+    public SearchProperties {
+        index = index != null ? index : new Index("product_templates", "product_templates", "product_templates_v");
+        reindex = reindex != null ? reindex : new Reindex(200, "search-service:reindex-lock");
+        autocomplete = autocomplete != null ? autocomplete : new Autocomplete(2, 10, 20);
+        facets = facets != null ? facets : new Facets(List.of("family", "profileSystem", "materials", "colors", "openingTypes"));
+        defaults = defaults != null ? defaults : new Defaults(Language.RU, Currency.RUB);
+    }
+
+    // Existing records
+    public record Index(...) {}
+    public record Reindex(...) {}
+    
+    // NEW records
+    public record Autocomplete(
+        @Positive int minPrefixLength,
+        @Positive int defaultLimit,
+        @Positive int maxLimit
+    ) {}
+    
+    public record Facets(
+        @NotNull List<String> validFields
+    ) {}
+    
+    public record Defaults(
+        @NotNull Language defaultLanguage,
+        @NotNull Currency defaultCurrency
+    ) {}
+}
+        ]]></SearchPropertiesSpec>
+    </TargetStructure>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       APPLICATION.YML UPDATES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <YamlUpdates>
+        <File>services/search-service/src/main/resources/application.yml</File>
+        <NewSections><![CDATA[
+kanokna:
+  search:
+    index:
+      name: product_templates
+      alias: product_templates
+      version-prefix: product_templates_v
+    reindex:
+      batch-size: 200
+      lock-name: search-service:reindex-lock
+    # NEW sections below
+    autocomplete:
+      min-prefix-length: 2
+      default-limit: 10
+      max-limit: 20
+    facets:
+      valid-fields:
+        - family
+        - profileSystem
+        - materials
+        - colors
+        - openingTypes
+    defaults:
+      default-language: RU
+      default-currency: RUB
+        ]]></NewSections>
+    </YamlUpdates>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       EXECUTION PHASES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <ExecutionPhases>
+        <Phase id="1" name="Extend SearchProperties">
+            <Task>Add Autocomplete, Facets, Defaults nested records to SearchProperties</Task>
+            <Task>Add MODULE_CONTRACT documentation</Task>
+            <Task>Update compact constructor with null-safe defaults</Task>
+        </Phase>
+        <Phase id="2" name="Update application.yml">
+            <Task>Add autocomplete section with min-prefix-length, default-limit, max-limit</Task>
+            <Task>Add facets section with valid-fields list</Task>
+            <Task>Add defaults section with default-language, default-currency</Task>
+        </Phase>
+        <Phase id="3" name="Replace Static Constants">
+            <Task>Replace MIN_AUTOCOMPLETE_PREFIX with properties.autocomplete().minPrefixLength()</Task>
+            <Task>Replace DEFAULT_AUTOCOMPLETE_LIMIT with properties.autocomplete().defaultLimit()</Task>
+            <Task>Replace MAX_AUTOCOMPLETE_LIMIT with properties.autocomplete().maxLimit()</Task>
+            <Task>Replace DEFAULT_LANGUAGE with properties.defaults().defaultLanguage()</Task>
+            <Task>Replace VALID_FACET_FIELDS with Set.copyOf(properties.facets().validFields())</Task>
+            <Task>Replace Currency.RUB fallback with properties.defaults().defaultCurrency()</Task>
+            <Task>Remove or comment out the static final constants</Task>
+        </Phase>
+        <Phase id="4" name="Fix Error Taxonomy">
+            <Task>Add SearchDomainErrors.invalidProductId(String reason) if not exists</Task>
+            <Task>Add SearchDomainErrors.emptyFacetFields() if not exists</Task>
+            <Task>Replace IllegalArgumentException at lines 465, 633, 943</Task>
+        </Phase>
+        <Phase id="5" name="Fix Package Structure">
+            <Task>Move AutocompleteQueryTest.java from domain/model to application/service</Task>
+            <Task>Rename to AutocompleteValidationTest.java</Task>
+            <Task>Update package declaration and verify imports</Task>
+        </Phase>
+        <Phase id="6" name="Add Tests">
+            <Task>Add test for deleteProduct with blank productId throws domain error</Task>
+            <Task>Add test for getProductById with null productId throws domain error</Task>
+            <Task>Add test for getFacetValues with empty fields throws domain error</Task>
+        </Phase>
+        <Phase id="7" name="Verification">
+            <Task>mvn compile -pl services/search-service</Task>
+            <Task>mvn test -pl services/search-service</Task>
+            <Task>Verify all tests pass</Task>
+        </Phase>
+    </ExecutionPhases>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <AcceptanceCriteria>
+        <Criterion id="AC-REM-001" priority="P1">search-service compiles without errors</Criterion>
+        <Criterion id="AC-REM-002" priority="P1">All existing tests pass</Criterion>
+        <Criterion id="AC-REM-003" priority="P1">No IllegalArgumentException for domain validation
+            failures</Criterion>
+        <Criterion id="AC-REM-004" priority="P1">Autocomplete constants externalized to
+            SearchProperties</Criterion>
+        <Criterion id="AC-REM-005" priority="P1">Facet fields externalized to SearchProperties</Criterion>
+        <Criterion id="AC-REM-006" priority="P2">AutocompleteQueryTest moved to correct package</Criterion>
+        <Criterion id="AC-REM-007" priority="P2">Currency fallback uses
+            properties.defaults().defaultCurrency()</Criterion>
+        <Criterion id="AC-REM-008" priority="P3">SearchProperties has MODULE_CONTRACT documentation</Criterion>
+    </AcceptanceCriteria>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       IMPLEMENTATION RULES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <ImplementationRules>
+        <Item>This is REMEDIATION work - no new features or scope expansion</Item>
+        <Item>Priority order: P1 → P2 → P3</Item>
+        <Item>Follow existing SearchProperties pattern for new nested records</Item>
+        <Item>Maintain existing FUNCTION_CONTRACT and BLOCK_ANCHOR annotations</Item>
+        <Item>Follow existing SearchDomainErrors pattern for new error methods</Item>
+        <Item>Error codes should follow ERR-SEARCH-* naming convention</Item>
+        <Item>All changes must pass existing tests before adding new tests</Item>
+    </ImplementationRules>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+       CODER NOTES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+    <CoderNotes>
+        <Note priority="HIGH">
+            SearchApplicationService has EXCELLENT FUNCTION_CONTRACT documentation.
+            Preserve all existing contracts and BLOCK_ANCHOR logging when refactoring.
+        </Note>
+        <Note priority="HIGH">
+            For VALID_FACET_FIELDS replacement: use Set.copyOf(properties.facets().validFields())
+            to maintain O(1) lookup performance while sourcing from config List.
+        </Note>
+        <Note priority="MEDIUM">
+            The Language enum is in domain model. Ensure Defaults record can reference it:
+            import com.kanokna.search.domain.model.Language;
+        </Note>
+        <Note priority="MEDIUM">
+            When moving AutocompleteQueryTest, also update any @DisplayName references
+            if they mention the old class name.
+        </Note>
+    </CoderNotes>
+
+</CODER_WORK_ORDER>

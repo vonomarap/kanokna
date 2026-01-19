@@ -75,7 +75,7 @@ class SearchCatalogEventListenerTest {
     @Test
     @DisplayName("Invalid delete events are acknowledged and skipped")
     void invalidDeleteEventIsAcknowledged() {
-        doThrow(new IllegalArgumentException("productId is required"))
+        doThrow(new DomainException("ERR-SEARCH-PRODUCT-ID-REQUIRED", "productId is required"))
             .when(deleteProductUseCase).deleteProduct(any());
 
         ProductTemplateUnpublishedEvent event = ProductTemplateUnpublishedEvent.newBuilder().build();

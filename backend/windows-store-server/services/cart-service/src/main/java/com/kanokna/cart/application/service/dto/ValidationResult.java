@@ -1,7 +1,8 @@
 package com.kanokna.cart.application.service.dto;
 
-import com.kanokna.cart.domain.model.ValidationStatus;
 import java.util.List;
+
+import com.kanokna.cart.domain.model.ValidationStatus;
 
 /**
  * Result of cart item validation operation.
@@ -17,7 +18,7 @@ public record ValidationResult(
         return new ValidationResult(false, false, ValidationStatus.UNKNOWN, "Catalog validation unavailable", List.of());
     }
 
-    public static ValidationResult valid() {
+    public static ValidationResult validResult() {
         return new ValidationResult(true, true, ValidationStatus.VALID, null, List.of());
     }
 

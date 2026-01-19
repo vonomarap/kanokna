@@ -505,12 +505,12 @@ public class CartApplicationService implements
     }
 
     private CreateSnapshotResult handleSnapshotFailure(Cart cart, CartCheckoutService.SnapshotCreationResult result) {
-        return switch (result.failureReason()) {
+        switch (result.failureReason()) {
             case INVALID_ITEMS -> throw CartDomainErrors.invalidItems(result.validationResult().invalidItemCount());
             case PRICING_FAILED -> throw CartDomainErrors.pricingUnavailable("Pricing service unavailable");
             case REQUIRES_ACKNOWLEDGMENT -> throw CartDomainErrors.priceChangeRequiresAcknowledgment(result.priceResult().changePercent());
             default -> throw new IllegalStateException("Snapshot creation failed");
-        };
+        }
     }
 
     private String normalize(String value) {

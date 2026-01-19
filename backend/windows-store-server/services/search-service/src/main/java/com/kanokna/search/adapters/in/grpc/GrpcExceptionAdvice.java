@@ -64,6 +64,8 @@ public class GrpcExceptionAdvice implements ServerInterceptor {
                  "ERR-GET-PRODUCT-NOT-FOUND" -> Status.NOT_FOUND.withDescription(ex.getMessage());
             case "ERR-SEARCH-QUERY-TIMEOUT" -> Status.DEADLINE_EXCEEDED.withDescription(ex.getMessage());
             case "ERR-SEARCH-INVALID-FACET",
+                 "ERR-SEARCH-PRODUCT-ID-REQUIRED",
+                 "ERR-SEARCH-FACET-FIELDS-EMPTY",
                  "ERR-AUTO-PREFIX-TOO-SHORT",
                  "ERR-INDEX-INVALID-EVENT",
                  "ERR-FACET-INVALID-FIELD" -> Status.INVALID_ARGUMENT.withDescription(ex.getMessage());
@@ -74,4 +76,3 @@ public class GrpcExceptionAdvice implements ServerInterceptor {
         };
     }
 }
-

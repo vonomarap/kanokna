@@ -1,11 +1,11 @@
-package com.kanokna.search.domain.model;
+package com.kanokna.search.application.service;
 
 import com.kanokna.search.adapters.config.SearchProperties;
 import com.kanokna.search.application.port.out.CatalogConfigurationPort;
 import com.kanokna.search.application.port.out.DistributedLockPort;
 import com.kanokna.search.application.port.out.SearchIndexAdminPort;
 import com.kanokna.search.application.port.out.SearchRepository;
-import com.kanokna.search.application.service.SearchApplicationService;
+import com.kanokna.search.domain.model.AutocompleteQuery;
 import com.kanokna.shared.core.DomainException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @ExtendWith(MockitoExtension.class)
-class AutocompleteQueryTest {
+class AutocompleteValidationTest {
     @Mock
     private SearchRepository searchRepository;
 
@@ -40,7 +40,7 @@ class AutocompleteQueryTest {
             searchIndexAdminPort,
             catalogConfigurationPort,
             distributedLockPort,
-            new SearchProperties(null, null)
+            new SearchProperties(null, null, null, null, null)
         );
     }
 

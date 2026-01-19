@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE BranchSpec: Search Service Remediation
+  Created: 2026-01-19T15:25:00+03:00
+  Coordinator: GRACE-COORDINATOR
+  
+  Git routing specification for CWO-20260119-01-SEARCH-REMEDIATION
+-->
+<BRANCH_SPEC id="BS-20260119-01" status="ISSUED">
+    <Meta>
+        <Created>2026-01-19T15:25:00+03:00</Created>
+        <CWORef>CWO-20260119-01</CWORef>
+        <HandoffRef>Handoff-20260117-04-W1-CONFIG-PATTERN</HandoffRef>
+        <ReviewRef>CodeReviewReport-20260118-03-search-service.xml</ReviewRef>
+    </Meta>
+
+    <ChangeClassification>bugfix</ChangeClassification>
+    <BranchName>bugfix/search-svc-review-remediation</BranchName>
+    <BaseBranch>develop</BaseBranch>
+    <PRTarget>develop</PRTarget>
+    <PreferredMergeMethod>squash</PreferredMergeMethod>
+    <RequiresBackMergeToDevelop>false</RequiresBackMergeToDevelop>
+
+    <PR>
+        <TitleTemplate>[SEARCH-REM] Code review remediation - error taxonomy and config
+            externalization</TitleTemplate>
+        <BodyMustInclude>
+            <Item>HandoffRef: Handoff-20260117-04-W1-CONFIG-PATTERN</Item>
+            <Item>ReviewRef: CodeReviewReport-20260118-03-search-service.xml</Item>
+            <Item>CWORef: CWO-20260119-01</Item>
+            <Item>Fixes: FIX-P1-001, FIX-P1-002, FIX-P1-003, FIX-P2-001, FIX-P2-002, FIX-P3-001</Item>
+            <Item>Scope: search-service error taxonomy + config externalization</Item>
+        </BodyMustInclude>
+    </PR>
+
+    <Safety>
+        <Item>No direct pushes to main/develop</Item>
+        <Item>No force-push</Item>
+        <Item>One branch == one task scope (search-service remediation only)</Item>
+    </Safety>
+
+    <GitExecutionSteps>
+        <Step order="1">git fetch origin</Step>
+        <Step order="2">git checkout develop</Step>
+        <Step order="3">git pull origin develop</Step>
+        <Step order="4">git checkout -b bugfix/search-svc-review-remediation</Step>
+        <Step order="5">[implement fixes per CWO-20260119-01]</Step>
+        <Step order="6">git add -A</Step>
+        <Step order="7">git commit -m "[SEARCH-REM] Code review remediation - error taxonomy and
+            config"</Step>
+        <Step order="8">git push -u origin bugfix/search-svc-review-remediation</Step>
+        <Step order="9">gh pr create --base develop --title "[SEARCH-REM] Code review remediation"
+            --body "[include PR body template]"</Step>
+    </GitExecutionSteps>
+</BRANCH_SPEC>
