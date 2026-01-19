@@ -1,17 +1,18 @@
 package com.kanokna.cart.application.service;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
 import com.kanokna.cart.application.port.out.CatalogConfigurationPort;
 import com.kanokna.cart.application.service.dto.ValidationResult;
 import com.kanokna.cart.domain.model.Cart;
 import com.kanokna.cart.domain.model.CartItem;
 import com.kanokna.cart.domain.model.ConfigurationSnapshot;
 import com.kanokna.cart.domain.model.ValidationStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * MODULE_CONTRACT id="MC-cart-item-validation"
@@ -73,7 +74,7 @@ public class CartItemValidationService {
                     .addKeyValue("state", "VALID")
                     .addKeyValue("productTemplateId", snapshot.productTemplateId())
                     .log("Configuration is valid");
-                return ValidationResult.valid();
+                return ValidationResult.validResult();
             }
 
             log.atDebug()

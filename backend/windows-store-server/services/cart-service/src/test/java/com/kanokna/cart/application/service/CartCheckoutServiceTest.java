@@ -46,7 +46,7 @@ class CartCheckoutServiceTest {
         Money total = cart.totals().total();
 
         when(validationService.validateConfiguration(any()))
-            .thenReturn(ValidationResult.valid());
+            .thenReturn(ValidationResult.validResult());
         when(pricingService.refreshAllPrices(any()))
             .thenReturn(new PriceRefreshResult(total, total, 0.0, 0, 2, 0, false));
 
@@ -63,7 +63,7 @@ class CartCheckoutServiceTest {
         Cart cart = createCartWithItems(2);
 
         when(validationService.validateConfiguration(any()))
-            .thenReturn(ValidationResult.valid())
+            .thenReturn(ValidationResult.validResult())
             .thenReturn(ValidationResult.invalid(List.of("Error")));
 
         var result = checkoutService.createSnapshot(cart, false);
@@ -80,7 +80,7 @@ class CartCheckoutServiceTest {
         Money total = cart.totals().total();
 
         when(validationService.validateConfiguration(any()))
-            .thenReturn(ValidationResult.valid());
+            .thenReturn(ValidationResult.validResult());
         when(pricingService.refreshAllPrices(any()))
             .thenReturn(new PriceRefreshResult(total, total, 0.0, 0, 0, 2, false));
 
@@ -99,7 +99,7 @@ class CartCheckoutServiceTest {
         Money newTotal = Money.of(oldTotal.getAmount().multiply(BigDecimal.valueOf(1.05)), Currency.RUB);
 
         when(validationService.validateConfiguration(any()))
-            .thenReturn(ValidationResult.valid());
+            .thenReturn(ValidationResult.validResult());
         when(pricingService.refreshAllPrices(any()))
             .thenReturn(new PriceRefreshResult(oldTotal, newTotal, 5.0, 2, 2, 0, true));
 
@@ -118,7 +118,7 @@ class CartCheckoutServiceTest {
         Money newTotal = Money.of(oldTotal.getAmount().multiply(BigDecimal.valueOf(1.05)), Currency.RUB);
 
         when(validationService.validateConfiguration(any()))
-            .thenReturn(ValidationResult.valid());
+            .thenReturn(ValidationResult.validResult());
         when(pricingService.refreshAllPrices(any()))
             .thenReturn(new PriceRefreshResult(oldTotal, newTotal, 5.0, 2, 2, 0, true));
 
@@ -133,7 +133,7 @@ class CartCheckoutServiceTest {
         Cart cart = createCartWithItems(3);
 
         when(validationService.validateConfiguration(any()))
-            .thenReturn(ValidationResult.valid());
+            .thenReturn(ValidationResult.validResult());
 
         var result = checkoutService.validateForCheckout(cart);
 
@@ -148,9 +148,9 @@ class CartCheckoutServiceTest {
         Cart cart = createCartWithItems(3);
 
         when(validationService.validateConfiguration(any()))
-            .thenReturn(ValidationResult.valid())
+            .thenReturn(ValidationResult.validResult())
             .thenReturn(ValidationResult.invalid(List.of("Error")))
-            .thenReturn(ValidationResult.valid());
+            .thenReturn(ValidationResult.validResult());
 
         var result = checkoutService.validateForCheckout(cart);
 
