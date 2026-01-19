@@ -47,7 +47,6 @@ import com.kanokna.search.domain.model.SearchResult;
 import com.kanokna.shared.core.DomainException;
 import com.kanokna.shared.i18n.Language;
 import com.kanokna.shared.i18n.LocalizedString;
-import com.kanokna.shared.money.Currency;
 import com.kanokna.shared.money.Money;
 
 /**
@@ -70,23 +69,13 @@ public class SearchApplicationService implements
     private static final String USE_CASE_INDEX = "INDEX-PRODUCT";
     private static final String USE_CASE_DELETE = "DELETE-PRODUCT";
     private static final String USE_CASE_REINDEX = "ADMIN-REINDEX";
-    private static final int MIN_AUTOCOMPLETE_PREFIX = 2;
-    private static final int DEFAULT_AUTOCOMPLETE_LIMIT = 10;
-    private static final int MAX_AUTOCOMPLETE_LIMIT = 20;
-    private static final Language DEFAULT_LANGUAGE = Language.RU;
-    private static final Set<String> VALID_FACET_FIELDS = Set.of(
-        "family",
-        "profileSystem",
-        "materials",
-        "colors",
-        "openingTypes"
-    );
 
     private final SearchRepository searchRepository;
     private final SearchIndexAdminPort searchIndexAdminPort;
     private final CatalogConfigurationPort catalogConfigurationPort;
     private final DistributedLockPort distributedLockPort;
     private final SearchProperties searchProperties;
+    private final Set<String> validFacetFields;
 
     public SearchApplicationService(
         SearchRepository searchRepository,
@@ -100,6 +89,7 @@ public class SearchApplicationService implements
         this.catalogConfigurationPort = catalogConfigurationPort;
         this.distributedLockPort = distributedLockPort;
         this.searchProperties = searchProperties;
+        this.validFacetFields = Set.copyOf(searchProperties.facets().validFields());
     }
 /*     <FUNCTION_CONTRACT
         id="FC-search-searchProducts"
@@ -284,7 +274,8 @@ public class SearchApplicationService implements
             "AUTOCOMPLETE_REQUEST", "CHECK",
             "prefix=" + safeValue(prefix) + ",prefixLength=" + prefixLength));
 
-        if (prefixLength < MIN_AUTOCOMPLETE_PREFIX) {
+        int minPrefixLength = searchProperties.autocomplete().minPrefixLength();
+        if (prefixLength < minPrefixLength) {
             throw SearchDomainErrors.autocompletePrefixTooShort(prefix);
         }
 
@@ -454,15 +445,16 @@ public class SearchApplicationService implements
     @Override
     public DeleteResult deleteProduct(CatalogProductDeleteEvent event) {
         Objects.requireNonNull(event, "event");
-        String productId = safeValue(event.productId());
+        String productId = event.productId();
+        String safeProductId = safeValue(productId);
 
         // BA-DELETE-01: Extract productId from event
         log.info(logLine(USE_CASE_DELETE, "BA-DELETE-01", "EVENT_RECEIVED",
             "UNPUBLISH_EVENT_RECEIVED", "RECEIVED",
-            "productId=" + productId));
+            "productId=" + safeProductId));
 
-        if (productId.isBlank()) {
-            throw new IllegalArgumentException("productId is required");
+        if (productId == null || productId.isBlank()) {
+            throw SearchDomainErrors.invalidProductId("productId is required");
         }
 
         // BA-DELETE-02: Execute delete operation
@@ -630,7 +622,7 @@ public class SearchApplicationService implements
             "productId=" + safeValue(productId)));
 
         if (productId == null || productId.isBlank()) {
-            throw new IllegalArgumentException("productId is required");
+            throw SearchDomainErrors.invalidProductId("productId is required");
         }
 
         // BA-GET-02: Execute get-by-id query
@@ -893,7 +885,8 @@ public class SearchApplicationService implements
             normalizedFilters.add(new FacetFilter(field, values));
         }
 
-        Language language = query.language() == null ? DEFAULT_LANGUAGE : query.language();
+        Language defaultLanguage = searchProperties.defaults().defaultLanguage();
+        Language language = query.language() == null ? defaultLanguage : query.language();
         PriceRange priceRange = query.priceRange();
 
         return new SearchQuery(
@@ -909,12 +902,13 @@ public class SearchApplicationService implements
     }
 
     private AutocompleteQuery normalizeAutocompleteQuery(AutocompleteQuery query) {
+        SearchProperties.Autocomplete autocompleteConfig = searchProperties.autocomplete();
         int limit = query.limit();
         if (limit <= 0) {
-            limit = DEFAULT_AUTOCOMPLETE_LIMIT;
+            limit = autocompleteConfig.defaultLimit();
         }
-        if (limit > MAX_AUTOCOMPLETE_LIMIT) {
-            limit = MAX_AUTOCOMPLETE_LIMIT;
+        if (limit > autocompleteConfig.maxLimit()) {
+            limit = autocompleteConfig.maxLimit();
         }
         return new AutocompleteQuery(query.prefix(), limit, query.language(), query.familyFilter());
     }
@@ -932,7 +926,7 @@ public class SearchApplicationService implements
     private void validateFacetFilters(List<FacetFilter> filters) {
         for (FacetFilter filter : filters) {
             String field = normalizeFacetField(filter.field());
-            if (!VALID_FACET_FIELDS.contains(field)) {
+            if (!validFacetFields.contains(field)) {
                 throw SearchDomainErrors.invalidFacetField(filter.field());
             }
         }
@@ -940,11 +934,11 @@ public class SearchApplicationService implements
 
     private void validateFacetValueFields(List<String> fields) {
         if (fields.isEmpty()) {
-            throw new IllegalArgumentException("At least one facet field is required");
+            throw SearchDomainErrors.emptyFacetFields();
         }
         for (String field : fields) {
             String normalized = normalizeFacetField(field);
-            if (!VALID_FACET_FIELDS.contains(normalized)) {
+            if (!validFacetFields.contains(normalized)) {
                 throw SearchDomainErrors.invalidFacetValuesField(field);
             }
         }
@@ -1032,7 +1026,7 @@ public class SearchApplicationService implements
         if (value == null || value.isBlank()) {
             return null;
         }
-        return LocalizedString.of(DEFAULT_LANGUAGE, value.trim());
+        return LocalizedString.of(searchProperties.defaults().defaultLanguage(), value.trim());
     }
 
     private String resolveCurrency(Money basePrice, Money maxPrice) {
@@ -1042,7 +1036,7 @@ public class SearchApplicationService implements
         if (maxPrice != null) {
             return maxPrice.getCurrency().name();
         }
-        return Currency.RUB.name();
+        return searchProperties.defaults().defaultCurrency().name();
     }
 
     private List<String> buildSuggestInputs(CatalogProductEvent event) {

@@ -1,11 +1,8 @@
 package com.kanokna.search.adapters.config;
 
-import com.google.protobuf.Message;
-import com.kanokna.catalog.v1.ProductTemplatePublishedEvent;
-import com.kanokna.catalog.v1.ProductTemplateUnpublishedEvent;
-import com.kanokna.catalog.v1.ProductTemplateUpdatedEvent;
-import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
-import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializerConfig;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.boot.kafka.autoconfigure.KafkaProperties;
@@ -15,14 +12,19 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.listener.ContainerProperties;
-import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.CommonErrorHandler;
+import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.google.protobuf.Message;
+import com.kanokna.catalog.v1.ProductTemplatePublishedEvent;
+import com.kanokna.catalog.v1.ProductTemplateUnpublishedEvent;
+import com.kanokna.catalog.v1.ProductTemplateUpdatedEvent;
+
+import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
+import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializerConfig;
 
 /**
  * Kafka consumer configuration for catalog event ingestion.

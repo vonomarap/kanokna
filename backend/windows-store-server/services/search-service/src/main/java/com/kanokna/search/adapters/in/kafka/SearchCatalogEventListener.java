@@ -166,6 +166,13 @@ public class SearchCatalogEventListener {
         try {
             deleteProductUseCase.deleteProduct(payload);
             acknowledgment.acknowledge();
+        } catch (DomainException ex) {
+            if ("ERR-SEARCH-PRODUCT-ID-REQUIRED".equals(ex.getCode())) {
+                log.warn("Skipping invalid delete event from topic={}, reason={}", topic, ex.getMessage());
+                acknowledgment.acknowledge();
+                return;
+            }
+            throw ex;
         } catch (IllegalArgumentException ex) {
             log.warn("Skipping invalid delete event from topic={}, reason={}", topic, ex.getMessage());
             acknowledgment.acknowledge();

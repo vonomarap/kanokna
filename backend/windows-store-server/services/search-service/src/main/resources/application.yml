@@ -51,6 +51,20 @@ kanokna:
     reindex:
       batch-size: 200
       lock-name: search-service:reindex-lock
+    autocomplete:
+      min-prefix-length: 2
+      default-limit: 10
+      max-limit: 20
+    facets:
+      valid-fields:
+        - family
+        - profileSystem
+        - materials
+        - colors
+        - openingTypes
+    defaults:
+      default-language: RU
+      default-currency: RUB
 
 kafka:
   topics:

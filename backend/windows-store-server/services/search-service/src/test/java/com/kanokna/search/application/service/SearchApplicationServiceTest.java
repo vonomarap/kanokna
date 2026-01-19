@@ -77,7 +77,7 @@ class SearchApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        searchProperties = new SearchProperties(null, null);
+        searchProperties = new SearchProperties(null, null, null, null, null);
         service = new SearchApplicationService(
                 searchRepository,
                 searchIndexAdminPort,
@@ -394,6 +394,16 @@ class SearchApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("TC-FUNC-DELETE-004: Blank product ID returns validation error")
+    void deleteProduct_blankProductId_returnsValidationError() {
+        CatalogProductDeleteEvent event = SearchTestFixture.deleteEvent(" ");
+
+        DomainException ex = assertThrows(DomainException.class, () -> service.deleteProduct(event));
+
+        assertEquals("ERR-SEARCH-PRODUCT-ID-REQUIRED", ex.getCode());
+    }
+
+    @Test
     @DisplayName("TC-FUNC-DELETE-003: Elasticsearch failure triggers retry")
     void deleteProduct_elasticsearchFailure_triggersRetry() {
         CatalogProductDeleteEvent event = SearchTestFixture.deleteEvent("p1");
@@ -436,6 +446,15 @@ class SearchApplicationServiceTest {
                 () -> service.getFacetValues(new GetFacetValuesQuery(List.of("unknown"), Language.RU)));
 
         assertEquals("ERR-FACET-INVALID-FIELD", ex.getCode());
+    }
+
+    @Test
+    @DisplayName("TC-FUNC-FACET-005: Empty facet fields returns validation error")
+    void getFacetValues_emptyFields_returnsValidationError() {
+        DomainException ex = assertThrows(DomainException.class,
+                () -> service.getFacetValues(new GetFacetValuesQuery(List.of(), Language.RU)));
+
+        assertEquals("ERR-SEARCH-FACET-FIELDS-EMPTY", ex.getCode());
     }
 
     @Test
@@ -482,10 +501,12 @@ class SearchApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("TC-FUNC-GET-003: Empty product ID returns validation error")
-    void getProductById_emptyProductId_returnsValidationError() {
-        assertThrows(IllegalArgumentException.class,
-                () -> service.getProductById(new GetProductByIdQuery(" ", Language.RU)));
+    @DisplayName("TC-FUNC-GET-003: Null product ID returns validation error")
+    void getProductById_nullProductId_returnsValidationError() {
+        DomainException ex = assertThrows(DomainException.class,
+                () -> service.getProductById(new GetProductByIdQuery(null, Language.RU)));
+
+        assertEquals("ERR-SEARCH-PRODUCT-ID-REQUIRED", ex.getCode());
     }
 
     @Test

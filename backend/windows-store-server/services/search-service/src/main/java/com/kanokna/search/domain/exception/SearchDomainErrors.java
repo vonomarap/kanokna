@@ -28,6 +28,18 @@ public final class SearchDomainErrors {
             "Invalid facet field: " + field);
     }
 
+    public static DomainException invalidProductId(String reason) {
+        String message = (reason == null || reason.isBlank())
+            ? "productId is required"
+            : reason;
+        return new DomainException("ERR-SEARCH-PRODUCT-ID-REQUIRED", message);
+    }
+
+    public static DomainException emptyFacetFields() {
+        return new DomainException("ERR-SEARCH-FACET-FIELDS-EMPTY",
+            "At least one facet field is required");
+    }
+
     public static DomainException autocompletePrefixTooShort(String prefix) {
         return new DomainException("ERR-AUTO-PREFIX-TOO-SHORT",
             "Prefix too short: " + prefix);
