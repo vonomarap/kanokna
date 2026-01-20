@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff: Testing Strategy Implementation
+  AWO Reference: AWO-20260120-01-TESTING-STRATEGY.xml
+  Created: 2026-01-20T14:00:00+03:00
+  CreatedBy: GRACE-ARCHITECT
+  Status: APPROVED
+  SchemaVersion: grace-markup-v2
+-->
+
+<GRACE_HANDOFF
+    id="Handoff-20260120-01-W0-TESTING-STRATEGY"
+    status="APPROVED"
+    schemaVersion="grace-markup-v2"
+    created="2026-01-20T14:00:00+03:00"
+    author="GRACE-ARCHITECT"
+    taskRef="W0-T-TESTING"
+    awoRef="AWO-20260120-01-TESTING-STRATEGY"
+>
+
+  <Summary>
+    Comprehensive multi-level testing strategy for the Windows &amp; Doors E-Commerce backend.
+    Defines testing tools, patterns, and organization standards for all backend services
+    following hexagonal architecture principles.
+  </Summary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       GIT_IMPACT (MANDATORY per Section 19A.4)
+       Advisory block for Coordinator - Architect does NOT perform Git operations
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <GIT_IMPACT id="GIT-20260120-01" status="ADVISORY">
+    <ChangeClassification>chore</ChangeClassification>
+    <Rationale>
+      Testing infrastructure and configuration changes. No production code changes.
+      New modules (test-support, e2e-tests) and Maven plugin configuration.
+    </Rationale>
+    <AffectedServices>
+      <ServiceRef ref="DP-SVC-test-support" status="NEW" />
+      <ServiceRef ref="DP-SVC-e2e-tests" status="NEW" />
+      <ServiceRef ref="DP-SVC-search-service" note="Migrate existing Testcontainers config" />
+      <ServiceRef ref="DP-SVC-cart-service" note="Migrate existing Testcontainers config" />
+      <ServiceRef ref="DP-SVC-pricing-service" note="Add ArchitectureTest if missing" />
+      <ServiceRef ref="DP-SVC-catalog-configuration-service" note="Verify ArchitectureTest" />
+      <ServiceRef ref="DP-SVC-account-service" note="Verify ArchitectureTest" />
+    </AffectedServices>
+    <DefaultRouting>
+      <BaseBranch>develop</BaseBranch>
+      <PRTarget>develop</PRTarget>
+      <RequiresBackMergeToDevelop>false</RequiresBackMergeToDevelop>
+      <PreferredMergeMethod>squash</PreferredMergeMethod>
+    </DefaultRouting>
+    <BranchNaming>
+      <Pattern>chore/W0-testing-strategy</Pattern>
+      <TicketPolicy status="ASSUMED">No external ticket; use W0-TESTING as reference</TicketPolicy>
+    </BranchNaming>
+    <RiskNotes>
+      <Item>LOW RISK: Test infrastructure only, no production code changes</Item>
+      <Item>Maven plugin configuration changes may affect CI pipeline - verify build passes</Item>
+      <Item>JaCoCo thresholds (80%/70%) may cause initial build failures if coverage is below threshold</Item>
+      <Item>Consider phased rollout: create modules first, then enable coverage enforcement</Item>
+    </RiskNotes>
+  </GIT_IMPACT>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       DECISIONS MADE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <DecisionsSummary>
+    <Decision id="DEC-TEST-UNIT" status="APPROVED">
+      JUnit 5 + Mockito + AssertJ for unit testing
+    </Decision>
+    <Decision id="DEC-TEST-GRPC-INTEGRATION" status="APPROVED">
+      SpringBootTest + @GrpcClientTest for gRPC integration testing
+    </Decision>
+    <Decision id="DEC-TEST-GATEWAY" status="APPROVED">
+      MockMvc + WebTestClient for gateway/REST testing
+    </Decision>
+    <Decision id="DEC-TEST-E2E" status="APPROVED">
+      Testcontainers + grpcurl in dedicated e2e-tests module
+    </Decision>
+    <Decision id="DEC-TEST-CONTRACTS" status="APPROVED">
+      Spring Cloud Contract (NOT Pact) for consumer-driven contracts
+    </Decision>
+    <Decision id="DEC-TEST-COVERAGE" status="APPROVED">
+      80% line coverage, 70% branch coverage enforced by JaCoCo
+    </Decision>
+    <Decision id="DEC-TEST-SHARED-UTILS" status="APPROVED">
+      Dedicated test-support module for shared test utilities
+    </Decision>
+  </DecisionsSummary>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ARTIFACTS UPDATED
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ArtifactsUpdated>
+    <Artifact path="docs/grace/Technology.xml">
+      <Change>Expanded Testing section with detailed framework configurations</Change>
+      <Change>Added NamingConventions and MavenPlugins subsections</Change>
+      <Change>Added DEC-TEST-UNIT decision</Change>
+      <Change>Added DEC-TEST-GRPC-INTEGRATION decision</Change>
+      <Change>Added DEC-TEST-GATEWAY decision</Change>
+      <Change>Added DEC-TEST-E2E decision</Change>
+      <Change>Added DEC-TEST-CONTRACTS decision (Spring Cloud Contract selected)</Change>
+      <Change>Added DEC-TEST-COVERAGE decision (80%/70%)</Change>
+      <Change>Added DEC-TEST-SHARED-UTILS decision</Change>
+    </Artifact>
+    <Artifact path="docs/grace/DevelopmentPlan.xml">
+      <Change>Added DP-SVC-test-support module definition</Change>
+      <Change>Added DP-SVC-e2e-tests module definition</Change>
+      <Change>Expanded TestingStrategy with HexagonalLayerMapping</Change>
+      <Change>Added NamingConventions section</Change>
+      <Change>Added CIPipelineIntegration section</Change>
+      <Change>Fixed ContractTesting "OR" ambiguity (Spring Cloud Contract selected)</Change>
+    </Artifact>
+  </ArtifactsUpdated>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       IMPLEMENTATION TASKS FOR CODER
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ImplementationTasks>
+    <TaskGroup id="TG-1" name="Create test-support Module">
+      <Priority>HIGH</Priority>
+      <Description>
+        Create the shared test-support module with Testcontainers configurations,
+        ArchUnit rules, and common test utilities.
+      </Description>
+      <Tasks>
+        <Task id="T-1.1">
+          <Action>Create shared/test-support/pom.xml with test-scoped dependencies</Action>
+          <Dependencies>
+            <Item>org.testcontainers:testcontainers</Item>
+            <Item>org.testcontainers:junit-jupiter</Item>
+            <Item>org.testcontainers:postgresql</Item>
+            <Item>org.testcontainers:kafka</Item>
+            <Item>org.testcontainers:elasticsearch</Item>
+            <Item>com.redis:testcontainers-redis</Item>
+            <Item>com.tngtech.archunit:archunit-junit5</Item>
+            <Item>io.grpc:grpc-testing</Item>
+          </Dependencies>
+        </Task>
+        <Task id="T-1.2">
+          <Action>Create PostgresTestContainer.java singleton with reusable container</Action>
+          <Package>com.kanokna.test.containers.postgres</Package>
+          <Features>
+            <Item>Singleton pattern for container reuse across tests</Item>
+            <Item>Flyway migration support</Item>
+            <Item>Dynamic property registration for Spring</Item>
+          </Features>
+        </Task>
+        <Task id="T-1.3">
+          <Action>Create KafkaTestContainer.java singleton (Redpanda-based)</Action>
+          <Package>com.kanokna.test.containers.kafka</Package>
+          <Features>
+            <Item>Topic auto-creation utilities</Item>
+            <Item>Consumer/producer test helpers</Item>
+          </Features>
+        </Task>
+        <Task id="T-1.4">
+          <Action>Create ElasticsearchTestContainer.java singleton</Action>
+          <Package>com.kanokna.test.containers.elasticsearch</Package>
+        </Task>
+        <Task id="T-1.5">
+          <Action>Create RedisTestContainer.java singleton</Action>
+          <Package>com.kanokna.test.containers.redis</Package>
+        </Task>
+        <Task id="T-1.6">
+          <Action>Create HexagonalArchitectureRules.java shared ArchUnit rules</Action>
+          <Package>com.kanokna.test.archunit</Package>
+          <Rules>
+            <Item>Domain layer has no Spring/JPA dependencies</Item>
+            <Item>Application layer has no adapter dependencies</Item>
+            <Item>Adapters implement port interfaces</Item>
+            <Item>No cyclic dependencies between packages</Item>
+            <Item>gRPC stubs confined to adapters packages</Item>
+          </Rules>
+        </Task>
+        <Task id="T-1.7">
+          <Action>Create GrpcTestChannelBuilder.java for in-process gRPC testing</Action>
+          <Package>com.kanokna.test.grpc</Package>
+        </Task>
+      </Tasks>
+    </TaskGroup>
+
+    <TaskGroup id="TG-2" name="Create e2e-tests Module">
+      <Priority>MEDIUM</Priority>
+      <Description>
+        Create the dedicated e2e-tests module for cross-service flow testing.
+      </Description>
+      <Tasks>
+        <Task id="T-2.1">
+          <Action>Create e2e-tests/pom.xml with dependencies on test-support and service stubs</Action>
+        </Task>
+        <Task id="T-2.2">
+          <Action>Create E2ETestBase.java abstract base class</Action>
+          <Features>
+            <Item>Start all Testcontainers (Postgres, Kafka, Redis, Elasticsearch)</Item>
+            <Item>Configure service discovery/routing for tests</Item>
+          </Features>
+        </Task>
+        <Task id="T-2.3">
+          <Action>Create skeleton E2E test classes for key flows</Action>
+          <Tests>
+            <Test>CpqFlowE2ETest.java - Configure → Price → Quote → Cart</Test>
+            <Test>SearchIndexingE2ETest.java - Product change → Kafka → Elasticsearch</Test>
+          </Tests>
+        </Task>
+      </Tasks>
+    </TaskGroup>
+
+    <TaskGroup id="TG-3" name="Standardize Existing Tests">
+      <Priority>HIGH</Priority>
+      <Description>
+        Refactor existing tests to follow new naming conventions and use shared utilities.
+      </Description>
+      <Tasks>
+        <Task id="T-3.1">
+          <Action>Migrate existing Testcontainers configs to use test-support module</Action>
+          <Services>
+            <Service>search-service (TestContainersConfig.java, SearchTestFixture.java)</Service>
+            <Service>cart-service (existing integration tests)</Service>
+          </Services>
+        </Task>
+        <Task id="T-3.2">
+          <Action>Ensure all services have ArchitectureTest.java using shared rules</Action>
+          <Services>
+            <Service status="EXISTS">search-service</Service>
+            <Service status="EXISTS">cart-service</Service>
+            <Service status="EXISTS">pricing-service</Service>
+            <Service status="VERIFY">catalog-configuration-service</Service>
+            <Service status="VERIFY">account-service</Service>
+          </Services>
+        </Task>
+        <Task id="T-3.3">
+          <Action>Rename tests to follow naming conventions</Action>
+          <Conventions>
+            <Convention from="*IntegrationTest.java" to="*IT.java">For Failsafe compatibility</Convention>
+            <Convention keep="*GrpcContractTest.java">gRPC contract tests</Convention>
+            <Convention keep="*Test.java">Unit tests</Convention>
+          </Conventions>
+        </Task>
+      </Tasks>
+    </TaskGroup>
+
+    <TaskGroup id="TG-4" name="Configure Maven Plugins">
+      <Priority>HIGH</Priority>
+      <Description>
+        Configure Surefire, Failsafe, and JaCoCo in parent POM.
+      </Description>
+      <Tasks>
+        <Task id="T-4.1">
+          <Action>Configure maven-surefire-plugin to run *Test.java and ArchitectureTest.java</Action>
+          <Excludes>*IT.java, *E2ETest.java, *ContractTest.java</Excludes>
+        </Task>
+        <Task id="T-4.2">
+          <Action>Configure maven-failsafe-plugin to run *IT.java, *ContractTest.java, *GrpcIntegrationTest.java</Action>
+        </Task>
+        <Task id="T-4.3">
+          <Action>Configure JaCoCo with 80%/70% thresholds</Action>
+          <Excludes>
+            <Item>**/generated/**</Item>
+            <Item>**/proto/**</Item>
+            <Item>**/*MapperImpl.java</Item>
+          </Excludes>
+        </Task>
+        <Task id="T-4.4">
+          <Action>Add e2e Maven profile for E2E tests</Action>
+          <Command>mvn verify -Pe2e -pl e2e-tests</Command>
+        </Task>
+      </Tasks>
+    </TaskGroup>
+
+    <TaskGroup id="TG-5" name="Spring Cloud Contract Setup">
+      <Priority>MEDIUM</Priority>
+      <Description>
+        Set up Spring Cloud Contract infrastructure for producer/consumer contract testing.
+      </Description>
+      <Tasks>
+        <Task id="T-5.1">
+          <Action>Add Spring Cloud Contract dependencies to api-contracts module</Action>
+          <Dependencies>
+            <Item>spring-cloud-contract-spec</Item>
+            <Item>spring-cloud-contract-verifier</Item>
+          </Dependencies>
+        </Task>
+        <Task id="T-5.2">
+          <Action>Create contract directory structure in api-contracts</Action>
+          <Path>api-contracts/src/test/resources/contracts/{service-name}/</Path>
+        </Task>
+        <Task id="T-5.3">
+          <Action>Create sample Groovy DSL contract for one service (e.g., pricing-service)</Action>
+        </Task>
+        <Task id="T-5.4">
+          <Action>Configure Spring Cloud Contract Maven plugin for stub generation</Action>
+        </Task>
+      </Tasks>
+    </TaskGroup>
+  </ImplementationTasks>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria>
+    <Criterion id="AC-1" from="AWO">
+      All DEC-TEST-* decisions recorded in Technology.xml with status="APPROVED"
+      <Status>SATISFIED</Status>
+    </Criterion>
+    <Criterion id="AC-2" from="AWO">
+      No "OR" ambiguity in Technology.xml or DevelopmentPlan.xml for testing tools
+      <Status>SATISFIED</Status>
+    </Criterion>
+    <Criterion id="AC-3" from="AWO">
+      Test organization pattern defined in DevelopmentPlan.xml with hexagonal layer mapping
+      <Status>SATISFIED</Status>
+    </Criterion>
+    <Criterion id="AC-4" from="AWO">
+      Shared test utilities decision explicit (test-support module)
+      <Status>SATISFIED</Status>
+    </Criterion>
+    <Criterion id="AC-5" from="AWO">
+      CI pipeline stages for each test level explicitly defined
+      <Status>SATISFIED</Status>
+    </Criterion>
+    <Criterion id="AC-6" from="AWO">
+      Naming conventions for test classes documented
+      <Status>SATISFIED</Status>
+    </Criterion>
+    <Criterion id="AC-7" from="AWO">
+      Coverage thresholds recorded as DEC-TEST-COVERAGE
+      <Status>SATISFIED</Status>
+    </Criterion>
+    <Criterion id="AC-8" from="AWO">
+      GRACE_HANDOFF produced with scope matching this work order
+      <Status>SATISFIED (this document)</Status>
+    </Criterion>
+    <Criterion id="AC-IMPL-1" for="CODER">
+      test-support module created with all Testcontainers configurations
+    </Criterion>
+    <Criterion id="AC-IMPL-2" for="CODER">
+      e2e-tests module created with base test class
+    </Criterion>
+    <Criterion id="AC-IMPL-3" for="CODER">
+      Existing tests migrated to use shared test-support utilities
+    </Criterion>
+    <Criterion id="AC-IMPL-4" for="CODER">
+      Maven plugins (Surefire, Failsafe, JaCoCo) configured in parent POM
+    </Criterion>
+    <Criterion id="AC-IMPL-5" for="CODER">
+      All services have ArchitectureTest.java using shared HexagonalArchitectureRules
+    </Criterion>
+    <Criterion id="AC-IMPL-6" for="CODER">
+      mvn test runs unit tests and ArchUnit tests successfully
+    </Criterion>
+    <Criterion id="AC-IMPL-7" for="CODER">
+      mvn verify runs integration tests with Testcontainers successfully
+    </Criterion>
+  </AcceptanceCriteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       LINKS TO CANONICAL ARTIFACTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Links>
+    <Link ref="docs/grace/awo/AWO-20260120-01-TESTING-STRATEGY.xml" type="source" />
+    <Link ref="docs/grace/Technology.xml#DEC-TEST-UNIT" type="decision" />
+    <Link ref="docs/grace/Technology.xml#DEC-TEST-GRPC-INTEGRATION" type="decision" />
+    <Link ref="docs/grace/Technology.xml#DEC-TEST-GATEWAY" type="decision" />
+    <Link ref="docs/grace/Technology.xml#DEC-TEST-E2E" type="decision" />
+    <Link ref="docs/grace/Technology.xml#DEC-TEST-CONTRACTS" type="decision" />
+    <Link ref="docs/grace/Technology.xml#DEC-TEST-COVERAGE" type="decision" />
+    <Link ref="docs/grace/Technology.xml#DEC-TEST-SHARED-UTILS" type="decision" />
+    <Link ref="docs/grace/DevelopmentPlan.xml#DP-SVC-test-support" type="module" />
+    <Link ref="docs/grace/DevelopmentPlan.xml#DP-SVC-e2e-tests" type="module" />
+    <Link ref="docs/grace/DevelopmentPlan.xml#TestingStrategy" type="strategy" />
+  </Links>
+  </GRACE_HANDOFF>

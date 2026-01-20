@@ -1,0 +1,51 @@
+<ARCHITECT_WORK_ORDER id="AWO-20260120-01-INIT" status="PROPOSED">
+  <Task>
+    <WaveRef>W0</WaveRef>
+    <TaskRef>W0-T1</TaskRef>
+    <UserRequest>Initialize GRACE Canonical Artifacts and Governance Structure</UserRequest>
+    <PrimaryGoal>Establish the source of truth artifacts (Requirements, Technology, DevelopmentPlan) for the existing codebase.</PrimaryGoal>
+  </Task>
+
+  <KnownArtifacts>
+    <Artifact name="RequirementsAnalysis.xml" provided="no"/>
+    <Artifact name="Technology.xml" provided="no"/>
+    <Artifact name="DevelopmentPlan.xml" provided="no"/>
+  </KnownArtifacts>
+
+  <Scope>
+    <Services>
+      <ServiceRef ref="ALL"/>
+    </Services>
+    <UseCases>
+      <UseCaseRef ref="ALL"/>
+    </UseCases>
+  </Scope>
+
+  <RequiredOutputs>
+    <Artifacts>
+      <RequirementsAnalysisUpdates>Create baseline file</RequirementsAnalysisUpdates>
+      <TechnologyUpdates>Create baseline file with default decisions (PostgreSQL, Elasticsearch, etc.)</TechnologyUpdates>
+      <DevelopmentPlanUpdates>Create baseline file listing existing services and modules</DevelopmentPlanUpdates>
+    </Artifacts>
+
+    <Decisions>
+      <Item>Record all existing technology choices as DEC-*</Item>
+      <Item>Define default stack decisions (Java/Spring version, DB, etc.)</Item>
+    </Decisions>
+
+    <Contracts>
+      <ModuleContracts count="0"/>
+      <FunctionContracts count="0"/>
+    </Contracts>
+
+    <Handoff>
+      <GRACE_HANDOFF required="true"/>
+    </Handoff>
+  </RequiredOutputs>
+
+  <AcceptanceCriteria>
+    <Item>RequirementsAnalysis.xml, Technology.xml, and DevelopmentPlan.xml exist in docs/grace/</Item>
+    <Item>Technology.xml contains DEC-* entries for all major stack components</Item>
+    <Item>DevelopmentPlan.xml lists all current maven modules as DP-SVC-* or libraries</Item>
+  </AcceptanceCriteria>
+</ARCHITECT_WORK_ORDER>

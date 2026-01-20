@@ -555,48 +555,231 @@
        TESTING
        ═══════════════════════════════════════════════════════════════════════════ -->
   <Testing>
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         UNIT TESTING
+         ───────────────────────────────────────────────────────────────────────── -->
     <Framework id="TECH-junit5">
-      <Name>JUnit 5</Name>
-      <Usage>Unit and integration test framework</Usage>
+      <Name>JUnit 5 (Jupiter)</Name>
+      <Version>5.11.x (via Spring Boot BOM)</Version>
+      <Usage>Unit and integration test framework for all services</Usage>
+      <Configuration>
+        <Item>@Nested for test organization by scenario</Item>
+        <Item>@ParameterizedTest for data-driven tests</Item>
+        <Item>@DisplayName for human-readable test names</Item>
+      </Configuration>
+      <Links>
+        <Link ref="DEC-TEST-UNIT" />
+      </Links>
     </Framework>
 
     <Framework id="TECH-mockito">
       <Name>Mockito</Name>
-      <Usage>Mocking for unit tests</Usage>
+      <Version>5.x (via Spring Boot BOM)</Version>
+      <Usage>Mocking for unit tests - ports, repositories, external services</Usage>
+      <Configuration>
+        <Item>@Mock for driven port interfaces</Item>
+        <Item>@InjectMocks for application services under test</Item>
+        <Item>Avoid mocking in domain layer - domain logic should be tested as pure functions</Item>
+      </Configuration>
+      <Links>
+        <Link ref="DEC-TEST-UNIT" />
+      </Links>
     </Framework>
 
+    <Framework id="TECH-assertj">
+      <Name>AssertJ</Name>
+      <Version>3.x (via Spring Boot BOM)</Version>
+      <Usage>Fluent assertions for readable test assertions</Usage>
+      <Configuration>
+        <Item>Prefer assertThat() over JUnit assertions</Item>
+        <Item>Use extracting() for collection assertions</Item>
+        <Item>Use satisfies() for complex object assertions</Item>
+      </Configuration>
+    </Framework>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         INTEGRATION TESTING
+         ───────────────────────────────────────────────────────────────────────── -->
     <Framework id="TECH-testcontainers">
       <Name>Testcontainers</Name>
       <Version>1.19.x</Version>
       <Usage>Integration tests with real dependencies (PostgreSQL, Kafka, Redis, Elasticsearch)</Usage>
+      <Configuration>
+        <Item>Shared containers via test-support module to reduce startup time</Item>
+        <Item>@Container annotation for declarative container lifecycle</Item>
+        <Item>Reusable containers enabled for local dev (testcontainers.reuse.enable=true)</Item>
+      </Configuration>
+      <Containers>
+        <Container id="TC-POSTGRES">PostgreSQL 16 for persistence tests</Container>
+        <Container id="TC-KAFKA">Kafka (Redpanda) for event publishing tests</Container>
+        <Container id="TC-REDIS">Redis 7 for cache integration tests</Container>
+        <Container id="TC-ELASTICSEARCH">Elasticsearch 8.x for search-service tests</Container>
+      </Containers>
       <Links>
         <Link ref="RequirementsAnalysis.xml#NFR-MAINT-TESTABILITY" />
+        <Link ref="DEC-TEST-GRPC-INTEGRATION" />
+        <Link ref="DEC-TEST-E2E" />
       </Links>
     </Framework>
 
+    <Framework id="TECH-spring-grpc-test">
+      <Name>Spring gRPC Test</Name>
+      <Version>1.0.x (via spring-grpc-spring-boot-starter)</Version>
+      <Usage>gRPC integration testing for inter-service communication</Usage>
+      <Configuration>
+        <Item>@GrpcClientTest for client-side integration tests</Item>
+        <Item>@SpringBootTest with grpc-inprocess for full server tests</Item>
+        <Item>GrpcMock for mocking external gRPC services</Item>
+      </Configuration>
+      <Links>
+        <Link ref="DEC-TEST-GRPC-INTEGRATION" />
+      </Links>
+    </Framework>
+
+    <Framework id="TECH-spring-web-test">
+      <Name>Spring Web Test (MockMvc / WebTestClient)</Name>
+      <Version>via Spring Boot BOM</Version>
+      <Usage>Gateway and REST endpoint testing</Usage>
+      <Configuration>
+        <Item>MockMvc for @WebMvcTest sliced tests (synchronous)</Item>
+        <Item>WebTestClient for reactive/gateway tests</Item>
+        <Item>@AutoConfigureMockMvc with @SpringBootTest for full context</Item>
+      </Configuration>
+      <Links>
+        <Link ref="DEC-TEST-GATEWAY" />
+      </Links>
+    </Framework>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         ARCHITECTURE TESTING
+         ───────────────────────────────────────────────────────────────────────── -->
     <Framework id="TECH-archunit">
       <Name>ArchUnit</Name>
       <Version>1.2.x</Version>
       <Usage>Enforce architectural rules (hexagonal layers, dependency direction)</Usage>
       <Rules>
-        <Rule>Domain layer must not depend on adapters or application layer</Rule>
-        <Rule>Application layer must not depend on adapters</Rule>
-        <Rule>No Spring annotations in domain layer</Rule>
-        <Rule>No JPA annotations in domain layer</Rule>
+        <Rule id="ARCH-001">Domain layer must not depend on adapters or application layer</Rule>
+        <Rule id="ARCH-002">Application layer must not depend on adapters</Rule>
+        <Rule id="ARCH-003">No Spring annotations in domain layer</Rule>
+        <Rule id="ARCH-004">No JPA annotations in domain layer</Rule>
+        <Rule id="ARCH-005">gRPC generated stubs confined to adapters packages</Rule>
+        <Rule id="ARCH-006">No cyclic dependencies between packages</Rule>
       </Rules>
+      <Configuration>
+        <Item>ArchitectureTest.java in each service (run by Surefire)</Item>
+        <Item>Shared rule library in test-support module</Item>
+      </Configuration>
       <Links>
         <Link ref="RequirementsAnalysis.xml#NFR-MAINT-MODULARITY" />
       </Links>
     </Framework>
 
-    <Framework id="TECH-contract-testing">
-      <Name>Contract Testing</Name>
-      <Tools>
-        <Tool>OpenAPI contract validation (spectral, dredd)</Tool>
-        <Tool>Spring Cloud Contract or Pact (optional)</Tool>
-      </Tools>
-      <Usage>Verify producer/consumer compatibility against published contracts</Usage>
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         CONTRACT TESTING
+         ───────────────────────────────────────────────────────────────────────── -->
+    <Framework id="TECH-spring-cloud-contract">
+      <Name>Spring Cloud Contract</Name>
+      <Version>4.2.x (via Spring Cloud BOM 2025.1.x)</Version>
+      <Usage>Producer/consumer contract testing for gRPC and REST APIs</Usage>
+      <Configuration>
+        <Item>Groovy DSL contracts in api-contracts/src/test/resources/contracts/</Item>
+        <Item>Producer verifier generates tests from contracts</Item>
+        <Item>Consumer stubs auto-generated and published to stub repository</Item>
+        <Item>@AutoConfigureStubRunner for consumer-side testing</Item>
+      </Configuration>
+      <Workflow>
+        <Step order="1">Define contracts in api-contracts module (Groovy DSL)</Step>
+        <Step order="2">Producer service verifies contracts via generated tests</Step>
+        <Step order="3">Stubs published to local Maven or Artifactory</Step>
+        <Step order="4">Consumer services use @AutoConfigureStubRunner in tests</Step>
+      </Workflow>
+      <Links>
+        <Link ref="DEC-TEST-CONTRACTS" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-api-contracts" />
+      </Links>
     </Framework>
+
+    <Framework id="TECH-openapi-validation">
+      <Name>OpenAPI Contract Validation</Name>
+      <Tools>
+        <Tool id="TOOL-spectral">Spectral - OpenAPI linting and validation</Tool>
+        <Tool id="TOOL-openapi-diff">OpenAPI-diff - breaking change detection</Tool>
+      </Tools>
+      <Usage>Validate OpenAPI specs and detect breaking changes in CI</Usage>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#ContractEvolutionPolicy" />
+      </Links>
+    </Framework>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         COVERAGE AND QUALITY
+         ───────────────────────────────────────────────────────────────────────── -->
+    <Framework id="TECH-jacoco">
+      <Name>JaCoCo</Name>
+      <Version>0.8.x (via Maven plugin)</Version>
+      <Usage>Code coverage measurement and enforcement</Usage>
+      <Configuration>
+        <Item>Aggregate report across all modules</Item>
+        <Item>Exclude generated code (Protobuf, MapStruct)</Item>
+        <Item>Exclude adapters.*.mapper packages from branch coverage</Item>
+        <Item>CI fails if coverage below thresholds</Item>
+      </Configuration>
+      <Thresholds>
+        <Threshold metric="LINE" minimum="0.80">80% line coverage</Threshold>
+        <Threshold metric="BRANCH" minimum="0.70">70% branch coverage</Threshold>
+      </Thresholds>
+      <Links>
+        <Link ref="DEC-TEST-COVERAGE" />
+      </Links>
+    </Framework>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         NAMING CONVENTIONS
+         ───────────────────────────────────────────────────────────────────────── -->
+    <NamingConventions>
+      <Convention pattern="*Test.java" runner="surefire">
+        Unit tests - domain and application layer isolation tests
+      </Convention>
+      <Convention pattern="*IT.java" runner="failsafe">
+        Integration tests - persistence, Kafka, external services with Testcontainers
+      </Convention>
+      <Convention pattern="*GrpcIntegrationTest.java" runner="failsafe">
+        gRPC integration tests - client/server communication tests
+      </Convention>
+      <Convention pattern="*ContractTest.java" runner="failsafe">
+        Contract tests - Spring Cloud Contract verifier tests
+      </Convention>
+      <Convention pattern="*E2ETest.java" runner="failsafe" profile="e2e">
+        End-to-end tests - full stack with all infrastructure
+      </Convention>
+      <Convention pattern="ArchitectureTest.java" runner="surefire">
+        Architecture tests - ArchUnit hexagonal layer enforcement
+      </Convention>
+    </NamingConventions>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         MAVEN PLUGIN CONFIGURATION
+         ───────────────────────────────────────────────────────────────────────── -->
+    <MavenPlugins>
+      <Plugin id="PLUGIN-surefire">
+        <ArtifactId>maven-surefire-plugin</ArtifactId>
+        <Version>3.2.5</Version>
+        <Configuration>
+          <Item>Runs *Test.java and ArchitectureTest.java</Item>
+          <Item>Excludes *IT.java, *E2ETest.java, *ContractTest.java</Item>
+          <Item>Phase: test</Item>
+        </Configuration>
+      </Plugin>
+      <Plugin id="PLUGIN-failsafe">
+        <ArtifactId>maven-failsafe-plugin</ArtifactId>
+        <Version>3.2.5</Version>
+        <Configuration>
+          <Item>Runs *IT.java, *ContractTest.java, *GrpcIntegrationTest.java</Item>
+          <Item>Phase: integration-test / verify</Item>
+          <Item>E2E tests via profile: -Pe2e</Item>
+        </Configuration>
+      </Plugin>
+    </MavenPlugins>
   </Testing>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
@@ -1407,6 +1590,190 @@ public record ExampleProperties(
         <Item>Spring Boot 4.0+: Recommended pattern per framework guidelines</Item>
       </Benefits>
       <PromotedFrom handoff="Handoff-20260117-04-W1-CONFIG-PATTERN" />
+    </Decision>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         TESTING DECISIONS (AWO-20260120-01)
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <Decision id="DEC-TEST-UNIT" status="APPROVED">
+      <Title>Unit Testing Strategy</Title>
+      <Context>Define tools and patterns for domain and application layer isolation testing</Context>
+      <Selected>JUnit 5 + Mockito + AssertJ</Selected>
+      <Scope>
+        <Layer name="domain">Pure unit tests, no mocking (domain is mostly logic)</Layer>
+        <Layer name="application">Unit tests with mocked driven ports (repositories, external services)</Layer>
+      </Scope>
+      <NamingConvention>*Test.java (run by maven-surefire-plugin)</NamingConvention>
+      <Rationale>
+        Industry standard stack with excellent Spring integration.
+        AssertJ provides fluent, readable assertions.
+        Mockito for port isolation without heavy framework dependencies.
+      </Rationale>
+      <Links>
+        <Link ref="Technology.xml#TECH-junit5" />
+        <Link ref="Technology.xml#TECH-mockito" />
+        <Link ref="Technology.xml#TECH-assertj" />
+        <Link ref="DevelopmentPlan.xml#TestingStrategy" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-TEST-GRPC-INTEGRATION" status="APPROVED">
+      <Title>gRPC Integration Testing</Title>
+      <Context>Define tools for testing inter-service gRPC communication</Context>
+      <Selected>SpringBootTest + @GrpcClientTest + grpc-inprocess</Selected>
+      <Tools>
+        <Tool>Spring gRPC Test (1.0.x) for @GrpcClientTest annotation</Tool>
+        <Tool>grpc-testing for in-process server/client tests</Tool>
+        <Tool>GrpcMock for mocking external gRPC services</Tool>
+      </Tools>
+      <Scope>
+        <Item>Client-side tests: Verify gRPC client adapters correctly call remote services</Item>
+        <Item>Server-side tests: Verify gRPC server adapters correctly expose service contracts</Item>
+        <Item>Contract alignment: Ensure Protobuf contracts match implementation</Item>
+      </Scope>
+      <NamingConvention>*GrpcIntegrationTest.java (run by maven-failsafe-plugin)</NamingConvention>
+      <Rationale>
+        Spring gRPC Test provides seamless integration with Spring Boot test slices.
+        In-process testing avoids network overhead and port conflicts.
+      </Rationale>
+      <Links>
+        <Link ref="Technology.xml#TECH-spring-grpc-test" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-api-contracts" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-TEST-GATEWAY" status="APPROVED">
+      <Title>Gateway/REST Testing</Title>
+      <Context>Define tools for testing Spring Cloud Gateway routing and REST endpoints</Context>
+      <Selected>MockMvc + WebTestClient</Selected>
+      <Tools>
+        <Tool>MockMvc for synchronous @WebMvcTest sliced tests</Tool>
+        <Tool>WebTestClient for reactive/gateway tests</Tool>
+      </Tools>
+      <Scope>
+        <Item>Gateway routing: Verify path-based and header-based routing rules</Item>
+        <Item>Authentication/Authorization: Verify JWT validation and role-based access</Item>
+        <Item>REST endpoints: Verify request/response serialization and validation</Item>
+      </Scope>
+      <NamingConvention>*ControllerTest.java or *RestIntegrationTest.java</NamingConvention>
+      <Rationale>
+        MockMvc provides fast, focused tests without full server startup.
+        WebTestClient required for reactive/non-blocking gateway tests.
+      </Rationale>
+      <Links>
+        <Link ref="Technology.xml#TECH-spring-web-test" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-gateway" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-TEST-E2E" status="APPROVED">
+      <Title>End-to-End Testing</Title>
+      <Context>Define tools for full-stack cross-service flow testing</Context>
+      <Selected>Testcontainers (full stack) + grpcurl (CLI verification)</Selected>
+      <Location>Dedicated e2e-tests module at project root</Location>
+      <Tools>
+        <Tool>Testcontainers for PostgreSQL, Kafka, Redis, Elasticsearch</Tool>
+        <Tool>Docker Compose integration for multi-service startup</Tool>
+        <Tool>grpcurl for CLI-based smoke tests and manual verification</Tool>
+      </Tools>
+      <Scope>
+        <Item>Cross-service flows: CPQ flow, order lifecycle, measurement workflow</Item>
+        <Item>Event propagation: Verify Kafka events flow between services</Item>
+        <Item>Data consistency: Verify eventual consistency across bounded contexts</Item>
+      </Scope>
+      <NamingConvention>*E2ETest.java (run by maven-failsafe-plugin with -Pe2e profile)</NamingConvention>
+      <Rationale>
+        Dedicated module avoids coupling E2E tests to individual service builds.
+        Testcontainers ensures reproducible infrastructure.
+        grpcurl enables manual verification and debugging.
+      </Rationale>
+      <Links>
+        <Link ref="Technology.xml#TECH-testcontainers" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-e2e-tests" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-TEST-CONTRACTS" status="APPROVED">
+      <Title>Contract Testing Framework</Title>
+      <Context>Choose between Spring Cloud Contract and Pact for producer/consumer contract validation</Context>
+      <Selected>Spring Cloud Contract</Selected>
+      <Alternatives>
+        <Alternative status="REJECTED" reason="Java-only ecosystem, better Spring integration available">
+          Pact - language-agnostic, Pact Broker for central repository
+        </Alternative>
+      </Alternatives>
+      <Workflow>
+        <Step order="1">Define Groovy DSL contracts in api-contracts/src/test/resources/contracts/</Step>
+        <Step order="2">Producer service runs generated verifier tests from contracts</Step>
+        <Step order="3">Stubs auto-generated and published to Maven repository</Step>
+        <Step order="4">Consumer services use @AutoConfigureStubRunner for stub-based testing</Step>
+      </Workflow>
+      <NamingConvention>*ContractTest.java (run by maven-failsafe-plugin)</NamingConvention>
+      <Rationale>
+        Spring Cloud Contract provides seamless Spring ecosystem integration.
+        Groovy DSL contracts are expressive and version-controlled with api-contracts module.
+        Auto-generated stubs eliminate manual mock maintenance.
+        Maven plugin integration fits existing build pipeline.
+      </Rationale>
+      <Links>
+        <Link ref="Technology.xml#TECH-spring-cloud-contract" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-api-contracts" />
+        <Link ref="DevelopmentPlan.xml#ContractEvolutionPolicy" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-TEST-COVERAGE" status="APPROVED">
+      <Title>Code Coverage Thresholds</Title>
+      <Context>Define minimum coverage requirements enforced by CI</Context>
+      <Selected>80% line coverage, 70% branch coverage</Selected>
+      <Tool>JaCoCo (0.8.x via Maven plugin)</Tool>
+      <Enforcement>
+        <Item>CI build fails if coverage falls below thresholds</Item>
+        <Item>Aggregate report across all modules</Item>
+        <Item>Exclude generated code: Protobuf, MapStruct mappers</Item>
+        <Item>Exclude trivial code: adapters.*.mapper packages from branch coverage</Item>
+      </Enforcement>
+      <Rationale>
+        80%/70% is industry standard, achievable without test bloat.
+        Enforces discipline without blocking legitimate work.
+        Exclusions prevent penalizing generated/trivial code.
+      </Rationale>
+      <Links>
+        <Link ref="Technology.xml#TECH-jacoco" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-TEST-SHARED-UTILS" status="APPROVED">
+      <Title>Shared Test Utilities Location</Title>
+      <Context>Decide whether test utilities are centralized or per-service</Context>
+      <Selected>Dedicated test-support module (shared/test-support)</Selected>
+      <Alternatives>
+        <Alternative status="REJECTED" reason="Causes duplication of Testcontainers configs">
+          Per-service test fixtures in src/test/java/.../support/
+        </Alternative>
+      </Alternatives>
+      <Contents>
+        <Item>Shared Testcontainers configurations (PostgresTestContainer, KafkaTestContainer, etc.)</Item>
+        <Item>Common test fixtures and test data builders</Item>
+        <Item>Shared ArchUnit rule library (HexagonalArchitectureRules.java)</Item>
+        <Item>Custom AssertJ assertions for shared-kernel domain objects</Item>
+        <Item>gRPC test utilities and mock server helpers</Item>
+      </Contents>
+      <PackageLayout>
+        <Package>com.kanokna.test.containers</Package>
+        <Package>com.kanokna.test.fixtures</Package>
+        <Package>com.kanokna.test.archunit</Package>
+        <Package>com.kanokna.test.assertions</Package>
+        <Package>com.kanokna.test.grpc</Package>
+      </PackageLayout>
+      <Rationale>
+        Centralized module avoids duplication of Testcontainers startup logic.
+        Services depend on test-support with scope=test.
+        Consistent ArchUnit rules enforced across all services.
+      </Rationale>
+      <Links>
+        <Link ref="DevelopmentPlan.xml#DP-SVC-test-support" />
+      </Links>
     </Decision>
   </Decisions>
 

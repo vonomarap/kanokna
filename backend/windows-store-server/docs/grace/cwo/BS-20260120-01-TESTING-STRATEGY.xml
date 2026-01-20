@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE BranchSpec: Testing Strategy Implementation
+  Handoff Reference: Handoff-20260120-01-W0-TESTING-STRATEGY
+  Created: 2026-01-20T14:05:00+03:00
+  CreatedBy: GRACE-COORDINATOR
+-->
+<BRANCH_SPEC id="BS-20260120-01" status="ISSUED">
+  <ChangeClassification>chore</ChangeClassification>
+  <BranchName>chore/W0-testing-strategy</BranchName>
+  <BaseBranch>develop</BaseBranch>
+  <PRTarget>develop</PRTarget>
+  <PreferredMergeMethod>squash</PreferredMergeMethod>
+  <RequiresBackMergeToDevelop>false</RequiresBackMergeToDevelop>
+
+  <PR>
+    <TitleTemplate>[W0-TESTING] Establish multi-level testing strategy</TitleTemplate>
+    <BodyMustInclude>
+      <Item>HandoffRef: Handoff-20260120-01-W0-TESTING-STRATEGY</Item>
+      <Item>Decisions: DEC-TEST-UNIT, DEC-TEST-GRPC-INTEGRATION, DEC-TEST-GATEWAY, DEC-TEST-E2E, DEC-TEST-CONTRACTS, DEC-TEST-COVERAGE, DEC-TEST-SHARED-UTILS</Item>
+      <Item>New Modules: test-support, e2e-tests</Item>
+      <Item>RiskNotes: JaCoCo thresholds (80%/70%) may require phased enablement</Item>
+    </BodyMustInclude>
+  </PR>
+
+  <Safety>
+    <Item>No direct pushes to main/develop</Item>
+    <Item>No force-push</Item>
+    <Item>One branch == one task scope</Item>
+  </Safety>
+
+  <CoordinatorNotes>
+    <Note>This is Wave 0 infrastructure work - testing scaffolding only</Note>
+    <Note>No production service code changes - only test utilities and Maven config</Note>
+    <Note>Consider phased approach: create modules first, then enable coverage enforcement</Note>
+  </CoordinatorNotes>
+</BRANCH_SPEC>

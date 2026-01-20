@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Blueprint Issue Report: Testing Strategy Handoff v2 Compliance
+  Created: 2026-01-20T14:30:00+03:00
+  ValidatedBy: GRACE-COORDINATOR
+-->
+<BlueprintIssueReport
+  id="ISSUE-RPT-20260120-01"
+  handoffRef="Handoff-20260120-01-W0-TESTING-STRATEGY"
+  gateStatus="FAIL"
+  created="2026-01-20T14:30:00+03:00"
+  validatedBy="GRACE-COORDINATOR"
+>
+  <Summary>
+    Handoff failed GRACE Markup v2 compliance check. The handoff file
+    HANDOFF-AWO-20260120-01-TESTING-STRATEGY.xml is missing required v2 schema
+    attributes (schemaVersion, created timestamp, author). GRACE-CODER cannot
+    proceed until the handoff is reformatted to v2 specification.
+  </Summary>
+
+  <Issue id="ISS-MARKUP-001">
+    <Severity>BLOCKING</Severity>
+    <Description>
+      Missing GRACE Markup v2 required attributes on GRACE_HANDOFF root element:
+      - schemaVersion="grace-markup-v2" (MISSING)
+      - created="YYYY-MM-DDTHH:mm:ss±HH:MM" (MISSING - only has CreatedDate without time/timezone)
+      - author="GRACE-ARCHITECT" (MISSING)
+      - taskRef, awoRef attributes (MISSING from root element)
+    </Description>
+    <Evidence>
+      File: docs/grace/handoffs/HANDOFF-AWO-20260120-01-TESTING-STRATEGY.xml
+      Current root element (line 10):
+        &lt;GRACE_HANDOFF id="Handoff-20260120-01-W0-TESTING-STRATEGY" status="READY_FOR_CODER"&gt;
+
+      Required v2 format (per Handoff-20260117-04-W1-CONFIG-PATTERN.xml):
+        &lt;GRACE_HANDOFF
+            id="Handoff-20260120-01-W0-TESTING-STRATEGY"
+            status="APPROVED"
+            schemaVersion="grace-markup-v2"
+            created="2026-01-20T14:00:00+03:00"
+            author="GRACE-ARCHITECT"
+            taskRef="W0-T-TESTING"
+            awoRef="AWO-20260120-01-TESTING-STRATEGY"
+        &gt;
+    </Evidence>
+    <Impact>
+      GRACE-CODER cannot validate handoff authenticity and traceability without v2 schema markers.
+      Implementation is blocked.
+    </Impact>
+    <ProposedFix>
+      Update GRACE_HANDOFF root element to include all v2 required attributes.
+      See RequiredFormat section below for exact markup.
+    </ProposedFix>
+    <RequiredAgent>GRACE-ARCHITECT</RequiredAgent>
+  </Issue>
+
+  <Issue id="ISS-MARKUP-002">
+    <Severity>NONBLOCKING</Severity>
+    <Description>
+      Filename convention mismatch: File is named "HANDOFF-AWO-20260120-01-TESTING-STRATEGY.xml"
+      but standard convention is "Handoff-YYYYMMDD-##-*.xml" (PascalCase, no AWO prefix).
+    </Description>
+    <Evidence>
+      Current: HANDOFF-AWO-20260120-01-TESTING-STRATEGY.xml
+      Expected: Handoff-20260120-01-W0-TESTING-STRATEGY.xml
+    </Evidence>
+    <Impact>
+      Minor - may cause confusion in handoff lookups. Does not block implementation.
+    </Impact>
+    <ProposedFix>
+      Rename file to follow standard convention.
+    </ProposedFix>
+    <RequiredAgent>GRACE-ARCHITECT</RequiredAgent>
+  </Issue>
+
+  <RequiredFormat>
+    <Description>
+      The GRACE_HANDOFF root element must include these v2 attributes:
+    </Description>
+    <Attributes>
+      <Attribute name="id" required="true">Handoff-20260120-01-W0-TESTING-STRATEGY</Attribute>
+      <Attribute name="status" required="true">APPROVED</Attribute>
+      <Attribute name="schemaVersion" required="true">grace-markup-v2</Attribute>
+      <Attribute name="created" required="true">2026-01-20T14:00:00+03:00 (ISO-8601 with timezone)</Attribute>
+      <Attribute name="author" required="true">GRACE-ARCHITECT</Attribute>
+      <Attribute name="taskRef" required="true">W0-T-TESTING</Attribute>
+      <Attribute name="awoRef" required="true">AWO-20260120-01-TESTING-STRATEGY</Attribute>
+    </Attributes>
+  </RequiredFormat>
+
+  <Recommendation>
+    Route to GRACE-ARCHITECT to:
+    1. Update handoff root element with v2 schema attributes
+    2. Rename file to standard convention (optional but recommended)
+    3. Re-submit for Coordinator validation
+
+    Once fixed, the existing approval entry in approvals.log remains valid
+    (ref="Handoff-20260120-01-W0-TESTING-STRATEGY" matches the handoff id).
+  </Recommendation>
+</BlueprintIssueReport>

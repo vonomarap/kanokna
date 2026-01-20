@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Architect Work Order: Testing Strategy
+  Created: 2026-01-20T11:16:35+03:00
+  CreatedBy: GRACE-COORDINATOR
+-->
+<ARCHITECT_WORK_ORDER id="AWO-20260120-01" status="COMPLETED">
+  <Task>
+    <WaveRef>W0</WaveRef>
+    <TaskRef>W0-T-TESTING</TaskRef>
+    <UserRequest>
+      Establish multi-level testing strategy covering:
+      - Unit: JUnit + Mockito (module logic)
+      - gRPC Integration: SpringBootTest (client ↔ server)
+      - Gateway: MockMvc/WebTestClient (routing)
+      - End-to-End: Testcontainers/grpcurl (entire system)
+      - Contracts: Spring Cloud Contract/Pact (API stability)
+    </UserRequest>
+    <PrimaryGoal>
+      Define comprehensive testing architecture decisions, patterns, and cross-cutting
+      test organization standards for all backend services. This includes technology
+      choices for each testing level, directory structure conventions, CI integration,
+      and a GRACE handoff for implementation.
+    </PrimaryGoal>
+  </Task>
+
+  <KnownArtifacts>
+    <Artifact name="RequirementsAnalysis.xml" provided="yes" path="docs/grace/RequirementsAnalysis.xml"/>
+    <Artifact name="Technology.xml" provided="yes" path="docs/grace/Technology.xml">
+      <Note>Contains Testing section (lines 556-600) with JUnit5, Mockito, Testcontainers, ArchUnit, Contract Testing (partial)</Note>
+    </Artifact>
+    <Artifact name="DevelopmentPlan.xml" provided="yes" path="docs/grace/DevelopmentPlan.xml"/>
+  </KnownArtifacts>
+
+  <ExistingInfrastructure>
+    <POMConfiguration>
+      <Item>testcontainers.version=1.19.3</Item>
+      <Item>archunit.version=1.2.1</Item>
+      <Item>Maven Surefire Plugin 3.2.5 (unit tests)</Item>
+      <Item>Maven Failsafe Plugin 3.2.5 (integration tests)</Item>
+      <Item>Spring Boot 4.0.1 / Spring Cloud 2025.1.0</Item>
+      <Item>Spring gRPC 1.0.1</Item>
+    </POMConfiguration>
+    <ExistingTests count="45+">
+      <Category service="search-service">
+        <Item>TestContainersConfig.java, SearchTestFixture.java</Item>
+        <Item>SearchServiceIntegrationTest.java, SearchServiceGrpcContractTest.java</Item>
+        <Item>ElasticsearchIntegrationTest.java, ArchitectureTest.java</Item>
+        <Item>Domain unit tests: SearchQueryTest, ProductSearchDocumentTest, PriceRangeTest</Item>
+      </Category>
+      <Category service="cart-service">
+        <Item>CartServiceIntegrationTest.java, ArchitectureTest.java</Item>
+        <Item>Domain unit tests: CartTest, CartItemTest</Item>
+        <Item>Application service tests: 12+ specialized test classes</Item>
+      </Category>
+      <Category service="pricing-service">
+        <Item>ArchitectureTest.java</Item>
+        <Item>Domain unit tests: QuoteTest, PricingDomainErrorsTest</Item>
+        <Item>Domain service tests: TaxCalculationServiceTest, PriceCalculationServiceTest, DiscountServiceTest</Item>
+      </Category>
+      <Category service="catalog-configuration-service">
+        <Item>Domain service tests: RuleEvaluatorTest, ConfigurationValidationServiceTest, BomResolutionServiceTest</Item>
+        <Item>Domain model tests: ValidationResultTest, ProductTemplateTest</Item>
+      </Category>
+    </ExistingTests>
+  </ExistingInfrastructure>
+
+  <Scope>
+    <Services>
+      <ServiceRef ref="DP-SVC-shared-kernel">Test utilities and fixtures</ServiceRef>
+      <ServiceRef ref="DP-SVC-api-contracts">gRPC stubs for contract testing</ServiceRef>
+      <ServiceRef ref="DP-SVC-catalog-configuration-service">All test levels</ServiceRef>
+      <ServiceRef ref="DP-SVC-pricing-service">All test levels</ServiceRef>
+      <ServiceRef ref="DP-SVC-cart-service">All test levels</ServiceRef>
+      <ServiceRef ref="DP-SVC-search-service">All test levels</ServiceRef>
+      <ServiceRef ref="DP-SVC-account-service">All test levels</ServiceRef>
+      <ServiceRef ref="DP-SVC-gateway">Gateway-specific testing</ServiceRef>
+    </Services>
+    <UseCases>
+      <!-- Cross-cutting testing infrastructure affects all use cases -->
+      <UseCaseRef ref="ALL">Testing infrastructure is cross-cutting</UseCaseRef>
+    </UseCases>
+  </Scope>
+
+  <RequiredOutputs>
+    <Artifacts>
+      <RequirementsAnalysisUpdates mandatory="no">
+        <Item>Verify NFR-MAINT-TESTABILITY exists and is adequately detailed</Item>
+      </RequirementsAnalysisUpdates>
+      
+      <TechnologyUpdates mandatory="yes">
+        <Item>Expand Testing section with detailed framework configurations</Item>
+        <Item>Add DEC-TEST-UNIT for unit testing strategy</Item>
+        <Item>Add DEC-TEST-GRPC-INTEGRATION for gRPC integration testing</Item>
+        <Item>Add DEC-TEST-GATEWAY for gateway/routing testing</Item>
+        <Item>Add DEC-TEST-E2E for end-to-end testing with Testcontainers/grpcurl</Item>
+        <Item>Add DEC-TEST-CONTRACTS for contract testing (Spring Cloud Contract vs Pact)</Item>
+        <Item>Add DEC-TEST-COVERAGE for coverage requirements</Item>
+        <Item>Define test naming conventions and package structure</Item>
+      </TechnologyUpdates>
+      
+      <DevelopmentPlanUpdates mandatory="yes">
+        <Item>Add test organization pattern per hexagonal layer</Item>
+        <Item>Define shared test utilities in shared-kernel or dedicated test-support module</Item>
+        <Item>Define CI pipeline integration points for each test level</Item>
+      </DevelopmentPlanUpdates>
+    </Artifacts>
+
+    <Decisions>
+      <Item>Record DEC-TEST-UNIT: JUnit 5 + Mockito for domain/application layer isolation testing</Item>
+      <Item>Record DEC-TEST-GRPC-INTEGRATION: SpringBootTest + @GrpcClientTest for client/server communication</Item>
+      <Item>Record DEC-TEST-GATEWAY: MockMvc/WebTestClient for Spring Cloud Gateway routing verification</Item>
+      <Item>Record DEC-TEST-E2E: Testcontainers for full-stack + grpcurl for manual/CLI verification</Item>
+      <Item>Record DEC-TEST-CONTRACTS: Decision between Spring Cloud Contract OR Pact (no "OR" in decision)</Item>
+      <Item>Record DEC-TEST-COVERAGE: JaCoCo thresholds (line/branch coverage targets)</Item>
+      <Item>If Spring Cloud Contract chosen, record integration with api-contracts module</Item>
+      <Item>If Pact chosen, record broker setup and consumer-driven contract flow</Item>
+    </Decisions>
+
+    <TestingArchitecture>
+      <LayerMapping>
+        <Layer name="domain">
+          <TestType>Unit tests only (pure Java, no Spring context)</TestType>
+          <Location>src/test/java/{package}/domain/**/*Test.java</Location>
+          <Tools>JUnit 5, AssertJ, Mockito (minimal mocking - domain is mostly logic)</Tools>
+        </Layer>
+        <Layer name="application">
+          <TestType>Unit tests with mocked ports</TestType>
+          <Location>src/test/java/{package}/application/**/*Test.java</Location>
+          <Tools>JUnit 5, Mockito for port mocking</Tools>
+        </Layer>
+        <Layer name="adapters.in.grpc">
+          <TestType>gRPC integration tests</TestType>
+          <Location>src/test/java/{package}/*GrpcContractTest.java or *GrpcIntegrationTest.java</Location>
+          <Tools>SpringBootTest, @GrpcClientTest, grpc-test helper</Tools>
+        </Layer>
+        <Layer name="adapters.in.web">
+          <TestType>REST/Web integration tests</TestType>
+          <Location>src/test/java/{package}/*RestIntegrationTest.java or *ControllerTest.java</Location>
+          <Tools>MockMvc, WebTestClient</Tools>
+        </Layer>
+        <Layer name="adapters.out.persistence">
+          <TestType>Repository integration tests with Testcontainers</TestType>
+          <Location>src/test/java/{package}/adapters/out/persistence/*RepositoryIT.java</Location>
+          <Tools>SpringBootTest, Testcontainers (PostgreSQL), @DataJpaTest (sliced)</Tools>
+        </Layer>
+        <Layer name="adapters.out.grpc">
+          <TestType>Outbound gRPC client tests (mocked servers)</TestType>
+          <Location>src/test/java/{package}/adapters/out/grpc/*ClientTest.java</Location>
+          <Tools>grpc-testing, GrpcMock or in-process server</Tools>
+        </Layer>
+      </LayerMapping>
+
+      <E2ETestStructure>
+        <Location>src/test/java/{package}/*E2ETest.java or dedicated e2e-tests module</Location>
+        <Tools>Testcontainers (full infra: Postgres, Kafka, Redis, Elasticsearch)</Tools>
+        <Tools>grpcurl for CLI-based smoke tests and observability verification</Tools>
+        <Scope>Full request flow: Gateway → Service → DB/External → Response</Scope>
+      </E2ETestStructure>
+
+      <ContractTestStructure>
+        <Location>src/test/java/{package}/contracts/*ContractTest.java</Location>
+        <ProducerSide>Verify service implements contract defined in api-contracts</ProducerSide>
+        <ConsumerSide>Verify client expectations against producer contract</ConsumerSide>
+        <Tools>Spring Cloud Contract (recommended) or Pact</Tools>
+        <CIIntegration>Contract tests run after unit tests, before E2E</CIIntegration>
+      </ContractTestStructure>
+    </TestingArchitecture>
+
+    <Contracts>
+      <!-- No specific MODULE_CONTRACT/FUNCTION_CONTRACT for testing infrastructure -->
+      <!-- This is meta-level architecture affecting how tests are organized -->
+      <Note>Testing infrastructure is cross-cutting; no service-specific contracts required</Note>
+    </Contracts>
+
+    <Handoff>
+      <GRACE_HANDOFF required="true">
+        <Scope>Technology.xml decisions + DevelopmentPlan.xml test organization pattern</Scope>
+        <WaveRef>W0</WaveRef>
+        <Note>This handoff enables Coder to standardize/refactor existing tests and add missing test levels</Note>
+      </GRACE_HANDOFF>
+    </Handoff>
+  </RequiredOutputs>
+
+  <ImplementationGuidelines>
+    <TestNamingConventions>
+      <Convention>*Test.java - Unit tests (run by Surefire)</Convention>
+      <Convention>*IT.java - Integration tests (run by Failsafe)</Convention>
+      <Convention>*E2ETest.java - End-to-end tests (run by Failsafe with specific profile)</Convention>
+      <Convention>*ContractTest.java - Contract tests (Spring Cloud Contract/Pact)</Convention>
+      <Convention>ArchitectureTest.java - ArchUnit rules (per service)</Convention>
+    </TestNamingConventions>
+
+    <SharedTestUtilities>
+      <Option id="1" recommended="yes">
+        <Name>Dedicated test-support module</Name>
+        <Path>shared/test-support</Path>
+        <Purpose>Shared Testcontainers configs, fixtures, assertions, test data builders</Purpose>
+      </Option>
+      <Option id="2">
+        <Name>Test fixtures in each service</Name>
+        <Path>services/{service}/src/test/java/.../support/</Path>
+        <Purpose>Service-specific test fixtures and utilities</Purpose>
+      </Option>
+    </SharedTestUtilities>
+
+    <CIPipelineIntegration>
+      <Stage order="1" maven-phase="test">Unit tests (Surefire)</Stage>
+      <Stage order="2" maven-phase="verify">ArchUnit tests</Stage>
+      <Stage order="3" maven-phase="verify">Contract tests</Stage>
+      <Stage order="4" maven-phase="verify" profile="integration">Integration tests (Failsafe + Testcontainers)</Stage>
+      <Stage order="5" maven-phase="verify" profile="e2e" optional="true">E2E tests (full stack)</Stage>
+      <CoverageReport>JaCoCo aggregate report after all test stages</CoverageReport>
+    </CIPipelineIntegration>
+  </ImplementationGuidelines>
+
+  <AcceptanceCriteria>
+    <Item id="AC-1">Canonical artifacts contain no "OR" choices for testing tools; alternatives captured as Decisions with status</Item>
+    <Item id="AC-2">DEC-* for each testing level (UNIT, GRPC-INTEGRATION, GATEWAY, E2E, CONTRACTS) recorded in Technology.xml</Item>
+    <Item id="AC-3">Test organization pattern defined in DevelopmentPlan.xml with hexagonal layer mapping</Item>
+    <Item id="AC-4">Shared test utilities decision (test-support module vs per-service) is explicit</Item>
+    <Item id="AC-5">CI pipeline stages for each test level are explicitly defined</Item>
+    <Item id="AC-6">Naming conventions for test classes are documented</Item>
+    <Item id="AC-7">Coverage thresholds (if any) are recorded as DEC-TEST-COVERAGE</Item>
+    <Item id="AC-8">GRACE_HANDOFF produced with scope matching this work order</Item>
+  </AcceptanceCriteria>
+
+  <Questions>
+    <Question id="Q-1" priority="HIGH" blocking="true">
+      <Topic>Contract Testing Tool</Topic>
+      <Text>Choose ONE: Spring Cloud Contract OR Pact for producer/consumer contract testing?</Text>
+      <Recommendation>Spring Cloud Contract - better Spring ecosystem integration, uses Groovy DSL for contracts, stubs auto-generated for consumers</Recommendation>
+      <Alternative>Pact - language-agnostic, better for polyglot ecosystems, has Pact Broker for central contract repository</Alternative>
+    </Question>
+    <Question id="Q-2" priority="MEDIUM" blocking="false">
+      <Topic>Coverage Thresholds</Topic>
+      <Text>What line/branch coverage thresholds should be enforced by CI?</Text>
+      <Suggestion>80% line coverage, 70% branch coverage as starting point</Suggestion>
+    </Question>
+    <Question id="Q-3" priority="MEDIUM" blocking="false">
+      <Topic>Shared Test Module</Topic>
+      <Text>Create a dedicated shared/test-support module for common test utilities, or keep test utilities per-service?</Text>
+      <Recommendation>Dedicated test-support module to avoid duplication of Testcontainers configs</Recommendation>
+    </Question>
+    <Question id="Q-4" priority="LOW" blocking="false">
+      <Topic>E2E Test Location</Topic>
+      <Text>E2E tests: within each service or dedicated e2e-tests module at project root?</Text>
+      <Consideration>Dedicated module allows testing cross-service flows without coupling to individual services</Consideration>
+    </Question>
+  </Questions>
+
+  <CoordinatorNotes>
+    <Note>This AWO is for Wave 0 (infrastructure/scaffolding). It defines testing architecture, not service-specific tests.</Note>
+    <Note>Existing tests (45+ files) should be analyzed by Architect for compliance with the new strategy.</Note>
+    <Note>Technology.xml already has Testing section (lines 556-600) - Architect should EXPAND, not replace.</Note>
+    <Note>Once approved handoff exists, Coder can standardize existing tests and add missing test levels.</Note>
+  </CoordinatorNotes>
+</ARCHITECT_WORK_ORDER>

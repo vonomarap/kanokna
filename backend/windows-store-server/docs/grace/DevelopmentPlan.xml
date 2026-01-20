@@ -275,6 +275,118 @@ billing-service, support-service)
     </Service>
 
     <!-- ===========================================================================
+         TESTING INFRASTRUCTURE (AWO-20260120-01)
+         =========================================================================== -->
+    <Service id="DP-SVC-test-support" type="library">
+      <Name>test-support</Name>
+      <ArtifactId>test-support</ArtifactId>
+      <Description>
+        Shared test utilities: Testcontainers configurations, fixtures, assertions,
+        test data builders, and ArchUnit rule library. Used by all services for
+        consistent test infrastructure.
+      </Description>
+      <BoundedContext>testing-infrastructure</BoundedContext>
+      <Responsibilities>
+        <Item>Shared Testcontainers configurations with reusable container lifecycle</Item>
+        <Item>Common test fixtures and test data builders for domain objects</Item>
+        <Item>Shared ArchUnit rule library (HexagonalArchitectureRules.java)</Item>
+        <Item>Custom AssertJ assertions for shared-kernel value objects</Item>
+        <Item>gRPC test utilities: mock servers, test channel builders</Item>
+        <Item>Kafka test utilities: embedded broker configuration, message assertions</Item>
+      </Responsibilities>
+      <Dependencies>
+        <Dependency type="compile" scope="test">org.junit.jupiter:junit-jupiter</Dependency>
+        <Dependency type="compile" scope="test">org.testcontainers:testcontainers</Dependency>
+        <Dependency type="compile" scope="test">org.testcontainers:junit-jupiter</Dependency>
+        <Dependency type="compile" scope="test">org.testcontainers:postgresql</Dependency>
+        <Dependency type="compile" scope="test">org.testcontainers:kafka</Dependency>
+        <Dependency type="compile" scope="test">org.testcontainers:elasticsearch</Dependency>
+        <Dependency type="compile" scope="test">com.redis:testcontainers-redis</Dependency>
+        <Dependency type="compile" scope="test">com.tngtech.archunit:archunit-junit5</Dependency>
+        <Dependency type="compile" scope="test">org.assertj:assertj-core</Dependency>
+        <Dependency type="compile" scope="test">io.grpc:grpc-testing</Dependency>
+      </Dependencies>
+      <Constraints>
+        <Item>No production dependencies - test scope only</Item>
+        <Item>No service-specific logic - only reusable utilities</Item>
+        <Item>Must not depend on any service implementation modules</Item>
+      </Constraints>
+      <PackageLayout>
+        <Package>com.kanokna.test.containers</Package>
+        <Package>com.kanokna.test.containers.postgres</Package>
+        <Package>com.kanokna.test.containers.kafka</Package>
+        <Package>com.kanokna.test.containers.elasticsearch</Package>
+        <Package>com.kanokna.test.containers.redis</Package>
+        <Package>com.kanokna.test.fixtures</Package>
+        <Package>com.kanokna.test.archunit</Package>
+        <Package>com.kanokna.test.assertions</Package>
+        <Package>com.kanokna.test.grpc</Package>
+      </PackageLayout>
+      <KeyClasses>
+        <Class name="PostgresTestContainer">Singleton PostgreSQL container with Flyway migration support</Class>
+        <Class name="KafkaTestContainer">Singleton Kafka (Redpanda) container with topic auto-creation</Class>
+        <Class name="ElasticsearchTestContainer">Singleton Elasticsearch container with index templates</Class>
+        <Class name="RedisTestContainer">Singleton Redis container</Class>
+        <Class name="HexagonalArchitectureRules">Shared ArchUnit rules for hexagonal layer enforcement</Class>
+        <Class name="GrpcTestChannelBuilder">Utility for building in-process gRPC test channels</Class>
+      </KeyClasses>
+      <Links>
+        <Link ref="Technology.xml#DEC-TEST-SHARED-UTILS" />
+        <Link ref="Technology.xml#TECH-testcontainers" />
+        <Link ref="Technology.xml#TECH-archunit" />
+      </Links>
+    </Service>
+
+    <Service id="DP-SVC-e2e-tests" type="test-module">
+      <Name>e2e-tests</Name>
+      <ArtifactId>e2e-tests</ArtifactId>
+      <Description>
+        End-to-end tests for cross-service flows with full infrastructure.
+        Tests complete business scenarios spanning multiple bounded contexts.
+      </Description>
+      <BoundedContext>testing-infrastructure</BoundedContext>
+      <Responsibilities>
+        <Item>Cross-service flow testing: CPQ flow, order lifecycle, measurement workflow</Item>
+        <Item>Full stack validation with all Testcontainers (PostgreSQL, Kafka, Redis, Elasticsearch)</Item>
+        <Item>Event propagation testing: verify Kafka events flow correctly between services</Item>
+        <Item>Data consistency testing: verify eventual consistency across bounded contexts</Item>
+        <Item>grpcurl-based smoke tests and CLI verification scripts</Item>
+      </Responsibilities>
+      <Dependencies>
+        <Dependency type="test">DP-SVC-test-support</Dependency>
+        <Dependency type="test">DP-SVC-gateway (as test subject)</Dependency>
+        <Dependency type="test">All service modules (started via Docker Compose or embedded)</Dependency>
+      </Dependencies>
+      <TestCategories>
+        <Category id="E2E-CPQ" name="CPQ Flow Tests">
+          <Description>Configure → Price → Quote → Cart flow across catalog, pricing, cart services</Description>
+          <Services>catalog-configuration-service, pricing-service, cart-service</Services>
+        </Category>
+        <Category id="E2E-ORDER" name="Order Lifecycle Tests">
+          <Description>Order creation → payment → fulfillment state transitions</Description>
+          <Services>cart-service, order-service, notification-service</Services>
+        </Category>
+        <Category id="E2E-MEASUREMENT" name="Measurement Flow Tests">
+          <Description>Measurement request → scheduling → results → repricing</Description>
+          <Services>workflow-service, field-ops-service, pricing-service</Services>
+        </Category>
+        <Category id="E2E-SEARCH" name="Search Indexing Tests">
+          <Description>Product changes → Kafka events → Elasticsearch indexing → search results</Description>
+          <Services>catalog-configuration-service, search-service</Services>
+        </Category>
+      </TestCategories>
+      <Execution>
+        <MavenProfile>e2e</MavenProfile>
+        <Command>mvn verify -Pe2e -pl e2e-tests</Command>
+        <CIStage>Post-integration, optional per-commit, mandatory pre-release</CIStage>
+      </Execution>
+      <Links>
+        <Link ref="Technology.xml#DEC-TEST-E2E" />
+        <Link ref="Technology.xml#TECH-testcontainers" />
+      </Links>
+    </Service>
+
+    <!-- ===========================================================================
          INFRASTRUCTURE SERVICES
          =========================================================================== -->
     <Service id="DP-SVC-config-server" type="infrastructure">
@@ -1559,11 +1671,14 @@ billing-service, support-service)
     </Events>
     <ContractTesting>
       <Tools>
-        <Tool>OpenAPI contract validation (spectral)</Tool>
-        <Tool>Protobuf compatibility checks (buf)</Tool>
-        <Tool>Spring Cloud Contract or Pact (optional for consumer-driven contracts)</Tool>
+        <Tool id="CT-OPENAPI">OpenAPI contract validation (spectral)</Tool>
+        <Tool id="CT-PROTOBUF">Protobuf compatibility checks (buf)</Tool>
+        <Tool id="CT-SPRING-CONTRACT">Spring Cloud Contract for consumer-driven contracts</Tool>
       </Tools>
       <Policy>Contract tests run in CI before merge</Policy>
+      <Links>
+        <Link ref="Technology.xml#DEC-TEST-CONTRACTS" />
+      </Links>
     </ContractTesting>
     <Links>
       <Link ref="Technology.xml#TECH-protobuf" />
@@ -1575,6 +1690,9 @@ billing-service, support-service)
        TESTING STRATEGY
        =============================================================================== -->
   <TestingStrategy id="TestingStrategy">
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         TESTING PYRAMID
+         ───────────────────────────────────────────────────────────────────────── -->
     <TestingPyramid>
       <Layer name="Unit" percentage="70">
         <Description>Domain logic, services, validators</Description>
@@ -1582,9 +1700,9 @@ billing-service, support-service)
         <Coverage>80% minimum for domain and application layers</Coverage>
       </Layer>
       <Layer name="Slice" percentage="15">
-        <Description>Layer-specific tests (web, persistence)</Description>
-        <Tools>@WebMvcTest, @DataJpaTest, @JsonTest</Tools>
-        <Scope>Controller request/response, repository queries</Scope>
+        <Description>Layer-specific tests (web, persistence, gRPC)</Description>
+        <Tools>@WebMvcTest, @DataJpaTest, @JsonTest, @GrpcClientTest</Tools>
+        <Scope>Controller request/response, repository queries, gRPC client/server</Scope>
       </Layer>
       <Layer name="Integration" percentage="10">
         <Description>Full stack with real dependencies</Description>
@@ -1593,33 +1711,243 @@ billing-service, support-service)
       </Layer>
       <Layer name="Contract" percentage="5">
         <Description>API and event contract validation</Description>
-        <Tools>OpenAPI validators, Schema Registry compatibility checks</Tools>
+        <Tools>Spring Cloud Contract, OpenAPI validators, buf (Protobuf)</Tools>
         <Scope>Producer/consumer contract alignment</Scope>
       </Layer>
     </TestingPyramid>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         HEXAGONAL LAYER MAPPING (AWO-20260120-01)
+         ───────────────────────────────────────────────────────────────────────── -->
+    <HexagonalLayerMapping>
+      <Description>
+        Maps test types to hexagonal architecture layers. Each layer has specific
+        testing tools, naming conventions, and coverage expectations.
+      </Description>
+
+      <Layer name="domain" package="com.kanokna.{svc}.domain.**">
+        <TestType>Unit tests only (pure Java, no Spring context)</TestType>
+        <Location>src/test/java/{package}/domain/**/*Test.java</Location>
+        <Tools>
+          <Tool>JUnit 5 with @Nested for scenario organization</Tool>
+          <Tool>AssertJ for fluent assertions</Tool>
+          <Tool>Mockito (minimal - domain is mostly pure logic)</Tool>
+        </Tools>
+        <MockingPolicy>
+          Avoid mocking within domain layer. Domain objects should be tested
+          as pure functions with real collaborators. Mock only external interfaces
+          if absolutely necessary.
+        </MockingPolicy>
+        <Examples>
+          <Example service="pricing-service">PriceCalculationServiceTest, DiscountServiceTest</Example>
+          <Example service="cart-service">CartTest, CartItemTest</Example>
+          <Example service="catalog-configuration-service">RuleEvaluatorTest, ValidationResultTest</Example>
+        </Examples>
+      </Layer>
+
+      <Layer name="application" package="com.kanokna.{svc}.application.**">
+        <TestType>Unit tests with mocked driven ports</TestType>
+        <Location>src/test/java/{package}/application/**/*Test.java</Location>
+        <Tools>
+          <Tool>JUnit 5</Tool>
+          <Tool>Mockito for mocking port.out interfaces (repositories, external services)</Tool>
+          <Tool>AssertJ</Tool>
+        </Tools>
+        <MockingPolicy>
+          Mock all driven ports (port.out.*) to isolate application service logic.
+          Verify interactions with ports using Mockito.verify().
+          Do NOT mock domain objects - use real domain instances.
+        </MockingPolicy>
+        <Examples>
+          <Example service="cart-service">AddToCartUseCaseTest, CheckoutUseCaseTest</Example>
+          <Example service="account-service">ProfileServiceTest, AddressServiceTest</Example>
+        </Examples>
+      </Layer>
+
+      <Layer name="adapters.in.grpc" package="com.kanokna.{svc}.adapters.in.grpc.**">
+        <TestType>gRPC integration tests (SpringBootTest + @GrpcClientTest)</TestType>
+        <Location>src/test/java/{package}/*GrpcIntegrationTest.java</Location>
+        <Tools>
+          <Tool>@SpringBootTest with grpc-inprocess channel</Tool>
+          <Tool>@GrpcClientTest for client-side tests</Tool>
+          <Tool>GrpcMock for mocking external gRPC dependencies</Tool>
+        </Tools>
+        <Scope>
+          <Item>Verify Protobuf request/response serialization</Item>
+          <Item>Verify error handling and gRPC status codes</Item>
+          <Item>Verify interceptor behavior (auth, logging, metrics)</Item>
+        </Scope>
+        <Examples>
+          <Example service="search-service">SearchServiceGrpcContractTest</Example>
+          <Example service="pricing-service">PricingServiceGrpcIntegrationTest</Example>
+        </Examples>
+      </Layer>
+
+      <Layer name="adapters.in.web" package="com.kanokna.{svc}.adapters.in.web.**">
+        <TestType>REST/Web integration tests (MockMvc/WebTestClient)</TestType>
+        <Location>src/test/java/{package}/*ControllerTest.java or *RestIntegrationTest.java</Location>
+        <Tools>
+          <Tool>@WebMvcTest for sliced controller tests</Tool>
+          <Tool>MockMvc for synchronous request/response testing</Tool>
+          <Tool>WebTestClient for reactive/gateway tests</Tool>
+        </Tools>
+        <Scope>
+          <Item>Verify request/response JSON serialization</Item>
+          <Item>Verify input validation (@Valid) error responses</Item>
+          <Item>Verify authentication/authorization behavior</Item>
+        </Scope>
+      </Layer>
+
+      <Layer name="adapters.out.persistence" package="com.kanokna.{svc}.adapters.out.persistence.**">
+        <TestType>Repository integration tests with Testcontainers</TestType>
+        <Location>src/test/java/{package}/adapters/out/persistence/*RepositoryIT.java</Location>
+        <Tools>
+          <Tool>@DataJpaTest for sliced persistence tests</Tool>
+          <Tool>@SpringBootTest for full context persistence tests</Tool>
+          <Tool>Testcontainers (PostgreSQL) via test-support module</Tool>
+          <Tool>Flyway for schema migration in tests</Tool>
+        </Tools>
+        <Scope>
+          <Item>Verify custom JPQL/native queries</Item>
+          <Item>Verify entity mappings and cascade behavior</Item>
+          <Item>Verify transaction boundaries</Item>
+        </Scope>
+        <Examples>
+          <Example service="cart-service">CartRepositoryIT</Example>
+          <Example service="search-service">ElasticsearchIntegrationTest</Example>
+        </Examples>
+      </Layer>
+
+      <Layer name="adapters.out.grpc" package="com.kanokna.{svc}.adapters.out.grpc.**">
+        <TestType>Outbound gRPC client tests (mocked servers)</TestType>
+        <Location>src/test/java/{package}/adapters/out/grpc/*ClientTest.java</Location>
+        <Tools>
+          <Tool>grpc-testing with in-process mock servers</Tool>
+          <Tool>GrpcMock for declarative stub configuration</Tool>
+        </Tools>
+        <Scope>
+          <Item>Verify client correctly maps domain to Protobuf requests</Item>
+          <Item>Verify client correctly maps Protobuf responses to domain</Item>
+          <Item>Verify error handling for gRPC failures (UNAVAILABLE, DEADLINE_EXCEEDED)</Item>
+        </Scope>
+      </Layer>
+
+      <Layer name="adapters.out.kafka" package="com.kanokna.{svc}.adapters.out.kafka.**">
+        <TestType>Kafka integration tests with Testcontainers</TestType>
+        <Location>src/test/java/{package}/adapters/out/kafka/*KafkaIT.java</Location>
+        <Tools>
+          <Tool>Testcontainers (Kafka/Redpanda) via test-support module</Tool>
+          <Tool>@EmbeddedKafka for lighter-weight tests</Tool>
+        </Tools>
+        <Scope>
+          <Item>Verify event serialization (Protobuf)</Item>
+          <Item>Verify topic routing</Item>
+          <Item>Verify idempotent consumer behavior</Item>
+        </Scope>
+      </Layer>
+    </HexagonalLayerMapping>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         NAMING CONVENTIONS
+         ───────────────────────────────────────────────────────────────────────── -->
+    <NamingConventions>
+      <Convention pattern="*Test.java" runner="surefire" phase="test">
+        Unit tests - domain and application layer, ArchUnit rules
+      </Convention>
+      <Convention pattern="*IT.java" runner="failsafe" phase="integration-test">
+        Integration tests - persistence, Kafka, external services
+      </Convention>
+      <Convention pattern="*GrpcIntegrationTest.java" runner="failsafe" phase="integration-test">
+        gRPC integration tests - client/server communication
+      </Convention>
+      <Convention pattern="*ContractTest.java" runner="failsafe" phase="integration-test">
+        Contract tests - Spring Cloud Contract verifier
+      </Convention>
+      <Convention pattern="*E2ETest.java" runner="failsafe" phase="verify" profile="e2e">
+        End-to-end tests - full stack with all infrastructure (e2e-tests module)
+      </Convention>
+      <Convention pattern="ArchitectureTest.java" runner="surefire" phase="test">
+        Architecture tests - ArchUnit hexagonal layer enforcement
+      </Convention>
+    </NamingConventions>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         CI PIPELINE INTEGRATION
+         ───────────────────────────────────────────────────────────────────────── -->
+    <CIPipelineIntegration>
+      <Stage order="1" phase="test" plugin="surefire">
+        <Name>Unit Tests</Name>
+        <Includes>*Test.java, ArchitectureTest.java</Includes>
+        <FailBuild>true</FailBuild>
+      </Stage>
+      <Stage order="2" phase="verify" plugin="failsafe">
+        <Name>Integration Tests</Name>
+        <Includes>*IT.java, *GrpcIntegrationTest.java</Includes>
+        <RequiresTestcontainers>true</RequiresTestcontainers>
+        <FailBuild>true</FailBuild>
+      </Stage>
+      <Stage order="3" phase="verify" plugin="failsafe">
+        <Name>Contract Tests</Name>
+        <Includes>*ContractTest.java</Includes>
+        <FailBuild>true</FailBuild>
+      </Stage>
+      <Stage order="4" phase="verify" plugin="jacoco">
+        <Name>Coverage Report</Name>
+        <Thresholds>
+          <Line minimum="0.80">80% line coverage</Line>
+          <Branch minimum="0.70">70% branch coverage</Branch>
+        </Thresholds>
+        <FailBuild>true</FailBuild>
+      </Stage>
+      <Stage order="5" phase="verify" profile="e2e" optional="true">
+        <Name>E2E Tests</Name>
+        <Module>e2e-tests</Module>
+        <Includes>*E2ETest.java</Includes>
+        <CITrigger>Manual or pre-release only</CITrigger>
+        <FailBuild>true</FailBuild>
+      </Stage>
+    </CIPipelineIntegration>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────
+         ADDITIONAL TESTING
+         ───────────────────────────────────────────────────────────────────────── -->
     <AdditionalTesting>
       <ArchitectureTests>
         <Tool>ArchUnit</Tool>
+        <Location>Each service: src/test/java/.../ArchitectureTest.java</Location>
+        <SharedRules>test-support module: HexagonalArchitectureRules.java</SharedRules>
         <Rules>
-          <Rule>Domain layer has no Spring/JPA dependencies</Rule>
-          <Rule>Application layer has no adapter dependencies</Rule>
-          <Rule>Adapters implement port interfaces</Rule>
-          <Rule>No cyclic dependencies between packages</Rule>
+          <Rule id="ARCH-001">Domain layer has no Spring/JPA dependencies</Rule>
+          <Rule id="ARCH-002">Application layer has no adapter dependencies</Rule>
+          <Rule id="ARCH-003">Adapters implement port interfaces</Rule>
+          <Rule id="ARCH-004">No cyclic dependencies between packages</Rule>
+          <Rule id="ARCH-005">gRPC generated stubs confined to adapters packages</Rule>
         </Rules>
       </ArchitectureTests>
       <MutationTesting enabled="optional">
         <Tool>Pitest</Tool>
         <Scope>Critical domain logic (pricing, configuration validation)</Scope>
+        <CITrigger>Weekly scheduled job, not per-commit</CITrigger>
       </MutationTesting>
       <PerformanceTesting>
-        <Tool>Gatling or k6</Tool>
+        <Tool>Gatling (preferred) or k6</Tool>
         <Scope>Load testing for P95 latency validation</Scope>
+        <CITrigger>Pre-release gate</CITrigger>
       </PerformanceTesting>
     </AdditionalTesting>
+
     <Links>
       <Link ref="RequirementsAnalysis.xml#NFR-MAINT-TESTABILITY" />
       <Link ref="Technology.xml#TECH-testcontainers" />
       <Link ref="Technology.xml#TECH-archunit" />
+      <Link ref="Technology.xml#DEC-TEST-UNIT" />
+      <Link ref="Technology.xml#DEC-TEST-GRPC-INTEGRATION" />
+      <Link ref="Technology.xml#DEC-TEST-GATEWAY" />
+      <Link ref="Technology.xml#DEC-TEST-E2E" />
+      <Link ref="Technology.xml#DEC-TEST-CONTRACTS" />
+      <Link ref="Technology.xml#DEC-TEST-COVERAGE" />
+      <Link ref="DevelopmentPlan.xml#DP-SVC-test-support" />
+      <Link ref="DevelopmentPlan.xml#DP-SVC-e2e-tests" />
     </Links>
   </TestingStrategy>
 
