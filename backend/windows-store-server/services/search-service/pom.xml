@@ -19,7 +19,7 @@
     <properties>
         <elasticsearch.client.version>9.2.1</elasticsearch.client.version>
         <confluent.version>7.6.0</confluent.version>
-        <redisson.version>3.27.2</redisson.version>
+        <redisson.version>4.1.0</redisson.version>
     </properties>
 
     <dependencies>
