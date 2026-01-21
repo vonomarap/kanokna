@@ -1,5 +1,7 @@
 package com.kanokna.cart.domain.exception;
 
+import com.kanokna.shared.core.DomainException;
+
 /**
  * MODULE_CONTRACT id="MC-cart-domain-errors"
  * LAYER="domain.exception"
@@ -10,11 +12,10 @@ package com.kanokna.cart.domain.exception;
  * All cart-specific exceptions extend this class to provide
  * consistent error handling and structured error codes.
  */
-public class CartDomainException extends RuntimeException {
+public class CartDomainException extends DomainException {
 
     private static final long serialVersionUID = 1L;
 
-    private final String errorCode;
 
     /**
      * Creates a CartDomainException with error code and message.
@@ -23,8 +24,7 @@ public class CartDomainException extends RuntimeException {
      * @param message   human-readable error message
      */
     public CartDomainException(String errorCode, String message) {
-        super(message);
-        this.errorCode = errorCode;
+        super(errorCode, message);
     }
 
     /**
@@ -35,8 +35,7 @@ public class CartDomainException extends RuntimeException {
      * @param cause     underlying cause
      */
     public CartDomainException(String errorCode, String message, Throwable cause) {
-        super(message, cause);
-        this.errorCode = errorCode;
+        super(errorCode, message, cause);
     }
 
     /**
@@ -45,11 +44,11 @@ public class CartDomainException extends RuntimeException {
      * @return error code string
      */
     public String getErrorCode() {
-        return errorCode;
+        return getCode();
     }
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "{errorCode='" + errorCode + "', message='" + getMessage() + "'}";
+        return getClass().getSimpleName() + "{errorCode='" + getCode() + "', message='" + getMessage() + "'}";
     }
 }

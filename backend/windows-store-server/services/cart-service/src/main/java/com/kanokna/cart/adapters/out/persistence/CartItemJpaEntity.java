@@ -13,6 +13,8 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "cart_items", schema = "cart")
@@ -37,6 +39,7 @@ public class CartItemJpaEntity {
     @Column(name = "thumbnail_url")
     private String thumbnailUrl;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "configuration_snapshot", nullable = false, columnDefinition = "jsonb")
     private String configurationSnapshot;
 
