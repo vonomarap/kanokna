@@ -1,11 +1,12 @@
 package com.kanokna.account.adapters.config;
 
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.validation.annotation.Validated;
 
 /**
  * Configuration properties for account-service using immutable record pattern.
@@ -22,8 +23,7 @@ public record AccountProperties(
      * Compact constructor providing null-safe defaults.
      */
     public AccountProperties {
-        autoCreateProfile = autoCreateProfile;  // primitive, always has value
-        maxAddressesPerUser = maxAddressesPerUser > 0 ? maxAddressesPerUser : 100;
+        maxAddressesPerUser = maxAddressesPerUser > 0 ? maxAddressesPerUser : 10;
         savedConfigurations = savedConfigurations != null ? savedConfigurations
             : new SavedConfigurations(50, "Config {timestamp}");
         defaults = defaults != null ? defaults
