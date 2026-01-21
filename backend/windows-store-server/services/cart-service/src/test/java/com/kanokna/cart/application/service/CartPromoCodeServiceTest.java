@@ -28,13 +28,12 @@ class CartPromoCodeServiceTest {
     @Mock
     private PricingPort pricingPort;
 
-    @Mock
-    private CartTotalsCalculator totalsCalculator;
-
     private CartPromoCodeService promoCodeService;
+    private CartTotalsCalculator totalsCalculator;
 
     @BeforeEach
     void setUp() {
+        totalsCalculator = new CartTotalsCalculator();
         promoCodeService = new CartPromoCodeService(pricingPort, totalsCalculator);
     }
 

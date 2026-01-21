@@ -144,6 +144,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.kanokna</groupId>
+            <artifactId>test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
             <scope>test</scope>

@@ -22,28 +22,23 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.kanokna.cart.domain.model.CartStatus;
 import com.kanokna.cart.domain.model.ValidationStatus;
+import com.kanokna.test.containers.postgres.PostgresTestContainer;
+import com.kanokna.test.containers.postgres.PostgresTestContainer.PostgresSettings;
 
 @EnabledIf(value = "com.kanokna.cart.support.DockerAvailability#isDockerAvailable", disabledReason = "Docker is not available, skipping Testcontainers integration tests")
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
 class CartJpaRepositoryTest {
+    private static final String CART_SCHEMA = "cart";
+
     @Container
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-            .withDatabaseName("cart")
-            .withUsername("test")
-            .withPassword("test");
+    static final PostgreSQLContainer<?> postgres = PostgresTestContainer.instance().container();
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
-        registry.add("spring.jpa.properties.hibernate.default_schema", () -> "cart");
-        registry.add("spring.flyway.enabled", () -> "true");
-        registry.add("spring.flyway.schemas", () -> "cart");
-        registry.add("spring.cloud.config.enabled", () -> "false");
+        PostgresTestContainer.instance()
+            .registerProperties(registry, PostgresSettings.withSchema(CART_SCHEMA));
     }
 
     @Autowired

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE BranchSpec: Configuration Properties Pattern Refactor
+  Handoff Reference: Handoff-20260117-04-W1-CONFIG-PATTERN
+  CWO Reference: CWO-20260117-04-CONFIG-PATTERN.xml
+  Created: 2026-01-21T10:00:00+03:00
+  CreatedBy: GRACE-COORDINATOR
+  Note: Retroactive BranchSpec for approved work
+-->
+<BRANCH_SPEC id="BS-20260117-04" status="ISSUED">
+  <ChangeClassification>chore</ChangeClassification>
+  <BranchName>chore/W1-config-pattern</BranchName>
+  <BaseBranch>develop</BaseBranch>
+  <PRTarget>develop</PRTarget>
+  <PreferredMergeMethod>squash</PreferredMergeMethod>
+  <RequiresBackMergeToDevelop>false</RequiresBackMergeToDevelop>
+
+  <PR>
+    <TitleTemplate>[W1-CONFIG] Refactor *Properties to immutable record pattern</TitleTemplate>
+    <BodyMustInclude>
+      <Item>HandoffRef: Handoff-20260117-04-W1-CONFIG-PATTERN</Item>
+      <Item>Decision: DEC-CONFIG-PROPERTIES-PATTERN</Item>
+      <Item>Services: cart-service, account-service, search-service</Item>
+      <Item>CodeReview: CodeReviewReport-20260118-01-account-service.xml</Item>
+      <Item>Fixes: FIND-QUAL-0002 (no-op assignment), FIND-QUAL-0007 (default mismatch)</Item>
+    </BodyMustInclude>
+  </PR>
+
+  <Scope>
+    <Description>
+      Refactor *Properties.java classes from legacy mutable JavaBean pattern to
+      Spring Boot 4.0 recommended immutable record pattern. Includes fixes from
+      code review findings.
+    </Description>
+    <Services>
+      <ServiceRef ref="DP-SVC-cart-service"/>
+      <ServiceRef ref="DP-SVC-account-service"/>
+      <ServiceRef ref="DP-SVC-search-service"/>
+    </Services>
+    <CodeReviewFindings>
+      <Finding ref="FIND-QUAL-0002" action="FIX">Remove no-op assignment in AccountProperties:25</Finding>
+      <Finding ref="FIND-QUAL-0007" action="FIX">Align maxAddressesPerUser default (100 → 10)</Finding>
+    </CodeReviewFindings>
+  </Scope>
+
+  <Safety>
+    <Item>No direct pushes to main/develop</Item>
+    <Item>No force-push</Item>
+    <Item>One branch == one task scope</Item>
+  </Safety>
+
+  <CoordinatorNotes>
+    <Note>This BranchSpec is created retroactively - work was approved on 2026-01-17</Note>
+    <Note>Code review identified issues that should be fixed before merge</Note>
+    <Note>Separate from chore/W0-testing-strategy branch scope</Note>
+  </CoordinatorNotes>
+</BRANCH_SPEC>

@@ -2,6 +2,8 @@ package com.kanokna.search.adapters.in.web;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,7 +15,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -34,34 +35,37 @@ class AdminSearchControllerTest {
     private ReindexCatalogUseCase reindexCatalogUseCase;
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-FUNC-REINDEX-001: reindex_withAdminRole_startsReindex")
     void reindex_withAdminRole_startsReindex() throws Exception {
         when(reindexCatalogUseCase.reindexCatalog(any()))
             .thenReturn(new ReindexResult("product_templates_v2", 12, 1200));
 
-        mockMvc.perform(post("/api/admin/search/reindex"))
+        mockMvc.perform(post("/api/admin/search/reindex")
+                .with(user("admin").roles("ADMIN"))
+                .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.newIndexName").value("product_templates_v2"))
             .andExpect(jsonPath("$.documentCount").value(12));
     }
 
     @Test
-    @WithMockUser(roles = "USER")
     @DisplayName("TC-FUNC-REINDEX-006: reindex_withoutAdminRole_returns403")
     void reindex_withoutAdminRole_returns403() throws Exception {
-        mockMvc.perform(post("/api/admin/search/reindex"))
+        mockMvc.perform(post("/api/admin/search/reindex")
+                .with(user("user").roles("USER"))
+                .with(csrf()))
             .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-FUNC-REINDEX-003: reindex_lockInProgress_returns409Conflict")
     void reindex_lockInProgress_returns409Conflict() throws Exception {
         when(reindexCatalogUseCase.reindexCatalog(any()))
             .thenThrow(new DomainException("ERR-REINDEX-IN-PROGRESS", "lock held"));
 
-        mockMvc.perform(post("/api/admin/search/reindex"))
+        mockMvc.perform(post("/api/admin/search/reindex")
+                .with(user("admin").roles("ADMIN"))
+                .with(csrf()))
             .andExpect(status().isConflict());
     }
 
