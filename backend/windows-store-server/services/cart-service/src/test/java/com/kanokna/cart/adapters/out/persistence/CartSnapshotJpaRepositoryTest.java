@@ -11,6 +11,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import com.kanokna.test.containers.postgres.PostgresTestContainer;
+import com.kanokna.test.containers.postgres.PostgresTestContainer.PostgresSettings;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -27,22 +29,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
 class CartSnapshotJpaRepositoryTest {
+    private static final String CART_SCHEMA = "cart";
+
     @Container
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-        .withDatabaseName("cart")
-        .withUsername("test")
-        .withPassword("test");
+    static final PostgreSQLContainer<?> postgres = PostgresTestContainer.instance().container();
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
-        registry.add("spring.jpa.properties.hibernate.default_schema", () -> "cart");
-        registry.add("spring.flyway.enabled", () -> "true");
-        registry.add("spring.flyway.schemas", () -> "cart");
-        registry.add("spring.cloud.config.enabled", () -> "false");
+        PostgresTestContainer.instance()
+            .registerProperties(registry, PostgresSettings.withSchema(CART_SCHEMA));
     }
 
     @Autowired

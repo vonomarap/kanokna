@@ -124,7 +124,7 @@ mvn test -pl catalog-configuration-service
 mvn test -pl catalog-configuration-service -Dtest=*Test
 
 # Run only integration tests
-mvn verify -pl catalog-configuration-service -Dtest=*IntegrationTest
+mvn verify -pl catalog-configuration-service -Dtest=*IT
 
 # Run ArchUnit tests
 mvn test -pl catalog-configuration-service -Dtest=ArchitectureTest

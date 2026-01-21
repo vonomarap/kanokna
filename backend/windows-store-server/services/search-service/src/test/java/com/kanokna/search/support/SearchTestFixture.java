@@ -16,8 +16,8 @@ import com.kanokna.shared.i18n.Language;
 import com.kanokna.shared.i18n.LocalizedString;
 import com.kanokna.shared.money.Currency;
 import com.kanokna.shared.money.Money;
+import com.kanokna.test.fixtures.SearchFixtureDefaults;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -27,24 +27,24 @@ public final class SearchTestFixture {
 
     public static CatalogProductEvent catalogProductEvent(String productId, ProductStatus status) {
         return new CatalogProductEvent(
-            "event-" + productId,
-            "PRODUCT_TEMPLATE_PUBLISHED",
+            SearchFixtureDefaults.EVENT_ID_PREFIX + productId,
+            SearchFixtureDefaults.EVENT_TYPE_PUBLISHED,
             productId,
-            "Window " + productId,
-            "Description " + productId,
-            "WINDOW",
-            "REHAU",
-            List.of("TILT"),
-            List.of("PVC"),
-            List.of("WHITE"),
-            Money.ofMinor(100_00, Currency.RUB),
-            Money.ofMinor(250_00, Currency.RUB),
+            SearchFixtureDefaults.PRODUCT_NAME_PREFIX + productId,
+            SearchFixtureDefaults.PRODUCT_DESCRIPTION_PREFIX + productId,
+            SearchFixtureDefaults.PRODUCT_FAMILY,
+            SearchFixtureDefaults.PROFILE_SYSTEM,
+            List.of(SearchFixtureDefaults.OPENING_TYPE),
+            List.of(SearchFixtureDefaults.MATERIAL),
+            List.of(SearchFixtureDefaults.COLOR),
+            Money.ofMinor(SearchFixtureDefaults.MIN_PRICE_MINOR, Currency.RUB),
+            Money.ofMinor(SearchFixtureDefaults.MAX_PRICE_MINOR, Currency.RUB),
             status,
-            "http://example.com/" + productId + ".png",
-            5,
-            3,
-            Instant.now(),
-            Instant.now()
+            SearchFixtureDefaults.THUMBNAIL_BASE_URL + productId + ".png",
+            SearchFixtureDefaults.POPULARITY,
+            SearchFixtureDefaults.OPTION_GROUP_COUNT,
+            SearchFixtureDefaults.now(),
+            SearchFixtureDefaults.now()
         );
     }
 
@@ -58,24 +58,24 @@ public final class SearchTestFixture {
 
     public static ProductSearchDocument productDocument(String productId, ProductStatus status) {
         return ProductSearchDocument.builder(productId)
-            .name(LocalizedString.of(Language.RU, "Window " + productId))
-            .description(LocalizedString.of(Language.RU, "Description " + productId))
-            .family("WINDOW")
-            .profileSystem("REHAU")
-            .openingTypes(List.of("TILT"))
-            .materials(List.of("PVC"))
-            .colors(List.of("WHITE"))
-            .minPrice(Money.ofMinor(100_00, Currency.RUB))
-            .maxPrice(Money.ofMinor(250_00, Currency.RUB))
-            .currency("RUB")
-            .popularity(10)
+            .name(LocalizedString.of(Language.RU, SearchFixtureDefaults.PRODUCT_NAME_PREFIX + productId))
+            .description(LocalizedString.of(Language.RU, SearchFixtureDefaults.PRODUCT_DESCRIPTION_PREFIX + productId))
+            .family(SearchFixtureDefaults.PRODUCT_FAMILY)
+            .profileSystem(SearchFixtureDefaults.PROFILE_SYSTEM)
+            .openingTypes(List.of(SearchFixtureDefaults.OPENING_TYPE))
+            .materials(List.of(SearchFixtureDefaults.MATERIAL))
+            .colors(List.of(SearchFixtureDefaults.COLOR))
+            .minPrice(Money.ofMinor(SearchFixtureDefaults.MIN_PRICE_MINOR, Currency.RUB))
+            .maxPrice(Money.ofMinor(SearchFixtureDefaults.MAX_PRICE_MINOR, Currency.RUB))
+            .currency(SearchFixtureDefaults.CURRENCY_CODE)
+            .popularity(SearchFixtureDefaults.DOCUMENT_POPULARITY)
             .status(status)
-            .publishedAt(Instant.now())
-            .thumbnailUrl("http://example.com/" + productId + ".png")
-            .optionCount(2)
-            .suggestInputs(List.of("Window " + productId))
-            .score(1.0f)
-            .highlights(Map.of("name", "<em>Window</em>"))
+            .publishedAt(SearchFixtureDefaults.now())
+            .thumbnailUrl(SearchFixtureDefaults.THUMBNAIL_BASE_URL + productId + ".png")
+            .optionCount(SearchFixtureDefaults.OPTION_COUNT)
+            .suggestInputs(List.of(SearchFixtureDefaults.PRODUCT_NAME_PREFIX + productId))
+            .score(SearchFixtureDefaults.SCORE)
+            .highlights(Map.of("name", SearchFixtureDefaults.HIGHLIGHT_NAME))
             .build();
     }
 
@@ -85,9 +85,9 @@ public final class SearchTestFixture {
             documents.size(),
             page,
             pageSize,
-            1,
+            SearchFixtureDefaults.TOTAL_PAGES,
             List.of(),
-            12
+            SearchFixtureDefaults.QUERY_TIME_MS
         );
     }
 
@@ -105,6 +105,12 @@ public final class SearchTestFixture {
     }
 
     public static Suggestion suggestion(String text, String productId) {
-        return new Suggestion(text, SuggestionType.PRODUCT, productId, 1, text);
+        return new Suggestion(
+            text,
+            SuggestionType.PRODUCT,
+            productId,
+            SearchFixtureDefaults.SUGGESTION_WEIGHT,
+            text
+        );
     }
 }

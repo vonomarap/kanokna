@@ -1,16 +1,12 @@
 package com.kanokna.account;
 
+import com.kanokna.test.archunit.HexagonalArchitectureRules;
 import com.tngtech.archunit.core.domain.JavaClasses;
-import com.tngtech.archunit.core.importer.ClassFileImporter;
-import com.tngtech.archunit.core.importer.ImportOption;
-import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
  * ArchUnit tests enforcing hexagonal architecture boundaries.
@@ -26,59 +22,54 @@ class ArchitectureTest {
             "ArchUnit does not support Java " + javaFeature
         );
 
-        importedClasses = new ClassFileImporter()
-            .withImportOption(new ImportOption.DoNotIncludeTests())
-            .withImportOption(location -> !location.contains("api-contracts"))
-            .importPackages("com.kanokna.account");
+        importedClasses = HexagonalArchitectureRules.importClasses("com.kanokna.account");
     }
 
     @Test
     @DisplayName("Domain layer should not depend on Spring Framework")
     void domainLayerShouldNotDependOnSpring() {
-        ArchRule rule = noClasses()
-            .that().resideInAPackage("..domain..")
-            .should().dependOnClassesThat().resideInAPackage("org.springframework..");
-
-        rule.check(importedClasses);
+        HexagonalArchitectureRules.domainShouldNotDependOnSpring().check(importedClasses);
     }
 
     @Test
     @DisplayName("Domain layer should not depend on JPA")
     void domainLayerShouldNotDependOnJPA() {
-        ArchRule rule = noClasses()
-            .that().resideInAPackage("..domain..")
-            .should().dependOnClassesThat().resideInAPackage("jakarta.persistence..");
-
-        rule.check(importedClasses);
+        HexagonalArchitectureRules.domainShouldNotDependOnJpa().check(importedClasses);
     }
 
     @Test
     @DisplayName("Domain layer should not depend on Jackson")
     void domainLayerShouldNotDependOnJackson() {
-        ArchRule rule = noClasses()
-            .that().resideInAPackage("..domain..")
-            .should().dependOnClassesThat().resideInAPackage("com.fasterxml.jackson..");
-
-        rule.check(importedClasses);
+        HexagonalArchitectureRules.domainShouldNotDependOnJackson().check(importedClasses);
     }
 
     @Test
     @DisplayName("Application layer should not depend on adapters")
     void applicationShouldNotDependOnAdapters() {
-        ArchRule rule = noClasses()
-            .that().resideInAPackage("..application..")
-            .should().dependOnClassesThat().resideInAPackage("..adapters..");
-
-        rule.check(importedClasses);
+        HexagonalArchitectureRules.applicationShouldNotDependOnAdapters().check(importedClasses);
     }
 
     @Test
     @DisplayName("JPA entities should reside only in adapters.out.persistence")
     void jpaEntitiesOnlyInAdapters() {
-        ArchRule rule = classes()
-            .that().haveNameMatching(".*JpaEntity")
-            .should().resideInAPackage("..adapters.out.persistence..");
+        HexagonalArchitectureRules.jpaEntitiesOnlyInAdapters().check(importedClasses);
+    }
 
-        rule.check(importedClasses);
+    @Test
+    @DisplayName("Adapters should implement port interfaces")
+    void adaptersImplementPorts() {
+        HexagonalArchitectureRules.adaptersShouldImplementPorts().check(importedClasses);
+    }
+
+    @Test
+    @DisplayName("No cyclic dependencies between packages")
+    void noPackageCycles() {
+        HexagonalArchitectureRules.noPackageCycles("com.kanokna.account").check(importedClasses);
+    }
+
+    @Test
+    @DisplayName("gRPC stubs should only be referenced by adapters")
+    void grpcStubsOnlyUsedByAdapters() {
+        HexagonalArchitectureRules.grpcStubsOnlyUsedByAdapters().check(importedClasses);
     }
 }
