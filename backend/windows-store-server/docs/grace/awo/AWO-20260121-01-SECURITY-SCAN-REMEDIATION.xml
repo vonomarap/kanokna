@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Architect Work Order: GitHub Security Scan Remediation
+  Created: 2026-01-21T12:00:00+03:00
+  CreatedBy: GRACE-COORDINATOR
+  Status: PROPOSED
+-->
+<ARCHITECT_WORK_ORDER id="AWO-20260121-01" status="COMPLETED">
+  <Task>
+    <WaveRef>W1</WaveRef>
+    <TaskRef>W1-SECURITY-SCAN</TaskRef>
+    <UserRequest>Fix code scanning errors in GitHub security</UserRequest>
+    <PrimaryGoal>
+      Remediate HIGH severity security alerts (CSRF, Log Injection) and address
+      code quality alerts from GitHub CodeQL analysis. Configure CodeQL to exclude
+      generated protobuf sources.
+    </PrimaryGoal>
+  </Task>
+
+  <KnownArtifacts>
+    <Artifact name="RequirementsAnalysis.xml" provided="yes"/>
+    <Artifact name="Technology.xml" provided="yes"/>
+    <Artifact name="DevelopmentPlan.xml" provided="yes"/>
+  </KnownArtifacts>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ALERT INVENTORY (from GitHub Code Scanning)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AlertInventory>
+    <Category name="HIGH SEVERITY - Security">
+      <Alert id="CSRF-001" rule="java/spring-disabled-csrf-protection" severity="HIGH" count="8">
+        <Description>Disabled Spring CSRF protection</Description>
+        <Locations>
+          <File path="config-server/src/main/java/.../SecurityConfig.java" line="65"/>
+          <File path="gateway/src/main/java/.../SecurityConfig.java" line="83"/>
+          <File path="services/pricing-service/src/main/java/.../SecurityConfig.java" line="22"/>
+          <File path="services/account-service/src/main/java/.../SecurityConfig.java" line="20"/>
+          <File path="services/cart-service/src/main/java/.../SecurityConfig.java" line="20"/>
+          <File path="services/catalog-configuration-service/src/main/java/.../SecurityConfig.java" line="22"/>
+          <File path="services/search-service/src/main/java/.../SecurityConfig.java" line="21"/>
+        </Locations>
+        <Context>
+          CSRF is intentionally disabled because all services use stateless JWT-based authentication.
+          Browser-based form submissions are not used. This is a documented architectural decision
+          that needs to be recorded in Technology.xml and the CodeQL alert suppressed or documented.
+        </Context>
+      </Alert>
+
+      <Alert id="LOG-INJ-001" rule="java/log-injection" severity="HIGH" count="2">
+        <Description>Log Injection vulnerability</Description>
+        <Locations>
+          <File path="services/pricing-service/src/main/java/.../PriceCalculationUseCaseService.java" line="110"/>
+          <File path="services/pricing-service/src/main/java/.../PriceCalculationUseCaseService.java" line="203"/>
+        </Locations>
+        <Context>
+          User-provided data (productTemplateId, promoCode) is logged without sanitization.
+          Malicious input could inject newlines or ANSI escape sequences to manipulate logs.
+          Requires sanitization strategy decision and implementation.
+        </Context>
+      </Alert>
+    </Category>
+
+    <Category name="CODE QUALITY - Non-Security">
+      <Alert id="NULL-001" rule="java/dereferenced-value-may-be-null" count="1">
+        <File path="services/account-service/src/main/java/.../AddressService.java" line="186"/>
+      </Alert>
+      <Alert id="SWITCH-001" rule="java/missing-case-in-switch" count="1">
+        <File path="services/search-service/src/main/java/.../ElasticsearchSearchRepository.java" line="316"/>
+      </Alert>
+      <Alert id="UNREAD-001" rule="java/local-variable-is-never-read" count="1">
+        <File path="services/cart-service/src/main/java/.../CartPricingService.java" line="152"/>
+      </Alert>
+      <Alert id="NFE-001" rule="java/uncaught-number-format-exception" count="5">
+        <File path="services/catalog-configuration-service/src/main/java/.../BomResolutionService.java" lines="131,134,136"/>
+      </Alert>
+      <Alert id="UNUSED-001" rule="java/unused-parameter" count="~20">
+        <Description>Unused parameters in various services (grpc clients, repositories, exception handlers)</Description>
+      </Alert>
+      <Alert id="DEPRECATED-001" rule="java/deprecated-call" count="1">
+        <File path="services/search-service/src/main/java/.../JacksonConfig.java" line="30"/>
+      </Alert>
+    </Category>
+
+    <Category name="GENERATED CODE - Excluded">
+      <Alert id="GENERATED-001" rule="java/missing-override-annotation" count="1000+">
+        <Description>All in api-contracts/target/generated-sources/protobuf/**</Description>
+        <Resolution>Configure CodeQL to exclude generated sources</Resolution>
+      </Alert>
+    </Category>
+  </AlertInventory>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       SCOPE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <Scope>
+    <Services>
+      <ServiceRef ref="DP-SVC-pricing-service" note="Log injection fix"/>
+      <ServiceRef ref="DP-SVC-account-service" note="Null deref fix, CSRF doc"/>
+      <ServiceRef ref="DP-SVC-cart-service" note="Unread var fix, CSRF doc"/>
+      <ServiceRef ref="DP-SVC-search-service" note="Switch case fix, deprecated call fix, CSRF doc"/>
+      <ServiceRef ref="DP-SVC-catalog-configuration-service" note="NFE handling, CSRF doc"/>
+      <ServiceRef ref="DP-SVC-gateway" note="CSRF doc"/>
+      <ServiceRef ref="DP-SVC-config-server" note="CSRF doc"/>
+      <ServiceRef ref="DP-SVC-shared-kernel" note="Add LogSanitizer utility"/>
+    </Services>
+    <UseCases>
+      <UseCaseRef ref="NFR-SEC-VULNERABILITY-SCAN"/>
+      <UseCaseRef ref="NFR-SEC-AUTHENTICATION"/>
+    </UseCases>
+    <Infrastructure>
+      <Item>.github/codeql-config.yml - CodeQL exclusion configuration</Item>
+      <Item>.github/workflows/codeql.yml - Reference new config</Item>
+    </Infrastructure>
+  </Scope>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       REQUIRED OUTPUTS
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <RequiredOutputs>
+    <Artifacts>
+      <RequirementsAnalysisUpdates>
+        <Item>Verify NFR-SEC-VULNERABILITY-SCAN covers CodeQL configuration</Item>
+      </RequirementsAnalysisUpdates>
+
+      <TechnologyUpdates>
+        <Item>DEC-SEC-CSRF-STATELESS: Document CSRF disabled for stateless JWT APIs (APPROVED)</Item>
+        <Item>DEC-SEC-LOG-SANITIZATION: Define log sanitization strategy (OWASP Encoder vs SLF4J MDC)</Item>
+        <Item>DEC-SEC-CODEQL-EXCLUSIONS: Define CodeQL exclusion patterns for generated code</Item>
+      </TechnologyUpdates>
+
+      <DevelopmentPlanUpdates>
+        <Item>Add security scanning configuration section if missing</Item>
+        <Item>Reference DEC-SEC-* decisions</Item>
+      </DevelopmentPlanUpdates>
+    </Artifacts>
+
+    <Decisions>
+      <Item>Record DEC-SEC-CSRF-STATELESS in Technology.xml explaining why CSRF is disabled</Item>
+      <Item>Record DEC-SEC-LOG-SANITIZATION choosing sanitization approach</Item>
+      <Item>Record DEC-SEC-CODEQL-EXCLUSIONS for generated code paths</Item>
+      <Item>No OR ambiguity - all decisions must have single chosen approach</Item>
+    </Decisions>
+
+    <Contracts>
+      <ModuleContracts count="1">
+        <Item>MC-shared-kernel-logging-LogSanitizer - if sanitizer utility added to shared-kernel</Item>
+      </ModuleContracts>
+      <FunctionContracts count="2">
+        <Item>FC-logging-sanitize - LogSanitizer.sanitize() function</Item>
+        <Item>FC-logging-sanitizeForLog - Alternative parameterized logging pattern</Item>
+      </FunctionContracts>
+      <BlockAnchors count="0">
+        <Note>Existing block anchors sufficient; fixes are localized</Note>
+      </BlockAnchors>
+      <TestCases count="3-4">
+        <Item>TC-LOG-SANITIZE-001: Verify newline injection is sanitized</Item>
+        <Item>TC-LOG-SANITIZE-002: Verify ANSI escape sequences are sanitized</Item>
+        <Item>TC-LOG-SANITIZE-003: Verify normal strings pass through unchanged</Item>
+      </TestCases>
+    </Contracts>
+
+    <Handoff>
+      <GRACE_HANDOFF required="true"/>
+      <GIT_IMPACT required="true"/>
+    </Handoff>
+  </RequiredOutputs>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FIX GUIDANCE (for Architect consideration)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FixGuidance>
+    <Fix id="FIX-CSRF">
+      <Category>HIGH - CSRF Disabled</Category>
+      <Approach>
+        Document as intentional architectural decision. CSRF protection is not needed for:
+        1. Stateless REST APIs using JWT bearer tokens
+        2. Internal gRPC-only services
+        3. Services behind API gateway that handles authentication
+
+        Options:
+        A) Add code comments explaining the decision (triggers CodeQL to still flag)
+        B) Create .github/codeql-config.yml with query filters to suppress this specific rule
+        C) Add inline @SuppressWarnings or CodeQL-specific suppression comments
+
+        RECOMMENDED: Option A + B - Document in code AND suppress in CodeQL config
+        with clear justification in Technology.xml DEC-SEC-CSRF-STATELESS.
+      </Approach>
+    </Fix>
+
+    <Fix id="FIX-LOG-INJECTION">
+      <Category>HIGH - Log Injection</Category>
+      <Approach>
+        Options:
+        A) OWASP Java Encoder: org.owasp.encoder.Encode.forJava(userInput)
+           - Pros: Industry standard, comprehensive
+           - Cons: Additional dependency
+
+        B) Custom sanitizer in shared-kernel:
+           - Replace newlines, carriage returns, tabs, ANSI escape sequences
+           - Pros: No external dependency
+           - Cons: Must maintain
+
+        C) SLF4J parameterized logging (already in use):
+           - logger.info("message key={}", value) already escapes some content
+           - Pros: Already used
+           - Cons: Does NOT prevent log injection in SLF4J 1.x/2.x
+
+        RECOMMENDED: Option A (OWASP Encoder) - Add dependency to shared-kernel,
+        create LogSanitizer utility class, update logging calls in pricing-service.
+      </Approach>
+    </Fix>
+
+    <Fix id="FIX-CODEQL-CONFIG">
+      <Category>Generated Code Exclusion</Category>
+      <Approach>
+        Create .github/codeql-config.yml:
+        ```yaml
+        name: "Custom CodeQL Config"
+        paths-ignore:
+          - '**/target/generated-sources/**'
+          - '**/target/generated-test-sources/**'
+        query-filters:
+          - exclude:
+              id: java/spring-disabled-csrf-protection
+        ```
+        Reference in codeql.yml workflow.
+      </Approach>
+    </Fix>
+
+    <Fix id="FIX-NULL-DEREF">
+      <Category>Code Quality - Null Dereference</Category>
+      <File>AddressService.java:186</File>
+      <Approach>Add null check or use Optional properly</Approach>
+    </Fix>
+
+    <Fix id="FIX-SWITCH-CASE">
+      <Category>Code Quality - Missing Switch Case</Category>
+      <File>ElasticsearchSearchRepository.java:316</File>
+      <Approach>Add missing enum cases or default case with explicit handling</Approach>
+    </Fix>
+
+    <Fix id="FIX-UNREAD-VAR">
+      <Category>Code Quality - Unread Variable</Category>
+      <File>CartPricingService.java:152</File>
+      <Approach>Remove unused variable or use its value</Approach>
+    </Fix>
+
+    <Fix id="FIX-NFE">
+      <Category>Code Quality - Uncaught NumberFormatException</Category>
+      <File>BomResolutionService.java:131,134,136</File>
+      <Approach>Wrap Integer.parseInt in try-catch or use Integer.valueOf with proper handling</Approach>
+    </Fix>
+
+    <Fix id="FIX-DEPRECATED">
+      <Category>Code Quality - Deprecated Call</Category>
+      <File>JacksonConfig.java:30</File>
+      <Approach>Replace deprecated API with recommended alternative</Approach>
+    </Fix>
+
+    <Fix id="FIX-UNUSED-PARAMS">
+      <Category>Code Quality - Unused Parameters</Category>
+      <Approach>
+        Either:
+        A) Remove unused parameters if possible (may require interface changes)
+        B) Prefix with underscore (_param) if parameter is required by interface but unused
+        C) Add @SuppressWarnings("unused") with justification comment
+      </Approach>
+    </Fix>
+  </FixGuidance>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria>
+    <Item>DEC-SEC-CSRF-STATELESS recorded in Technology.xml with status="APPROVED"</Item>
+    <Item>DEC-SEC-LOG-SANITIZATION recorded in Technology.xml with chosen approach</Item>
+    <Item>DEC-SEC-CODEQL-EXCLUSIONS recorded in Technology.xml</Item>
+    <Item>No "OR" ambiguity in Technology.xml or DevelopmentPlan.xml</Item>
+    <Item>LogSanitizer contract (MC/FC) defined if utility approach chosen</Item>
+    <Item>Test cases defined for log sanitization</Item>
+    <Item>CodeQL config changes specified in handoff</Item>
+    <Item>All HIGH severity alerts have documented fix approach</Item>
+    <Item>GRACE_HANDOFF produced with scope matching this work order</Item>
+    <Item>GIT_IMPACT block included with appropriate branch strategy</Item>
+  </AcceptanceCriteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       COORDINATOR NOTES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <CoordinatorNotes>
+    <Note>
+      Architect should decide on log sanitization approach. OWASP Encoder is recommended
+      but adds a dependency. If keeping dependencies minimal is a priority, a custom
+      sanitizer in shared-kernel is acceptable but must be well-tested.
+    </Note>
+    <Note>
+      For CSRF, the decision is straightforward - document the intentional design choice.
+      The CodeQL alert is a false positive for stateless API architecture.
+    </Note>
+    <Note>
+      Unused parameters in gRPC clients may be intentional placeholders for future use
+      or required by generated interfaces. Architect should review and decide.
+    </Note>
+    <Note>
+      This is a CHORE/BUGFIX type change, not a feature. Branch should be
+      chore/W1-security-scan-remediation or bugfix/W1-security-scan-remediation.
+    </Note>
+  </CoordinatorNotes>
+</ARCHITECT_WORK_ORDER>

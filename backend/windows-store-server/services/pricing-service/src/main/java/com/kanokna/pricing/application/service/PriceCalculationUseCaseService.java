@@ -10,6 +10,7 @@ import com.kanokna.pricing.domain.exception.PriceBookNotFoundException;
 import com.kanokna.pricing.domain.exception.TaxRuleNotFoundException;
 import com.kanokna.pricing.domain.model.*;
 import com.kanokna.pricing.domain.service.PriceCalculationService;
+import com.kanokna.shared.logging.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -107,7 +108,7 @@ public class PriceCalculationUseCaseService implements CalculateQuoteUseCase, Va
             .orElseThrow(() -> {
                 logger.info("[SVC=pricing-service][UC=UC-PRICING-QUOTE][BLOCK=BA-PRC-CALC-01][STATE=LOAD_PRICEBOOK] " +
                         "eventType=PRICING_STEP decision=NOT_FOUND keyValues=productTemplateId={},priceBookId=NONE",
-                    command.getProductTemplateId());
+                    LogSanitizer.sanitize(command.getProductTemplateId()));
                 return new PriceBookNotFoundException(command.getProductTemplateId());
             });
 
@@ -200,7 +201,7 @@ public class PriceCalculationUseCaseService implements CalculateQuoteUseCase, Va
     private void logPromoDecision(String promoCode, String decision) {
         logger.info("[SVC=pricing-service][UC=UC-PRICING-QUOTE][BLOCK=BA-PRC-CALC-05][STATE=PROMO] " +
                 "eventType=PRICING_STEP decision={} keyValues=promoCode={},discount_rub=0",
-            decision, promoCode);
+            decision, LogSanitizer.sanitize(promoCode));
     }
 
     private void logDecisionTrace(Quote quote) {

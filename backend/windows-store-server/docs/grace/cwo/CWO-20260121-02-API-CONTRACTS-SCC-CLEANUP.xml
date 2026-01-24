@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Coder Work Order: API Contracts Spring Cloud Contract Cleanup
+  Created: 2026-01-21T17:00:00+03:00
+  CreatedBy: GRACE-COORDINATOR
+  AWORef: AWO-20260121-02-API-CONTRACTS-RESTASSURED
+  BranchSpecRef: BS-20260121-02
+-->
+<CODER_WORK_ORDER id="CWO-20260121-02" status="ISSUED">
+  <Preconditions>
+    <Item status="VERIFIED">AWO exists: AWO-20260121-02-API-CONTRACTS-RESTASSURED (APPROVED)</Item>
+    <Item status="VERIFIED">BranchSpec BS-20260121-02-API-CONTRACTS-SCC-CLEANUP is included and must be followed verbatim</Item>
+    <Item status="VERIFIED">No blocking PENDING_HUMAN/TBD decisions</Item>
+    <Item>This is PHASE-01 only (cleanup). PHASE-02 (producer setup) is DEFERRED.</Item>
+  </Preconditions>
+
+  <Scope>
+    <AWORef>AWO-20260121-02-API-CONTRACTS-RESTASSURED</AWORef>
+    <BranchSpecRef>BS-20260121-02-API-CONTRACTS-SCC-CLEANUP</BranchSpecRef>
+    <Services>
+      <ServiceRef ref="DP-SVC-api-contracts" note="Remove SCC verifier infrastructure"/>
+    </Services>
+    <Contracts>
+      <ModuleContractRef id="MC-api-contracts-post-fix"/>
+    </Contracts>
+    <Decision>
+      <DecisionRef id="DEC-API-CONTRACTS-SCC-ROLE"/>
+    </Decision>
+  </Scope>
+
+  <ImplementationRules>
+    <Item>Execute PHASE-01 tasks ONLY</Item>
+    <Item>Do NOT implement PHASE-02 (deferred to future work)</Item>
+    <Item>No domain logic changes</Item>
+    <Item>api-contracts must remain a pure library module (no Spring Boot runtime)</Item>
+  </ImplementationRules>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       GIT EXECUTION (from BranchSpec BS-20260121-02)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <GitExecution>
+    <Step order="1">
+      <Command>git checkout develop &amp;&amp; git pull origin develop</Command>
+      <Purpose>Ensure develop is up to date</Purpose>
+    </Step>
+    <Step order="2">
+      <Command>git checkout -b bugfix/W1-api-contracts-scc-cleanup</Command>
+      <Purpose>Create bugfix branch per BranchSpec</Purpose>
+    </Step>
+    <Step order="3">
+      <Note>Implement all changes per FilePlan below</Note>
+    </Step>
+    <Step order="4">
+      <Command>mvn clean verify -pl api-contracts</Command>
+      <Purpose>Verify api-contracts module builds</Purpose>
+    </Step>
+    <Step order="5">
+      <Command>mvn clean verify</Command>
+      <Purpose>Verify full build passes</Purpose>
+    </Step>
+    <Step order="6">
+      <Command>git add -A &amp;&amp; git commit -m "[W1-INFRA] Remove Spring Cloud Contract verifier from api-contracts"</Command>
+      <Purpose>Commit changes</Purpose>
+    </Step>
+    <Step order="7">
+      <Command>git push -u origin bugfix/W1-api-contracts-scc-cleanup</Command>
+      <Purpose>Push to remote</Purpose>
+    </Step>
+    <Step order="8">
+      <Command>gh pr create --base develop --title "[W1-INFRA] Remove Spring Cloud Contract verifier from api-contracts" --body "..."</Command>
+      <Purpose>Create PR per BranchSpec template</Purpose>
+    </Step>
+  </GitExecution>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       FILE PLAN (PHASE-01 ONLY)
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <FilePlan>
+    <FileGroup id="FG-01" name="api-contracts pom.xml Cleanup">
+      <File action="UPDATE" priority="1">
+        <Path>api-contracts/pom.xml</Path>
+        <Purpose>Remove Spring Cloud Contract verifier infrastructure</Purpose>
+        <Changes>
+          <Change id="C01">
+            <Description>Remove rest-assured.version property</Description>
+            <Location>properties section</Location>
+            <Remove><![CDATA[<rest-assured.version>5.2.1</rest-assured.version>]]></Remove>
+          </Change>
+          <Change id="C02">
+            <Description>Remove spring-cloud-contract-spec dependency</Description>
+            <Location>dependencies section</Location>
+            <Remove><![CDATA[
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-contract-spec</artifactId>
+      <scope>test</scope>
+    </dependency>
+            ]]></Remove>
+          </Change>
+          <Change id="C03">
+            <Description>Remove spring-cloud-contract-verifier dependency</Description>
+            <Location>dependencies section</Location>
+            <Remove><![CDATA[
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-contract-verifier</artifactId>
+      <scope>test</scope>
+    </dependency>
+            ]]></Remove>
+          </Change>
+          <Change id="C04">
+            <Description>Remove rest-assured spring-mock-mvc dependency</Description>
+            <Location>dependencies section</Location>
+            <Remove><![CDATA[
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>spring-mock-mvc</artifactId>
+      <version>${rest-assured.version}</version>
+      <scope>test</scope>
+    </dependency>
+            ]]></Remove>
+          </Change>
+          <Change id="C05">
+            <Description>Remove spring-cloud-contract-maven-plugin</Description>
+            <Location>build/plugins section</Location>
+            <Remove><![CDATA[
+      <plugin>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-contract-maven-plugin</artifactId>
+        <version>4.2.0</version>
+        <extensions>true</extensions>
+        <configuration>
+          <contractsDirectory>${project.basedir}/src/test/resources/contracts</contractsDirectory>
+          <testFramework>JUNIT5</testFramework>
+        </configuration>
+      </plugin>
+            ]]></Remove>
+          </Change>
+        </Changes>
+      </File>
+    </FileGroup>
+
+    <FileGroup id="FG-02" name="Contracts Directory Removal">
+      <File action="DELETE" priority="2">
+        <Path>api-contracts/src/test/resources/contracts/</Path>
+        <Purpose>Remove contracts directory (deferred to producer services)</Purpose>
+        <Note>Delete entire directory and all contents</Note>
+      </File>
+    </FileGroup>
+  </FilePlan>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       EXPECTED RESULT: api-contracts/pom.xml AFTER CHANGES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <ExpectedResult>
+    <Description>api-contracts/pom.xml should look like this after changes:</Description>
+    <Content><![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.kanokna</groupId>
+    <artifactId>windows-store-server</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+  <artifactId>api-contracts</artifactId>
+  <name>api-contracts</name>
+  <description>Contract-first API definitions (Protobuf/gRPC)</description>
+  <packaging>jar</packaging>
+
+  <properties>
+    <grpc.version>1.60.1</grpc.version>
+    <protobuf.version>3.25.1</protobuf.version>
+    <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
+    <os.maven.plugin.version>1.7.1</os.maven.plugin.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-stub</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+    </dependency>
+    <!-- Jakarta Annotations для Spring Boot 4 -->
+    <dependency>
+      <groupId>jakarta.annotation</groupId>
+      <artifactId>jakarta.annotation-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <!-- javax.annotation for gRPC generated code (@Generated) -->
+    <dependency>
+      <groupId>javax.annotation</groupId>
+      <artifactId>javax.annotation-api</artifactId>
+      <version>1.3.2</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>${os.maven.plugin.version}</version>
+      </extension>
+    </extensions>
+    <plugins>
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>${protobuf.plugin.version}</version>
+        <configuration>
+          <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+          <pluginId>grpc-java</pluginId>
+          <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>compile-custom</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+    ]]></Content>
+  </ExpectedResult>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       ACCEPTANCE CRITERIA
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <AcceptanceCriteria>
+    <Criterion id="AC-01">api-contracts/pom.xml has NO spring-cloud-contract-maven-plugin</Criterion>
+    <Criterion id="AC-02">api-contracts/pom.xml has NO spring-cloud-contract-* dependencies</Criterion>
+    <Criterion id="AC-03">api-contracts/pom.xml has NO rest-assured dependencies</Criterion>
+    <Criterion id="AC-04">api-contracts/pom.xml has NO rest-assured.version property</Criterion>
+    <Criterion id="AC-05">No contracts directory in api-contracts/src/test/resources/</Criterion>
+    <Criterion id="AC-06">mvn clean verify -pl api-contracts succeeds</Criterion>
+    <Criterion id="AC-07">Full build mvn clean verify succeeds</Criterion>
+    <Criterion id="AC-08">No domain logic changes anywhere</Criterion>
+  </AcceptanceCriteria>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       PR TEMPLATE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <PRTemplate><![CDATA[
+## Summary
+
+Remove Spring Cloud Contract verifier infrastructure from api-contracts module.
+
+**Root Cause:** api-contracts is a library module for contract definitions only. It cannot and should not execute Spring Cloud Contract verifier tests because:
+- Verifier tests require MockMVC with actual controllers
+- api-contracts has no Spring Boot runtime or controllers
+- Contract verification belongs in producer services
+
+**Solution:** Remove verifier plugin and dependencies from api-contracts. Contract verification will be implemented in producer services in a future wave (PHASE-02 deferred).
+
+## Changes
+
+- Remove `spring-cloud-contract-maven-plugin` from pom.xml
+- Remove `spring-cloud-contract-spec` dependency
+- Remove `spring-cloud-contract-verifier` dependency
+- Remove `spring-mock-mvc` dependency
+- Remove `rest-assured.version` property
+- Delete `src/test/resources/contracts/` directory
+
+## References
+
+- AWO: AWO-20260121-02-API-CONTRACTS-RESTASSURED
+- Resolves: CODE-ISS-RPT-20260121-01
+- Contract: MC-api-contracts-post-fix
+- Decision: DEC-API-CONTRACTS-SCC-ROLE
+
+## Test Plan
+
+- [x] `mvn clean verify -pl api-contracts` passes
+- [x] Full `mvn clean verify` passes
+- [x] No domain logic changes
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+  ]]></PRTemplate>
+
+  <RequiredOutputs>
+    <Item>FilePlan execution report</Item>
+    <Item>mvn clean verify -pl api-contracts output (success)</Item>
+    <Item>mvn clean verify output (full build success)</Item>
+    <Item>ConsistencyChecklist (self-audit vs AC-*)</Item>
+    <Item>GitExecutionSteps: exact commands executed</Item>
+    <Item>PR link</Item>
+  </RequiredOutputs>
+</CODER_WORK_ORDER>
