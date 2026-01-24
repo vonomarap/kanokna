@@ -2,11 +2,13 @@
 <!--
   GRACE Artifact: DevelopmentExecutionPlan.xml
   Purpose: Phased implementation roadmap for Coder agent execution
-  Version: 1.0.0
+  Version: 1.1.0
   Created: 2025-12-30
   Approved Handoff: Handoff-20251229-02
+  Changes:
+    - v1.1.0: Added Wave 4 tasks for document-service and billing-service
 -->
-<DevelopmentExecutionPlan version="1.0.0" handoffRef="Handoff-20251229-02">
+<DevelopmentExecutionPlan version="1.1.0" handoffRef="Handoff-20251229-02">
 
   <Overview>
     <Description>
@@ -576,7 +578,7 @@
       </Task>
 
       <Task id="W4-T3" name="End-to-end integration testing">
-        <Description>Full platform integration and load testing</Description>
+        <Description>Full platform integration and load testing</Description>   
         <Deliverables>
           <Item>E2E test suite with Testcontainers</Item>
           <Item>Load test scenarios with Gatling/k6</Item>
@@ -589,11 +591,49 @@
         </AcceptanceCriteria>
         <EstimatedFiles>15-20</EstimatedFiles>
       </Task>
+
+      <Task id="W4-T4" name="document-service implementation">
+        <Description>Template-driven document generation and versioning</Description>
+        <Deliverables>
+          <Item>Service skeleton + package structure</Item>
+          <Item>Generate proposal/invoice/contract per UC-DOC-GENERATE-01</Item>
+          <Item>DocumentTemplate and GeneratedDocument aggregates with version history</Item>
+          <Item>Binary storage integration via media-service</Item>
+          <Item>Notification integration for document links</Item>
+          <Item>Security: staff + partner access controls</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Flow-Document-Issue works end-to-end</Criterion>
+          <Criterion>All test cases for FC-document-service-UC-DOC-GENERATE-01-generateDocument pass</Criterion>
+          <Criterion>Every regeneration creates a new version</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>30-40</EstimatedFiles>
+      </Task>
+
+      <Task id="W4-T5" name="billing-service implementation">
+        <Description>B2B invoices, schedules, balances, and settlement queries</Description>
+        <Deliverables>
+          <Item>Service skeleton + package structure</Item>
+          <Item>Invoice, PaymentSchedule, PartnerBalance aggregates</Item>
+          <Item>Partner-scoped invoice queries per UC-BILLING-VIEW-INVOICES-01</Item>
+          <Item>Optional document link resolution via document-service</Item>
+          <Item>Payment status update ingestion (gateway/bank callbacks) and PaymentReceivedEvent</Item>
+          <Item>Security: dealer org scoping and RBAC</Item>
+        </Deliverables>
+        <AcceptanceCriteria>
+          <Criterion>Flow-B2B-Finance returns invoices/schedules for authorized dealer users</Criterion>
+          <Criterion>All test cases for FC-billing-service-UC-BILLING-VIEW-INVOICES-01-listInvoices pass</Criterion>
+          <Criterion>Payment status updates propagate to order-service via events</Criterion>
+        </AcceptanceCriteria>
+        <EstimatedFiles>35-45</EstimatedFiles>
+      </Task>
     </Tasks>
 
     <WaveAcceptance>
       <Criterion>Installation scheduling works end-to-end</Criterion>
       <Criterion>Reports show accurate data</Criterion>
+      <Criterion>Document issuance works end-to-end</Criterion>
+      <Criterion>B2B billing dashboard queries work</Criterion>
       <Criterion>Platform meets performance NFRs</Criterion>
     </WaveAcceptance>
   </Wave>

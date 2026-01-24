@@ -125,15 +125,18 @@ public class BomResolutionService {
     private int evaluateExpression(String expression) {
         // Simple evaluation - for production use ScriptEngine or proper parser
         expression = expression.trim();
-
-        if (expression.contains("/")) {
-            String[] parts = expression.split("/");
-            return (int) Math.ceil(Double.parseDouble(parts[0].trim()) / Double.parseDouble(parts[1].trim()));
-        } else if (expression.contains("*")) {
-            String[] parts = expression.split("\\*");
-            return (int) (Double.parseDouble(parts[0].trim()) * Double.parseDouble(parts[1].trim()));
-        } else {
-            return Integer.parseInt(expression);
+        try {
+            if (expression.contains("/")) {
+                String[] parts = expression.split("/");
+                return (int) Math.ceil(Double.parseDouble(parts[0].trim()) / Double.parseDouble(parts[1].trim()));
+            } else if (expression.contains("*")) {
+                String[] parts = expression.split("\\*");
+                return (int) (Double.parseDouble(parts[0].trim()) * Double.parseDouble(parts[1].trim()));
+            } else {
+                return Integer.parseInt(expression);
+            }
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Invalid numeric expression: " + expression, ex);
         }
     }
 

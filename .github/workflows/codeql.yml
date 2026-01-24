@@ -69,6 +69,7 @@ jobs:
         with:
           languages: java
           build-mode: manual
+          config-file: ./.github/codeql-config.yml
           # Use extended security queries for comprehensive analysis
           queries: +security-extended,security-and-quality
 
