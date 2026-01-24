@@ -62,12 +62,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                // CSRF protection is intentionally disabled per DEC-SEC-CSRF-STATELESS:
-                // - All APIs use stateless JWT bearer token authentication (no cookies)
-                // - No browser-based form submissions or cookie-based sessions
-                // - CSRF attacks require cookie-based auth which is not present
-                // See: Technology.xml#DEC-SEC-CSRF-STATELESS
-                .csrf(csrf -> csrf.disable());
+                .csrf(csrf -> csrf.disable()); // Disable CSRF for config API
 
         return http.build();
     }

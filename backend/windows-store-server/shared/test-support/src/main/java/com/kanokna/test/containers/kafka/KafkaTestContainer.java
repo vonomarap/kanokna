@@ -13,12 +13,13 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Shared Kafka Testcontainers configuration using Confluent Platform.
+ * Shared Kafka Testcontainers configuration using Redpanda.
  * Provides a singleton container and helper methods for topics and client props.
  */
 public final class KafkaTestContainer {
-    private static final DockerImageName KAFKA_IMAGE = DockerImageName
-        .parse("confluentinc/cp-kafka:7.6.0");
+    private static final DockerImageName REDPANDA_IMAGE = DockerImageName
+        .parse("redpanda/redpanda:latest")
+        .asCompatibleSubstituteFor("confluentinc/cp-kafka");
     private static final String SPRING_KAFKA_BOOTSTRAP_SERVERS = "spring.kafka.bootstrap-servers";
     private static final String BOOTSTRAP_SERVERS = "bootstrap.servers";
     private static final String GROUP_ID = "group.id";
@@ -45,9 +46,7 @@ public final class KafkaTestContainer {
     private final KafkaContainer container;
 
     private KafkaTestContainer() {
-        container = new KafkaContainer(KAFKA_IMAGE)
-            .withKraft()
-            .withReuse(true);
+        container = new KafkaContainer(REDPANDA_IMAGE).withReuse(true);
     }
 
     public static KafkaTestContainer instance() {

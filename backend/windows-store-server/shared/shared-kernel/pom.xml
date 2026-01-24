@@ -20,12 +20,6 @@
   </properties>
 
   <dependencies>
-    <dependency>
-      <groupId>org.owasp.encoder</groupId>
-      <artifactId>encoder</artifactId>
-      <version>1.2.3</version>
-    </dependency>
-
     <!-- Test dependencies only -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>

@@ -2,14 +2,9 @@
 <!--
   GRACE Canonical Artifact: RequirementsAnalysis.xml
   Purpose: Formalize business intent, actors, use cases, and non-functional requirements
-  Version: 1.6.0
-  Last Updated: 2026-01-21T21:21:18+03:00
+  Version: 1.4.0
+  Last Updated: 2026-01-09T16:00:00+03:00
   Changes:
-    - v1.6.0: Added supporting service-level use cases to align existing semantic contracts
-              and cross-artifact links (catalog configure, pricing quote/admin, order track,
-              account profile, media serve, search products).
-    - v1.5.0: Added explicit document and billing use cases for traceability:
-              UC-DOC-GENERATE-01 and UC-BILLING-VIEW-INVOICES-01
     - v1.4.0: Added UC-CART-MANAGE and UC-CART-APPLY-PROMO for cart-service
               (from Handoff-20260109-01-W1-T6-CartService)
     - v1.1.0: Added B2C CPQ, B2B, Staff, Field actors and use cases per new-business-requirements.txt
@@ -18,7 +13,7 @@
               Added integration requirements (CRM, CAD, ERP, Logistics, Payments)
               Added MUST/SHOULD/LATER prioritization
 -->
-<RequirementsAnalysis version="1.6.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<RequirementsAnalysis version="1.4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!-- ===============================================================================
        DOMAIN DEFINITION
@@ -777,54 +772,6 @@
     </UseCase>
 
     <!-- ===========================================================================
-         MUST (MVP): Document Generation and Versioning
-         =========================================================================== -->
-    <UseCase id="UC-DOC-GENERATE-01" priority="MUST">
-      <ActorRef ref="ACT-SALES-MANAGER" />
-      <Action>Generate proposal, invoice, or contract</Action>
-      <Goal>Produce correct versioned documents from deal/order data</Goal>
-      <Preconditions>
-        <Item>Manager is authenticated with Staff role</Item>
-        <Item>Deal/order exists and is accessible to the manager</Item>
-        <Item>Document templates exist and are active</Item>
-      </Preconditions>
-      <Postconditions>
-        <Item>Document binary is generated</Item>
-        <Item>Document metadata and version history are recorded</Item>
-        <Item>Recipients are notified with a secure access link</Item>
-      </Postconditions>
-      <MainFlow>
-        <Step order="1">Manager selects deal/order and document type</Step>
-        <Step order="2">System loads canonical snapshot (configuration, pricing, parties, terms)</Step>
-        <Step order="3">System renders document from template and binds placeholders</Step>
-        <Step order="4">System stores binary via media-service and records a new document version</Step>
-        <Step order="5">System notifies recipients per configured channels</Step>
-      </MainFlow>
-      <AlternateFlows>
-        <Flow id="UC-DOC-GENERATE-01-A1" trigger="Template missing or disabled">
-          <Step order="1">System rejects request with TEMPLATE_NOT_FOUND</Step>
-          <Step order="2">Manager selects another template or activates a template</Step>
-        </Flow>
-        <Flow id="UC-DOC-GENERATE-01-A2" trigger="E-signature required">
-          <Step order="1">System initiates e-sign flow per DEC-OPEN-ESIGN</Step>
-          <Step order="2">System records signature status updates</Step>
-        </Flow>
-      </AlternateFlows>
-      <AcceptanceCriteria>
-        <Criterion id="AC-DOC-01">Rendering is deterministic for the same input snapshot</Criterion>
-        <Criterion id="AC-DOC-02">Each regeneration creates a new version</Criterion>
-        <Criterion id="AC-DOC-03">Access to documents follows RBAC and ownership rules</Criterion>
-      </AcceptanceCriteria>
-      <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-document-service" />
-        <Link ref="DevelopmentPlan.xml#DP-SVC-media-service" />
-        <Link ref="DevelopmentPlan.xml#DP-SVC-notification-service" />
-        <Link ref="DevelopmentPlan.xml#Flow-Document-Issue" />
-        <Link ref="RequirementsAnalysis.xml#DEC-OPEN-ESIGN" />
-      </Links>
-    </UseCase>
-
-    <!-- ===========================================================================
          MUST (MVP): Field Measurement Task
          =========================================================================== -->
     <UseCase id="UC-FIELD-MEASURE-01" priority="MUST">
@@ -901,50 +848,12 @@
     </UseCase>
 
     <!-- ===========================================================================
-         SHOULD: B2B Billing Self-Service (Invoices / Schedules / Settlements)
-         =========================================================================== -->
-    <UseCase id="UC-BILLING-VIEW-INVOICES-01" priority="SHOULD">
-      <ActorRef ref="ACT-B2B-DEALER" />
-      <Action>View invoices, payment schedule, and settlements</Action>
-      <Goal>Transparent B2B finance self-service for partner organizations</Goal>
-      <Preconditions>
-        <Item>Dealer user is authenticated with B2B role</Item>
-        <Item>Dealer user belongs to a partner organization</Item>
-      </Preconditions>
-      <Postconditions>
-        <Item>Invoices and schedules are displayed with current payment status</Item>
-        <Item>Settlement report is available for selected period (if supported)</Item>
-      </Postconditions>
-      <MainFlow>
-        <Step order="1">Dealer opens billing dashboard</Step>
-        <Step order="2">System lists invoices with amounts, due dates, and status</Step>
-        <Step order="3">Dealer views invoice details including deposit/balance schedule</Step>
-        <Step order="4">Dealer downloads invoice documents</Step>
-      </MainFlow>
-      <AlternateFlows>
-        <Flow id="UC-BILLING-VIEW-INVOICES-01-A1" trigger="No invoices exist">
-          <Step order="1">System shows empty state and guidance</Step>
-        </Flow>
-      </AlternateFlows>
-      <AcceptanceCriteria>
-        <Criterion id="AC-BILL-01">Invoice statuses reflect latest gateway/bank updates</Criterion>
-        <Criterion id="AC-BILL-02">Only authorized partner users can view invoices</Criterion>
-        <Criterion id="AC-BILL-03">Settlement totals match issued invoices and received payments</Criterion>
-      </AcceptanceCriteria>
-      <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-billing-service" />
-        <Link ref="DevelopmentPlan.xml#DP-SVC-document-service" />
-        <Link ref="DevelopmentPlan.xml#Flow-B2B-Finance" />
-      </Links>
-    </UseCase>
-
-    <!-- ===========================================================================
          SHOULD: Promotions/Discounts/Installments Display in CPQ
          =========================================================================== -->
     <UseCase id="UC-CPQ-PROMO-01" priority="SHOULD">
       <ActorRef ref="ACT-B2C-CUSTOMER" />
-      <Action>View promotions, discounts, and installment options</Action>      
-      <Goal>See all applicable pricing incentives during configuration</Goal>   
+      <Action>View promotions, discounts, and installment options</Action>
+      <Goal>See all applicable pricing incentives during configuration</Goal>
       <Preconditions>
         <Item>Active campaigns or promotions exist</Item>
         <Item>Installment plans are configured (if offered)</Item>
@@ -1160,175 +1069,6 @@
         <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
         <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
         <Link ref="Technology.xml#DEC-ARCH-ENTITY-VERSIONING" />
-      </Links>
-    </UseCase>
-
-    <!-- ===========================================================================
-         Supporting Service-Level Use Cases (for contracts and traceability)
-         ===========================================================================
-         These use cases are referenced by semantic contracts and implementation logs.
-         They represent reusable capabilities that support multiple top-level flows.
-         =========================================================================== -->
-
-    <UseCase id="UC-CATALOG-CONFIGURE-ITEM" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER" />
-      <Action>Validate a window/door configuration</Action>
-      <Goal>Return a deterministic validation result with business error codes</Goal>
-      <Preconditions>
-        <Item>Product template exists and is active</Item>
-        <Item>Rule set is available for selected product family</Item>
-        <Item>Configuration input contains dimensions and option selections</Item>
-      </Preconditions>
-      <Postconditions>
-        <Item>ValidationResult is returned (valid=true iff errors is empty)</Item>
-        <Item>Validated configuration can proceed to pricing (UC-PRICING-QUOTE)</Item>
-      </Postconditions>
-      <MainFlow>
-        <Step order="1">Caller submits configuration for validation</Step>
-        <Step order="2">System evaluates all constraints and compatibility rules</Step>
-        <Step order="3">System returns ValidationResult with structured errors</Step>
-      </MainFlow>
-      <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01" />
-        <Link ref="RequirementsAnalysis.xml#UC-B2B-CPQ-01" />
-        <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
-        <Link ref="DevelopmentPlan.xml#Flow-Config-Pricing" />
-      </Links>
-    </UseCase>
-
-    <UseCase id="UC-PRICING-QUOTE" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER" />
-      <Action>Calculate a price quote for configuration</Action>
-      <Goal>Return a price breakdown with applied promotions/tiers</Goal>
-      <Preconditions>
-        <Item>Configuration is valid (UC-CATALOG-CONFIGURE-ITEM)</Item>
-        <Item>Active price book exists for currency/region</Item>
-      </Preconditions>
-      <Postconditions>
-        <Item>Quote is returned with totals and line-item breakdown</Item>
-        <Item>Decision trace is available for auditability</Item>
-      </Postconditions>
-      <MainFlow>
-        <Step order="1">Caller requests quote for validated configuration</Step>
-        <Step order="2">System loads price book, campaigns, tax rules, partner tier</Step>
-        <Step order="3">System calculates quote and returns totals and breakdown</Step>
-      </MainFlow>
-      <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01" />
-        <Link ref="RequirementsAnalysis.xml#UC-B2B-CPQ-01" />
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
-        <Link ref="DevelopmentPlan.xml#Flow-Config-Pricing" />
-        <Link ref="Technology.xml#DEC-PRICING-DISCOUNT-PRECEDENCE" />
-      </Links>
-    </UseCase>
-
-    <UseCase id="UC-PRICING-ADMIN-MANAGE" priority="MUST">
-      <ActorRef ref="ACT-ADMIN" />
-      <Action>Manage pricing rules (price books, campaigns, taxes)</Action>
-      <Goal>Maintain versioned pricing data used by pricing-service</Goal>
-      <Preconditions>
-        <Item>User is authenticated with ADMIN role</Item>
-        <Item>pricing-service is available</Item>
-      </Preconditions>
-      <Postconditions>
-        <Item>Price books/campaigns/tax rules are created or updated</Item>
-        <Item>Published versions become active for quoting</Item>
-      </Postconditions>
-      <MainFlow>
-        <Step order="1">Admin creates or updates draft pricing entities</Step>
-        <Step order="2">System validates pricing invariants</Step>
-        <Step order="3">Admin publishes a versioned price book</Step>
-        <Step order="4">System emits PriceBookPublishedEvent for cache invalidation</Step>
-      </MainFlow>
-      <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
-        <Link ref="Technology.xml#DEC-ARCH-ENTITY-VERSIONING" />
-      </Links>
-    </UseCase>
-
-    <UseCase id="UC-ORDER-TRACK" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER" />
-      <Action>Track order status timeline</Action>
-      <Goal>View current order status and audited history</Goal>
-      <Preconditions>
-        <Item>Order exists and is visible to the caller</Item>
-        <Item>Caller is authenticated (or has a secure access token)</Item>
-      </Preconditions>
-      <Postconditions>
-        <Item>Order status timeline is returned (current status + history)</Item>
-      </Postconditions>
-      <MainFlow>
-        <Step order="1">Caller requests order status by orderId</Step>
-        <Step order="2">System returns current status and ordered history entries</Step>
-      </MainFlow>
-      <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-B2C-TRACK-01" />
-        <Link ref="DevelopmentPlan.xml#DP-SVC-order-service" />
-        <Link ref="DevelopmentPlan.xml#Flow-Order-Lifecycle" />
-      </Links>
-    </UseCase>
-
-    <UseCase id="UC-ACCOUNT-MANAGE-PROFILE" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER" />
-      <Action>Manage profile and saved addresses</Action>
-      <Goal>Update account details and delivery/job-site addresses</Goal>
-      <Preconditions>
-        <Item>User is authenticated</Item>
-      </Preconditions>
-      <Postconditions>
-        <Item>Profile data and addresses are updated and retrievable</Item>
-      </Postconditions>
-      <MainFlow>
-        <Step order="1">User views current profile</Step>
-        <Step order="2">User edits profile and addresses</Step>
-        <Step order="3">System validates and persists updates</Step>
-      </MainFlow>
-      <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-account-service" />
-        <Link ref="RequirementsAnalysis.xml#UC-RBAC-01" />
-      </Links>
-    </UseCase>
-
-    <UseCase id="UC-MEDIA-SERVE" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER" />
-      <Action>Access product media and documents</Action>
-      <Goal>Serve images, drawings, and generated documents with access control</Goal>
-      <Preconditions>
-        <Item>Media asset exists</Item>
-        <Item>Caller is authorized to access the asset</Item>
-      </Preconditions>
-      <Postconditions>
-        <Item>Asset is served (presigned URL or proxy) and access is audited</Item>
-      </Postconditions>
-      <MainFlow>
-        <Step order="1">Caller requests media by id</Step>
-        <Step order="2">System validates access rights</Step>
-        <Step order="3">System returns a secure URL or streams content</Step>
-      </MainFlow>
-      <Links>
-        <Link ref="DevelopmentPlan.xml#DP-SVC-media-service" />
-        <Link ref="RequirementsAnalysis.xml#UC-DOC-GENERATE-01" />
-      </Links>
-    </UseCase>
-
-    <UseCase id="UC-SEARCH-PRODUCTS" priority="MUST">
-      <ActorRef ref="ACT-B2C-CUSTOMER" />
-      <Action>Search products with filters and autocomplete</Action>
-      <Goal>Discover products using full-text search and faceted filters</Goal>
-      <Preconditions>
-        <Item>Search index is available and up to date</Item>
-      </Preconditions>
-      <Postconditions>
-        <Item>Search results returned with facets and pagination</Item>
-      </Postconditions>
-      <MainFlow>
-        <Step order="1">User submits query and filters</Step>
-        <Step order="2">System executes search and returns results</Step>
-      </MainFlow>
-      <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE" />
-        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
-        <Link ref="DevelopmentPlan.xml#Flow-ProductSearch" />
       </Links>
     </UseCase>
   </UseCases>
@@ -1771,18 +1511,11 @@
     <Category>Internationalization</Category>
     <Description>Multi-language support</Description>
     <Specification>
-      Product descriptions, UI, and notifications support multiple languages.   
+      Product descriptions, UI, and notifications support multiple languages.
       LocalizedString value object in shared-kernel.
     </Specification>
   </Requirement>
 
-  <!-- ===========================================================================
-       OPEN DECISIONS
-       ===========================================================================
-       Cross-cutting and integration decisions that require explicit alignment
-       before implementation (see DevelopmentPlan.xml#OpenDecisions where applicable).
-       =========================================================================== -->
-  <OpenDecisions>
   <Decision id="DEC-OPEN-CPQ-RULES">
     <Topic>CPQ rules/options governance</Topic>
     <Question>Who owns configuration rules? How are they maintained?</Question>

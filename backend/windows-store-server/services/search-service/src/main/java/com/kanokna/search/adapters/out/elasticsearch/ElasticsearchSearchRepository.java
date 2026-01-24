@@ -327,9 +327,6 @@ public class ElasticsearchSearchRepository implements SearchRepository {
             case RELEVANCE, UNSPECIFIED -> {
                 // Default to relevance (_score)
             }
-            default -> {
-                // Default to relevance (_score)
-            }
         }
     }
 

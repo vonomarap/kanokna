@@ -8,15 +8,10 @@ import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.test.context.ActiveProfiles;
 
 import com.kanokna.catalog.domain.model.DimensionConstraints;
 import com.kanokna.catalog.domain.model.ProductFamily;
@@ -26,33 +21,10 @@ import com.kanokna.catalog.domain.model.TemplateStatus;
 /**
  * Integration tests for ProductTemplateRepositoryAdapter with Testcontainers.
  */
-@EnabledIf(
-        value = "com.kanokna.catalog.support.DockerAvailability#isDockerAvailable",
-        disabledReason = "Docker is not available, skipping Testcontainers integration tests"
-)
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Testcontainers
+@ActiveProfiles("test")
 class ProductTemplateRepositoryIT {
-
-    @Container
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-            .withDatabaseName("catalog_test")
-            .withUsername("test")
-            .withPassword("test");
-
-    @DynamicPropertySource
-    static void properties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
-        // Enable schema (namespace) creation for Hibernate
-        registry.add("spring.jpa.properties.hibernate.hbm2ddl.create_namespaces", () -> "true");
-        registry.add("spring.jpa.properties.hibernate.default_schema", () -> "catalog_configuration");
-        registry.add("spring.flyway.enabled", () -> "false");
-        registry.add("spring.cloud.config.enabled", () -> "false");
-    }
 
     @Autowired
     private ProductTemplateJpaRepository jpaRepository;

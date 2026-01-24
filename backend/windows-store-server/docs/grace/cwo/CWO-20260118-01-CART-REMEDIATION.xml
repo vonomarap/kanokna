@@ -8,7 +8,7 @@
   Overall Assessment was: CHANGES_REQUESTED
   Contains 1 BLOCKER and 3 MAJOR findings requiring remediation.
 -->
-<CODER_WORK_ORDER id="CWO-20260118-01" status="APPROVED">
+<CODER_WORK_ORDER id="CWO-20260118-01" status="PROPOSED">
     <Meta>
         <Created>2026-01-18T17:42:58+03:00</Created>
         <Type>REMEDIATION</Type>

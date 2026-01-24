@@ -11,7 +11,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.flywaydb.core.Flyway;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -38,23 +37,13 @@ class PriceBookRepositoryIT {
         if (!postgres.isRunning()) {
             postgres.start();
         }
-        // Run Flyway migrations manually since @DataJpaTest doesn't auto-configure Flyway
-        Flyway.configure()
-            .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
-            .createSchemas(true)
-            .defaultSchema("pricing")
-            .schemas("pricing")
-            .locations("classpath:db/migration")
-            .load()
-            .migrate();
-
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.flyway.enabled", () -> "false");
+        registry.add("spring.flyway.enabled", () -> "true");
+        registry.add("spring.flyway.schemas", () -> "pricing");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
         registry.add("spring.jpa.properties.hibernate.default_schema", () -> "pricing");
-        registry.add("spring.cloud.config.enabled", () -> "false");
     }
 
     @AfterAll
