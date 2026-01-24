@@ -2,15 +2,15 @@
 
 ## Overview
 - Windows and doors e-commerce with configurable products, price preview, and lead-time promises for B2C/B2B buyers.
-- Backend: Java 25 Spring Boot multi-module (config-server, gateway, shared-kernel, product-service) targeting MySQL with optional Redis/Elasticsearch/Kafka per technology guardrails.
+- Backend: Java 25 + Spring Boot Maven multi-module (config-server, gateway, shared-kernel, api-contracts, services/*); OLTP DB is PostgreSQL per service, with Redis/Elasticsearch/Kafka in the standard stack.
 - Frontend: Angular 21 client with SSR entrypoint (src/server.ts) and multiple UI component libraries (Material, Taiga, Spartan).
 - Observability and security guardrails: OAuth2/OIDC JWT roles BUYER/ADMIN/INSTALLER, OTEL tracing, Micrometer metrics, JSON logs with correlation IDs.
-- Architecture docs updated (RequirementsAnalysis v2.0, Technology v2.0, DevelopmentPlan v2.0) covering all services and flows (Flow-Config-Pricing, Flow-Cart-Checkout, Flow-Payment, Flow-Order-Lifecycle, Flow-Notifications, Flow-Reporting, Flow-Search-Experience).
+- Architecture docs: `backend/windows-store-server/docs/grace/RequirementsAnalysis.xml` v1.6.0, `backend/windows-store-server/docs/grace/Technology.xml` v1.4.0, `backend/windows-store-server/docs/grace/DevelopmentPlan.xml` v1.5.0 (flows include Flow-Config-Pricing, Flow-B2C-CPQ, Flow-Checkout-Payment, Flow-Order-Lifecycle, Flow-ProductSearch, Flow-Document-Issue, Flow-B2B-Finance, Flow-Event-Driven).
 
 ## Architecture
 - Backend modules (blueprint): config-server, gateway, shared-kernel, catalog-configuration-service, pricing-service, cart-service, order-service, account-service, media-service, notification-service, reporting-service, search-service; existing code still includes product-service scaffold.
 - Patterns: hexagonal intent, Bean Validation on entities, JPA auditing hooks, enums for currency and product options, embeddables for shared specs.
-- Data and integration: MySQL primary; Redis/Elasticsearch/Kafka planned; REST /api/v1 endpoints and GraphQL configurator schema; Kafka events order.created, payment.captured, installation.scheduled.
+- Data and integration: PostgreSQL per service; Redis/Elasticsearch/Kafka used; REST `/api/v1` endpoints; gRPC for sync inter-service calls; Kafka domain events for async propagation.
 - Build and testing: Maven with Spring Boot BOM; JUnit 5 + Testcontainers; ArchUnit/mutation testing planned per Technology guardrails.
 - gRPC config uses Spring gRPC 1.0.1 properties under `spring.grpc.*`; config-repo gRPC blocks are currently misindented and need migration to `spring.grpc.client.channels.*` for inter-service calls, with `spring.grpc.client.inprocess.exclusive=false` to allow network channels.
 - Config server clients use `spring.config.import=optional:configserver:http://localhost:8888` and require `spring-cloud-starter-config` in service POMs (gateway already includes it).
@@ -42,7 +42,7 @@
 - [Leave blank - user populates]
 
 ## Components
-- shared/shared-kernel: Module contract added for shared primitives (Id, Email, Address, Money, LocalizedString, Dimensions, DomainEvent); function contracts for Money factories/arithmetics, LocalizedString.resolve, Id.of/random; Email and Address value objects with validation/canonicalization; CanonicalLogFormatter utility formats GRACE log lines without emitting logs.
+- shared/shared-kernel: Module contract added for shared primitives (Id, Email, Address, Money, LocalizedString, Dimensions, DomainEvent); function contracts for Money factories/arithmetics, LocalizedString.resolve, Id.of/random; Email and Address value objects with validation/canonicalization; CanonicalLogFormatter utility formats GRACE log lines without emitting logs; LogSanitizer utility added for OWASP Encoder-based log sanitization with TC-LOG-SANITIZE-001..004 tests.
 - api-contracts: Module scaffolded with gRPC/protobuf build (protobuf-maven-plugin + gRPC stubs) and Wave 0 proto skeletons under api-contracts/src/main/proto/com/kanokna/{service}/grpc for catalog/pricing/cart/order/account/installation/media/notification/search/reporting; docs mirror under docs/api-contracts/protobuf with the same structure.
 - services/catalog-configuration-service: Spring Boot shell with module contract; domain layer implemented with ProductTemplate aggregate (attribute groups/options, TemplateStatus, DimensionPolicy), CatalogVersion aggregate, compatibility ruleset, and BOM templates; domain services ConfigurationValidationService (CFG-VAL-RANGE/COMPAT/RESULT anchors) and BomResolutionService (BOM-RES-SELECT/MAP/EVENT anchors) emit ConfigurationValidatedEvent and BomResolvedEvent for adapters/outbox; application layer with QueryPort and ConfigurationApplicationService orchestrating validateConfiguration/resolveBom over ProductTemplateRepository, BomTemplateRepository, OutboxPublisher using APP-VAL-* and APP-BOM-* anchors and returning DTO responses; adapters layer added: REST controller (POST /api/v1/catalog/configurations/validate|resolve-bom) mapping to commands with HTTP logs, adapter DTOs, in-memory adapters for repositories/outbox/search/media, Spring config wiring domain/application beans, and gRPC server/mapper plus gRPC exception interceptor for CatalogConfigurationService.
 - services/catalog-configuration-service: CatalogDomainErrors factory added for ERR-CAT-* codes; domain model/event validations throw DomainException instead of IllegalArgumentException; unit tests cover factory methods.
@@ -64,6 +64,7 @@
 - Tests: config-server config endpoint tests are skipped under Spring Boot 4 placeholder (TECH-ASSUM-001) via JUnit Assumptions; re-enable when Spring Cloud Config is Boot 4 compatible.
 - Tests: cart-service Testcontainers tests are gated with @EnabledIf + DockerAvailability; ArchUnit tests skip on Java 25 due to unsupported class file version.
 - Tests/build: pricing-service gRPC tests can throw NoClassDefFoundError for proto classes if the local api-contracts jar is stale; rebuild api-contracts (or run service tests with -am) to refresh generated gRPC classes.
+- Tests/build: api-contracts is a contracts-only library; Spring Cloud Contract verifier/plugin runs in producer services (not in api-contracts) to avoid MockMvc/test-context coupling in the library module.
 - API: REST versioned at /api/v1 for catalog/pricing/cart/checkout; GraphQL schema for configurator queries; Kafka events for order/payment/installation lifecycle.
 - Data rules: Monetary amounts BigDecimal with ISO currency; discountPrice must be null or <= actualPrice; dimensions for windows/doors enforced (width/height 50-500cm, 10mm step from requirements); lead times >0 for MTO; idempotency for payment callbacks.
 - Notes: product-service still lacks service/controller layers; new blueprint extends to dedicated microservices and GRACE semantic anchors for future code generation.

@@ -1,15 +1,20 @@
+# ============================================================================
+# Catalog Configuration Service - Test Configuration
+# ============================================================================
+# Database connection is configured dynamically via Testcontainers
+# using @DynamicPropertySource in integration tests.
+# No hardcoded database credentials needed here.
+
 spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/catalog_configuration_test
-    username: kanokna_test
-    password: kanokna_test
   jpa:
-    hibernate:
-      ddl-auto: create-drop
     show-sql: true
   flyway:
     enabled: false
+  cloud:
+    config:
+      enabled: false
 
 logging:
   level:
     com.kanokna.catalog: DEBUG
+    org.testcontainers: INFO

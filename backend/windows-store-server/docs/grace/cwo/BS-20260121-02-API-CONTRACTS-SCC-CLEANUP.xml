@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE BranchSpec: API Contracts Spring Cloud Contract Cleanup
+  Created: 2026-01-21T17:00:00+03:00
+  CreatedBy: GRACE-COORDINATOR
+  AWORef: AWO-20260121-02-API-CONTRACTS-RESTASSURED
+-->
+<BRANCH_SPEC id="BS-20260121-02" status="ISSUED">
+  <ChangeClassification>bugfix</ChangeClassification>
+  <BranchName>bugfix/W1-api-contracts-scc-cleanup</BranchName>
+  <BaseBranch>develop</BaseBranch>
+  <PRTarget>develop</PRTarget>
+  <PreferredMergeMethod>squash</PreferredMergeMethod>
+  <RequiresBackMergeToDevelop>false</RequiresBackMergeToDevelop>
+
+  <PR>
+    <TitleTemplate>[W1-INFRA] Remove Spring Cloud Contract verifier from api-contracts</TitleTemplate>
+    <BodyMustInclude>
+      <Item>AWORef: AWO-20260121-02-API-CONTRACTS-RESTASSURED</Item>
+      <Item>Resolves: CODE-ISS-RPT-20260121-01</Item>
+      <Item>Contracts: MC-api-contracts-post-fix</Item>
+      <Item>Scope: PHASE-01 only (cleanup); PHASE-02 deferred</Item>
+    </BodyMustInclude>
+  </PR>
+
+  <Safety>
+    <Item>No direct pushes to main/develop</Item>
+    <Item>No force-push</Item>
+    <Item>One branch == one task scope</Item>
+  </Safety>
+</BRANCH_SPEC>

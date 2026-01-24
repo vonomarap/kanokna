@@ -149,7 +149,6 @@ public class CartPricingService {
         int successCount = 0;
         int failCount = 0;
         int itemsUpdated = 0;
-        Instant now = Instant.now();
         Currency currency = resolveCurrency(cart);
 
         // BA-CART-REFRESH-02: Iterate items and call pricing-service.CalculateQuote for each
