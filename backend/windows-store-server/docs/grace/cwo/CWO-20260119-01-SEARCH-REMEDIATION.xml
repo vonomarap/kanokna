@@ -8,7 +8,7 @@
   Overall Assessment was: APPROVE_WITH_NITS
   Contains 3 MAJOR and 2 MINOR findings requiring remediation.
 -->
-<CODER_WORK_ORDER id="CWO-20260119-01" status="APPROVED">
+<CODER_WORK_ORDER id="CWO-20260119-01" status="PROPOSED">
     <Meta>
         <Created>2026-01-19T09:39:00+03:00</Created>
         <Type>REMEDIATION</Type>

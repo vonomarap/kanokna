@@ -20,11 +20,6 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // CSRF protection is intentionally disabled per DEC-SEC-CSRF-STATELESS:
-            // - All APIs use stateless JWT bearer token authentication (no cookies)
-            // - No browser-based form submissions or cookie-based sessions
-            // - CSRF attacks require cookie-based auth which is not present
-            // See: Technology.xml#DEC-SEC-CSRF-STATELESS
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").permitAll()

@@ -2,12 +2,9 @@
 <!--
   GRACE Canonical Artifact: DevelopmentPlan.xml
   Purpose: Blueprint for implementation - services, flows, contracts, testing, deployment
-  Version: 1.5.0
-  Last Updated: 2026-01-21T18:20:50+00:00
+  Version: 1.4.0
+  Last Updated: 2026-01-02T00:00:00+00:00
   Changes:
-    - v1.5.0: Added flows for document issuance and B2B billing visibility
-              (Flow-Document-Issue, Flow-B2B-Finance) and restored Flow-Config-Pricing
-              for compatibility with existing contracts and logs.
     - v1.4.0: Added new services (workflow-service, field-ops-service, document-service,
 billing-service, support-service)
               Added development phases (0-4) with milestones and acceptance gates
@@ -18,7 +15,7 @@ billing-service, support-service)
     - v1.3.0: Expanded pricing-service contracts (FC-pricing-*) and block anchors
     - v1.2.0: Added admin operation contracts
 -->
-<DevelopmentPlan version="1.5.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<DevelopmentPlan version="1.4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!-- ===============================================================================
        DEVELOPMENT PHASES
@@ -1066,7 +1063,6 @@ billing-service, support-service)
       </Aggregates>
       <Links>
         <Link ref="RequirementsAnalysis.xml#UC-STAFF-CRM-01" />
-        <Link ref="RequirementsAnalysis.xml#UC-DOC-GENERATE-01" />
         <Link ref="RequirementsAnalysis.xml#UC-B2B-CPQ-01" />
       </Links>
     </Service>
@@ -1112,7 +1108,6 @@ billing-service, support-service)
       </DomainEvents>
       <Links>
         <Link ref="RequirementsAnalysis.xml#UC-B2B-CPQ-01" />
-        <Link ref="RequirementsAnalysis.xml#UC-BILLING-VIEW-INVOICES-01" />
       </Links>
     </Service>
 
@@ -1163,27 +1158,6 @@ billing-service, support-service)
        FLOWS
        =============================================================================== -->
   <Flows>
-    <Flow id="Flow-Config-Pricing">
-      <Name>Configuration Validation and Pricing</Name>
-      <Description>
-        Shared CPQ sub-flow: validate a configuration and calculate a price quote.
-        Used by B2C configurator, B2B dealer quoting, cart recalculation, and measurement repricing.
-      </Description>
-      <Sequence>
-        <Step order="1" from="frontend" to="gateway">Submit configuration for validation</Step>
-        <Step order="2" from="gateway" to="catalog-configuration-service">Validate configuration</Step>
-        <Step order="3" from="catalog-configuration-service" to="pricing-service">Calculate quote</Step>
-        <Step order="4" from="pricing-service" to="catalog-configuration-service">Return quote and decision trace</Step>
-        <Step order="5" from="catalog-configuration-service" to="frontend">Return validation result with quote</Step>
-      </Sequence>
-      <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-ITEM" />
-        <Link ref="RequirementsAnalysis.xml#UC-PRICING-QUOTE" />
-        <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01" />
-        <Link ref="RequirementsAnalysis.xml#UC-B2B-CPQ-01" />
-      </Links>
-    </Flow>
-
     <Flow id="Flow-B2C-CPQ">
       <Name>B2C CPQ: Configure + Instant Price + Save Draft</Name>
       <Description>Customer configures product, receives instant pricing, and saves draft</Description>
@@ -1428,53 +1402,6 @@ billing-service, support-service)
         <Link ref="RequirementsAnalysis.xml#UC-CATALOG-BROWSE" />
         <Link ref="RequirementsAnalysis.xml#NFR-PERF-SEARCH-LATENCY" />
         <Link ref="DP-SVC-search-service" />
-      </Links>
-    </Flow>
-
-    <Flow id="Flow-Document-Issue">
-      <Name>Document Issuance (Proposal / Invoice / Contract)</Name>
-      <Description>
-        Staff generates proposal/invoice/contract for a deal/order. document-service renders and versions the
-        document, stores the binary via media-service, and notifies recipients with a secure link.
-      </Description>
-      <Sequence>
-        <Step order="1" from="workflow-service" to="document-service">Request document generation</Step>
-        <Step order="2" from="document-service" to="order-service">Load order snapshot (if order-based)</Step>
-        <Step order="3" from="document-service" to="billing-service">Load invoice/schedule data (if invoice-based)</Step>
-        <Step order="4" from="document-service" to="media-service">Store generated binary and return media reference</Step>
-        <Step order="5" from="document-service" to="notification-service">Notify recipients with document link</Step>
-      </Sequence>
-      <AlternateFlows>
-        <Flow trigger="E-signature required">
-          <Step order="2a" from="document-service" to="external-esign">Initiate e-sign flow (provider TBD)</Step>
-          <Step order="2b" from="external-esign" to="document-service">Receive signature status updates</Step>
-        </Flow>
-      </AlternateFlows>
-      <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-DOC-GENERATE-01" />
-        <Link ref="RequirementsAnalysis.xml#DEC-OPEN-ESIGN" />
-        <Link ref="DP-SVC-document-service" />
-        <Link ref="DP-SVC-media-service" />
-        <Link ref="DP-SVC-notification-service" />
-      </Links>
-    </Flow>
-
-    <Flow id="Flow-B2B-Finance">
-      <Name>B2B Finance: Invoices, Schedules, Settlements</Name>
-      <Description>
-        Dealer views invoices, payment schedules, and settlement totals. billing-service is the source of truth
-        for finance metadata and exposes partner-scoped queries; documents are accessed via document-service/media-service.
-      </Description>
-      <Sequence>
-        <Step order="1" from="frontend" to="gateway">Request partner invoices and balances</Step>
-        <Step order="2" from="gateway" to="billing-service">Query invoices, schedules, balances, settlements</Step>
-        <Step order="3" from="billing-service" to="document-service">Resolve invoice document references (optional)</Step>
-        <Step order="4" from="billing-service" to="frontend">Return finance view with document links</Step>
-      </Sequence>
-      <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-BILLING-VIEW-INVOICES-01" />
-        <Link ref="DP-SVC-billing-service" />
-        <Link ref="DP-SVC-document-service" />
       </Links>
     </Flow>
 
@@ -1979,69 +1906,7 @@ billing-service, support-service)
         <CITrigger>Manual or pre-release only</CITrigger>
         <FailBuild>true</FailBuild>
       </Stage>
-      <Stage order="6" phase="post-build" tool="codeql">
-        <Name>Security Scanning (CodeQL)</Name>
-        <Tool>GitHub CodeQL</Tool>
-        <ConfigFile>.github/codeql-config.yml</ConfigFile>
-        <WorkflowFile>.github/workflows/codeql.yml</WorkflowFile>
-        <Languages>java</Languages>
-        <CITrigger>Every push and PR to main/develop</CITrigger>
-        <FailBuild>true (on HIGH severity only)</FailBuild>
-        <Links>
-          <Link ref="Technology.xml#DEC-SEC-CODEQL-EXCLUSIONS" />
-        </Links>
-      </Stage>
     </CIPipelineIntegration>
-
-    <!-- ─────────────────────────────────────────────────────────────────────────
-         SECURITY SCANNING (AWO-20260121-01)
-         ───────────────────────────────────────────────────────────────────────── -->
-    <SecurityScanning>
-      <Tool id="SS-CODEQL">
-        <Name>GitHub CodeQL</Name>
-        <Purpose>Static Application Security Testing (SAST)</Purpose>
-        <Configuration>
-          <ConfigFile path=".github/codeql-config.yml">
-            Custom config with exclusions for generated code
-          </ConfigFile>
-          <Workflow path=".github/workflows/codeql.yml">
-            GitHub Actions workflow for automated scanning
-          </Workflow>
-        </Configuration>
-        <ExcludedPaths>
-          <Path>**/target/generated-sources/**</Path>
-          <Path>**/target/generated-test-sources/**</Path>
-          <Path>**/*Proto.java</Path>
-          <Path>**/*Grpc.java</Path>
-        </ExcludedPaths>
-        <SuppressedRules>
-          <Rule id="java/spring-disabled-csrf-protection">
-            Suppressed per DEC-SEC-CSRF-STATELESS - stateless JWT APIs
-          </Rule>
-        </SuppressedRules>
-      </Tool>
-      <Mitigations>
-        <Mitigation id="MIT-LOG-INJECTION">
-          <Vulnerability>Log Injection (java/log-injection)</Vulnerability>
-          <Solution>LogSanitizer utility in shared-kernel using OWASP Encoder</Solution>
-          <Contract ref="MC-shared-kernel-logging-LogSanitizer" />
-          <Links>
-            <Link ref="Technology.xml#DEC-SEC-LOG-SANITIZATION" />
-          </Links>
-        </Mitigation>
-        <Mitigation id="MIT-CSRF">
-          <Vulnerability>Disabled CSRF (java/spring-disabled-csrf-protection)</Vulnerability>
-          <Solution>Documented as intentional - stateless JWT APIs do not require CSRF</Solution>
-          <Links>
-            <Link ref="Technology.xml#DEC-SEC-CSRF-STATELESS" />
-          </Links>
-        </Mitigation>
-      </Mitigations>
-      <Links>
-        <Link ref="Technology.xml#DEC-SEC-CODEQL-EXCLUSIONS" />
-        <Link ref="RequirementsAnalysis.xml#NFR-SEC-VULNERABILITY-SCAN" />
-      </Links>
-    </SecurityScanning>
 
     <!-- ─────────────────────────────────────────────────────────────────────────
          ADDITIONAL TESTING
@@ -2295,50 +2160,6 @@ billing-service, support-service)
         <Criticality>HIGH</Criticality>
       </FunctionContract>
 
-      <!-- document-service -->
-      <ModuleContract id="MC-document-service-application-DocumentIssuance">
-        <Service>document-service</Service>
-        <Layer>application.service</Layer>
-        <Description>Generate and version business documents (proposal/invoice/contract)</Description>
-        <Criticality>MEDIUM</Criticality>
-        <Links>
-          <Link ref="RequirementsAnalysis.xml#UC-DOC-GENERATE-01" />
-          <Link ref="Flow-Document-Issue" />
-        </Links>
-      </ModuleContract>
-
-      <FunctionContract id="FC-document-service-UC-DOC-GENERATE-01-generateDocument">
-        <Service>document-service</Service>
-        <UseCase>UC-DOC-GENERATE-01</UseCase>
-        <Method>generateDocument</Method>
-        <Criticality>MEDIUM</Criticality>
-        <Links>
-          <Link ref="MC-document-service-application-DocumentIssuance" />
-        </Links>
-      </FunctionContract>
-
-      <!-- billing-service -->
-      <ModuleContract id="MC-billing-service-application-PartnerBillingQueries">
-        <Service>billing-service</Service>
-        <Layer>application.service</Layer>
-        <Description>Partner-scoped invoice, schedule, balance, and settlement queries</Description>
-        <Criticality>MEDIUM</Criticality>
-        <Links>
-          <Link ref="RequirementsAnalysis.xml#UC-BILLING-VIEW-INVOICES-01" />
-          <Link ref="Flow-B2B-Finance" />
-        </Links>
-      </ModuleContract>
-
-      <FunctionContract id="FC-billing-service-UC-BILLING-VIEW-INVOICES-01-listInvoices">
-        <Service>billing-service</Service>
-        <UseCase>UC-BILLING-VIEW-INVOICES-01</UseCase>
-        <Method>listInvoices</Method>
-        <Criticality>MEDIUM</Criticality>
-        <Links>
-          <Link ref="MC-billing-service-application-PartnerBillingQueries" />
-        </Links>
-      </FunctionContract>
-
       <!-- catalog-configuration-service admin operations -->
       <FunctionContract
         id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-createProductTemplate">
@@ -2503,101 +2324,6 @@ billing-service, support-service)
           <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01" />
         </Links>
       </ModuleContract>
-
-      <!-- ═══════════════════════════════════════════════════════════════════════════
-           SECURITY: Log Sanitization (AWO-20260121-01)
-           ═══════════════════════════════════════════════════════════════════════════ -->
-      <ModuleContract id="MC-shared-kernel-logging-LogSanitizer">
-        <Service>shared-kernel</Service>
-        <Layer>core</Layer>
-        <Package>com.kanokna.shared.logging</Package>
-        <BoundedContext>shared-kernel</BoundedContext>
-        <Purpose>
-          Utility for sanitizing user-provided input before logging to prevent log injection
-          attacks. Wraps OWASP Java Encoder for comprehensive output encoding.
-        </Purpose>
-        <Responsibilities>
-          <Item>Sanitize strings to prevent newline injection (CRLF)</Item>
-          <Item>Sanitize strings to prevent ANSI escape sequence injection</Item>
-          <Item>Sanitize strings to prevent Unicode control character injection</Item>
-          <Item>Provide bulk sanitization for maps/collections of log parameters</Item>
-        </Responsibilities>
-        <Invariants>
-          <Item>Output is always safe to include in log statements</Item>
-          <Item>Normal alphanumeric strings pass through unchanged</Item>
-          <Item>Null input returns "[null]" string (never throws NPE)</Item>
-          <Item>Empty input returns empty string</Item>
-        </Invariants>
-        <Dependencies>
-          <Item>org.owasp.encoder:encoder:1.2.3</Item>
-        </Dependencies>
-        <FunctionContracts>
-          <FunctionContract id="FC-LogSanitizer-sanitize">
-            <Method>public static String sanitize(String input)</Method>
-            <Intent>Sanitize a single string for safe logging</Intent>
-            <Input>String input - potentially malicious user input</Input>
-            <Output>String - sanitized string safe for logging</Output>
-            <SideEffects>None (pure function)</SideEffects>
-            <Preconditions>None</Preconditions>
-            <Postconditions>
-              <Item>Return value contains no CR, LF, TAB, or ANSI escape sequences</Item>
-              <Item>Return value is non-null</Item>
-            </Postconditions>
-            <ErrorHandling>
-              <Item>Null input returns "[null]"</Item>
-              <Item>Never throws exceptions</Item>
-            </ErrorHandling>
-            <Example>
-              LogSanitizer.sanitize("normal") -> "normal"
-              LogSanitizer.sanitize("line1\nline2") -> "line1\\nline2"
-              LogSanitizer.sanitize("\u001b[31mred") -> "\\u001b[31mred"
-              LogSanitizer.sanitize(null) -> "[null]"
-            </Example>
-          </FunctionContract>
-          <FunctionContract id="FC-LogSanitizer-sanitizeMap">
-            <Method>public static Map&lt;String, String&gt; sanitizeMap(Map&lt;String, ?&gt; input)</Method>
-            <Intent>Sanitize all values in a map for safe structured logging</Intent>
-            <Input>Map with string keys and any values (toString() called on values)</Input>
-            <Output>New map with all values sanitized</Output>
-            <SideEffects>None (returns new map, does not modify input)</SideEffects>
-            <Preconditions>None</Preconditions>
-            <Postconditions>
-              <Item>All values in returned map are sanitized</Item>
-              <Item>Original map is not modified</Item>
-            </Postconditions>
-            <ErrorHandling>
-              <Item>Null input returns empty map</Item>
-              <Item>Null values in map converted to "[null]"</Item>
-            </ErrorHandling>
-          </FunctionContract>
-        </FunctionContracts>
-        <TestCases>
-          <TestCase id="TC-LOG-SANITIZE-001">
-            <Description>Verify newline injection is sanitized</Description>
-            <Input>"line1\nline2\rline3"</Input>
-            <ExpectedOutput>"line1\\nline2\\rline3"</ExpectedOutput>
-          </TestCase>
-          <TestCase id="TC-LOG-SANITIZE-002">
-            <Description>Verify ANSI escape sequences are sanitized</Description>
-            <Input>"\u001b[31mRED\u001b[0m"</Input>
-            <ExpectedOutput>Encoded equivalent with escape chars replaced</ExpectedOutput>
-          </TestCase>
-          <TestCase id="TC-LOG-SANITIZE-003">
-            <Description>Verify normal strings pass through unchanged</Description>
-            <Input>"normal-string-123_ABC"</Input>
-            <ExpectedOutput>"normal-string-123_ABC"</ExpectedOutput>
-          </TestCase>
-          <TestCase id="TC-LOG-SANITIZE-004">
-            <Description>Verify null input handling</Description>
-            <Input>null</Input>
-            <ExpectedOutput>"[null]"</ExpectedOutput>
-          </TestCase>
-        </TestCases>
-        <Links>
-          <Link ref="Technology.xml#DEC-SEC-LOG-SANITIZATION" />
-          <Link ref="RequirementsAnalysis.xml#NFR-SEC-VULNERABILITY-SCAN" />
-        </Links>
-      </ModuleContract>
     </ContractRegistry>
 
     <BlockAnchorRegistry>
@@ -2668,19 +2394,6 @@ billing-service, support-service)
       <BlockAnchor id="BA-PAY-CB-03" service="order-service"
         purpose="Apply payment status transition" />
       <BlockAnchor id="BA-PAY-CB-04" service="order-service" purpose="Publish OrderConfirmedEvent" />
-
-      <!-- Document issuance anchors -->
-      <BlockAnchor id="BA-DOC-GEN-01" service="document-service" purpose="Load template and authorize access" />
-      <BlockAnchor id="BA-DOC-GEN-02" service="document-service" purpose="Load canonical data snapshot" />
-      <BlockAnchor id="BA-DOC-GEN-03" service="document-service" purpose="Render document from template" />
-      <BlockAnchor id="BA-DOC-GEN-04" service="document-service" purpose="Store binary via media-service" />
-      <BlockAnchor id="BA-DOC-GEN-99" service="document-service" purpose="Document issuance result" />
-
-      <!-- Billing query anchors -->
-      <BlockAnchor id="BA-BILL-VIEW-01" service="billing-service" purpose="Authorize partner scope" />
-      <BlockAnchor id="BA-BILL-VIEW-02" service="billing-service" purpose="Load invoices and schedules" />
-      <BlockAnchor id="BA-BILL-VIEW-03" service="billing-service" purpose="Resolve document links (optional)" />
-      <BlockAnchor id="BA-BILL-VIEW-99" service="billing-service" purpose="Billing view response" />
 
       <!-- Catalog admin operation anchors -->
       <BlockAnchor id="BA-CAT-CREATE-01" service="catalog-configuration-service"

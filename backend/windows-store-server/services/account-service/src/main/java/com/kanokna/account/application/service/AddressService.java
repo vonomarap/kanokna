@@ -168,12 +168,9 @@ public class AddressService {
 
         UserProfile profile = loadProfileWithAddresses(userId);
         AddressDto addressDto = command.address();
-        if (addressDto == null) {
-            throw AccountDomainErrors.invalidAddress("Address must be provided");
-        }
 
         // BA-ACCT-ADDR-02: Check for duplicate address
-        String city = addressDto.city();
+        String city = addressDto != null ? addressDto.city() : "";
         log.info(AccountServiceUtils.logLine(USE_CASE_PROFILE, "BA-ACCT-ADDR-02", "CHECKING",
             "ADDRESS_DUPLICATE_CHECK", "EVALUATE", "userId=" + userId.value() + ",city=" + city));
 
@@ -186,10 +183,7 @@ public class AddressService {
         }
 
         Instant now = Instant.now();
-        SavedAddress savedAddress = Objects.requireNonNull(
-            profile.addAddress(addressDto.toValueObject(), command.label(), command.setAsDefault(), now),
-            "Profile.addAddress must not return null for valid input"
-        );
+        SavedAddress savedAddress = profile.addAddress(addressDto.toValueObject(), command.label(), command.setAsDefault(), now);
         List<SavedAddress> savedAddresses = savedAddressRepository.saveAll(userId, profile.addresses());
         profile.replaceAddresses(savedAddresses);
 

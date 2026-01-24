@@ -85,13 +85,6 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Fix testcontainers compatibility: override commons-compress from Confluent -->
-            <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-compress</artifactId>
-                <version>1.28.0</version>
-            </dependency>
-
             <!-- Cloud gateway-->
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
@@ -165,32 +158,7 @@
                 <version>1.6.4</version>
             </dependency>
 
-            <!-- Mockito for Java 25 compatibility -->
-            <dependency>
-                <groupId>org.mockito</groupId>
-                <artifactId>mockito-core</artifactId>
-                <version>5.21.0</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.mockito</groupId>
-                <artifactId>mockito-junit-jupiter</artifactId>
-                <version>5.21.0</version>
-                <scope>test</scope>
-            </dependency>
-            <!-- ByteBuddy for Java 25 class file support -->
-            <dependency>
-                <groupId>net.bytebuddy</groupId>
-                <artifactId>byte-buddy</artifactId>
-                <version>1.17.5</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>net.bytebuddy</groupId>
-                <artifactId>byte-buddy-agent</artifactId>
-                <version>1.17.5</version>
-                <scope>test</scope>
-            </dependency>
+
 
             <!-- ArchUnit -->
             <dependency>
@@ -270,14 +238,6 @@
                     <artifactId>jib-maven-plugin</artifactId>
                     <version>${jib-maven-plugin.version}</version>
                 </plugin>
-                <plugin>
-                    <artifactId>maven-clean-plugin</artifactId>
-                    <version>3.5.0</version>
-                    <configuration>
-                        <!-- Windows file locking workaround: retry deletion on failure -->
-                        <retryOnError>true</retryOnError>
-                    </configuration>
-                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -297,7 +257,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>3.2.5</version>
                 <executions>
                     <execution>
                         <goals>
@@ -307,11 +267,6 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <!-- Java 25 Mockito compatibility: enable dynamic agent loading -->
-                    <argLine>
-                        -XX:+EnableDynamicAgentLoading
-                        -Xshare:off
-                    </argLine>
                     <includes>
                         <include>**/*IT.java</include>
                         <include>**/*ContractTest.java</include>
@@ -322,13 +277,8 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>3.2.5</version>
                 <configuration>
-                    <!-- Java 25 Mockito compatibility: enable dynamic agent loading -->
-                    <argLine>
-                        -XX:+EnableDynamicAgentLoading
-                        -Xshare:off
-                    </argLine>
                     <includes>
                         <include>**/*Test.java</include>
                         <include>**/ArchitectureTest.java</include>
