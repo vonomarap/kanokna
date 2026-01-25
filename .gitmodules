@@ -1,0 +1,4 @@
+[submodule "backend/windows-store-server/kanokna-config"]
+	path = backend/windows-store-server/kanokna-config
+	url = https://github.com/vonomarap/kanokna-config.git
+	branch = development
