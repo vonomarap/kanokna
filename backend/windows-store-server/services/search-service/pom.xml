@@ -17,7 +17,7 @@
     <description>Elasticsearch-backed product search service</description>
 
     <properties>
-        <elasticsearch.client.version>9.2.1</elasticsearch.client.version>
+        <elasticsearch.client.version>8.17.1</elasticsearch.client.version>
         <confluent.version>7.6.0</confluent.version>
         <redisson.version>4.1.0</redisson.version>
     </properties>
@@ -37,6 +37,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
