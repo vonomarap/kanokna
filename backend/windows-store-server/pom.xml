@@ -77,7 +77,10 @@
         <lombok.version>1.18.40</lombok.version>
         <spring-cloud.version>2025.1.0</spring-cloud.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
-        <testcontainers.version>1.19.3</testcontainers.version>
+        <testcontainers.version>1.20.4</testcontainers.version>
+        <docker-java.version>3.7.0</docker-java.version>
+        <!-- Docker Engine v29+ requires API >= 1.44; pin to avoid docker-java defaulting to older API versions -->
+        <docker.api.version>1.44</docker.api.version>
         <archunit.version>1.2.1</archunit.version>
         <jib-maven-plugin.version>3.4.0</jib-maven-plugin.version>
         <jacoco.skip>false</jacoco.skip>
@@ -158,6 +161,28 @@
                 <version>${testcontainers.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers</artifactId>
+                <version>${testcontainers.version}</version>
+            </dependency>
+
+            <!-- docker-java (pulled by Testcontainers) -->
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-api</artifactId>
+                <version>${docker-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-transport</artifactId>
+                <version>${docker-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-transport-zerodep</artifactId>
+                <version>${docker-java.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.redis.testcontainers</groupId>
@@ -307,6 +332,9 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <systemPropertyVariables>
+                        <api.version>${docker.api.version}</api.version>
+                    </systemPropertyVariables>
                     <!-- Java 25 Mockito compatibility: enable dynamic agent loading -->
                     <argLine>
                         -XX:+EnableDynamicAgentLoading
@@ -324,6 +352,9 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.0</version>
                 <configuration>
+                    <systemPropertyVariables>
+                        <api.version>${docker.api.version}</api.version>
+                    </systemPropertyVariables>
                     <!-- Java 25 Mockito compatibility: enable dynamic agent loading -->
                     <argLine>
                         -XX:+EnableDynamicAgentLoading

@@ -11,6 +11,11 @@
 - Backend modules (blueprint): config-server, gateway, shared-kernel, catalog-configuration-service, pricing-service, cart-service, order-service, account-service, media-service, notification-service, reporting-service, search-service; existing code still includes product-service scaffold.
 - Patterns: hexagonal intent, Bean Validation on entities, JPA auditing hooks, enums for currency and product options, embeddables for shared specs.
 - Data and integration: PostgreSQL per service; Redis/Elasticsearch/Kafka used; REST `/api/v1` endpoints; gRPC for sync inter-service calls; Kafka domain events for async propagation.
+- Testing baseline: Testcontainers version pinned to 1.20.4 via parent dependency management to avoid mixed module versions.
+- Elasticsearch baseline: docker-compose/testcontainers use 8.17.1; search-service client should stay on the same major.
+- Windows + Testcontainers: set Java system property `api.version=1.44` for Surefire/Failsafe to make docker-java work reliably with Docker Desktop npipe.
+- Search-service tests: ES 8+ disallows deleting an alias by name; cleanup resolves alias -> concrete indices before delete.
+- Search-service autocomplete: completion suggester mapping requires contexts; when no family filter is provided, pass an empty-category prefix context to avoid `Missing mandatory contexts` errors.
 - Build and testing: Maven with Spring Boot BOM; JUnit 5 + Testcontainers; ArchUnit/mutation testing planned per Technology guardrails.
 - gRPC config uses Spring gRPC 1.0.1 properties under `spring.grpc.*`; config-repo gRPC blocks are currently misindented and need migration to `spring.grpc.client.channels.*` for inter-service calls, with `spring.grpc.client.inprocess.exclusive=false` to allow network channels.
 - Config server clients use `spring.config.import=optional:configserver:http://localhost:8888` and require `spring-cloud-starter-config` in service POMs (gateway already includes it).

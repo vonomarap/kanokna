@@ -117,7 +117,7 @@ class SearchServiceIT extends TestContainersConfig {
 
         publishEvent(productUpdatedTopic, updatedEvent("p2", "Window Gamma"));
 
-        ProductSearchDocument document = awaitProductById("p2");
+        ProductSearchDocument document = awaitProductByIdWithName("p2", "Window Gamma");
         assertEquals("Window Gamma", document.getName().resolve(Language.RU));
     }
 
@@ -247,9 +247,23 @@ class SearchServiceIT extends TestContainersConfig {
         try {
             elasticsearchClient.indices().delete(d -> d.index(name));
         } catch (ElasticsearchException ex) {
-            if (ex.status() != 404) {
-                throw ex;
+            if (ex.status() == 404) {
+                return;
             }
+
+            // ES 8+ rejects deleting an alias by name (even if it points to a concrete index).
+            // Our config uses alias == "product_templates", so cleanup must resolve and delete
+            // the concrete indices behind the alias.
+            String reason = ex.error() != null ? ex.error().reason() : null;
+            if ((reason != null && reason.contains("matches an alias"))
+                || (ex.getMessage() != null && ex.getMessage().contains("matches an alias"))) {
+                for (String index : searchIndexAdminPort.resolveAlias(name)) {
+                    deleteIndex(index);
+                }
+                return;
+            }
+
+            throw ex;
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to reset indices", ex);
         }
@@ -319,6 +333,33 @@ class SearchServiceIT extends TestContainersConfig {
             throw lastError;
         }
         fail("Timed out waiting for product " + productId);
+        return null;
+    }
+
+    private ProductSearchDocument awaitProductByIdWithName(String productId, String expectedNameRu) {
+        long deadline = System.currentTimeMillis() + 10_000L;
+        RuntimeException lastError = null;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                refreshAlias();
+                ProductSearchDocument doc = searchApplicationService.getProductById(
+                    new GetProductByIdQuery(productId, Language.RU)
+                );
+                String name = doc == null || doc.getName() == null ? null : doc.getName().resolve(Language.RU);
+                if (expectedNameRu.equals(name)) {
+                    return doc;
+                }
+            } catch (RuntimeException ex) {
+                lastError = ex;
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          sleep(200);
+        }
+        if (lastError != null) {
+            throw lastError;
+        }
+        fail("Timed out waiting for product " + productId + " to have name '" + expectedNameRu + "'");
         return null;
     }
 
