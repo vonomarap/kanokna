@@ -59,10 +59,8 @@ import co.elastic.clients.elasticsearch.core.search.CompletionContext;
 import co.elastic.clients.elasticsearch.core.search.CompletionSuggest;
 import co.elastic.clients.elasticsearch.core.search.CompletionSuggestOption;
 import co.elastic.clients.elasticsearch.core.search.Context;
-import co.elastic.clients.elasticsearch.core.search.HighlightField;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.Suggester;
-import co.elastic.clients.util.NamedValue;
 
 /**
  * Elasticsearch adapter for search queries and indexing operations.
@@ -116,9 +114,8 @@ public class ElasticsearchSearchRepository implements SearchRepository {
                 .trackTotalHits(t -> t.enabled(true))
                 .query(buildSearchQuery(query))
                 .highlight(h -> h
-                        .fields(List.of(
-                                NamedValue.of(FIELD_NAME, HighlightField.of(f -> f)),
-                                NamedValue.of(FIELD_DESCRIPTION, HighlightField.of(f -> f)))));
+                        .fields(FIELD_NAME, f -> f)
+                        .fields(FIELD_DESCRIPTION, f -> f));
 
         for (String field : FACET_FIELDS) {
             builder.aggregations(field, a -> a.terms(t -> t.field(field).size(50)));
@@ -346,6 +343,19 @@ public class ElasticsearchSearchRepository implements SearchRepository {
     }
 
     private Suggester buildAutocompleteSuggester(AutocompleteQuery query) {
+        // Completion suggester mapping uses mandatory context ("family"), so we must always send a
+        // context query. When no family filter is provided, we pass an empty prefix context which
+        // matches all categories (ES 8+).
+        List<CompletionContext> contexts;
+        if (query.familyFilter() != null && !query.familyFilter().isBlank()) {
+            contexts = List.of(CompletionContext.of(ctx -> ctx
+                .context(Context.of(ctxBuilder -> ctxBuilder.category(query.familyFilter())))));
+        } else {
+            contexts = List.of(CompletionContext.of(ctx -> ctx
+                .context(Context.of(ctxBuilder -> ctxBuilder.category("")))
+                .prefix(true)));
+        }
+
         return new Suggester.Builder()
                 .suggesters(SUGGESTER_AUTOCOMPLETE, field -> field
                         .prefix(query.prefix())
@@ -353,14 +363,25 @@ public class ElasticsearchSearchRepository implements SearchRepository {
                             comp.field(FIELD_SUGGEST);
                             comp.size(query.limit());
                             comp.skipDuplicates(true);
-                            if (query.familyFilter() != null && !query.familyFilter().isBlank()) {
-                                List<CompletionContext> contexts = List.of(CompletionContext.of(ctx -> ctx
-                                        .context(Context.of(ctxBuilder -> ctxBuilder.category(query.familyFilter())))));
-                                comp.contexts("family", contexts);
-                            }
+                            List<CompletionContext> contexts = List.of(resolveFamilyContext(query));
+                            comp.contexts("family", contexts);
                             return comp;
                         }))
                 .build();
+    }
+
+    private CompletionContext resolveFamilyContext(AutocompleteQuery query) {
+        String familyFilter = query.familyFilter();
+        if (familyFilter != null && !familyFilter.isBlank()) {
+            return CompletionContext.of(ctx -> ctx
+                    .context(Context.of(ctxBuilder -> ctxBuilder.category(familyFilter))));
+        }
+
+        // The completion field is configured with a mandatory "family" context. Use an "empty prefix"
+        // context query to match all categories when no explicit filter is provided.
+        return CompletionContext.of(ctx -> ctx
+                .context(Context.of(ctxBuilder -> ctxBuilder.category("")))
+                .prefix(true));
     }
 
     private List<Suggestion> mapSuggestions(SearchResponse<SearchIndexDocument> response) {

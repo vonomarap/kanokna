@@ -1,7 +1,30 @@
 package com.kanokna.search;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.when;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+
 import com.google.protobuf.Timestamp;
 import com.kanokna.catalog.v1.ProductTemplatePublishedEvent;
 import com.kanokna.catalog.v1.ProductTemplateUnpublishedEvent;
@@ -21,6 +44,7 @@ import com.kanokna.search.application.port.out.SearchIndexAdminPort;
 import com.kanokna.search.application.port.out.SearchRepository;
 import com.kanokna.search.application.service.SearchApplicationService;
 import com.kanokna.search.domain.model.AutocompleteQuery;
+import com.kanokna.search.domain.model.AutocompleteResult;
 import com.kanokna.search.domain.model.FacetFilter;
 import com.kanokna.search.domain.model.ProductSearchDocument;
 import com.kanokna.search.domain.model.ProductStatus;
@@ -35,32 +59,13 @@ import com.kanokna.shared.i18n.Language;
 import com.kanokna.shared.i18n.LocalizedString;
 import com.kanokna.shared.money.Currency;
 import com.kanokna.shared.money.Money;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.kafka.core.KafkaTemplate;
 
-import java.io.IOException;
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.when;
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 
 @SpringBootTest
 class SearchServiceIT extends TestContainersConfig {
+
     @Autowired
     private SearchApplicationService searchApplicationService;
 
@@ -70,7 +75,7 @@ class SearchServiceIT extends TestContainersConfig {
     @Autowired
     private SearchIndexAdminPort searchIndexAdminPort;
 
-    @Autowired
+    @MockitoSpyBean
     private DistributedLockPort distributedLockPort;
 
     @Autowired
@@ -117,7 +122,7 @@ class SearchServiceIT extends TestContainersConfig {
 
         publishEvent(productUpdatedTopic, updatedEvent("p2", "Window Gamma"));
 
-        ProductSearchDocument document = awaitProductById("p2");
+        ProductSearchDocument document = awaitProductWithName("p2", "Window Gamma");
         assertEquals("Window Gamma", document.getName().resolve(Language.RU));
     }
 
@@ -138,29 +143,35 @@ class SearchServiceIT extends TestContainersConfig {
         CatalogProductEvent event = SearchTestFixture.catalogProductEvent("p10", ProductStatus.ACTIVE);
         CatalogProductPage page = SearchTestFixture.catalogProductPage(List.of(event), null);
         when(catalogConfigurationPort.listProductTemplates(anyInt(), nullable(String.class)))
-            .thenReturn(page);
+                .thenReturn(page);
 
         ReindexResult result = searchApplicationService.reindexCatalog(new ReindexCommand(null));
 
         assertEquals(searchProperties.index().versionPrefix() + "2", result.newIndexName());
         assertTrue(searchIndexAdminPort.resolveAlias(searchProperties.index().alias())
-            .contains(result.newIndexName()));
+                .contains(result.newIndexName()));
     }
 
     @Test
     @DisplayName("TC-FUNC-REINDEX-003: reindex_concurrentRequests_secondIsRejected")
     void reindex_concurrentRequests_secondIsRejected() {
-        DistributedLockPort.LockHandle handle = distributedLockPort.tryAcquire(
-            searchProperties.reindex().lockName());
+        String lockName = searchProperties.reindex().lockName();
+        DistributedLockPort.LockHandle handle = distributedLockPort.tryAcquire(lockName);
         assertNotNull(handle);
+
+        // Mock subsequent lock acquisitions to return null (simulate contention)
+        doReturn(null).when(distributedLockPort).tryAcquire(lockName);
+
         try {
             DomainException ex = assertThrows(
-                DomainException.class,
-                () -> searchApplicationService.reindexCatalog(new ReindexCommand(null))
+                    DomainException.class,
+                    () -> searchApplicationService.reindexCatalog(new ReindexCommand(null))
             );
             assertEquals("ERR-REINDEX-IN-PROGRESS", ex.getCode());
         } finally {
             handle.release();
+            // Reset spy to restore normal behavior for other tests
+            org.mockito.Mockito.reset(distributedLockPort);
         }
     }
 
@@ -172,14 +183,14 @@ class SearchServiceIT extends TestContainersConfig {
         refreshAlias();
 
         SearchQuery query = new SearchQuery(
-            "",
-            0,
-            20,
-            SortField.RELEVANCE,
-            SortOrder.DESC,
-            List.of(new FacetFilter("family", List.of("WINDOW"))),
-            null,
-            Language.RU
+                "",
+                0,
+                20,
+                SortField.RELEVANCE,
+                SortOrder.DESC,
+                List.of(new FacetFilter("family", List.of("WINDOW"))),
+                null,
+                Language.RU
         );
 
         SearchResult result = searchApplicationService.searchProducts(query);
@@ -194,9 +205,7 @@ class SearchServiceIT extends TestContainersConfig {
         searchRepository.index(buildDocument("p30", "Window Spark", "WINDOW", "PVC"));
         refreshAlias();
 
-        var result = searchApplicationService.autocomplete(
-            new AutocompleteQuery("Win", 10, Language.RU, null)
-        );
+        var result = awaitAutocomplete("Win", "Window Spark");
 
         assertFalse(result.suggestions().isEmpty());
         assertEquals("Window Spark", result.suggestions().get(0).text());
@@ -210,7 +219,7 @@ class SearchServiceIT extends TestContainersConfig {
         refreshAlias();
 
         FacetValuesResult result = searchApplicationService.getFacetValues(
-            new GetFacetValuesQuery(List.of("family", "materials"), Language.RU)
+                new GetFacetValuesQuery(List.of("family", "materials"), Language.RU)
         );
 
         assertEquals(2, result.facets().size());
@@ -225,7 +234,7 @@ class SearchServiceIT extends TestContainersConfig {
         refreshAlias();
 
         ProductSearchDocument document = searchApplicationService.getProductById(
-            new GetProductByIdQuery("p50", Language.RU)
+                new GetProductByIdQuery("p50", Language.RU)
         );
 
         assertEquals("p50", document.getId());
@@ -234,7 +243,9 @@ class SearchServiceIT extends TestContainersConfig {
     private void resetIndices() throws IOException {
         String alias = searchProperties.index().alias();
         String versionPrefix = searchProperties.index().versionPrefix();
-        deleteIndex(alias);
+
+        // Resolve alias to underlying indices and delete them (ES 8.17+ does not allow deleting aliases directly)
+        deleteIndicesForAlias(alias);
         deleteIndex(versionPrefix + "*");
 
         String baseIndex = versionPrefix + "1";
@@ -243,13 +254,50 @@ class SearchServiceIT extends TestContainersConfig {
         refreshAlias();
     }
 
-    private void deleteIndex(String name) {
+    private void deleteIndicesForAlias(String alias) {
         try {
-            elasticsearchClient.indices().delete(d -> d.index(name));
+            var aliasResponse = elasticsearchClient.indices().getAlias(a -> a.name(alias));
+            for (String indexName : aliasResponse.result().keySet()) {
+                elasticsearchClient.indices().delete(d -> d.index(indexName));
+            }
         } catch (ElasticsearchException ex) {
             if (ex.status() != 404) {
                 throw ex;
             }
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to delete indices for alias: " + alias, ex);
+        }
+    }
+
+    private void deleteIndex(String pattern) {
+        try {
+            if (pattern.contains("*")) {
+                // List matching indices and delete individually (ES 8.x blocks wildcard deletion)
+                var response = elasticsearchClient.indices().get(g -> g.index(pattern));
+                for (String indexName : response.result().keySet()) {
+                    elasticsearchClient.indices().delete(d -> d.index(indexName));
+                }
+            } else {
+                elasticsearchClient.indices().delete(d -> d.index(pattern));
+            }
+        } catch (ElasticsearchException ex) {
+            if (ex.status() == 404) {
+                return;
+            }
+
+            // ES 8+ rejects deleting an alias by name (even if it points to a concrete index).
+            // Our config uses alias == "product_templates", so cleanup must resolve and delete
+            // the concrete indices behind the alias.
+            String reason = ex.error() != null ? ex.error().reason() : null;
+            if ((reason != null && reason.contains("matches an alias"))
+                || (ex.getMessage() != null && ex.getMessage().contains("matches an alias"))) {
+                for (String index : searchIndexAdminPort.resolveAlias(name)) {
+                    deleteIndex(index);
+                }
+                return;
+            }
+
+            throw ex;
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to reset indices", ex);
         }
@@ -271,16 +319,16 @@ class SearchServiceIT extends TestContainersConfig {
             try {
                 refreshAlias();
                 SearchResult result = searchApplicationService.searchProducts(
-                    new SearchQuery(
-                        queryText,
-                        0,
-                        20,
-                        SortField.RELEVANCE,
-                        SortOrder.DESC,
-                        List.of(),
-                        null,
-                        Language.RU
-                    )
+                        new SearchQuery(
+                                queryText,
+                                0,
+                                20,
+                                SortField.RELEVANCE,
+                                SortOrder.DESC,
+                                List.of(),
+                                null,
+                                Language.RU
+                        )
                 );
                 if (result.products().size() >= expectedMin) {
                     return result;
@@ -288,9 +336,9 @@ class SearchServiceIT extends TestContainersConfig {
             } catch (RuntimeException ex) {
                 lastError = ex;
             } catch (IOException e) {
-              throw new RuntimeException(e);
+                throw new RuntimeException(e);
             }
-          sleep(200);
+            sleep(200);
         }
         if (lastError != null) {
             throw lastError;
@@ -306,19 +354,45 @@ class SearchServiceIT extends TestContainersConfig {
             try {
                 refreshAlias();
                 return searchApplicationService.getProductById(
-                    new GetProductByIdQuery(productId, Language.RU)
+                        new GetProductByIdQuery(productId, Language.RU)
                 );
             } catch (RuntimeException ex) {
                 lastError = ex;
             } catch (IOException e) {
-              throw new RuntimeException(e);
+                throw new RuntimeException(e);
             }
-          sleep(200);
+            sleep(200);
         }
         if (lastError != null) {
             throw lastError;
         }
         fail("Timed out waiting for product " + productId);
+        return null;
+    }
+
+    private ProductSearchDocument awaitProductWithName(String productId, String expectedName) {
+        long deadline = System.currentTimeMillis() + 15_000L;
+        RuntimeException lastError = null;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                refreshAlias();
+                ProductSearchDocument doc = searchApplicationService.getProductById(
+                        new GetProductByIdQuery(productId, Language.RU)
+                );
+                if (doc != null && expectedName.equals(doc.getName().resolve(Language.RU))) {
+                    return doc;
+                }
+            } catch (RuntimeException ex) {
+                lastError = ex;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            sleep(300);
+        }
+        if (lastError != null) {
+            throw lastError;
+        }
+        fail("Timed out waiting for product " + productId + " with name " + expectedName);
         return null;
     }
 
@@ -333,9 +407,9 @@ class SearchServiceIT extends TestContainersConfig {
                     return;
                 }
             } catch (IOException e) {
-              throw new RuntimeException(e);
+                throw new RuntimeException(e);
             }
-          sleep(200);
+            sleep(200);
         }
         fail("Timed out waiting for product deletion " + productId);
     }
@@ -349,107 +423,136 @@ class SearchServiceIT extends TestContainersConfig {
         }
     }
 
+    private AutocompleteResult awaitAutocomplete(
+            String prefix, String expectedSuggestion) {
+        long deadline = System.currentTimeMillis() + 15_000L;
+        RuntimeException lastError = null;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                refreshAlias();
+                var result = searchApplicationService.autocomplete(
+                        new AutocompleteQuery(prefix, 10, Language.RU, null)
+                );
+                if (!result.suggestions().isEmpty()
+                        && result.suggestions().stream()
+                                .anyMatch(s -> expectedSuggestion.equals(s.text()))) {
+                    return result;
+                }
+            } catch (RuntimeException ex) {
+                lastError = ex;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            sleep(300);
+        }
+        if (lastError != null) {
+            throw lastError;
+        }
+        fail("Timed out waiting for autocomplete suggestion: " + expectedSuggestion);
+        return null;
+    }
+
     private ProductSearchDocument buildDocument(
-        String id,
-        String name,
-        String family,
-        String material
+            String id,
+            String name,
+            String family,
+            String material
     ) {
         return ProductSearchDocument.builder(id)
-            .name(LocalizedString.of(Language.RU, name))
-            .description(LocalizedString.of(Language.RU, name + " desc"))
-            .family(family)
-            .profileSystem("REHAU")
-            .openingTypes(List.of("TILT"))
-            .materials(List.of(material))
-            .colors(List.of("WHITE"))
-            .minPrice(Money.ofMinor(100_00, Currency.RUB))
-            .maxPrice(Money.ofMinor(500_00, Currency.RUB))
-            .currency("RUB")
-            .popularity(10)
-            .status(ProductStatus.ACTIVE)
-            .publishedAt(Instant.now())
-            .thumbnailUrl("http://example.com/" + id + ".png")
-            .optionCount(2)
-            .suggestInputs(List.of(name))
-            .build();
+                .name(LocalizedString.of(Language.RU, name))
+                .description(LocalizedString.of(Language.RU, name + " desc"))
+                .family(family)
+                .profileSystem("REHAU")
+                .openingTypes(List.of("TILT"))
+                .materials(List.of(material))
+                .colors(List.of("WHITE"))
+                .minPrice(Money.ofMinor(100_00, Currency.RUB))
+                .maxPrice(Money.ofMinor(500_00, Currency.RUB))
+                .currency("RUB")
+                .popularity(10)
+                .status(ProductStatus.ACTIVE)
+                .publishedAt(Instant.now())
+                .thumbnailUrl("http://example.com/" + id + ".png")
+                .optionCount(2)
+                .suggestInputs(List.of(name))
+                .build();
     }
 
     private ProductTemplatePublishedEvent publishedEvent(String productId, String name) {
         return ProductTemplatePublishedEvent.newBuilder()
-            .setMetadata(eventMetadata("evt-" + productId))
-            .setProductTemplateId(productId)
-            .setName(name)
-            .setProductFamily("WINDOW")
-            .setDescription(name + " description")
-            .setProfileSystem("REHAU")
-            .addAllOpeningTypes(List.of("TILT"))
-            .addAllMaterials(List.of("PVC"))
-            .addAllColors(List.of("WHITE"))
-            .setBasePrice(protoMoney(100_00))
-            .setMaxPrice(protoMoney(500_00))
-            .setStatus(com.kanokna.catalog.v1.ProductStatus.PRODUCT_STATUS_ACTIVE)
-            .setThumbnailUrl("http://example.com/" + productId + ".png")
-            .setPopularity(5)
-            .setOptionGroupCount(2)
-            .setPublishedAt(timestampNow())
-            .build();
+                .setMetadata(eventMetadata("evt-" + productId))
+                .setProductTemplateId(productId)
+                .setName(name)
+                .setProductFamily("WINDOW")
+                .setDescription(name + " description")
+                .setProfileSystem("REHAU")
+                .addAllOpeningTypes(List.of("TILT"))
+                .addAllMaterials(List.of("PVC"))
+                .addAllColors(List.of("WHITE"))
+                .setBasePrice(protoMoney(100_00))
+                .setMaxPrice(protoMoney(500_00))
+                .setStatus(com.kanokna.catalog.v1.ProductStatus.PRODUCT_STATUS_ACTIVE)
+                .setThumbnailUrl("http://example.com/" + productId + ".png")
+                .setPopularity(5)
+                .setOptionGroupCount(2)
+                .setPublishedAt(timestampNow())
+                .build();
     }
 
     private ProductTemplateUpdatedEvent updatedEvent(String productId, String name) {
         return ProductTemplateUpdatedEvent.newBuilder()
-            .setMetadata(eventMetadata("evt-" + productId + "-upd"))
-            .setProductTemplateId(productId)
-            .addAllUpdatedFields(List.of("name", "description"))
-            .setPriceChanged(false)
-            .setOptionsChanged(false)
-            .setName(name)
-            .setProductFamily("WINDOW")
-            .setDescription(name + " description")
-            .setProfileSystem("REHAU")
-            .addAllOpeningTypes(List.of("TILT"))
-            .addAllMaterials(List.of("PVC"))
-            .addAllColors(List.of("WHITE"))
-            .setBasePrice(protoMoney(110_00))
-            .setMaxPrice(protoMoney(510_00))
-            .setStatus(com.kanokna.catalog.v1.ProductStatus.PRODUCT_STATUS_ACTIVE)
-            .setThumbnailUrl("http://example.com/" + productId + ".png")
-            .setPopularity(6)
-            .setOptionGroupCount(3)
-            .setUpdatedAt(timestampNow())
-            .build();
+                .setMetadata(eventMetadata("evt-" + productId + "-upd"))
+                .setProductTemplateId(productId)
+                .addAllUpdatedFields(List.of("name", "description"))
+                .setPriceChanged(false)
+                .setOptionsChanged(false)
+                .setName(name)
+                .setProductFamily("WINDOW")
+                .setDescription(name + " description")
+                .setProfileSystem("REHAU")
+                .addAllOpeningTypes(List.of("TILT"))
+                .addAllMaterials(List.of("PVC"))
+                .addAllColors(List.of("WHITE"))
+                .setBasePrice(protoMoney(110_00))
+                .setMaxPrice(protoMoney(510_00))
+                .setStatus(com.kanokna.catalog.v1.ProductStatus.PRODUCT_STATUS_ACTIVE)
+                .setThumbnailUrl("http://example.com/" + productId + ".png")
+                .setPopularity(6)
+                .setOptionGroupCount(3)
+                .setUpdatedAt(timestampNow())
+                .build();
     }
 
     private ProductTemplateUnpublishedEvent unpublishedEvent(String productId) {
         return ProductTemplateUnpublishedEvent.newBuilder()
-            .setMetadata(eventMetadata("evt-" + productId + "-del"))
-            .setProductTemplateId(productId)
-            .setReason("unpublished")
-            .build();
+                .setMetadata(eventMetadata("evt-" + productId + "-del"))
+                .setProductTemplateId(productId)
+                .setReason("unpublished")
+                .build();
     }
 
     private EventMetadata eventMetadata(String eventId) {
         return EventMetadata.newBuilder()
-            .setEventId(eventId)
-            .setOccurredAt(timestampNow())
-            .setAggregateId(UUID.randomUUID().toString())
-            .setAggregateType("ProductTemplate")
-            .setCorrelationId(UUID.randomUUID().toString())
-            .build();
+                .setEventId(eventId)
+                .setOccurredAt(timestampNow())
+                .setAggregateId(UUID.randomUUID().toString())
+                .setAggregateType("ProductTemplate")
+                .setCorrelationId(UUID.randomUUID().toString())
+                .build();
     }
 
     private com.kanokna.common.v1.Money protoMoney(long minor) {
         return com.kanokna.common.v1.Money.newBuilder()
-            .setAmountMinor(minor)
-            .setCurrency(com.kanokna.common.v1.Currency.CURRENCY_RUB)
-            .build();
+                .setAmountMinor(minor)
+                .setCurrency(com.kanokna.common.v1.Currency.CURRENCY_RUB)
+                .build();
     }
 
     private Timestamp timestampNow() {
         Instant now = Instant.now();
         return Timestamp.newBuilder()
-            .setSeconds(now.getEpochSecond())
-            .setNanos(now.getNano())
-            .build();
+                .setSeconds(now.getEpochSecond())
+                .setNanos(now.getNano())
+                .build();
     }
 }

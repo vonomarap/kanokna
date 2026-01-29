@@ -106,9 +106,17 @@ class ElasticsearchIT extends TestContainersConfig {
         assertEquals(0, result.failedCount());
     }
 
-    private void deleteIndex(String name) {
+    private void deleteIndex(String pattern) {
         try {
-            elasticsearchClient.indices().delete(d -> d.index(name));
+            if (pattern.contains("*")) {
+                // List matching indices and delete individually (ES 8.x blocks wildcard deletion)
+                var response = elasticsearchClient.indices().get(g -> g.index(pattern));
+                for (String indexName : response.result().keySet()) {
+                    elasticsearchClient.indices().delete(d -> d.index(indexName));
+                }
+            } else {
+                elasticsearchClient.indices().delete(d -> d.index(pattern));
+            }
         } catch (ElasticsearchException ex) {
             if (ex.status() != 404) {
                 throw ex;

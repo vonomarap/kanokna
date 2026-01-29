@@ -70,7 +70,7 @@ public class ElasticsearchIndexAdminAdapter implements SearchIndexAdminPort {
     @Override
     public List<String> resolveAlias(String alias) {
         try {
-            Map<String, ?> result = client.indices().getAlias(a -> a.name(alias)).aliases();
+            Map<String, ?> result = client.indices().getAlias(a -> a.name(alias)).result();
             return new ArrayList<>(result.keySet());
         } catch (ElasticsearchException ex) {
             if (ex.status() == 404) {
@@ -101,4 +101,3 @@ public class ElasticsearchIndexAdminAdapter implements SearchIndexAdminPort {
         }
     }
 }
-

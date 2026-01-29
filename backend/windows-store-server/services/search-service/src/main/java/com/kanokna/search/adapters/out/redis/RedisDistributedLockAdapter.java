@@ -22,6 +22,12 @@ public class RedisDistributedLockAdapter implements DistributedLockPort {
             throw new IllegalArgumentException("lockName is required");
         }
         RLock lock = redissonClient.getLock(lockName);
+        // Reindex requests must be rejected while a reindex is in progress.
+        // Redisson locks are re-entrant for the same thread, but for our use-case
+        // re-entrancy would mask contention in tests and in-process callers.
+        if (lock.isHeldByCurrentThread()) {
+            return null;
+        }
         boolean acquired = lock.tryLock();
         if (!acquired) {
             return null;

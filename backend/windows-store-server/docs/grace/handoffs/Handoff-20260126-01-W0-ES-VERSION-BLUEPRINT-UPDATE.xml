@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Handoff: Elasticsearch/Testcontainers Version Blueprint Update
+  AWO Reference: AWO-20260126-01-ES-VERSION-BLUEPRINT-UPDATE.xml
+  Created: 2026-01-26T14:10:16+03:00
+  Author: GRACE-ARCHITECT
+  Status: PROPOSED
+  SchemaVersion: grace-markup-v2
+-->
+
+<GIT_IMPACT id="GIT-20260126-01" status="ADVISORY">
+  <ChangeClassification>bugfix</ChangeClassification>
+  <AffectedServices>
+    <ServiceRef ref="DP-SVC-search-service" />
+    <ServiceRef ref="DP-SVC-test-support" />
+  </AffectedServices>
+  <DefaultRouting>
+    <BaseBranch>develop</BaseBranch>
+    <PRTarget>develop</PRTarget>
+    <RequiresBackMergeToDevelop>false</RequiresBackMergeToDevelop>
+    <PreferredMergeMethod>squash</PreferredMergeMethod>
+  </DefaultRouting>
+  <BranchNaming>
+    <Pattern>bugfix/NA-es-version-alignment</Pattern>
+    <TicketPolicy status="ASSUMED">No external ticket; use CWO-20260126-01 as reference</TicketPolicy>
+  </BranchNaming>
+  <RiskNotes>
+    <Item>Unblocks CWO-20260126-01 by aligning blueprint with ES 8.17.1 + Testcontainers 1.20.x.</Item>
+    <Item>Search-service contracts updated to use Elasticsearch 8.17.1.</Item>
+    <Item>Runtime behavior unchanged; test infrastructure and compatibility alignment only.</Item>
+  </RiskNotes>
+</GIT_IMPACT>
+
+<GRACE_HANDOFF
+  id="Handoff-20260126-01-W0-ES-VERSION-BLUEPRINT-UPDATE"
+  status="PROPOSED"
+  schemaVersion="grace-markup-v2"
+  created="2026-01-26T14:10:16+03:00"
+  author="GRACE-ARCHITECT"
+  taskRef="W0-T7"
+  planRef="DevelopmentExecutionPlan.xml#W0-T7"
+  blueprintRef="DevelopmentPlan.xml#DP-SVC-search-service"
+  techRef="Technology.xml#DEC-ES-VERSION-UPGRADE,Technology.xml#DEC-TESTCONTAINERS-UPGRADE"
+  requirementsRef="RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS,RequirementsAnalysis.xml#NFR-MAINT-TESTABILITY"
+>
+  <Scope>
+    <Services>
+      <ServiceRef ref="DP-SVC-search-service"/>
+      <ServiceRef ref="DP-SVC-test-support"/>
+    </Services>
+    <UseCases>
+      <UseCaseRef ref="UC-SEARCH-PRODUCTS"/>
+    </UseCases>
+  </Scope>
+
+  <Artifacts>
+    <Artifact ref="RequirementsAnalysis.xml" version="1.6.0"/>
+    <Artifact ref="Technology.xml" version="1.5.0"/>
+    <Artifact ref="DevelopmentPlan.xml" version="1.5.0"/>
+    <Artifact ref="DevelopmentExecutionPlan.xml" version="1.1.1"/>
+  </Artifacts>
+
+  <Contracts>
+    <ModuleContractRef id="MC-search-service-domain"/>
+  </Contracts>
+</GRACE_HANDOFF>

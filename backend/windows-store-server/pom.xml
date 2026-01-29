@@ -77,7 +77,9 @@
         <lombok.version>1.18.40</lombok.version>
         <spring-cloud.version>2025.1.0</spring-cloud.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
-        <testcontainers.version>1.19.3</testcontainers.version>
+        <testcontainers.version>1.20.4</testcontainers.version>
+        <!-- Docker Engine 29+ requires API >= 1.44; docker-java default (1.32) fails with HTTP 400 -->
+        <docker.api.version>1.44</docker.api.version>
         <archunit.version>1.2.1</archunit.version>
         <jib-maven-plugin.version>3.4.0</jib-maven-plugin.version>
         <jacoco.skip>false</jacoco.skip>
@@ -158,6 +160,11 @@
                 <version>${testcontainers.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers</artifactId>
+                <version>${testcontainers.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.redis.testcontainers</groupId>
@@ -307,10 +314,16 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <systemPropertyVariables>
+                        <api.version>${docker.api.version}</api.version>
+                    </systemPropertyVariables>
                     <!-- Java 25 Mockito compatibility: enable dynamic agent loading -->
                     <argLine>
                         -XX:+EnableDynamicAgentLoading
                         -Xshare:off
+                        -Dapi.version=${docker.api.version}
+                        -Dspring.cloud.config.enabled=false
+                        -Dspring.cloud.config.import-check.enabled=false
                     </argLine>
                     <includes>
                         <include>**/*IT.java</include>
@@ -324,10 +337,16 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.0</version>
                 <configuration>
+                    <systemPropertyVariables>
+                        <api.version>${docker.api.version}</api.version>
+                    </systemPropertyVariables>
                     <!-- Java 25 Mockito compatibility: enable dynamic agent loading -->
                     <argLine>
                         -XX:+EnableDynamicAgentLoading
                         -Xshare:off
+                        -Dapi.version=${docker.api.version}
+                        -Dspring.cloud.config.enabled=false
+                        -Dspring.cloud.config.import-check.enabled=false
                     </argLine>
                     <includes>
                         <include>**/*Test.java</include>

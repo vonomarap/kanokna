@@ -54,7 +54,8 @@ class RedisDistributedLockAdapterTest {
     void unlock_releasesLock() {
         when(redissonClient.getLock("search-lock")).thenReturn(lock);
         when(lock.tryLock()).thenReturn(true);
-        when(lock.isHeldByCurrentThread()).thenReturn(true);
+        // First call (during acquire): not held yet; second call (during release): held by current thread.
+        when(lock.isHeldByCurrentThread()).thenReturn(false, true);
 
         RedisDistributedLockAdapter adapter = new RedisDistributedLockAdapter(redissonClient);
 

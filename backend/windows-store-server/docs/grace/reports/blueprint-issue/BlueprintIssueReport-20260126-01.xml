@@ -1,0 +1,21 @@
+<BlueprintIssueReport>
+  <Issue id="ISS-20260126-01" status="RESOLVED">
+    <Description>
+      CWO-20260126-01-ES-VERSION-ALIGNMENT required aligning the Elasticsearch Testcontainers image
+      with the approved blueprint version. This issue has been resolved by updating the blueprint
+      to Elasticsearch 8.17.1 (Technology.xml#TECH-elasticsearch) per user request.
+    </Description>
+    <Impact>
+      RESOLVED: Integration tests can now proceed with Elasticsearch 8.17.1 container image.
+      Blueprint and implementation are aligned.
+    </Impact>
+    <ProposedFix>
+      Technology.xml updated to specify Elasticsearch 8.17.1. Testcontainers remain at 1.20.x
+      for StringUtils fix. All affected contracts/module documentation updated.
+    </ProposedFix>
+    <RequiredAction>None - resolved</RequiredAction>
+    <Resolution date="2026-01-27" version="8.17.1">
+      Updated to Elasticsearch 8.17.1 as requested by user.
+    </Resolution>
+  </Issue>
+</BlueprintIssueReport>

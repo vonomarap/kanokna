@@ -51,7 +51,7 @@
         <TECHNOLOGY>
             <Item>Java 25 (see Technology.xml#TECH-java)</Item>
             <Item>Spring Boot (see Technology.xml#TECH-spring-boot)</Item>
-            <Item>Elasticsearch 8.x (see Technology.xml#TECH-elasticsearch)</Item>
+            <Item>Elasticsearch 8.17.1 (see Technology.xml#TECH-elasticsearch)</Item>
             <Item>Spring Data Elasticsearch or Elasticsearch Java Client</Item>
             <Item>gRPC for inter-service calls (see Technology.xml#TECH-grpc)</Item>
             <Item>Kafka consumer for event consumption (see Technology.xml#TECH-kafka)</Item>
