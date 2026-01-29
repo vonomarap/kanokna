@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Coder Work Order: Elasticsearch Version Alignment Fix
+  Created: 2026-01-26T10:45:00+03:00
+  CreatedBy: GRACE-COORDINATOR
+  Status: PROPOSED
+-->
+
+<CODER_WORK_ORDER id="CWO-20260126-01" status="READY">
+  <!-- UNBLOCKED: AWO-20260126-01 COMPLETED, Handoff-20260126-01 APPROVED -->
+  <!-- Technology.xml updated: ES 8.17.1, Testcontainers 1.20.x -->
+  <Preconditions>
+    <Item>Handoff exists: Handoff-20260126-01-W0-ES-VERSION-BLUEPRINT-UPDATE (APPROVED)</Item>
+    <Item>Valid approval exists in docs/grace/approvals.log (lines 168-173)</Item>
+    <Item>A BranchSpec (BS-20260126-01) is included in this work order and must be followed verbatim</Item>
+    <Item>This is remediation work to satisfy AC-IMPL-7: "mvn verify runs integration tests with Testcontainers successfully"</Item>
+    <Item>No new features or architecture changes - pure version alignment</Item>
+  </Preconditions>
+
+  <Scope>
+    <HandoffRef>Handoff-20260120-01-W0-TESTING-STRATEGY</HandoffRef>
+    <BranchSpecRef>BS-20260126-01-ES-VERSION-ALIGNMENT</BranchSpecRef>
+    <Classification>BUGFIX - Test Infrastructure</Classification>
+    <Services>
+      <ServiceRef ref="parent-pom" note="testcontainers.version upgrade"/>
+      <ServiceRef ref="test-support" note="ElasticsearchTestContainer image upgrade"/>
+    </Services>
+    <RootCauses>
+      <RootCause id="RC-1">
+        <Description>Testcontainers 1.19.3 missing shaded commons-lang3.StringUtils</Description>
+        <Error>NoClassDefFoundError: org/testcontainers/shaded/org/apache/commons/lang3/StringUtils</Error>
+        <Fix>Upgrade testcontainers.version to 1.20.4</Fix>
+      </RootCause>
+      <RootCause id="RC-2">
+        <Description>Elasticsearch client needs to match ES server version</Description>
+        <Error>media_type_header_exception - Invalid media-type value on headers [Accept, Content-Type]</Error>
+        <Fix>Align ElasticsearchTestContainer docker image to 8.17.1</Fix>
+      </RootCause>
+    </RootCauses>
+  </Scope>
+
+  <ImplementationRules>
+    <Item>No new endpoints/events/services beyond the approved handoff scope</Item>
+    <Item>Changes limited to version numbers only - no logic changes</Item>
+    <Item>Verify all 10 failing tests pass after fix</Item>
+    <Item>Run full mvn clean verify to confirm no regressions</Item>
+  </ImplementationRules>
+
+  <FilePlan>
+    <File path="pom.xml" action="EDIT">
+      <Change line="80">testcontainers.version: 1.19.3 -> 1.20.4</Change>
+    </File>
+    <File path="shared/test-support/src/main/java/com/kanokna/test/containers/elasticsearch/ElasticsearchTestContainer.java" action="EDIT">
+      <Change line="13">Docker image: update to 8.17.1</Change>
+    </File>
+  </FilePlan>
+
+  <RequiredOutputs>
+    <Item>Both files edited with version updates</Item>
+    <Item>mvn clean verify -pl search-service passes all 15 tests (0 errors)</Item>
+    <Item>Full build mvn clean verify passes</Item>
+    <Item>GitExecutionSteps: exact git/gh commands executed</Item>
+    <Item>PR link + CI status summary</Item>
+  </RequiredOutputs>
+
+  <VerificationChecklist>
+    <Check id="V-1">ElasticsearchIT passes (was: NoClassDefFoundError)</Check>
+    <Check id="V-2">SearchServiceIT.indexProductFromPublishedEvent passes</Check>
+    <Check id="V-3">SearchServiceIT.indexProductFromUpdatedEvent passes</Check>
+    <Check id="V-4">SearchServiceIT.deleteProductFromUnpublishedEvent passes</Check>
+    <Check id="V-5">SearchServiceIT.reindex_createsNewIndexAndSwapsAlias passes</Check>
+    <Check id="V-6">SearchServiceIT.reindex_concurrentRequests_secondIsRejected passes</Check>
+    <Check id="V-7">SearchServiceIT.search_withFacetFilters passes</Check>
+    <Check id="V-8">SearchServiceIT.autocomplete passes</Check>
+    <Check id="V-9">SearchServiceIT.getFacetValues passes</Check>
+    <Check id="V-10">SearchServiceIT.getProductById passes</Check>
+  </VerificationChecklist>
+</CODER_WORK_ORDER>

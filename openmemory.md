@@ -5,7 +5,11 @@
 - Backend: Java 25 + Spring Boot Maven multi-module (config-server, gateway, shared-kernel, api-contracts, services/*); OLTP DB is PostgreSQL per service, with Redis/Elasticsearch/Kafka in the standard stack.
 - Frontend: Angular 21 client with SSR entrypoint (src/server.ts) and multiple UI component libraries (Material, Taiga, Spartan).
 - Observability and security guardrails: OAuth2/OIDC JWT roles BUYER/ADMIN/INSTALLER, OTEL tracing, Micrometer metrics, JSON logs with correlation IDs.
-- Architecture docs: `backend/windows-store-server/docs/grace/RequirementsAnalysis.xml` v1.6.0, `backend/windows-store-server/docs/grace/Technology.xml` v1.4.0, `backend/windows-store-server/docs/grace/DevelopmentPlan.xml` v1.5.0 (flows include Flow-Config-Pricing, Flow-B2C-CPQ, Flow-Checkout-Payment, Flow-Order-Lifecycle, Flow-ProductSearch, Flow-Document-Issue, Flow-B2B-Finance, Flow-Event-Driven).
+- Architecture docs: `backend/windows-store-server/docs/grace/RequirementsAnalysis.xml` v1.6.0, `backend/windows-store-server/docs/grace/Technology.xml` v1.5.1, `backend/windows-store-server/docs/grace/DevelopmentPlan.xml` v1.5.0 (flows include Flow-Config-Pricing, Flow-B2C-CPQ, Flow-Checkout-Payment, Flow-Order-Lifecycle, Flow-ProductSearch, Flow-Document-Issue, Flow-B2B-Finance, Flow-Event-Driven).
+- ES/Testcontainers alignment: Technology.xml updated to Elasticsearch 8.17.1 + Testcontainers 1.20.x per AWO-20260126-01; search-service contracts updated to reference 8.17.1; Handoff-20260126-01-W0-ES-VERSION-BLUEPRINT-UPDATE approved in approvals.log.
+
+## User Defined Namespaces
+- [Leave blank - user populates]
 
 ## Architecture
 - Backend modules (blueprint): config-server, gateway, shared-kernel, catalog-configuration-service, pricing-service, cart-service, order-service, account-service, media-service, notification-service, reporting-service, search-service; existing code still includes product-service scaffold.
@@ -70,6 +74,8 @@
 - Tests: cart-service Testcontainers tests are gated with @EnabledIf + DockerAvailability; ArchUnit tests skip on Java 25 due to unsupported class file version.
 - Tests/build: pricing-service gRPC tests can throw NoClassDefFoundError for proto classes if the local api-contracts jar is stale; rebuild api-contracts (or run service tests with -am) to refresh generated gRPC classes.
 - Tests/build: api-contracts is a contracts-only library; Spring Cloud Contract verifier/plugin runs in producer services (not in api-contracts) to avoid MockMvc/test-context coupling in the library module.
+- Tests/build: on Windows, `mvn clean verify -pl services/search-service -am` can fail early if `api-contracts/target` protobuf generated sources are locked; rerun after clearing locks or deleting `api-contracts/target` before the build.
+- Search-service autocomplete: Elasticsearch completion suggester requires a mandatory `family` context; unfiltered autocomplete uses an empty-prefix context query to match all families.
 - API: REST versioned at /api/v1 for catalog/pricing/cart/checkout; GraphQL schema for configurator queries; Kafka events for order/payment/installation lifecycle.
 - Data rules: Monetary amounts BigDecimal with ISO currency; discountPrice must be null or <= actualPrice; dimensions for windows/doors enforced (width/height 50-500cm, 10mm step from requirements); lead times >0 for MTO; idempotency for payment callbacks.
 - Notes: product-service still lacks service/controller layers; new blueprint extends to dedicated microservices and GRACE semantic anchors for future code generation.

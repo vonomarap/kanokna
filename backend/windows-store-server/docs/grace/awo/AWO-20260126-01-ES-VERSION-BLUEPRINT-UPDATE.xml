@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE Architect Work Order: Elasticsearch Version Blueprint Update
+  Created: 2026-01-26T11:00:00+03:00
+  CreatedBy: GRACE-COORDINATOR
+  Status: PROPOSED
+  Trigger: BlueprintIssueReport-20260126-01 (CODER block on CWO-20260126-01)
+-->
+
+<ARCHITECT_WORK_ORDER id="AWO-20260126-01" status="COMPLETED">
+  <Task>
+    <WaveRef>W0</WaveRef>
+    <TaskRef>W0-INFRA-ES-ALIGNMENT</TaskRef>
+    <UserRequest>
+      Fix search-service integration test failures caused by Elasticsearch version mismatch.
+      Tests fail with: media_type_header_exception (ES client 9.x vs server 8.x) and
+      NoClassDefFoundError: StringUtils (Testcontainers 1.19.3 bug).
+    </UserRequest>
+    <PrimaryGoal>
+      Resolve blueprint/implementation inconsistency: Technology.xml specifies ES 8.x
+      but search-service pom.xml uses ES client 9.2.1. Update blueprint to match
+      implementation (Option A) or request implementation rollback (Option B).
+    </PrimaryGoal>
+    <BlockingIssueRef>BlueprintIssueReport-20260126-01</BlockingIssueRef>
+  </Task>
+
+  <KnownArtifacts>
+    <Artifact name="RequirementsAnalysis.xml" provided="yes"/>
+    <Artifact name="Technology.xml" provided="yes"/>
+    <Artifact name="DevelopmentPlan.xml" provided="yes"/>
+  </KnownArtifacts>
+
+  <CurrentState>
+    <Inconsistency id="INC-1">
+      <Blueprint>Technology.xml#TECH-elasticsearch specifies Version: 8.17.1</Blueprint>
+      <Implementation>search-service must use elasticsearch.client compatible with 8.17.1</Implementation>
+      <Impact>Client and server versions must match</Impact>
+    </Inconsistency>
+    <Inconsistency id="INC-2">
+      <Blueprint>Technology.xml#TECH-testcontainers specifies Version: 1.19.x</Blueprint>
+      <Implementation>parent pom.xml has testcontainers.version=1.19.3</Implementation>
+      <Impact>Testcontainers 1.19.3 has shaded commons-lang3 bug causing NoClassDefFoundError</Impact>
+    </Inconsistency>
+  </CurrentState>
+
+  <Scope>
+    <Services>
+      <ServiceRef ref="DP-SVC-search-service" note="Version alignment"/>
+    </Services>
+    <Artifacts>
+      <ArtifactRef ref="Technology.xml" note="Update TECH-elasticsearch and TECH-testcontainers versions"/>
+    </Artifacts>
+  </Scope>
+
+  <RequiredOutputs>
+    <Artifacts>
+      <TechnologyUpdates>
+        <Update ref="TECH-elasticsearch">Version set to 8.17.1</Update>
+        <Update ref="TECH-testcontainers">Update Version from 1.19.x to 1.20.x</Update>
+        <Update ref="TC-ELASTICSEARCH">Update container spec to 8.17.1</Update>
+      </TechnologyUpdates>
+    </Artifacts>
+
+    <Decisions>
+      <Item>Record DEC-ES-VERSION-UPGRADE (status=APPROVED) if proceeding with ES 9.x</Item>
+      <Item>OR record DEC-ES-VERSION-MAINTAIN-8X (status=APPROVED) if rolling back to ES 8.x</Item>
+      <Item>Record DEC-TESTCONTAINERS-UPGRADE (status=APPROVED) for 1.20.x upgrade</Item>
+    </Decisions>
+
+    <Contracts>
+      <Item>No contract changes required - this is infrastructure version alignment</Item>
+    </Contracts>
+
+    <Handoff>
+      <GRACE_HANDOFF required="true" note="Short handoff authorizing version updates in Technology.xml"/>
+    </Handoff>
+  </RequiredOutputs>
+
+  <AcceptanceCriteria>
+    <Item>Technology.xml versions match implementation (no inconsistency)</Item>
+    <Item>DEC-* recorded for version decisions</Item>
+    <Item>GRACE_HANDOFF produced authorizing CWO implementation</Item>
+    <Item>No "OR" ambiguity in updated artifacts</Item>
+  </AcceptanceCriteria>
+
+  <RecommendedOption>
+    <Option id="A" recommended="true">
+      <Name>Use ES 8.17.1</Name>
+      <Changes>
+        <Change>TECH-elasticsearch Version: 8.17.1</Change>
+        <Change>TECH-testcontainers Version: 1.19.x -> 1.20.x</Change>
+        <Change>TC-ELASTICSEARCH: 8.17.1</Change>
+      </Changes>
+      <Rationale>
+        User requested ES 8.17.1. This is a stable LTS release with proven ecosystem
+        compatibility and broad library support.
+      </Rationale>
+    </Option>
+    <Option id="B" recommended="false">
+      <Name>Upgrade to ES 9.x</Name>
+      <Changes>
+        <Change>TECH-elasticsearch Version: 9.x</Change>
+        <Change>TECH-testcontainers Version: 1.19.x -> 1.20.x</Change>
+        <Change>TC-ELASTICSEARCH: 9.x</Change>
+      </Changes>
+      <Rationale>
+        ES 9.x is the latest major version but may have less ecosystem support.
+        Still requires Testcontainers upgrade for StringUtils bug.
+      </Rationale>
+    </Option>
+  </RecommendedOption>
+</ARCHITECT_WORK_ORDER>
