@@ -101,4 +101,3 @@ public class ElasticsearchIndexAdminAdapter implements SearchIndexAdminPort {
         }
     }
 }
-

@@ -281,9 +281,23 @@ class SearchServiceIT extends TestContainersConfig {
                 elasticsearchClient.indices().delete(d -> d.index(pattern));
             }
         } catch (ElasticsearchException ex) {
-            if (ex.status() != 404) {
-                throw ex;
+            if (ex.status() == 404) {
+                return;
             }
+
+            // ES 8+ rejects deleting an alias by name (even if it points to a concrete index).
+            // Our config uses alias == "product_templates", so cleanup must resolve and delete
+            // the concrete indices behind the alias.
+            String reason = ex.error() != null ? ex.error().reason() : null;
+            if ((reason != null && reason.contains("matches an alias"))
+                || (ex.getMessage() != null && ex.getMessage().contains("matches an alias"))) {
+                for (String index : searchIndexAdminPort.resolveAlias(name)) {
+                    deleteIndex(index);
+                }
+                return;
+            }
+
+            throw ex;
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to reset indices", ex);
         }

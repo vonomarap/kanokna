@@ -314,6 +314,9 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <systemPropertyVariables>
+                        <api.version>${docker.api.version}</api.version>
+                    </systemPropertyVariables>
                     <!-- Java 25 Mockito compatibility: enable dynamic agent loading -->
                     <argLine>
                         -XX:+EnableDynamicAgentLoading
@@ -334,6 +337,9 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.0</version>
                 <configuration>
+                    <systemPropertyVariables>
+                        <api.version>${docker.api.version}</api.version>
+                    </systemPropertyVariables>
                     <!-- Java 25 Mockito compatibility: enable dynamic agent loading -->
                     <argLine>
                         -XX:+EnableDynamicAgentLoading

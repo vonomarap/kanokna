@@ -13,11 +13,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 /**
  * Jackson ObjectMapper configuration for search-service.
- * Spring Boot 4.0 / Jackson 3.0 compatible configuration.
- * 
- * Note: In Jackson 3.0, Java 8+ date/time support (JSR-310) is built into
- * jackson-databind core, so JavaTimeModule registration is no longer needed.
- * 
+ *
  * Provides a customized ObjectMapper bean with:
  * - ISO-8601 date format (no timestamps)
  * - Non-null property serialization

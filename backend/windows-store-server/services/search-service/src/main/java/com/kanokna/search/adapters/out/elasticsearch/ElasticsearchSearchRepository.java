@@ -343,6 +343,19 @@ public class ElasticsearchSearchRepository implements SearchRepository {
     }
 
     private Suggester buildAutocompleteSuggester(AutocompleteQuery query) {
+        // Completion suggester mapping uses mandatory context ("family"), so we must always send a
+        // context query. When no family filter is provided, we pass an empty prefix context which
+        // matches all categories (ES 8+).
+        List<CompletionContext> contexts;
+        if (query.familyFilter() != null && !query.familyFilter().isBlank()) {
+            contexts = List.of(CompletionContext.of(ctx -> ctx
+                .context(Context.of(ctxBuilder -> ctxBuilder.category(query.familyFilter())))));
+        } else {
+            contexts = List.of(CompletionContext.of(ctx -> ctx
+                .context(Context.of(ctxBuilder -> ctxBuilder.category("")))
+                .prefix(true)));
+        }
+
         return new Suggester.Builder()
                 .suggesters(SUGGESTER_AUTOCOMPLETE, field -> field
                         .prefix(query.prefix())
