@@ -34,6 +34,7 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/ci.yml'
+  workflow_dispatch:
 
 env:
   JAVA_VERSION: '25'
@@ -46,7 +47,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64]
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -63,14 +64,6 @@ jobs:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'maven'
-
-      - name: Cache Maven dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
 
       - name: Compile project
         run: mvn -B -DskipTests compile
@@ -92,7 +85,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64]
     needs: build
     defaults:
       run:
@@ -108,14 +101,6 @@ jobs:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'maven'
-
-      - name: Cache Maven dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
 
       - name: Run unit tests
         run: mvn -B -DfailIfNoTests=false test
@@ -148,7 +133,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64]
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -165,18 +150,18 @@ jobs:
           cache: 'maven'
 
       - name: Check code formatting (Checkstyle)
-        run: mvn -B checkstyle:check || echo "Checkstyle not configured - skipping"
+        run: mvn -B checkstyle:check
         continue-on-error: true
 
       - name: Check for common bugs (SpotBugs)
-        run: mvn -B spotbugs:check || echo "SpotBugs not configured - skipping"
+        run: mvn -B spotbugs:check
         continue-on-error: true
 
       - name: Validate POM files
         run: mvn -B validate
 
       - name: Check dependency convergence
-        run: mvn -B dependency:analyze-only || true
+        run: mvn -B dependency:analyze-only
         continue-on-error: true
 
   # ─────────────────────────────────────────────────────────────────────────────
@@ -184,7 +169,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   coverage:
     name: Coverage Report
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64]
     needs: test
     defaults:
       run:
@@ -202,7 +187,7 @@ jobs:
           cache: 'maven'
 
       - name: Generate coverage report (JaCoCo)
-        run: mvn -B jacoco:report || echo "JaCoCo not configured - skipping"
+        run: mvn -B jacoco:report
         continue-on-error: true
 
       - name: Upload coverage report
