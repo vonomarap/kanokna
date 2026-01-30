@@ -348,12 +348,12 @@ public class ElasticsearchSearchRepository implements SearchRepository {
         // Completion suggester mapping uses mandatory context ("family"), so we must always send a
         // context query. When no family filter is provided, we pass an empty prefix context which
         // matches all categories (ES 8+).
-        List<CompletionContext> contexts;
+        List<CompletionContext> completionContexts;
         if (query.familyFilter() != null && !query.familyFilter().isBlank()) {
-            contexts = List.of(CompletionContext.of(ctx -> ctx
+            completionContexts = List.of(CompletionContext.of(ctx -> ctx
                 .context(Context.of(ctxBuilder -> ctxBuilder.category(query.familyFilter())))));
         } else {
-            contexts = List.of(CompletionContext.of(ctx -> ctx
+            completionContexts = List.of(CompletionContext.of(ctx -> ctx
                 .context(Context.of(ctxBuilder -> ctxBuilder.category("")))
                 .prefix(true)));
         }
@@ -365,7 +365,7 @@ public class ElasticsearchSearchRepository implements SearchRepository {
                             comp.field(FIELD_SUGGEST);
                             comp.size(query.limit());
                             comp.skipDuplicates(true);
-                            comp.contexts("family", contexts);
+                            comp.contexts("family", completionContexts);
                             return comp;
                         }))
                 .build();
