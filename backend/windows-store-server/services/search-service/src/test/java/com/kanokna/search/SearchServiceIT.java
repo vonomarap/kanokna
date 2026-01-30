@@ -291,7 +291,7 @@ class SearchServiceIT extends TestContainersConfig {
             String reason = ex.error() != null ? ex.error().reason() : null;
             if ((reason != null && reason.contains("matches an alias"))
                 || (ex.getMessage() != null && ex.getMessage().contains("matches an alias"))) {
-                for (String index : searchIndexAdminPort.resolveAlias(name)) {
+                for (String index : searchIndexAdminPort.resolveAlias(pattern)) {
                     deleteIndex(index);
                 }
                 return;
