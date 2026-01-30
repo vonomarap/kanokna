@@ -2,15 +2,18 @@
 <!--
   GRACE Canonical Artifact: Technology.xml
   Purpose: Define approved technology stack, versions, and cross-cutting technical decisions
-  Version: 1.4.0
-  Last Updated: 2026-01-09T16:00:00+03:00
-  Changes: v1.4.0 - Added DEC-CART-* decisions from Handoff-20260109-01-W1-T6-CartService
+  Version: 1.5.1
+  Last Updated: 2026-01-27T12:41:00+03:00
+  Changes: v1.5.1 - Updated TECH-elasticsearch to 8.17.1, TC-ELASTICSEARCH to 8.17.1.
+                    Kept TECH-testcontainers at 1.20.x. Updated DEC-ES-VERSION-UPGRADE
+                    to reflect 8.17.1 decision per user request.
+           v1.4.0 - Added DEC-CART-* decisions from Handoff-20260109-01-W1-T6-CartService
            v1.3.0 - Added DEC-DISTRIBUTED-LOCK for search-service reindex (ISS-SEARCH-BLUEPRINT-002)
            v1.2.0 - Added DEC-PRICING-* decisions from Handoff-20251231-02
            v1.1.0 - Promoted DEC-CATALOG-RULE-ENGINE and DEC-CATALOG-VERSIONING from Handoff-20251230-07
            as architectural patterns DEC-ARCH-RULE-ENGINE-STRATEGY and DEC-ARCH-ENTITY-VERSIONING
 -->
-<Technology version="1.4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<Technology version="1.5.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
        LANGUAGES
@@ -193,7 +196,7 @@
     <!-- Search -->
     <SearchEngine id="TECH-elasticsearch">
       <Name>Elasticsearch</Name>
-      <Version>8.x</Version>
+      <Version>8.17.1</Version>
       <Usage>Full-text search, faceted filtering, autocomplete for products</Usage>
       <Configuration>
         <Item>Dedicated search-service manages indices</Item>
@@ -602,7 +605,7 @@
          ───────────────────────────────────────────────────────────────────────── -->
     <Framework id="TECH-testcontainers">
       <Name>Testcontainers</Name>
-      <Version>1.19.x</Version>
+      <Version>1.20.x</Version>
       <Usage>Integration tests with real dependencies (PostgreSQL, Kafka, Redis, Elasticsearch)</Usage>
       <Configuration>
         <Item>Shared containers via test-support module to reduce startup time</Item>
@@ -613,7 +616,7 @@
         <Container id="TC-POSTGRES">PostgreSQL 16 for persistence tests</Container>
         <Container id="TC-KAFKA">Kafka (Redpanda) for event publishing tests</Container>
         <Container id="TC-REDIS">Redis 7 for cache integration tests</Container>
-        <Container id="TC-ELASTICSEARCH">Elasticsearch 8.x for search-service tests</Container>
+        <Container id="TC-ELASTICSEARCH">Elasticsearch 8.17.1 for search-service tests</Container>
       </Containers>
       <Links>
         <Link ref="RequirementsAnalysis.xml#NFR-MAINT-TESTABILITY" />
@@ -816,6 +819,41 @@
       </Rationale>
       <Links>
         <Link ref="RequirementsAnalysis.xml#UC-SEARCH-PRODUCTS" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-ES-VERSION-UPGRADE" status="APPROVED">
+      <Title>Elasticsearch Version 8.17.1</Title>
+      <Selected>Elasticsearch 8.17.1</Selected>
+      <Alternatives>
+        <Alternative>Elasticsearch 9.x (latest release)</Alternative>
+      </Alternatives>
+      <Rationale>
+        Updated to Elasticsearch 8.17.1 per user request. ES 8.17.1 is a stable LTS release
+        with broad ecosystem compatibility. Testcontainers remain at 1.20.x for StringUtils fix.
+      </Rationale>
+      <ApprovedBy>User (2026-01-27)</ApprovedBy>
+      <Links>
+        <Link ref="Technology.xml#TECH-elasticsearch" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-search-service" />
+      </Links>
+    </Decision>
+
+    <Decision id="DEC-TESTCONTAINERS-UPGRADE" status="APPROVED">
+      <Title>Testcontainers Version Upgrade to 1.20.x</Title>
+      <Selected>Testcontainers 1.20.x</Selected>
+      <Alternatives>
+        <Alternative>Patch 1.19.x with workaround for StringUtils bug</Alternative>
+      </Alternatives>
+      <Rationale>
+        Testcontainers 1.19.3 has shaded commons-lang3 bug causing NoClassDefFoundError: StringUtils
+        in integration tests. Upgrading to 1.20.x resolves this issue without workarounds.
+        Required for search-service integration tests to pass.
+      </Rationale>
+      <ApprovedBy>AWO-20260126-01</ApprovedBy>
+      <Links>
+        <Link ref="Technology.xml#TECH-testcontainers" />
+        <Link ref="DevelopmentPlan.xml#DP-SVC-test-support" />
       </Links>
     </Decision>
 

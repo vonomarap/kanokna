@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRACE BranchSpec: Elasticsearch Version Alignment Fix
+  Created: 2026-01-26T10:45:00+03:00
+  CreatedBy: GRACE-COORDINATOR
+  Status: ISSUED
+-->
+
+<BRANCH_SPEC id="BS-20260126-01" status="ISSUED">
+  <ChangeClassification>bugfix</ChangeClassification>
+  <BranchName>bugfix/W0-es-version-alignment</BranchName>
+  <BaseBranch>develop</BaseBranch>
+  <PRTarget>develop</PRTarget>
+  <PreferredMergeMethod>squash</PreferredMergeMethod>
+  <RequiresBackMergeToDevelop>false</RequiresBackMergeToDevelop>
+
+  <PR>
+    <TitleTemplate>[W0] Fix Elasticsearch version mismatch in integration tests</TitleTemplate>
+    <BodyMustInclude>
+      <Item>HandoffRef: Handoff-20260126-01-W0-ES-VERSION-BLUEPRINT-UPDATE</Item>
+      <Item>CWORef: CWO-20260126-01-ES-VERSION-ALIGNMENT</Item>
+      <Item>Root Causes: Testcontainers 1.19.3 StringUtils missing, ES client 9.x vs server 8.x mismatch</Item>
+      <Item>Fixes: 10 failing tests in SearchServiceIT and ElasticsearchIT</Item>
+    </BodyMustInclude>
+  </PR>
+
+  <Safety>
+    <Item>No direct pushes to main/develop</Item>
+    <Item>No force-push</Item>
+    <Item>One branch == one task scope</Item>
+    <Item>Verify CI passes before merge</Item>
+  </Safety>
+
+  <GitCommands>
+    <Step order="1">git checkout develop</Step>
+    <Step order="2">git pull origin develop</Step>
+    <Step order="3">git checkout -b bugfix/W0-es-version-alignment</Step>
+    <Step order="4">[Make edits to pom.xml and ElasticsearchTestContainer.java]</Step>
+    <Step order="5">mvn clean verify -pl search-service</Step>
+    <Step order="6">git add pom.xml shared/test-support/src/main/java/com/kanokna/test/containers/elasticsearch/ElasticsearchTestContainer.java</Step>
+    <Step order="7">git commit -m "fix(test): align Elasticsearch versions for integration tests"</Step>
+    <Step order="8">git push -u origin bugfix/W0-es-version-alignment</Step>
+    <Step order="9">gh pr create --base develop --title "[W0] Fix Elasticsearch version mismatch in integration tests" --body "..."</Step>
+  </GitCommands>
+</BRANCH_SPEC>

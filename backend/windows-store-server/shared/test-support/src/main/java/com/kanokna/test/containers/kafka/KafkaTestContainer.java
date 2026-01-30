@@ -39,6 +39,7 @@ public final class KafkaTestContainer {
     private static final int DEFAULT_PARTITIONS = 1;
     private static final short DEFAULT_REPLICATION_FACTOR = 1;
     private static final Duration ADMIN_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration STARTUP_TIMEOUT = Duration.ofMinutes(3);
 
     private static final KafkaTestContainer INSTANCE = new KafkaTestContainer();
 
@@ -46,7 +47,7 @@ public final class KafkaTestContainer {
 
     private KafkaTestContainer() {
         container = new KafkaContainer(KAFKA_IMAGE)
-            .withKraft()
+            .withStartupTimeout(STARTUP_TIMEOUT)
             .withReuse(true);
     }
 
