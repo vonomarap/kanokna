@@ -109,10 +109,10 @@ jobs:
         run: mvn -B -DskipTests -DfailIfNoTests=false failsafe:integration-test failsafe:verify
 
       - name: Run ArchUnit tests
-        run: mvn -B -Dtest=*ArchUnit* -DfailIfNoTests=false test
+        run: mvn -B "-Dtest=ArchitectureTest" "-Dsurefire.failIfNoSpecifiedTests=false" "-DfailIfNoTests=false" test
 
       - name: Run contract tests
-        run: mvn -B -Dtest=*Contract* -DfailIfNoTests=false test
+        run: mvn -B "-Dtest=*Contract*" "-Dsurefire.failIfNoSpecifiedTests=false" "-DfailIfNoTests=false" test
 
       - name: Generate test report
         if: always()
