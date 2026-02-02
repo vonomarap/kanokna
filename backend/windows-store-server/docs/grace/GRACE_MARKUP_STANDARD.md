@@ -81,6 +81,7 @@ YYYY-MM-DDTHH:mm:ss±HH:MM
   </Artifacts>
 
   <Contracts>
+    <ModuleMapRef id="MM-..."/>
     <ModuleContractRef id="MC-..."/>
     <FunctionContractRef id="FC-..."/>
     <BlockAnchorRef id="BA-..."/>
@@ -214,10 +215,155 @@ Examples:
 | Task | `W#-T#` | `W0-T4` |
 | Service | `DP-SVC-{name}` | `DP-SVC-gateway` |
 | Use Case | `UC-{AREA}-{VERB}` | `UC-CATALOG-CONFIGURE-ITEM` |
-| Module Contract | `MC-{svc}-{layer}-{type}` | `MC-gateway-infrastructure-GatewayApplication` |
-| Function Contract | `FC-{svc}-{uc}-{method}` | `FC-gateway-filter-CorrelationIdFilter-filter` |
+| Module Map | `MM-{svc}[-{layer}]` | `MM-order-service`, `MM-order-service-domain` |
+| Module Contract | `MC-{svc}-{layer}-{TypeName}` | `MC-gateway-infrastructure-GatewayApplication` |
+| Function Contract | `FC-{svc}-{usecase}-{method}` | `FC-pricing-calculateQuote-execute` |
 | Block Anchor | `BA-{SVC}-{AREA}-##` | `BA-GW-CORR-01` |
 | Decision | `DEC-{AREA}-{NAME}` | `DEC-CONFIG-BACKEND` |
+
+### 5.3 Semantic Contracts Specification
+
+GRACE uses four semantic artifacts for RAG indexing and stable anchoring:
+
+#### 5.3.1 MODULE_MAP
+
+**Purpose**: Package-level navigation map showing module contents and dependencies.
+
+**Placement**: Always in `package-info.java` files.
+
+**Minimum per service**: One service-level MODULE_MAP at:
+```
+{service}/src/main/java/com/{org}/{svc}/bootstrap/package-info.java
+```
+
+**Format**:
+```java
+/**
+ * <!-- MODULE_MAP id="MM-order-service" -->
+ * <Layers>
+ *   <Layer name="domain" package="com.kanokna.order.domain">
+ *     Core aggregates, entities, value objects, domain events
+ *   </Layer>
+ *   <Layer name="application" package="com.kanokna.order.application">
+ *     Use cases, ports (in/out), application services
+ *   </Layer>
+ *   <Layer name="adapters" package="com.kanokna.order.adapters">
+ *     In (gRPC, REST), Out (persistence, messaging, external clients)
+ *   </Layer>
+ * </Layers>
+ * <Links>
+ *   <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+ * </Links>
+ * <!-- /MODULE_MAP -->
+ */
+package com.kanokna.order.bootstrap;
+```
+
+#### 5.3.2 MODULE_CONTRACT
+
+**Purpose**: Class/module-level intent contract describing responsibility and boundaries.
+
+**Placement**: Top of the "unit of intent" class:
+- **Domain**: Aggregate root class (preferred), domain service, policy, or specification
+- **Application**: Use-case implementation (in `application.service.*`)
+- **Adapters**: Boundary adapter (controller, listener, persistence adapter)
+
+**Format**:
+```java
+/**
+ * <!-- MODULE_CONTRACT id="MC-order-service-domain-Order" -->
+ * <Responsibility>
+ *   Root aggregate for Order bounded context. Enforces order lifecycle
+ *   invariants and state machine transitions.
+ * </Responsibility>
+ * <Collaborators>
+ *   <Service ref="DP-SVC-cart-service">Source of order lines at creation</Service>
+ *   <Service ref="DP-SVC-pricing-service">Price verification at submission</Service>
+ * </Collaborators>
+ * <Invariants>
+ *   <Invariant>Order total = sum(line totals) - discount + tax</Invariant>
+ *   <Invariant>State transitions must follow defined state machine</Invariant>
+ * </Invariants>
+ * <Links>
+ *   <Link ref="RequirementsAnalysis.xml#UC-B2C-ORDER-01"/>
+ *   <Link ref="DevelopmentPlan.xml#DP-SVC-order-service"/>
+ * </Links>
+ * <!-- /MODULE_CONTRACT -->
+ */
+public class Order { ... }
+```
+
+#### 5.3.3 FUNCTION_CONTRACT
+
+**Purpose**: Method-level contract with preconditions, postconditions, and traceability.
+
+**Placement**: Immediately above the method it specifies.
+
+**Priority targets**:
+- Application: Public use-case execution methods (`execute()`, `handle()`)
+- Domain: Critical business logic (pricing, validation, state transitions)
+- Adapters: Non-trivial boundary logic (idempotency, retries, security)
+
+**Format**:
+```java
+/**
+ * <!-- FUNCTION_CONTRACT id="FC-order-service-placeOrder-execute" -->
+ * <Purpose>Create order from validated cart and initiate payment flow</Purpose>
+ * <Preconditions>
+ *   <Condition>cartId references existing, non-empty cart</Condition>
+ *   <Condition>customerId is authenticated user</Condition>
+ *   <Condition>shippingAddress passes validation</Condition>
+ * </Preconditions>
+ * <Postconditions>
+ *   <Condition>Order created with status PENDING_PAYMENT</Condition>
+ *   <Condition>Cart marked as checked-out</Condition>
+ *   <Condition>OrderPlaced domain event raised</Condition>
+ * </Postconditions>
+ * <Throws>
+ *   <Exception type="CartNotFoundException">Cart does not exist</Exception>
+ *   <Exception type="CartEmptyException">Cart has no items</Exception>
+ * </Throws>
+ * <Links>
+ *   <Link ref="RequirementsAnalysis.xml#UC-B2C-ORDER-01"/>
+ *   <Link ref="DevelopmentPlan.xml#Flow-Checkout-Payment"/>
+ * </Links>
+ * <!-- /FUNCTION_CONTRACT -->
+ */
+public OrderId execute(PlaceOrderCommand command) { ... }
+```
+
+#### 5.3.4 BLOCK_ANCHOR
+
+**Purpose**: Anchor for specific code blocks, enabling RAG to locate critical logic.
+
+**Placement**: Inline comment immediately before the code block.
+
+**Format**:
+```java
+// BLOCK_ANCHOR: BA-ORD-STATE-01
+// Purpose: Order state transition validation
+// Invariant: Only valid transitions per state machine are allowed
+switch (currentStatus) {
+    case PENDING_PAYMENT -> {
+        if (event == OrderEvent.PAYMENT_CONFIRMED) {
+            return OrderStatus.PAID;
+        }
+    }
+    // ...
+}
+```
+
+#### 5.3.5 Contract Requirements
+
+All contracts MUST include:
+- Stable, deterministic ID following patterns in Section 5.2
+- At least one `<Link>` to `RequirementsAnalysis.xml#UC-*`
+- At least one `<Link>` to `DevelopmentPlan.xml#DP-SVC-*`
+- `<Link>` to relevant `Flow-*` when applicable
+
+Contracts MUST NOT:
+- Be added to trivial getters/setters/one-line pass-throughs
+- Reference framework types in domain layer contracts (hexagonal isolation)
 
 ---
 
