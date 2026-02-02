@@ -38,6 +38,10 @@ replay_pid*
 
 # OpenMemory - IDE/Assistant specific rules
 AGENTS.md
+.agent/skills/
+.codex/
+.local-backup/
+.worktrees/
 
 # Maven
 **/target/

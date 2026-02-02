@@ -44,6 +44,45 @@ Use when Coder returns:
 - no force-push
 - if release/hotfix to main: back-merge PR to develop exists (or explicit block)
 
+### GRACE Scaffolding Gate (Coordinator-Enforced) — BLOCKING
+
+For every PR that touches a service/module, verify:
+
+1) MODULE_MAP:
+   - Each affected service has bootstrap/package-info.java with MODULE_MAP:
+     <svc>/src/main/java/com/<org>/<svc>/bootstrap/package-info.java
+   - MODULE_MAP reflects real aggregates/use cases/ports/adapters impacted by the change.
+   - For complex services: layer package-info.java maps exist when changes span multiple layers
+     (domain/application/adapters).
+
+2) MODULE_CONTRACT:
+   - Key changed classes include MODULE_CONTRACT at file top and accurately reflect boundaries:
+     - domain aggregate root / domain policy if applicable
+     - application use-case interactor
+     - adapter boundary implementations (web/listener/persistence/external)
+
+3) FUNCTION_CONTRACT:
+   - Critical new/changed methods have FUNCTION_CONTRACT immediately above them.
+   - No FUNCTION_CONTRACT added to trivial getters/setters or one-line pass-through methods.
+
+4) BLOCK_ANCHOR + logs:
+   - Critical methods include BLOCK_ANCHOR inline comments above meaningful blocks.
+   - FUNCTION_CONTRACT lists the BA ids under <BLOCK_ANCHORS>.
+   - Logs (or contract log examples) include [SVC][UC][BLOCK][STATE] and reference BA ids.
+   - Navigation must work: Log → BA → FC → MC → UC.
+
+5) Integrity:
+   - IDs follow MM/MC/FC/BA conventions and are stable (no renames without blueprint).
+   - LINKS resolve to RequirementsAnalysis.xml#UC-..., DevelopmentPlan.xml#DP-SVC-..., Flow-* where relevant.
+   - Domain remains framework-free and hexagonal direction is preserved.
+
+Reject or request changes if:
+- MODULE_MAP missing for a touched service,
+- critical functions lack BLOCK_ANCHORs,
+- logs do not reference BA anchors for critical steps,
+- domain uses framework types,
+- contracts have broken/missing LINKS or unstable renamed IDs.
+
 If any fail produce a CodeIssueReport-YYYYMMDD-##.xml file in the docs/grace/reports/code-issue:
 
 ## FAIL Output → CodeIssueReport
