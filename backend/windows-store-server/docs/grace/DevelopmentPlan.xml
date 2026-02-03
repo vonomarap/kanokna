@@ -1377,7 +1377,7 @@ billing-service, support-service)
       <Description>Order progresses through states from creation to completion</Description>
       <Sequence>
         <Step order="1" from="order-service" to="kafka">OrderCreatedEvent</Step>
-        <Step order="2" from="installation-service" to="order-service">Schedule installation if
+        <Step order="2" from="field-ops-service" to="order-service">Schedule installation if
           requested</Step>
         <Step order="3" from="order-service" to="kafka">Order moves to PROCESSING</Step>
         <Step order="4" from="logistics-system" to="order-service">Order shipped (external trigger)</Step>
@@ -1386,11 +1386,11 @@ billing-service, support-service)
         <Step order="7" from="logistics-system" to="order-service">Order delivered (external
           trigger)</Step>
         <Step order="8" from="order-service" to="kafka">OrderDeliveredEvent</Step>
-        <Step order="9" from="installation-service" to="order-service">Installation completed</Step>
+        <Step order="9" from="field-ops-service" to="order-service">Installation completed</Step>
         <Step order="10" from="order-service" to="kafka">OrderCompletedEvent</Step>
       </Sequence>
       <Links>
-        <Link ref="RequirementsAnalysis.xml#UC-ORDER-TRACK" />
+        <Link ref="RequirementsAnalysis.xml#UC-B2C-TRACK-01" />
         <Link ref="DP-SVC-order-service" />
       </Links>
     </Flow>
@@ -2713,6 +2713,180 @@ billing-service, support-service)
         purpose="Transition statuses" />
       <BlockAnchor id="BA-CAT-PUBLISH-06" service="catalog-configuration-service"
         purpose="Emit domain events" />
+
+      <!-- Account-service anchors (from FC-account-service-functions.xml) -->
+      <BlockAnchor id="BA-ACCT-PROF-01" service="account-service"
+        purpose="Fetch user profile from repository" />
+      <BlockAnchor id="BA-ACCT-PROF-02" service="account-service"
+        purpose="Validate and apply profile updates" />
+      <BlockAnchor id="BA-ACCT-PROF-03" service="account-service"
+        purpose="Sync profile from Keycloak on first login" />
+      <BlockAnchor id="BA-ACCT-ADDR-01" service="account-service"
+        purpose="Validate address input" />
+      <BlockAnchor id="BA-ACCT-ADDR-02" service="account-service"
+        purpose="Check for duplicate address" />
+      <BlockAnchor id="BA-ACCT-ADDR-03" service="account-service"
+        purpose="Update default address flag" />
+      <BlockAnchor id="BA-ACCT-CFG-01" service="account-service"
+        purpose="Validate configuration snapshot structure" />
+      <BlockAnchor id="BA-ACCT-CFG-02" service="account-service"
+        purpose="Persist saved configuration" />
+      <BlockAnchor id="BA-ACCT-CFG-03" service="account-service"
+        purpose="Emit ConfigurationSavedEvent" />
+      <BlockAnchor id="BA-ACCT-CFG-04" service="account-service"
+        purpose="List saved configurations" />
+      <BlockAnchor id="BA-ACCT-CFG-05" service="account-service"
+        purpose="Delete saved configuration" />
+      <BlockAnchor id="BA-ACCT-AUTH-01" service="account-service"
+        purpose="Verify caller authorization" />
+      <BlockAnchor id="BA-ACCT-ADDR-04" service="account-service"
+        purpose="List user addresses" />
+
+      <!-- Cart-service anchors (from FC-cart-service-functions.xml) -->
+      <BlockAnchor id="BA-CART-GET-01" service="cart-service"
+        purpose="Resolve cart ID from customerId or sessionId" />
+      <BlockAnchor id="BA-CART-GET-02" service="cart-service"
+        purpose="Load cart from repository" />
+      <BlockAnchor id="BA-CART-GET-03" service="cart-service"
+        purpose="Revalidate item configurations (lazy)" />
+      <BlockAnchor id="BA-CART-GET-04" service="cart-service"
+        purpose="Check price staleness for each item" />
+      <BlockAnchor id="BA-CART-GET-05" service="cart-service"
+        purpose="Return cart response" />
+      <BlockAnchor id="BA-CART-ADD-01" service="cart-service"
+        purpose="Resolve or create cart" />
+      <BlockAnchor id="BA-CART-ADD-02" service="cart-service"
+        purpose="Validate configuration via catalog-configuration-service" />
+      <BlockAnchor id="BA-CART-ADD-03" service="cart-service"
+        purpose="Get/verify price quote from pricing-service" />
+      <BlockAnchor id="BA-CART-ADD-04" service="cart-service"
+        purpose="Create CartItem with configuration snapshot" />
+      <BlockAnchor id="BA-CART-ADD-05" service="cart-service"
+        purpose="Compute configuration hash" />
+      <BlockAnchor id="BA-CART-ADD-06" service="cart-service"
+        purpose="Recalculate cart totals" />
+      <BlockAnchor id="BA-CART-ADD-07" service="cart-service"
+        purpose="Persist cart and publish event" />
+      <BlockAnchor id="BA-CART-UPDATE-01" service="cart-service"
+        purpose="Load cart and find item" />
+      <BlockAnchor id="BA-CART-UPDATE-02" service="cart-service"
+        purpose="Validate quantity" />
+      <BlockAnchor id="BA-CART-UPDATE-03" service="cart-service"
+        purpose="Update quantity and line total" />
+      <BlockAnchor id="BA-CART-UPDATE-04" service="cart-service"
+        purpose="Recalculate cart totals" />
+      <BlockAnchor id="BA-CART-UPDATE-05" service="cart-service"
+        purpose="Persist and publish event" />
+      <BlockAnchor id="BA-CART-REMOVE-01" service="cart-service"
+        purpose="Load cart and find item" />
+      <BlockAnchor id="BA-CART-REMOVE-02" service="cart-service"
+        purpose="Remove item from cart" />
+      <BlockAnchor id="BA-CART-REMOVE-03" service="cart-service"
+        purpose="Recalculate cart totals" />
+      <BlockAnchor id="BA-CART-REMOVE-04" service="cart-service"
+        purpose="Persist and publish event" />
+      <BlockAnchor id="BA-CART-PROMO-01" service="cart-service"
+        purpose="Load cart and validate not empty" />
+      <BlockAnchor id="BA-CART-PROMO-02" service="cart-service"
+        purpose="Call pricing-service.ValidatePromoCode" />
+      <BlockAnchor id="BA-CART-PROMO-03" service="cart-service"
+        purpose="Apply discount to cart" />
+      <BlockAnchor id="BA-CART-PROMO-04" service="cart-service"
+        purpose="Recalculate totals" />
+      <BlockAnchor id="BA-CART-PROMO-05" service="cart-service"
+        purpose="Persist and publish event" />
+      <BlockAnchor id="BA-CART-PROMO-REMOVE-01" service="cart-service"
+        purpose="Load cart" />
+      <BlockAnchor id="BA-CART-PROMO-REMOVE-02" service="cart-service"
+        purpose="Remove promo code" />
+      <BlockAnchor id="BA-CART-PROMO-REMOVE-03" service="cart-service"
+        purpose="Recalculate totals" />
+      <BlockAnchor id="BA-CART-PROMO-REMOVE-04" service="cart-service"
+        purpose="Persist and publish event" />
+      <BlockAnchor id="BA-CART-CLEAR-01" service="cart-service"
+        purpose="Resolve cart from customerId or sessionId" />
+      <BlockAnchor id="BA-CART-CLEAR-02" service="cart-service"
+        purpose="Validate cart exists and caller authorized" />
+      <BlockAnchor id="BA-CART-CLEAR-03" service="cart-service"
+        purpose="Remove all items from cart" />
+      <BlockAnchor id="BA-CART-CLEAR-04" service="cart-service"
+        purpose="Remove applied promo code" />
+      <BlockAnchor id="BA-CART-CLEAR-05" service="cart-service"
+        purpose="Reset cart totals to zero" />
+      <BlockAnchor id="BA-CART-CLEAR-06" service="cart-service"
+        purpose="Persist and publish CartClearedEvent" />
+      <BlockAnchor id="BA-CART-REFRESH-01" service="cart-service"
+        purpose="Load cart and validate not empty" />
+      <BlockAnchor id="BA-CART-REFRESH-02" service="cart-service"
+        purpose="Call pricing-service.CalculateQuote for each item" />
+      <BlockAnchor id="BA-CART-REFRESH-03" service="cart-service"
+        purpose="Update item prices and quote IDs" />
+      <BlockAnchor id="BA-CART-REFRESH-04" service="cart-service"
+        purpose="Clear price_stale flags" />
+      <BlockAnchor id="BA-CART-REFRESH-05" service="cart-service"
+        purpose="Recalculate cart totals" />
+      <BlockAnchor id="BA-CART-REFRESH-06" service="cart-service"
+        purpose="Recalculate promo discount if applied" />
+      <BlockAnchor id="BA-CART-REFRESH-07" service="cart-service"
+        purpose="Persist and publish CartPricesRefreshedEvent" />
+
+      <!-- Search-service anchors (from FC-search-service-functions.xml) -->
+      <BlockAnchor id="BA-SEARCH-QUERY-01" service="search-service"
+        purpose="Build Elasticsearch query from SearchQuery" />
+      <BlockAnchor id="BA-SEARCH-QUERY-02" service="search-service"
+        purpose="Execute query and collect results" />
+      <BlockAnchor id="BA-SEARCH-QUERY-03" service="search-service"
+        purpose="Process facet aggregations" />
+      <BlockAnchor id="BA-SEARCH-QUERY-04" service="search-service"
+        purpose="Map Elasticsearch response to SearchResult" />
+      <BlockAnchor id="BA-AUTO-01" service="search-service"
+        purpose="Validate prefix length constraint" />
+      <BlockAnchor id="BA-AUTO-02" service="search-service"
+        purpose="Build completion suggester query" />
+      <BlockAnchor id="BA-AUTO-03" service="search-service"
+        purpose="Execute suggestion query" />
+      <BlockAnchor id="BA-AUTO-04" service="search-service"
+        purpose="Map suggestions to result" />
+      <BlockAnchor id="BA-INDEX-01" service="search-service"
+        purpose="Validate and extract event payload" />
+      <BlockAnchor id="BA-INDEX-02" service="search-service"
+        purpose="Transform event to ProductSearchDocument" />
+      <BlockAnchor id="BA-INDEX-03" service="search-service"
+        purpose="Execute index/update operation" />
+      <BlockAnchor id="BA-INDEX-04" service="search-service"
+        purpose="Confirm indexing success" />
+      <BlockAnchor id="BA-DELETE-01" service="search-service"
+        purpose="Extract productId from event" />
+      <BlockAnchor id="BA-DELETE-02" service="search-service"
+        purpose="Execute delete operation" />
+      <BlockAnchor id="BA-DELETE-03" service="search-service"
+        purpose="Log outcome" />
+      <BlockAnchor id="BA-FACET-01" service="search-service"
+        purpose="Validate requested facet fields" />
+      <BlockAnchor id="BA-FACET-02" service="search-service"
+        purpose="Build aggregation query" />
+      <BlockAnchor id="BA-FACET-03" service="search-service"
+        purpose="Execute aggregation query" />
+      <BlockAnchor id="BA-FACET-04" service="search-service"
+        purpose="Map aggregations to FacetValuesResult" />
+      <BlockAnchor id="BA-GET-01" service="search-service"
+        purpose="Validate productId" />
+      <BlockAnchor id="BA-GET-02" service="search-service"
+        purpose="Execute get-by-id query" />
+      <BlockAnchor id="BA-GET-03" service="search-service"
+        purpose="Map document to ProductSearchDocument" />
+      <BlockAnchor id="BA-REINDEX-01" service="search-service"
+        purpose="Acquire distributed lock for reindex" />
+      <BlockAnchor id="BA-REINDEX-02" service="search-service"
+        purpose="Create new versioned index with mapping" />
+      <BlockAnchor id="BA-REINDEX-03" service="search-service"
+        purpose="Fetch all products from catalog-configuration-service" />
+      <BlockAnchor id="BA-REINDEX-04" service="search-service"
+        purpose="Bulk index products into new index" />
+      <BlockAnchor id="BA-REINDEX-05" service="search-service"
+        purpose="Swap alias to new index (atomic)" />
+      <BlockAnchor id="BA-REINDEX-06" service="search-service"
+        purpose="Release lock and log completion" />
     </BlockAnchorRegistry>
   </Contracts>
 

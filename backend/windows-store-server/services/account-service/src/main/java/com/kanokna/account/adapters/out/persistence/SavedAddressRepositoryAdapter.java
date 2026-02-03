@@ -10,15 +10,21 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
+ * MODULE_CONTRACT id="MC-account-address-repository-adapter"
+ * LAYER="adapters.out.persistence" INTENT="JPA adapter translating SavedAddress
+ * domain to/from JPA entities"
+ * LINKS="MC-account-service-domain;Technology.xml#TECH-postgresql"
+ *
  * JPA adapter for saved address persistence.
  */
 @Component
 public class SavedAddressRepositoryAdapter implements SavedAddressRepository {
+
     private final SavedAddressJpaRepository repository;
     private final AccountPersistenceMapper mapper;
 
     public SavedAddressRepositoryAdapter(SavedAddressJpaRepository repository,
-                                         AccountPersistenceMapper mapper) {
+            AccountPersistenceMapper mapper) {
         this.repository = repository;
         this.mapper = mapper;
     }
@@ -26,9 +32,9 @@ public class SavedAddressRepositoryAdapter implements SavedAddressRepository {
     @Override
     public List<SavedAddress> findByUserId(Id userId) {
         return repository.findByUserId(UUID.fromString(userId.value()))
-            .stream()
-            .map(mapper::toDomain)
-            .toList();
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override
@@ -36,25 +42,25 @@ public class SavedAddressRepositoryAdapter implements SavedAddressRepository {
         return repository.findByUserIdAndId(
                 UUID.fromString(userId.value()),
                 UUID.fromString(addressId.value())
-            )
-            .map(mapper::toDomain);
+        )
+                .map(mapper::toDomain);
     }
 
     @Override
     public List<SavedAddress> saveAll(Id userId, List<SavedAddress> addresses) {
         List<SavedAddressJpaEntity> entities = addresses.stream()
-            .map(address -> mapper.toEntity(userId, address))
-            .toList();
+                .map(address -> mapper.toEntity(userId, address))
+                .toList();
         return repository.saveAll(entities).stream()
-            .map(mapper::toDomain)
-            .toList();
+                .map(mapper::toDomain)
+                .toList();
     }
 
     @Override
     public void deleteByUserIdAndId(Id userId, Id addressId) {
         repository.deleteByUserIdAndId(
-            UUID.fromString(userId.value()),
-            UUID.fromString(addressId.value())
+                UUID.fromString(userId.value()),
+                UUID.fromString(addressId.value())
         );
     }
 }

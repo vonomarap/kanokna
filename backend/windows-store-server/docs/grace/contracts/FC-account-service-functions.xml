@@ -363,4 +363,119 @@
         </gRPC_MAPPING>
     </FUNCTION_CONTRACT>
 
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- FC-account-listConfigurations                                           -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <FUNCTION_CONTRACT id="FC-account-listConfigurations"
+        LAYER="application.service"
+        INTENT="List all saved configurations for a user"
+        INPUT="ListConfigurationsQuery(userId: UUID)"
+        OUTPUT="List&lt;SavedConfigurationDTO&gt;"
+        SIDE_EFFECTS="None (read-only)"
+        LINKS="RequirementsAnalysis.xml#UC-B2C-CPQ-01;DevelopmentPlan.xml#DP-SVC-account-service">
+
+        <PRECONDITIONS>
+            <Item>userId is a valid UUID of authenticated user</Item>
+            <Item>Caller is authenticated and owns this userId OR has ADMIN role</Item>
+        </PRECONDITIONS>
+
+        <POSTCONDITIONS>
+            <Item>Returns list of all SavedConfigurationDTOs for the user</Item>
+            <Item>List is ordered by updatedAt descending (most recent first)</Item>
+            <Item>Empty list returned if no saved configurations exist</Item>
+        </POSTCONDITIONS>
+
+        <INVARIANTS>
+            <Item>Read-only operation, no state changes</Item>
+            <Item>User can only list their own configurations unless ADMIN</Item>
+        </INVARIANTS>
+
+        <ERROR_HANDLING>
+            <Item type="BUSINESS" code="ERR-ACCT-UNAUTHORIZED">Caller attempting to list another
+                user's configurations without ADMIN role</Item>
+        </ERROR_HANDLING>
+
+        <BLOCK_ANCHORS>
+            <Item id="BA-ACCT-CFG-04">List saved configurations</Item>
+        </BLOCK_ANCHORS>
+
+        <LOGGING>
+            <Item>[SVC=account-service][UC=UC-B2C-CPQ-01][BLOCK=BA-ACCT-CFG-04][STATE=LISTING]
+                eventType=CONFIG_LIST decision=QUERY keyValues=userId={uuid}</Item>
+            <Item>[SVC=account-service][UC=UC-B2C-CPQ-01][BLOCK=BA-ACCT-CFG-04][STATE=COMPLETE]
+                eventType=CONFIG_LISTED decision=SUCCESS keyValues=userId={uuid},count={n}</Item>
+        </LOGGING>
+
+        <TESTS>
+            <Case id="TC-FUNC-CFG-006">List configurations returns all user's configs</Case>
+            <Case id="TC-FUNC-CFG-007">List configurations for user with no configs returns empty list</Case>
+            <Case id="TC-FUNC-CFG-008">List another user's configurations without ADMIN returns UNAUTHORIZED</Case>
+        </TESTS>
+
+        <REST_MAPPING>
+            <Method>GET</Method>
+            <Path>/api/accounts/{userId}/configurations</Path>
+        </REST_MAPPING>
+    </FUNCTION_CONTRACT>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- FC-account-deleteConfiguration                                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <FUNCTION_CONTRACT id="FC-account-deleteConfiguration"
+        LAYER="application.service"
+        INTENT="Delete a saved product configuration"
+        INPUT="DeleteConfigurationCommand(userId: UUID, configurationId: UUID)"
+        OUTPUT="void"
+        SIDE_EFFECTS="Removes configuration from storage, emits ConfigurationDeletedEvent"
+        LINKS="RequirementsAnalysis.xml#UC-B2C-CPQ-01;DevelopmentPlan.xml#DP-SVC-account-service">
+
+        <PRECONDITIONS>
+            <Item>userId is a valid UUID of authenticated user</Item>
+            <Item>configurationId is a valid UUID</Item>
+            <Item>Configuration exists and belongs to the userId</Item>
+            <Item>Caller is authenticated and owns this userId OR has ADMIN role</Item>
+        </PRECONDITIONS>
+
+        <POSTCONDITIONS>
+            <Item>Configuration is removed from persistent storage</Item>
+            <Item>ConfigurationDeletedEvent is published</Item>
+            <Item>Subsequent list will not include this configuration</Item>
+        </POSTCONDITIONS>
+
+        <INVARIANTS>
+            <Item>Delete is idempotent for already-deleted configurations (returns success)</Item>
+            <Item>User can only delete their own configurations unless ADMIN</Item>
+        </INVARIANTS>
+
+        <ERROR_HANDLING>
+            <Item type="BUSINESS" code="ERR-ACCT-CONFIG-NOT-FOUND">Configuration does not exist or
+                does not belong to user</Item>
+            <Item type="BUSINESS" code="ERR-ACCT-UNAUTHORIZED">Caller attempting to delete another
+                user's configuration without ADMIN role</Item>
+        </ERROR_HANDLING>
+
+        <BLOCK_ANCHORS>
+            <Item id="BA-ACCT-CFG-05">Delete saved configuration</Item>
+        </BLOCK_ANCHORS>
+
+        <LOGGING>
+            <Item>[SVC=account-service][UC=UC-B2C-CPQ-01][BLOCK=BA-ACCT-CFG-05][STATE=DELETING]
+                eventType=CONFIG_DELETE decision=EXECUTE keyValues=userId={uuid},configId={uuid}</Item>
+            <Item>[SVC=account-service][UC=UC-B2C-CPQ-01][BLOCK=BA-ACCT-CFG-05][STATE=COMPLETE]
+                eventType=CONFIG_DELETED decision=SUCCESS keyValues=userId={uuid},configId={uuid}</Item>
+        </LOGGING>
+
+        <TESTS>
+            <Case id="TC-FUNC-CFG-009">Delete existing configuration succeeds</Case>
+            <Case id="TC-FUNC-CFG-010">Delete non-existent configuration returns CONFIG-NOT-FOUND</Case>
+            <Case id="TC-FUNC-CFG-011">Delete emits ConfigurationDeletedEvent</Case>
+            <Case id="TC-FUNC-CFG-012">Delete another user's configuration without ADMIN returns UNAUTHORIZED</Case>
+        </TESTS>
+
+        <REST_MAPPING>
+            <Method>DELETE</Method>
+            <Path>/api/accounts/{userId}/configurations/{configurationId}</Path>
+        </REST_MAPPING>
+    </FUNCTION_CONTRACT>
+
 </FUNCTION_CONTRACTS>

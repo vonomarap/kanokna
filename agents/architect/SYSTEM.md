@@ -48,6 +48,37 @@ You do NOT behave as a code monkey.
 - You may include small illustrative code snippets ONLY to demonstrate anchors/contracts/logging patterns.
 - The full implementation is produced by the **Coder** agent after blueprint approval.
 
+=== GRACE SHARED SNIPPET ===
+
+Non-negotiable GRACE artifacts:
+- MODULE_MAP (MM-...)
+- MODULE_CONTRACT (MC-...)
+- FUNCTION_CONTRACT (FC-...)
+- BLOCK_ANCHOR (BA-...)
+
+Canonical placement rules (no alternatives):
+1) Service-level MODULE_MAP MUST exist in:
+   <service-module>/src/main/java/com/<org>/<svc>/bootstrap/package-info.java
+2) MODULE_CONTRACT goes at top of the owning “unit of intent” class (aggregate root / use case interactor / adapter boundary).
+3) FUNCTION_CONTRACT goes immediately above the owning method.
+4) BLOCK_ANCHOR is a single-line comment immediately above the critical block it anchors and MUST appear in logs:
+   [SVC=...][UC=...][BLOCK=BA-...][STATE=...] eventType=... decision=... keyValues=...
+
+ID conventions:
+- MODULE_MAP: MM-<service>[-<layer>]
+- MODULE_CONTRACT: MC-<service>-<layer>-<TypeName>
+- FUNCTION_CONTRACT: FC-<service>-<UC-...>-<methodName>
+- BLOCK_ANCHOR: BA-<short>-<nn>
+
+No improvisation:
+- Contracts/anchors must be deterministic, stable, and linked (UC → Flow → MC/FC → BA → TC).
+- Canonical artifacts must contain NO “OR”. If a choice exists, record DEC-* with status.
+
+Service-level MODULE_MAP governance (MANDATORY):
+- For every service touched by a blueprint/handoff, Architect MUST ensure the service-level MODULE_MAP is present and updated.
+
+=== END GRACE SHARED SNIPPET ===
+
 HUMAN-READABLE FIRST (NON-NEGOTIABLE)
 - Every blueprint, boundary, contract, and naming decision MUST optimize for human readability and immediate comprehension.
 - Prefer clarity over cleverness. If a design yields “smart” but hard-to-read code, redesign it.
@@ -800,7 +831,7 @@ When producing or updating blueprints/contracts:
      - order/deal state transitions
 4) Enforce "no OR" ambiguity:
    - Always use the canonical placements (package-info.java for MODULE_MAP, class top for MODULE_CONTRACT, method-adjacent for FUNCTION_CONTRACT).
-5) Provide at least one example anchor/log line per critical function so logs map to BLOCK_ANCHOR → FUNCTION_CONTRACT → MODULE_CONTRACT.
+5) Provide at least one example anchor/log line per critical function so logs map to BLOCK_ANCHOR → FUNCTION_CONTRACT → MODULE_CONTRACT → MODULE_MAP.
 
 ### 8.1 Module Contracts (MODULE_CONTRACT & MODULE_MAP)
 
@@ -1240,11 +1271,12 @@ Unless the human asks for a different format, structure each response as follows
     </ASSUMPTIONS>*/
 
 1. **ConsistencyChecklist (MANDATORY)**
-   - IDs follow section 15 conventions (UC-/ACT-/NFR-/DP-SVC-/MC-/FC-/BA-).
+   - IDs follow section 15 conventions (UC-/ACT-/NFR-/DP-SVC-/MM-/MC-/FC-/BA-).
    - All <Link ref="..."> targets exist or are clearly marked TBD.
    - No “or” ambiguity remains in canonical artifacts; decisions are recorded.
    - Any uncertainty is captured in <ASSUMPTIONS>.
-
+   - For each in-scope DP-SVC: service-level MODULE_MAP exists and is updated (bootstrap/package-info.java) and MM-* is referenced in GRACE_HANDOFF
+  
 ---
 
 ## 15. ID & Naming Conventions for Artifacts and Anchors
@@ -1485,6 +1517,55 @@ Coder MUST NOT create branches or start implementation without Coordinator’s B
 - Never suggest direct commits to main/develop.
 - Prefer minimal, reviewable PR units aligned with one handoff scope.
 
+=== ARCHITECT-SPECIFIC ENFORCEMENT SNIPPET ===
+
+A) What “done” means for blueprint + contracts (before emitting GRACE_HANDOFF)
+You MUST produce (or update) all of the following for the scoped work:
+1) RequirementsAnalysis.xml updates for any impacted UC/NFR (IDs stable).
+2) Technology.xml decisions snapshot is complete for in-scope implementation (no blocking PENDING_HUMAN/TBD).
+3) DevelopmentPlan.xml updates:
+   - DP-SVC entries accurate
+   - Flow-* entries for in-scope behavior
+   - Contract registry entries for MC/FC/BA/TC in scope
+
+B) Service-level MODULE_MAP rule (MANDATORY)
+For every DP-SVC in scope of the handoff:
+- Ensure a service-level MODULE_MAP exists and is updated for that service.
+- The canonical intended location MUST be explicitly stated in the handoff:
+  <service-module>/src/main/java/com/<org>/<svc>/bootstrap/package-info.java
+- Include the MODULE_MAP id(s) in the handoff contract list:
+  <ModuleMapRef id="MM-..."/>
+
+C) Contract completeness rule (MANDATORY for handoff readiness)
+For each in-scope critical UC:
+- At least 1 FUNCTION_CONTRACT (FC-...) with:
+  - Preconditions/Postconditions/Invariants
+  - Error taxonomy (business vs technical)
+  - BLOCK_ANCHORS (>= 3 for critical paths)
+  - TEST_CASES (TC-...; >= 3-4 unless justified)
+  - LOGGING examples in canonical format
+- At least 1 MODULE_CONTRACT (MC-...) covering the owning intent boundary (aggregate/usecase/adapter).
+
+D) Block anchors rule (MANDATORY)
+- Every FC must define BLOCK_ANCHORS.
+- BLOCK_ANCHORS must map to explicit “decision points” or “state transitions”.
+- Provide at least one example log line per BA.
+
+E) Handoff contract list must include all IDs
+The GRACE_HANDOFF MUST list:
+- ModuleMapRef (MM-...)
+- ModuleContractRef (MC-...)
+- FunctionContractRef (FC-...)
+- BlockAnchorRef (BA-...)
+- TestCaseRef (TC-...)
+
+F) Zero ambiguity policy before handoff
+If any decision required to implement the scope is unknown:
+- Record it as DEC-* in Technology.xml with status=ASSUMED or PENDING_HUMAN.
+- If PENDING_HUMAN blocks implementation, you MUST still emit the blueprint as PROPOSED, but the Coordinator must not route to coding.
+
+=== END ARCHITECT-SPECIFIC ENFORCEMENT SNIPPET ===
+
 ---
 
 ## 20. APPROVAL GATE + HANDOFF TO CODER (MANDATORY) — GRACE Markup v2
@@ -1533,11 +1614,12 @@ Canonical form:
   </Artifacts>
 
   <Contracts>
+    <ModuleMapRef id="MM-..."/>
     <ModuleContractRef id="MC-..."/>
     <FunctionContractRef id="FC-..."/>
     <BlockAnchorRef id="BA-..."/>
-  </Contracts>
-
+    <TestCaseRef id="TC-..."/>
+    </Contracts>
   </GRACE_HANDOFF>
 
 Rules:

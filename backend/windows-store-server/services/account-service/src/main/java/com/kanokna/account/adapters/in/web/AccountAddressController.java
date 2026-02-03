@@ -11,12 +11,18 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * REST controller for address management.
- * Endpoint: /api/accounts/{userId}/addresses
+ * MODULE_CONTRACT id="MC-account-address-rest-adapter" LAYER="adapters.in.web"
+ * INTENT="REST controller for address management, translating HTTP to use case
+ * calls"
+ * LINKS="Technology.xml#TECH-spring-mvc;RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE"
+ *
+ * REST controller for address management. Endpoint:
+ * /api/accounts/{userId}/addresses
  */
 @RestController
 @RequestMapping("/api/accounts/{userId}/addresses")
 public class AccountAddressController {
+
     private final AddressManagementUseCase addressManagementUseCase;
 
     public AccountAddressController(AddressManagementUseCase addressManagementUseCase) {
@@ -25,14 +31,14 @@ public class AccountAddressController {
 
     @PostMapping
     public ResponseEntity<SavedAddressDto> addAddress(
-        @PathVariable UUID userId,
-        @Valid @RequestBody AddAddressRequest request
+            @PathVariable UUID userId,
+            @Valid @RequestBody AddAddressRequest request
     ) {
         AddAddressCommand command = new AddAddressCommand(
-            userId,
-            request.address(),
-            request.label(),
-            request.setAsDefault()
+                userId,
+                request.address(),
+                request.label(),
+                request.setAsDefault()
         );
         SavedAddressDto address = addressManagementUseCase.addAddress(command);
         return ResponseEntity.ok(address);
@@ -40,16 +46,16 @@ public class AccountAddressController {
 
     @PutMapping("/{addressId}")
     public ResponseEntity<SavedAddressDto> updateAddress(
-        @PathVariable UUID userId,
-        @PathVariable UUID addressId,
-        @Valid @RequestBody UpdateAddressRequest request
+            @PathVariable UUID userId,
+            @PathVariable UUID addressId,
+            @Valid @RequestBody UpdateAddressRequest request
     ) {
         UpdateAddressCommand command = new UpdateAddressCommand(
-            userId,
-            addressId,
-            request.address(),
-            request.label(),
-            request.setAsDefault()
+                userId,
+                addressId,
+                request.address(),
+                request.label(),
+                request.setAsDefault()
         );
         SavedAddressDto address = addressManagementUseCase.updateAddress(command);
         return ResponseEntity.ok(address);
@@ -57,8 +63,8 @@ public class AccountAddressController {
 
     @DeleteMapping("/{addressId}")
     public ResponseEntity<Void> deleteAddress(
-        @PathVariable UUID userId,
-        @PathVariable UUID addressId
+            @PathVariable UUID userId,
+            @PathVariable UUID addressId
     ) {
         addressManagementUseCase.deleteAddress(new DeleteAddressCommand(userId, addressId));
         return ResponseEntity.noContent().build();
@@ -67,22 +73,24 @@ public class AccountAddressController {
     @GetMapping
     public ResponseEntity<List<SavedAddressDto>> listAddresses(@PathVariable UUID userId) {
         List<SavedAddressDto> addresses = addressManagementUseCase.listAddresses(
-            new ListAddressesQuery(userId)
+                new ListAddressesQuery(userId)
         );
         return ResponseEntity.ok(addresses);
     }
 
     public record AddAddressRequest(
-        @Valid AddressDto address,
-        @NotBlank String label,
-        boolean setAsDefault
-    ) {
+            @Valid AddressDto address,
+            @NotBlank String label,
+            boolean setAsDefault
+            ) {
+
     }
 
     public record UpdateAddressRequest(
-        @Valid AddressDto address,
-        String label,
-        Boolean setAsDefault
-    ) {
+            @Valid AddressDto address,
+            String label,
+            Boolean setAsDefault
+            ) {
+
     }
 }

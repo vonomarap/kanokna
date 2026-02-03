@@ -28,19 +28,25 @@ import com.kanokna.account.v1.UpdateProfileResponse;
 import io.grpc.stub.StreamObserver;
 
 /**
+ * MODULE_CONTRACT id="MC-account-grpc-adapter" LAYER="adapters.in.grpc"
+ * INTENT="gRPC adapter translating proto requests to application use case
+ * calls"
+ * LINKS="Technology.xml#TECH-grpc;RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE"
+ *
  * gRPC service for account operations.
  */
 @GrpcService
 public class AccountGrpcService extends AccountServiceGrpc.AccountServiceImplBase {
+
     private final GetProfileUseCase getProfileUseCase;
     private final UpdateProfileUseCase updateProfileUseCase;
     private final AddressManagementUseCase addressManagementUseCase;
     private final AccountGrpcMapper mapper;
 
     public AccountGrpcService(GetProfileUseCase getProfileUseCase,
-                              UpdateProfileUseCase updateProfileUseCase,
-                              AddressManagementUseCase addressManagementUseCase,
-                              AccountGrpcMapper mapper) {
+            UpdateProfileUseCase updateProfileUseCase,
+            AddressManagementUseCase addressManagementUseCase,
+            AccountGrpcMapper mapper) {
         this.getProfileUseCase = getProfileUseCase;
         this.updateProfileUseCase = updateProfileUseCase;
         this.addressManagementUseCase = addressManagementUseCase;

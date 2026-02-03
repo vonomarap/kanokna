@@ -28,10 +28,15 @@ import com.kanokna.shared.i18n.Language;
 import io.grpc.stub.StreamObserver;
 
 /**
+ * MODULE_CONTRACT id="MC-search-grpc-adapter" LAYER="adapters.in.grpc"
+ * INTENT="gRPC adapter translating proto requests to search use case calls"
+ * LINKS="Technology.xml#TECH-grpc;RequirementsAnalysis.xml#UC-CATALOG-BROWSE"
+ *
  * gRPC service for search operations.
  */
 @GrpcService
 public class SearchGrpcService extends SearchServiceGrpc.SearchServiceImplBase {
+
     private final SearchProductsUseCase searchProductsUseCase;
     private final AutocompleteUseCase autocompleteUseCase;
     private final GetFacetValuesUseCase getFacetValuesUseCase;
@@ -39,11 +44,11 @@ public class SearchGrpcService extends SearchServiceGrpc.SearchServiceImplBase {
     private final SearchGrpcMapper mapper;
 
     public SearchGrpcService(
-        SearchProductsUseCase searchProductsUseCase,
-        AutocompleteUseCase autocompleteUseCase,
-        GetFacetValuesUseCase getFacetValuesUseCase,
-        GetProductByIdUseCase getProductByIdUseCase,
-        SearchGrpcMapper mapper
+            SearchProductsUseCase searchProductsUseCase,
+            AutocompleteUseCase autocompleteUseCase,
+            GetFacetValuesUseCase getFacetValuesUseCase,
+            GetProductByIdUseCase getProductByIdUseCase,
+            SearchGrpcMapper mapper
     ) {
         this.searchProductsUseCase = searchProductsUseCase;
         this.autocompleteUseCase = autocompleteUseCase;
@@ -54,7 +59,7 @@ public class SearchGrpcService extends SearchServiceGrpc.SearchServiceImplBase {
 
     @Override
     public void searchProducts(SearchProductsRequest request,
-                               StreamObserver<SearchProductsResponse> responseObserver) {
+            StreamObserver<SearchProductsResponse> responseObserver) {
         SearchQuery query = mapper.toQuery(request);
         SearchResult result = searchProductsUseCase.searchProducts(query);
         Language language = query.language() == null ? Language.RU : query.language();
@@ -64,7 +69,7 @@ public class SearchGrpcService extends SearchServiceGrpc.SearchServiceImplBase {
 
     @Override
     public void getAutocompleteSuggestions(AutocompleteRequest request,
-                                           StreamObserver<AutocompleteResponse> responseObserver) {
+            StreamObserver<AutocompleteResponse> responseObserver) {
         AutocompleteQuery query = mapper.toQuery(request);
         AutocompleteResult result = autocompleteUseCase.autocomplete(query);
         responseObserver.onNext(mapper.toResponse(result));
@@ -73,7 +78,7 @@ public class SearchGrpcService extends SearchServiceGrpc.SearchServiceImplBase {
 
     @Override
     public void getFacetValues(GetFacetValuesRequest request,
-                               StreamObserver<GetFacetValuesResponse> responseObserver) {
+            StreamObserver<GetFacetValuesResponse> responseObserver) {
         GetFacetValuesQuery query = mapper.toQuery(request);
         FacetValuesResult result = getFacetValuesUseCase.getFacetValues(query);
         responseObserver.onNext(mapper.toResponse(result));
@@ -82,7 +87,7 @@ public class SearchGrpcService extends SearchServiceGrpc.SearchServiceImplBase {
 
     @Override
     public void getProductById(GetProductByIdRequest request,
-                               StreamObserver<ProductDocument> responseObserver) {
+            StreamObserver<ProductDocument> responseObserver) {
         GetProductByIdQuery query = mapper.toQuery(request);
         ProductSearchDocument document = getProductByIdUseCase.getProductById(query);
         Language language = query.language() == null ? Language.RU : query.language();

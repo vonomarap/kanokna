@@ -52,7 +52,7 @@ package com.kanokna.catalog.application.service;
   </TESTS>
 </FUNCTION_CONTRACT> */
 
-/* <FUNCTION_CONTRACT id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-updateProductTemplate"
+ /* <FUNCTION_CONTRACT id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-updateProductTemplate"
      LAYER="application.service"
      INTENT="Update an existing product template (only DRAFT templates directly)"
      INPUT="UpdateProductTemplateCommand"
@@ -103,7 +103,7 @@ package com.kanokna.catalog.application.service;
   </TESTS>
 </FUNCTION_CONTRACT> */
 
-/* <FUNCTION_CONTRACT id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-publishCatalogVersion"
+ /* <FUNCTION_CONTRACT id="FC-catalog-configuration-service-UC-CATALOG-ADMIN-MANAGE-publishCatalogVersion"
      LAYER="application.service"
      INTENT="Publish a catalog version making templates visible to customers"
      INPUT="PublishCatalogVersionCommand"
@@ -160,7 +160,6 @@ package com.kanokna.catalog.application.service;
     <Case id="TC-ADMIN-PUBLISH-006">Invalid template blocks entire publish</Case>
   </TESTS>
 </FUNCTION_CONTRACT> */
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanokna.catalog.application.dto.CreateProductTemplateCommand;
@@ -186,15 +185,20 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Application service implementing product template admin operations.
- * Contains all 3 admin FUNCTION_CONTRACTs.
+ * MODULE_CONTRACT id="MC-catalog-command-service" LAYER="application.service"
+ * INTENT="Admin operations for product template lifecycle: create, update,
+ * publish"
+ * LINKS="RequirementsAnalysis.xml#UC-CATALOG-ADMIN-MANAGE;Technology.xml#DEC-ARCH-ENTITY-VERSIONING"
+ *
+ * Application service implementing product template admin operations. Contains
+ * all 3 admin FUNCTION_CONTRACTs: create, update, publish.
  */
 @Service
 @Transactional
 public class ProductTemplateCommandService implements
-    CreateProductTemplateUseCase,
-    UpdateProductTemplateUseCase,
-    PublishCatalogVersionUseCase {
+        CreateProductTemplateUseCase,
+        UpdateProductTemplateUseCase,
+        PublishCatalogVersionUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(ProductTemplateCommandService.class);
 
@@ -204,10 +208,10 @@ public class ProductTemplateCommandService implements
     private final ObjectMapper objectMapper;
 
     public ProductTemplateCommandService(
-        ProductTemplateRepository productTemplateRepository,
-        CatalogVersionRepository catalogVersionRepository,
-        EventPublisher eventPublisher,
-        ObjectMapper objectMapper
+            ProductTemplateRepository productTemplateRepository,
+            CatalogVersionRepository catalogVersionRepository,
+            EventPublisher eventPublisher,
+            ObjectMapper objectMapper
     ) {
         this.productTemplateRepository = productTemplateRepository;
         this.catalogVersionRepository = catalogVersionRepository;
@@ -228,34 +232,34 @@ public class ProductTemplateCommandService implements
 
         // BA-CAT-CREATE-03: Build ProductTemplate aggregate
         DimensionConstraints dimensionConstraints = new DimensionConstraints(
-            command.dimensionConstraints().minWidthCm(),
-            command.dimensionConstraints().maxWidthCm(),
-            command.dimensionConstraints().minHeightCm(),
-            command.dimensionConstraints().maxHeightCm()
+                command.dimensionConstraints().minWidthCm(),
+                command.dimensionConstraints().maxWidthCm(),
+                command.dimensionConstraints().minHeightCm(),
+                command.dimensionConstraints().maxHeightCm()
         );
 
         ProductTemplate productTemplate = ProductTemplate.create(
-            command.name(),
-            command.description(),
-            command.productFamily(),
-            dimensionConstraints
+                command.name(),
+                command.description(),
+                command.productFamily(),
+                dimensionConstraints
         );
 
         // Add option groups
         if (command.optionGroups() != null) {
             command.optionGroups().forEach(ogDto -> {
                 OptionGroup optionGroup = OptionGroup.create(
-                    ogDto.name(),
-                    ogDto.required(),
-                    ogDto.multiSelect()
+                        ogDto.name(),
+                        ogDto.required(),
+                        ogDto.multiSelect()
                 );
 
                 if (ogDto.options() != null) {
                     ogDto.options().forEach(optDto -> {
                         Option option = Option.create(
-                            optDto.name(),
-                            optDto.description(),
-                            optDto.skuCode()
+                                optDto.name(),
+                                optDto.description(),
+                                optDto.skuCode()
                         );
                         optionGroup.addOption(option);
                     });
@@ -269,7 +273,7 @@ public class ProductTemplateCommandService implements
         ProductTemplate saved = productTemplateRepository.save(productTemplate);
 
         log.info("[SVC=catalog-configuration-service][UC=UC-CATALOG-ADMIN-MANAGE][BLOCK=BA-CAT-CREATE-04][STATE=PERSISTED] eventType=PRODUCT_CREATED decision=SUCCESS keyValues=productTemplateId={},productFamily={},name={}",
-            saved.getId(), saved.getProductFamily(), saved.getName());
+                saved.getId(), saved.getProductFamily(), saved.getName());
 
         return saved.getId();
     }
@@ -282,7 +286,7 @@ public class ProductTemplateCommandService implements
         // BA-CAT-UPDATE-02: Load existing template
         ProductTemplateId productTemplateId = ProductTemplateId.of(command.productTemplateId());
         ProductTemplate productTemplate = productTemplateRepository.findById(productTemplateId)
-            .orElseThrow(() -> new ProductTemplateNotFoundException(productTemplateId));
+                .orElseThrow(() -> new ProductTemplateNotFoundException(productTemplateId));
 
         if (productTemplate.isArchived()) {
             throw new IllegalStateException("ERR-CATALOG-ARCHIVED: Cannot update archived template");
@@ -300,10 +304,10 @@ public class ProductTemplateCommandService implements
         }
 
         DimensionConstraints newConstraints = new DimensionConstraints(
-            command.dimensionConstraints().minWidthCm(),
-            command.dimensionConstraints().maxWidthCm(),
-            command.dimensionConstraints().minHeightCm(),
-            command.dimensionConstraints().maxHeightCm()
+                command.dimensionConstraints().minWidthCm(),
+                command.dimensionConstraints().maxWidthCm(),
+                command.dimensionConstraints().minHeightCm(),
+                command.dimensionConstraints().maxHeightCm()
         );
 
         productTemplate.updateDetails(command.name(), command.description(), newConstraints);
@@ -312,7 +316,7 @@ public class ProductTemplateCommandService implements
         productTemplateRepository.save(productTemplate);
 
         log.info("[SVC=catalog-configuration-service][UC=UC-CATALOG-ADMIN-MANAGE][BLOCK=BA-CAT-UPDATE-03][STATE=UPDATE] eventType=PRODUCT_UPDATED decision=SUCCESS keyValues=productTemplateId={},wasCloned={},previousStatus={}",
-            productTemplateId, wasCloned, previousStatus);
+                productTemplateId, wasCloned, previousStatus);
     }
 
     @Override
@@ -325,11 +329,11 @@ public class ProductTemplateCommandService implements
         List<ProductTemplate> draftsToPublish;
         if (command.productTemplateIds() != null && !command.productTemplateIds().isEmpty()) {
             draftsToPublish = command.productTemplateIds().stream()
-                .map(ProductTemplateId::of)
-                .map(id -> productTemplateRepository.findById(id)
+                    .map(ProductTemplateId::of)
+                    .map(id -> productTemplateRepository.findById(id)
                     .orElseThrow(() -> new ProductTemplateNotFoundException(id)))
-                .filter(ProductTemplate::isDraft)
-                .toList();
+                    .filter(ProductTemplate::isDraft)
+                    .toList();
         } else {
             draftsToPublish = productTemplateRepository.findByStatus(TemplateStatus.DRAFT);
         }
@@ -340,26 +344,26 @@ public class ProductTemplateCommandService implements
 
         // BA-CAT-PUBLISH-03: Validate all templates (simplified)
         log.debug("[SVC=catalog-configuration-service][UC=UC-CATALOG-ADMIN-MANAGE][BLOCK=BA-CAT-PUBLISH-03][STATE=VALIDATE] eventType=CATALOG_VALIDATION decision=EVALUATE keyValues=templateCount={}",
-            draftsToPublish.size());
+                draftsToPublish.size());
 
         // BA-CAT-PUBLISH-04: Create CatalogVersion snapshot
         int nextVersionNumber = catalogVersionRepository.getNextVersionNumber();
         String snapshot = createSnapshot(draftsToPublish);
         CatalogVersion catalogVersion = CatalogVersion.create(
-            nextVersionNumber,
-            command.publishedBy(),
-            snapshot
+                nextVersionNumber,
+                command.publishedBy(),
+                snapshot
         );
         catalogVersion = catalogVersionRepository.save(catalogVersion);
 
         log.info("[SVC=catalog-configuration-service][UC=UC-CATALOG-ADMIN-MANAGE][BLOCK=BA-CAT-PUBLISH-04][STATE=SNAPSHOT] eventType=CATALOG_VERSION_CREATED decision=SUCCESS keyValues=versionNumber={},templateCount={}",
-            nextVersionNumber, draftsToPublish.size());
+                nextVersionNumber, draftsToPublish.size());
 
         // BA-CAT-PUBLISH-05: Transition statuses (DRAFT->ACTIVE, old ACTIVE->ARCHIVED)
         draftsToPublish.forEach(template -> {
             // Archive previous ACTIVE versions of same product family (simplified)
             productTemplateRepository.findByProductFamilyAndStatus(template.getProductFamily(), TemplateStatus.ACTIVE)
-                .forEach(ProductTemplate::archive);
+                    .forEach(ProductTemplate::archive);
 
             template.publish();
             productTemplateRepository.save(template);
@@ -367,25 +371,25 @@ public class ProductTemplateCommandService implements
 
         // BA-CAT-PUBLISH-06: Emit domain events
         CatalogVersionPublishedEvent catalogEvent = CatalogVersionPublishedEvent.create(
-            catalogVersion.id(),
-            catalogVersion.versionNumber(),
-            draftsToPublish.size(),
-            command.publishedBy()
+                catalogVersion.id(),
+                catalogVersion.versionNumber(),
+                draftsToPublish.size(),
+                command.publishedBy()
         );
         eventPublisher.publish("catalog-version-published", catalogEvent);
 
         draftsToPublish.forEach(template -> {
             ProductTemplatePublishedEvent templateEvent = ProductTemplatePublishedEvent.create(
-                template.getId(),
-                template.getName(),
-                template.getProductFamily(),
-                template.getVersion()
+                    template.getId(),
+                    template.getName(),
+                    template.getProductFamily(),
+                    template.getVersion()
             );
             eventPublisher.publish("product-template-published", templateEvent);
         });
 
         log.info("[SVC=catalog-configuration-service][UC=UC-CATALOG-ADMIN-MANAGE][BLOCK=BA-CAT-PUBLISH-06][STATE=EVENTS] eventType=EVENTS_PUBLISHED decision=SUCCESS keyValues=eventTypes=CatalogVersionPublished|ProductTemplatePublished,count={}",
-            draftsToPublish.size() + 1);
+                draftsToPublish.size() + 1);
 
         return catalogVersion.id();
     }

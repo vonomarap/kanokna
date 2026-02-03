@@ -25,31 +25,36 @@ import com.kanokna.shared.core.DomainException;
 import com.kanokna.shared.money.Money;
 
 /**
+ * MODULE_CONTRACT id="MC-search-kafka-adapter" LAYER="adapters.in.kafka"
+ * INTENT="Kafka listener consuming catalog events to sync search index"
+ * LINKS="Technology.xml#TECH-kafka;DevelopmentPlan.xml#Flow-Event-Driven"
+ *
  * Kafka listener for catalog events used to keep the search index in sync.
  */
 @Component
 public class SearchCatalogEventListener {
+
     private static final Logger log = LoggerFactory.getLogger(SearchCatalogEventListener.class);
 
     private final IndexProductUseCase indexProductUseCase;
     private final DeleteProductUseCase deleteProductUseCase;
 
     public SearchCatalogEventListener(
-        IndexProductUseCase indexProductUseCase,
-        DeleteProductUseCase deleteProductUseCase
+            IndexProductUseCase indexProductUseCase,
+            DeleteProductUseCase deleteProductUseCase
     ) {
         this.indexProductUseCase = indexProductUseCase;
         this.deleteProductUseCase = deleteProductUseCase;
     }
 
     @KafkaListener(
-        topics = "${kafka.topics.product-published}",
-        containerFactory = "productPublishedKafkaListenerContainerFactory"
+            topics = "${kafka.topics.product-published}",
+            containerFactory = "productPublishedKafkaListenerContainerFactory"
     )
     public void onProductPublished(
-        ProductTemplatePublishedEvent event,
-        Acknowledgment acknowledgment,
-        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic
+            ProductTemplatePublishedEvent event,
+            Acknowledgment acknowledgment,
+            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic
     ) {
         if (event == null) {
             log.warn("Received null ProductTemplatePublishedEvent from topic={}", topic);
@@ -57,36 +62,36 @@ public class SearchCatalogEventListener {
             return;
         }
         CatalogProductEvent payload = new CatalogProductEvent(
-            extractEventId(event.getMetadata()),
-            "PRODUCT_TEMPLATE_PUBLISHED",
-            event.getProductTemplateId(),
-            event.getName(),
-            event.getDescription(),
-            event.getProductFamily(),
-            event.getProfileSystem(),
-            event.getOpeningTypesList(),
-            event.getMaterialsList(),
-            event.getColorsList(),
-            toMoney(event.getBasePrice()),
-            toMoney(event.getMaxPrice()),
-            mapStatus(event.getStatus()),
-            event.getThumbnailUrl(),
-            event.getPopularity(),
-            event.getOptionGroupCount(),
-            toInstantIfPresent(event.getPublishedAt()),
-            null
+                extractEventId(event.getMetadata()),
+                "PRODUCT_TEMPLATE_PUBLISHED",
+                event.getProductTemplateId(),
+                event.getName(),
+                event.getDescription(),
+                event.getProductFamily(),
+                event.getProfileSystem(),
+                event.getOpeningTypesList(),
+                event.getMaterialsList(),
+                event.getColorsList(),
+                toMoney(event.getBasePrice()),
+                toMoney(event.getMaxPrice()),
+                mapStatus(event.getStatus()),
+                event.getThumbnailUrl(),
+                event.getPopularity(),
+                event.getOptionGroupCount(),
+                toInstantIfPresent(event.getPublishedAt()),
+                null
         );
         handleIndex(payload, acknowledgment, topic);
     }
 
     @KafkaListener(
-        topics = "${kafka.topics.product-updated}",
-        containerFactory = "productUpdatedKafkaListenerContainerFactory"
+            topics = "${kafka.topics.product-updated}",
+            containerFactory = "productUpdatedKafkaListenerContainerFactory"
     )
     public void onProductUpdated(
-        ProductTemplateUpdatedEvent event,
-        Acknowledgment acknowledgment,
-        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic
+            ProductTemplateUpdatedEvent event,
+            Acknowledgment acknowledgment,
+            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic
     ) {
         if (event == null) {
             log.warn("Received null ProductTemplateUpdatedEvent from topic={}", topic);
@@ -94,36 +99,36 @@ public class SearchCatalogEventListener {
             return;
         }
         CatalogProductEvent payload = new CatalogProductEvent(
-            extractEventId(event.getMetadata()),
-            "PRODUCT_TEMPLATE_UPDATED",
-            event.getProductTemplateId(),
-            event.getName(),
-            event.getDescription(),
-            event.getProductFamily(),
-            event.getProfileSystem(),
-            event.getOpeningTypesList(),
-            event.getMaterialsList(),
-            event.getColorsList(),
-            toMoney(event.getBasePrice()),
-            toMoney(event.getMaxPrice()),
-            mapStatus(event.getStatus()),
-            event.getThumbnailUrl(),
-            event.getPopularity(),
-            event.getOptionGroupCount(),
-            null,
-            toInstantIfPresent(event.getUpdatedAt())
+                extractEventId(event.getMetadata()),
+                "PRODUCT_TEMPLATE_UPDATED",
+                event.getProductTemplateId(),
+                event.getName(),
+                event.getDescription(),
+                event.getProductFamily(),
+                event.getProfileSystem(),
+                event.getOpeningTypesList(),
+                event.getMaterialsList(),
+                event.getColorsList(),
+                toMoney(event.getBasePrice()),
+                toMoney(event.getMaxPrice()),
+                mapStatus(event.getStatus()),
+                event.getThumbnailUrl(),
+                event.getPopularity(),
+                event.getOptionGroupCount(),
+                null,
+                toInstantIfPresent(event.getUpdatedAt())
         );
         handleIndex(payload, acknowledgment, topic);
     }
 
     @KafkaListener(
-        topics = "${kafka.topics.product-unpublished}",
-        containerFactory = "productUnpublishedKafkaListenerContainerFactory"
+            topics = "${kafka.topics.product-unpublished}",
+            containerFactory = "productUnpublishedKafkaListenerContainerFactory"
     )
     public void onProductUnpublished(
-        ProductTemplateUnpublishedEvent event,
-        Acknowledgment acknowledgment,
-        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic
+            ProductTemplateUnpublishedEvent event,
+            Acknowledgment acknowledgment,
+            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic
     ) {
         if (event == null) {
             log.warn("Received null ProductTemplateUnpublishedEvent from topic={}", topic);
@@ -131,16 +136,16 @@ public class SearchCatalogEventListener {
             return;
         }
         CatalogProductDeleteEvent payload = new CatalogProductDeleteEvent(
-            extractEventId(event.getMetadata()),
-            event.getProductTemplateId()
+                extractEventId(event.getMetadata()),
+                event.getProductTemplateId()
         );
         handleDelete(payload, acknowledgment, topic);
     }
 
     private void handleIndex(
-        CatalogProductEvent payload,
-        Acknowledgment acknowledgment,
-        String topic
+            CatalogProductEvent payload,
+            Acknowledgment acknowledgment,
+            String topic
     ) {
         try {
             indexProductUseCase.indexProduct(payload);
@@ -159,9 +164,9 @@ public class SearchCatalogEventListener {
     }
 
     private void handleDelete(
-        CatalogProductDeleteEvent payload,
-        Acknowledgment acknowledgment,
-        String topic
+            CatalogProductDeleteEvent payload,
+            Acknowledgment acknowledgment,
+            String topic
     ) {
         try {
             deleteProductUseCase.deleteProduct(payload);
@@ -195,10 +200,14 @@ public class SearchCatalogEventListener {
 
     private com.kanokna.shared.money.Currency mapCurrency(Currency currency) {
         return switch (currency) {
-            case CURRENCY_EUR -> com.kanokna.shared.money.Currency.EUR;
-            case CURRENCY_USD -> com.kanokna.shared.money.Currency.USD;
-            case CURRENCY_RUB -> com.kanokna.shared.money.Currency.RUB;
-            case CURRENCY_UNSPECIFIED, UNRECOGNIZED -> com.kanokna.shared.money.Currency.RUB;
+            case CURRENCY_EUR ->
+                com.kanokna.shared.money.Currency.EUR;
+            case CURRENCY_USD ->
+                com.kanokna.shared.money.Currency.USD;
+            case CURRENCY_RUB ->
+                com.kanokna.shared.money.Currency.RUB;
+            case CURRENCY_UNSPECIFIED, UNRECOGNIZED ->
+                com.kanokna.shared.money.Currency.RUB;
         };
     }
 
@@ -207,10 +216,14 @@ public class SearchCatalogEventListener {
             return ProductStatus.UNSPECIFIED;
         }
         return switch (status) {
-            case PRODUCT_STATUS_ACTIVE -> ProductStatus.ACTIVE;
-            case PRODUCT_STATUS_DRAFT -> ProductStatus.DRAFT;
-            case PRODUCT_STATUS_ARCHIVED -> ProductStatus.ARCHIVED;
-          case PRODUCT_STATUS_UNSPECIFIED, UNRECOGNIZED -> ProductStatus.UNSPECIFIED;
+            case PRODUCT_STATUS_ACTIVE ->
+                ProductStatus.ACTIVE;
+            case PRODUCT_STATUS_DRAFT ->
+                ProductStatus.DRAFT;
+            case PRODUCT_STATUS_ARCHIVED ->
+                ProductStatus.ARCHIVED;
+            case PRODUCT_STATUS_UNSPECIFIED, UNRECOGNIZED ->
+                ProductStatus.UNSPECIFIED;
         };
     }
 

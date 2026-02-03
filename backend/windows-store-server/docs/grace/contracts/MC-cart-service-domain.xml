@@ -293,4 +293,67 @@
     <Link ref="Technology.xml#DEC-CART-PRICE-LOCK"/>
     <Link ref="Handoff-20260109-01-W1-T6-CartService"/>
   </Links>
+
+  <RELATED_MODULES>
+    <!-- Application Layer MCs (inline in source code) -->
+    <Module id="MC-cart-orchestrator"
+        layer="application.service"
+        location="com.kanokna.cart.application.service.CartApplicationService"
+        intent="Orchestrate cart use cases by delegating to specialized sub-services" />
+    <Module id="MC-cart-checkout"
+        layer="application.service"
+        location="com.kanokna.cart.application.service.CartCheckoutService"
+        intent="Handle snapshot creation and checkout preparation" />
+    <Module id="MC-cart-item-validation"
+        layer="application.service"
+        location="com.kanokna.cart.application.service.CartItemValidationService"
+        intent="Validate item configurations against catalog-configuration-service" />
+    <Module id="MC-cart-merging"
+        layer="application.service"
+        location="com.kanokna.cart.application.service.CartMergingService"
+        intent="Handle cart merge operations when anonymous user logs in" />
+    <Module id="MC-cart-pricing"
+        layer="application.service"
+        location="com.kanokna.cart.application.service.CartPricingService"
+        intent="Manage price quotes and staleness detection via pricing-service" />
+    <Module id="MC-cart-promo-code"
+        layer="application.service"
+        location="com.kanokna.cart.application.service.CartPromoCodeService"
+        intent="Handle promo code validation and application" />
+
+    <!-- Domain Layer MCs -->
+    <Module id="MC-cart-domain-errors"
+        layer="domain.exception"
+        location="com.kanokna.cart.domain.exception.CartDomainErrors"
+        intent="Central definition of cart domain error codes and exceptions" />
+
+    <!-- Adapter Layer MCs -->
+    <Module id="MC-cart-grpc-adapter"
+        layer="adapters.in.grpc"
+        location="com.kanokna.cart.adapters.in.grpc.CartGrpcService"
+        intent="gRPC inbound adapter implementing CartService proto" />
+    <Module id="MC-cart-persistence-adapter"
+        layer="adapters.out.persistence"
+        location="com.kanokna.cart.adapters.out.persistence.CartRepositoryAdapter"
+        intent="JPA outbound adapter implementing CartRepository port" />
+    <Module id="MC-cart-kafka-adapter"
+        layer="adapters.out.kafka"
+        location="com.kanokna.cart.adapters.out.kafka.CartKafkaEventPublisher"
+        intent="Kafka outbound adapter for publishing domain events" />
+    <Module id="MC-cart-redis-adapter"
+        layer="adapters.out.redis"
+        location="com.kanokna.cart.adapters.out.redis.RedisSessionCartStore"
+        intent="Redis outbound adapter for session cart storage" />
+    <Module id="MC-cart-grpc-clients"
+        layer="adapters.out.grpc"
+        location="com.kanokna.cart.adapters.out.grpc.*GrpcClient"
+        intent="gRPC outbound adapters for catalog-configuration and pricing services" />
+
+    <!-- Configuration MCs -->
+    <Module id="MC-cart-properties"
+        layer="adapters.config"
+        location="com.kanokna.cart.adapters.config.CartProperties"
+        intent="Externalized configuration properties for cart-service" />
+  </RELATED_MODULES>
+
 </ModuleContract>

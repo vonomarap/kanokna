@@ -17,6 +17,11 @@ import java.math.BigDecimal;
 import java.util.stream.Collectors;
 
 /**
+ * MODULE_CONTRACT id="MC-catalog-validation-service"
+ * LAYER="application.service" INTENT="Configuration validation with rule engine
+ * and optional pricing quote"
+ * LINKS="RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-PRODUCT;Technology.xml#DEC-VALIDATION-ENGINE"
+ *
  * Application service implementing configuration validation use case.
  * Orchestrates domain validation + optional pricing call.
  */
@@ -30,10 +35,10 @@ public class ConfigurationValidationUseCaseService implements ValidateConfigurat
     private final PricingClient pricingClient;
 
     public ConfigurationValidationUseCaseService(
-        ProductTemplateRepository productTemplateRepository,
-        ConfigurationRuleSetRepository ruleSetRepository,
-        ConfigurationValidationService validationService,
-        PricingClient pricingClient
+            ProductTemplateRepository productTemplateRepository,
+            ConfigurationRuleSetRepository ruleSetRepository,
+            ConfigurationValidationService validationService,
+            PricingClient pricingClient
     ) {
         this.productTemplateRepository = productTemplateRepository;
         this.ruleSetRepository = ruleSetRepository;
@@ -46,19 +51,19 @@ public class ConfigurationValidationUseCaseService implements ValidateConfigurat
         // Load product template
         ProductTemplateId productTemplateId = ProductTemplateId.of(command.productTemplateId());
         ProductTemplate productTemplate = productTemplateRepository.findById(productTemplateId)
-            .orElseThrow(() -> new ProductTemplateNotFoundException(productTemplateId));
+                .orElseThrow(() -> new ProductTemplateNotFoundException(productTemplateId));
 
         // Build configuration value object
         Configuration configuration = new Configuration(
-            command.widthCm(),
-            command.heightCm(),
-            command.selectedOptions()
+                command.widthCm(),
+                command.heightCm(),
+                command.selectedOptions()
         );
 
         // Load rule set (optional)
         ConfigurationRuleSet ruleSet = ruleSetRepository
-            .findActiveByProductTemplateId(productTemplateId)
-            .orElse(null);
+                .findActiveByProductTemplateId(productTemplateId)
+                .orElse(null);
 
         // Validate configuration
         ValidationResult validationResult = validationService.validate(configuration, productTemplate, ruleSet);
@@ -76,12 +81,12 @@ public class ConfigurationValidationUseCaseService implements ValidateConfigurat
 
         // Map to response DTO
         var errorDtos = validationResult.getErrors().stream()
-            .map(err -> new ConfigurationResponse.ValidationErrorDto(
+                .map(err -> new ConfigurationResponse.ValidationErrorDto(
                 err.code(),
                 err.message(),
                 err.field()
-            ))
-            .collect(Collectors.toList());
+        ))
+                .collect(Collectors.toList());
 
         return new ConfigurationResponse(validationResult.isValid(), errorDtos, priceQuote);
     }

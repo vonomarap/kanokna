@@ -21,8 +21,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Facade service implementing account use case interfaces.
- * Delegates to specialized services for each responsibility group.
+ * MODULE_CONTRACT id="MC-account-application-facade"
+ * LAYER="application.service" INTENT="Facade service implementing account use
+ * case interfaces, delegating to specialized services"
+ * LINKS="Technology.xml#DEC-ACCOUNT-DECOMPOSITION;RequirementsAnalysis.xml#UC-ACCOUNT-MANAGE-PROFILE"
+ *
+ * Facade service implementing account use case interfaces. Delegates to
+ * specialized services for each responsibility group.
  *
  * @see ProfileService
  * @see AddressService
@@ -31,19 +36,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class AccountApplicationService implements
-    GetProfileUseCase,
-    UpdateProfileUseCase,
-    AddressManagementUseCase,
-    ConfigurationManagementUseCase {
+        GetProfileUseCase,
+        UpdateProfileUseCase,
+        AddressManagementUseCase,
+        ConfigurationManagementUseCase {
 
     private final ProfileService profileService;
     private final AddressService addressService;
     private final SavedConfigurationService savedConfigurationService;
 
     public AccountApplicationService(
-        ProfileService profileService,
-        AddressService addressService,
-        SavedConfigurationService savedConfigurationService
+            ProfileService profileService,
+            AddressService addressService,
+            SavedConfigurationService savedConfigurationService
     ) {
         this.profileService = profileService;
         this.addressService = addressService;
@@ -51,7 +56,6 @@ public class AccountApplicationService implements
     }
 
     // ========== Profile Operations ==========
-
     @Override
     public UserProfileDto getProfile(GetProfileQuery query) {
         return profileService.getProfile(query);
@@ -63,7 +67,6 @@ public class AccountApplicationService implements
     }
 
     // ========== Address Operations ==========
-
     @Override
     public SavedAddressDto addAddress(AddAddressCommand command) {
         return addressService.addAddress(command);
@@ -85,7 +88,6 @@ public class AccountApplicationService implements
     }
 
     // ========== Configuration Operations ==========
-
     @Override
     public SavedConfigurationDto saveConfiguration(SaveConfigurationCommand command) {
         return savedConfigurationService.saveConfiguration(command);
