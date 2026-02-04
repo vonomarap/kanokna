@@ -24,9 +24,16 @@ import org.springframework.grpc.server.service.GrpcService;
 
 import java.util.List;
 
+/**
+ * MODULE_CONTRACT id="MC-catalog-grpc-adapter" LAYER="adapters.in.grpc"
+ * INTENT="gRPC adapter for catalog configuration and validation operations"
+ * LINKS="Technology.xml#TECH-grpc;RequirementsAnalysis.xml#UC-CATALOG-CONFIGURE-PRODUCT"
+ *
+ * gRPC service for product template and configuration operations.
+ */
 @GrpcService
 public class CatalogConfigurationGrpcService
-    extends CatalogConfigurationServiceGrpc.CatalogConfigurationServiceImplBase {
+        extends CatalogConfigurationServiceGrpc.CatalogConfigurationServiceImplBase {
 
     private final ValidateConfigurationUseCase validateConfigurationUseCase;
     private final GetProductTemplateQuery getProductTemplateQuery;
@@ -36,12 +43,12 @@ public class CatalogConfigurationGrpcService
     private final CatalogConfigurationGrpcMapper mapper;
 
     public CatalogConfigurationGrpcService(
-        ValidateConfigurationUseCase validateConfigurationUseCase,
-        GetProductTemplateQuery getProductTemplateQuery,
-        ListProductTemplatesQuery listProductTemplatesQuery,
-        BomTemplateRepository bomTemplateRepository,
-        BomResolutionService bomResolutionService,
-        CatalogConfigurationGrpcMapper mapper
+            ValidateConfigurationUseCase validateConfigurationUseCase,
+            GetProductTemplateQuery getProductTemplateQuery,
+            ListProductTemplatesQuery listProductTemplatesQuery,
+            BomTemplateRepository bomTemplateRepository,
+            BomResolutionService bomResolutionService,
+            CatalogConfigurationGrpcMapper mapper
     ) {
         this.validateConfigurationUseCase = validateConfigurationUseCase;
         this.getProductTemplateQuery = getProductTemplateQuery;
@@ -53,8 +60,8 @@ public class CatalogConfigurationGrpcService
 
     @Override
     public void validateConfiguration(
-        ValidateConfigurationRequest request,
-        StreamObserver<ValidateConfigurationResponse> responseObserver
+            ValidateConfigurationRequest request,
+            StreamObserver<ValidateConfigurationResponse> responseObserver
     ) {
         ValidateConfigurationCommand command = mapper.toCommand(request);
         ConfigurationResponse validation = validateConfigurationUseCase.validate(command);
@@ -64,8 +71,8 @@ public class CatalogConfigurationGrpcService
             Configuration configuration = mapper.toConfiguration(command);
             ProductTemplateId productTemplateId = ProductTemplateId.of(command.productTemplateId());
             resolvedBom = bomTemplateRepository.findByProductTemplateId(productTemplateId)
-                .map(template -> bomResolutionService.resolveBom(configuration, template))
-                .orElse(null);
+                    .map(template -> bomResolutionService.resolveBom(configuration, template))
+                    .orElse(null);
         }
 
         responseObserver.onNext(mapper.toValidateConfigurationResponse(validation, resolvedBom));
@@ -74,11 +81,11 @@ public class CatalogConfigurationGrpcService
 
     @Override
     public void getProductTemplate(
-        GetProductTemplateRequest request,
-        StreamObserver<GetProductTemplateResponse> responseObserver
+            GetProductTemplateRequest request,
+            StreamObserver<GetProductTemplateResponse> responseObserver
     ) {
         ProductTemplateDto template = getProductTemplateQuery.getById(
-            ProductTemplateId.of(request.getProductTemplateId())
+                ProductTemplateId.of(request.getProductTemplateId())
         );
         responseObserver.onNext(mapper.toGetProductTemplateResponse(template));
         responseObserver.onCompleted();
@@ -86,8 +93,8 @@ public class CatalogConfigurationGrpcService
 
     @Override
     public void listProductTemplates(
-        ListProductTemplatesRequest request,
-        StreamObserver<ListProductTemplatesResponse> responseObserver
+            ListProductTemplatesRequest request,
+            StreamObserver<ListProductTemplatesResponse> responseObserver
     ) {
         ProductFamily family = mapper.toProductFamily(request.getProductFamilyFilter());
         List<ProductTemplateDto> templates = listProductTemplatesQuery.list(family, true);

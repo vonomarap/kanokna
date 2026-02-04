@@ -300,4 +300,38 @@
             validation in MVP</Item>
     </ASSUMPTIONS>
 
+    <RELATED_MODULES>
+        <!-- Application Layer MCs (inline in source code) -->
+        <Module id="MC-account-profile-service"
+            layer="application.service"
+            location="com.kanokna.account.application.service.ProfileService"
+            intent="Specialized service for user profile CRUD operations" />
+        <Module id="MC-account-address-service"
+            layer="application.service"
+            location="com.kanokna.account.application.service.AddressService"
+            intent="Specialized service for address management operations" />
+        <Module id="MC-account-savedconfig-service"
+            layer="application.service"
+            location="com.kanokna.account.application.service.SavedConfigurationService"
+            intent="Specialized service for saved product configuration operations" />
+
+        <!-- Adapter Layer MCs -->
+        <Module id="MC-account-grpc-adapter"
+            layer="adapters.in.grpc"
+            location="com.kanokna.account.adapters.in.grpc.AccountGrpcService"
+            intent="gRPC inbound adapter implementing AccountService proto" />
+        <Module id="MC-account-web-adapter"
+            layer="adapters.in.web"
+            location="com.kanokna.account.adapters.in.web.*Controller"
+            intent="REST inbound adapters for profile, address, and configuration endpoints" />
+        <Module id="MC-account-persistence-adapter"
+            layer="adapters.out.persistence"
+            location="com.kanokna.account.adapters.out.persistence.*RepositoryAdapter"
+            intent="JPA outbound adapters implementing domain repository ports" />
+        <Module id="MC-account-keycloak-adapter"
+            layer="adapters.out.keycloak"
+            location="com.kanokna.account.adapters.out.keycloak.KeycloakCurrentUserProvider"
+            intent="Keycloak outbound adapter for current user resolution" />
+    </RELATED_MODULES>
+
 </MODULE_CONTRACT>

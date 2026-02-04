@@ -1192,7 +1192,7 @@
         <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01" />
         <Link ref="RequirementsAnalysis.xml#UC-B2B-CPQ-01" />
         <Link ref="DevelopmentPlan.xml#DP-SVC-catalog-configuration-service" />
-        <Link ref="DevelopmentPlan.xml#Flow-Config-Pricing" />
+        <Link ref="DevelopmentPlan.xml#Flow-B2C-CPQ" />
       </Links>
     </UseCase>
 
@@ -1217,7 +1217,7 @@
         <Link ref="RequirementsAnalysis.xml#UC-B2C-CPQ-01" />
         <Link ref="RequirementsAnalysis.xml#UC-B2B-CPQ-01" />
         <Link ref="DevelopmentPlan.xml#DP-SVC-pricing-service" />
-        <Link ref="DevelopmentPlan.xml#Flow-Config-Pricing" />
+        <Link ref="DevelopmentPlan.xml#Flow-B2C-CPQ" />
         <Link ref="Technology.xml#DEC-PRICING-DISCOUNT-PRECEDENCE" />
       </Links>
     </UseCase>

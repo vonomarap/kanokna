@@ -14,6 +14,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
+ * MODULE_CONTRACT id="MC-catalog-query-service" LAYER="application.service"
+ * INTENT="Read-only operations for product template retrieval and listing"
+ * LINKS="RequirementsAnalysis.xml#UC-CATALOG-BROWSE"
+ *
  * Application service implementing product template query operations.
  */
 @Service
@@ -29,7 +33,7 @@ public class ProductTemplateQueryService implements GetProductTemplateQuery, Lis
     @Override
     public ProductTemplateDto getById(ProductTemplateId productTemplateId) {
         ProductTemplate productTemplate = productTemplateRepository.findById(productTemplateId)
-            .orElseThrow(() -> new ProductTemplateNotFoundException(productTemplateId));
+                .orElseThrow(() -> new ProductTemplateNotFoundException(productTemplateId));
 
         return mapToDto(productTemplate);
     }
@@ -42,8 +46,8 @@ public class ProductTemplateQueryService implements GetProductTemplateQuery, Lis
             templates = productTemplateRepository.findByProductFamilyAndStatus(productFamily, TemplateStatus.ACTIVE);
         } else if (productFamily != null) {
             templates = productTemplateRepository.findAll().stream()
-                .filter(t -> t.getProductFamily() == productFamily)
-                .toList();
+                    .filter(t -> t.getProductFamily() == productFamily)
+                    .toList();
         } else if (activeOnly) {
             templates = productTemplateRepository.findByStatus(TemplateStatus.ACTIVE);
         } else {
@@ -51,53 +55,53 @@ public class ProductTemplateQueryService implements GetProductTemplateQuery, Lis
         }
 
         return templates.stream()
-            .map(this::mapToDto)
-            .collect(Collectors.toList());
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 
     private ProductTemplateDto mapToDto(ProductTemplate template) {
         var dimensionsDto = new ProductTemplateDto.DimensionConstraintsDto(
-            template.getDimensionConstraints().minWidthCm(),
-            template.getDimensionConstraints().maxWidthCm(),
-            template.getDimensionConstraints().minHeightCm(),
-            template.getDimensionConstraints().maxHeightCm()
+                template.getDimensionConstraints().minWidthCm(),
+                template.getDimensionConstraints().maxWidthCm(),
+                template.getDimensionConstraints().minHeightCm(),
+                template.getDimensionConstraints().maxHeightCm()
         );
 
         var optionGroupDtos = template.getOptionGroups().stream()
-            .map(this::mapOptionGroupToDto)
-            .collect(Collectors.toList());
+                .map(this::mapOptionGroupToDto)
+                .collect(Collectors.toList());
 
         return new ProductTemplateDto(
-            template.getId().value(),
-            template.getName(),
-            template.getDescription(),
-            template.getProductFamily(),
-            dimensionsDto,
-            template.getStatus(),
-            template.getVersion(),
-            optionGroupDtos
+                template.getId().value(),
+                template.getName(),
+                template.getDescription(),
+                template.getProductFamily(),
+                dimensionsDto,
+                template.getStatus(),
+                template.getVersion(),
+                optionGroupDtos
         );
     }
 
     private OptionGroupDto mapOptionGroupToDto(OptionGroup optionGroup) {
         var optionDtos = optionGroup.getOptions().stream()
-            .map(opt -> new OptionGroupDto.OptionDto(
+                .map(opt -> new OptionGroupDto.OptionDto(
                 opt.getId(),
                 opt.getName(),
                 opt.getDescription(),
                 opt.getSkuCode(),
                 opt.getDisplayOrder(),
                 opt.isDefaultSelected()
-            ))
-            .collect(Collectors.toList());
+        ))
+                .collect(Collectors.toList());
 
         return new OptionGroupDto(
-            optionGroup.getId(),
-            optionGroup.getName(),
-            optionGroup.getDisplayOrder(),
-            optionGroup.isRequired(),
-            optionGroup.isMultiSelect(),
-            optionDtos
+                optionGroup.getId(),
+                optionGroup.getName(),
+                optionGroup.getDisplayOrder(),
+                optionGroup.isRequired(),
+                optionGroup.isMultiSelect(),
+                optionDtos
         );
     }
 }

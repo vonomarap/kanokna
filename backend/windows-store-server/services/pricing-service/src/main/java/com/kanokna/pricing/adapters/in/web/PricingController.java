@@ -9,8 +9,12 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
 /**
- * REST controller for public pricing operations.
- * Provides endpoints for quote calculation and promo code validation.
+ * MODULE_CONTRACT id="MC-pricing-rest-adapter" LAYER="adapters.in.web"
+ * INTENT="Public REST controller for pricing quotes and promo validation"
+ * LINKS="Technology.xml#TECH-spring-mvc;RequirementsAnalysis.xml#UC-PRICING-QUOTE"
+ *
+ * REST controller for public pricing operations. Provides endpoints for quote
+ * calculation and promo code validation.
  *
  * Per DevelopmentPlan.xml#DP-SVC-pricing-service
  */
@@ -33,35 +37,19 @@ public class PricingController {
      *
      * POST /api/v1/pricing/quotes
      *
-     * Request body:
-     * {
-     *   "productTemplateId": "WINDOW-PVC-STANDARD",
-     *   "widthCm": 120.0,
-     *   "heightCm": 150.0,
-     *   "selectedOptionIds": ["OPT-LAMINATION-GOLD-OAK", "OPT-HANDLE-ROTO"],
-     *   "currency": "RUB",
-     *   "promoCode": "WELCOME10",
-     *   "region": "RU"
-     * }
+     * Request body: { "productTemplateId": "WINDOW-PVC-STANDARD", "widthCm":
+     * 120.0, "heightCm": 150.0, "selectedOptionIds":
+     * ["OPT-LAMINATION-GOLD-OAK", "OPT-HANDLE-ROTO"], "currency": "RUB",
+     * "promoCode": "WELCOME10", "region": "RU" }
      *
-     * Response 200:
-     * {
-     *   "quoteId": "uuid",
-     *   "productTemplateId": "WINDOW-PVC-STANDARD",
-     *   "basePrice": "RUB 18000.00",
-     *   "optionPremiums": [...],
-     *   "discount": "RUB 2000.00",
-     *   "subtotal": "RUB 20000.00",
-     *   "tax": "RUB 4000.00",
-     *   "total": "RUB 24000.00",
-     *   "currency": "RUB",
-     *   "validUntil": "2025-12-31T12:05:00Z",
-     *   "decisionTrace": [...]
-     * }
+     * Response 200: { "quoteId": "uuid", "productTemplateId":
+     * "WINDOW-PVC-STANDARD", "basePrice": "RUB 18000.00", "optionPremiums":
+     * [...], "discount": "RUB 2000.00", "subtotal": "RUB 20000.00", "tax": "RUB
+     * 4000.00", "total": "RUB 24000.00", "currency": "RUB", "validUntil":
+     * "2025-12-31T12:05:00Z", "decisionTrace": [...] }
      *
-     * Error responses:
-     * - 404: Price book not found for product
-     * - 400: Invalid dimensions or configuration
+     * Error responses: - 404: Price book not found for product - 400: Invalid
+     * dimensions or configuration
      */
     @PostMapping("/quotes")
     public ResponseEntity<QuoteResponse> calculateQuote(@Valid @RequestBody CalculateQuoteCommand command) {
@@ -74,26 +62,14 @@ public class PricingController {
      *
      * POST /api/v1/pricing/promo-codes/validate
      *
-     * Request body:
-     * {
-     *   "promoCode": "WELCOME10",
-     *   "subtotal": "20000.00",
-     *   "currency": "RUB"
-     * }
+     * Request body: { "promoCode": "WELCOME10", "subtotal": "20000.00",
+     * "currency": "RUB" }
      *
-     * Response 200:
-     * {
-     *   "valid": true,
-     *   "discountAmount": "RUB 2000.00",
-     *   "errorMessage": null
-     * }
+     * Response 200: { "valid": true, "discountAmount": "RUB 2000.00",
+     * "errorMessage": null }
      *
-     * Or if invalid:
-     * {
-     *   "valid": false,
-     *   "discountAmount": null,
-     *   "errorMessage": "ERR-PROMO-EXPIRED"
-     * }
+     * Or if invalid: { "valid": false, "discountAmount": null, "errorMessage":
+     * "ERR-PROMO-EXPIRED" }
      */
     @PostMapping("/promo-codes/validate")
     public ResponseEntity<PromoCodeValidationResponse> validatePromoCode(

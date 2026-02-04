@@ -11,13 +11,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * REST controller for admin search operations.
- * Endpoint: /api/admin/search
+ * MODULE_CONTRACT id="MC-search-admin-rest-adapter" LAYER="adapters.in.web"
+ * INTENT="Admin REST controller for search operations, requiring ADMIN role"
+ * LINKS="Technology.xml#TECH-spring-mvc;RequirementsAnalysis.xml#NFR-SEC-RBAC"
+ *
+ * REST controller for admin search operations. Endpoint: /api/admin/search
  * Requires ADMIN role.
  */
 @RestController
 @RequestMapping("/api/admin/search")
 public class AdminSearchController {
+
     private final ReindexCatalogUseCase reindexCatalogUseCase;
 
     public AdminSearchController(ReindexCatalogUseCase reindexCatalogUseCase) {

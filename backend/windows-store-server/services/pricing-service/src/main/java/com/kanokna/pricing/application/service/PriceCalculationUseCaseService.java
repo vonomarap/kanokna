@@ -62,10 +62,14 @@ import java.util.stream.Collectors;
     <Case id="TC-PROMO-005">Subtotal below minimum returns valid=false with ERR-PROMO-MIN-SUBTOTAL</Case>
   </TESTS>
 </FUNCTION_CONTRACT> */
-
 /**
- * Application service implementing price calculation use cases.
- * Coordinates domain services with infrastructure via ports.
+ * MODULE_CONTRACT id="MC-pricing-application-service"
+ * LAYER="application.service" INTENT="Price calculation orchestrator: quotes,
+ * campaigns, promo validation, tax calculation"
+ * LINKS="RequirementsAnalysis.xml#UC-PRICING-QUOTE;Technology.xml#DEC-PRICING-ENGINE"
+ *
+ * Application service implementing price calculation use cases. Coordinates
+ * domain services with infrastructure via ports.
  */
 @Service
 @Transactional
@@ -104,13 +108,13 @@ public class PriceCalculationUseCaseService implements CalculateQuoteUseCase, Va
     @Override
     public QuoteResponse calculateQuote(CalculateQuoteCommand command) {
         PriceBook priceBook = priceBookRepository
-            .findActiveByProductTemplateId(command.getProductTemplateId())
-            .orElseThrow(() -> {
-                logger.info("[SVC=pricing-service][UC=UC-PRICING-QUOTE][BLOCK=BA-PRC-CALC-01][STATE=LOAD_PRICEBOOK] " +
-                        "eventType=PRICING_STEP decision=NOT_FOUND keyValues=productTemplateId={},priceBookId=NONE",
-                    LogSanitizer.sanitize(command.getProductTemplateId()));
-                return new PriceBookNotFoundException(command.getProductTemplateId());
-            });
+                .findActiveByProductTemplateId(command.getProductTemplateId())
+                .orElseThrow(() -> {
+                    logger.info("[SVC=pricing-service][UC=UC-PRICING-QUOTE][BLOCK=BA-PRC-CALC-01][STATE=LOAD_PRICEBOOK] "
+                            + "eventType=PRICING_STEP decision=NOT_FOUND keyValues=productTemplateId={},priceBookId=NONE",
+                            LogSanitizer.sanitize(command.getProductTemplateId()));
+                    return new PriceBookNotFoundException(command.getProductTemplateId());
+                });
 
         Optional<Quote> cachedQuote = quoteCache.get(priceBook, command);
         if (cachedQuote.isPresent() && !cachedQuote.get().isExpired()) {
@@ -119,31 +123,31 @@ public class PriceCalculationUseCaseService implements CalculateQuoteUseCase, Va
         }
 
         List<Campaign> campaigns = campaignRepository
-            .findActiveForProduct(command.getProductTemplateId());
+                .findActiveForProduct(command.getProductTemplateId());
 
         PromoCode promoCode = null;
         if (command.getPromoCode() != null && !command.getPromoCode().isBlank()) {
             promoCode = promoCodeRepository.findByCode(command.getPromoCode())
-                .orElseThrow(() -> {
-                    logPromoDecision(command.getPromoCode(), "INVALID");
-                    return new InvalidPromoCodeException(command.getPromoCode(), "Promo code not found");
-                });
+                    .orElseThrow(() -> {
+                        logPromoDecision(command.getPromoCode(), "INVALID");
+                        return new InvalidPromoCodeException(command.getPromoCode(), "Promo code not found");
+                    });
         }
 
         TaxRule taxRule = taxRuleRepository.findByRegion(command.getRegion())
-            .orElseThrow(() -> new TaxRuleNotFoundException(command.getRegion()));
+                .orElseThrow(() -> new TaxRuleNotFoundException(command.getRegion()));
 
         Quote quote;
         try {
             quote = priceCalculationService.calculateQuote(
-                priceBook,
-                command.getResolvedBom(),
-                command.getWidthCm(),
-                command.getHeightCm(),
-                campaigns,
-                promoCode,
-                taxRule,
-                quoteTtlMinutes
+                    priceBook,
+                    command.getResolvedBom(),
+                    command.getWidthCm(),
+                    command.getHeightCm(),
+                    campaigns,
+                    promoCode,
+                    taxRule,
+                    quoteTtlMinutes
             );
         } catch (InvalidPromoCodeException ex) {
             logPromoDecision(ex.getPromoCode(), "INVALID");
@@ -166,7 +170,7 @@ public class PriceCalculationUseCaseService implements CalculateQuoteUseCase, Va
     @Override
     public PromoCodeValidationResponse validatePromoCode(ValidatePromoCodeCommand command) {
         PromoCode promoCode = promoCodeRepository.findByCode(command.getPromoCode())
-            .orElse(null);
+                .orElse(null);
 
         if (promoCode == null) {
             return PromoCodeValidationResponse.invalid("ERR-PROMO-NOT-FOUND");
@@ -199,17 +203,17 @@ public class PriceCalculationUseCaseService implements CalculateQuoteUseCase, Va
     }
 
     private void logPromoDecision(String promoCode, String decision) {
-        logger.info("[SVC=pricing-service][UC=UC-PRICING-QUOTE][BLOCK=BA-PRC-CALC-05][STATE=PROMO] " +
-                "eventType=PRICING_STEP decision={} keyValues=promoCode={},discount_rub=0",
-            decision, LogSanitizer.sanitize(promoCode));
+        logger.info("[SVC=pricing-service][UC=UC-PRICING-QUOTE][BLOCK=BA-PRC-CALC-05][STATE=PROMO] "
+                + "eventType=PRICING_STEP decision={} keyValues=promoCode={},discount_rub=0",
+                decision, LogSanitizer.sanitize(promoCode));
     }
 
     private void logDecisionTrace(Quote quote) {
         for (PricingDecision decision : quote.getDecisionTrace()) {
             logger.info("[SVC=pricing-service][UC=UC-PRICING-QUOTE][BLOCK={}][STATE={}] {}",
-                decision.getStep(),
-                decision.getRuleApplied(),
-                decision.getResult());
+                    decision.getStep(),
+                    decision.getRuleApplied(),
+                    decision.getResult());
         }
     }
 
@@ -219,8 +223,8 @@ public class PriceCalculationUseCaseService implements CalculateQuoteUseCase, Va
         response.setProductTemplateId(quote.getProductTemplateId());
         response.setBasePrice(quote.getBasePrice().toString());
         response.setOptionPremiums(quote.getOptionPremiums().stream()
-            .map(QuoteResponse.PremiumLineDto::from)
-            .collect(Collectors.toList()));
+                .map(QuoteResponse.PremiumLineDto::from)
+                .collect(Collectors.toList()));
         response.setDiscount(quote.getDiscount().toString());
         response.setSubtotal(quote.getSubtotal().toString());
         response.setTax(quote.getTax().toString());
@@ -228,8 +232,8 @@ public class PriceCalculationUseCaseService implements CalculateQuoteUseCase, Va
         response.setCurrency(quote.getTotal().getCurrency());
         response.setValidUntil(quote.getValidUntil());
         response.setDecisionTrace(quote.getDecisionTrace().stream()
-            .map(QuoteResponse.PricingDecisionDto::from)
-            .collect(Collectors.toList()));
+                .map(QuoteResponse.PricingDecisionDto::from)
+                .collect(Collectors.toList()));
         return response;
     }
 }

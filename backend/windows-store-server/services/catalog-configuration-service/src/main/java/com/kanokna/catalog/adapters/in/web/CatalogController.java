@@ -12,8 +12,13 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * REST controller for public catalog browsing operations.
- * Endpoint: /api/catalog
+ * MODULE_CONTRACT id="MC-catalog-public-rest-adapter" LAYER="adapters.in.web"
+ * INTENT="Public REST controller for catalog browsing, no authentication
+ * required"
+ * LINKS="Technology.xml#TECH-spring-mvc;RequirementsAnalysis.xml#UC-CATALOG-BROWSE"
+ *
+ * REST controller for public catalog browsing operations. Endpoint:
+ * /api/catalog
  */
 @RestController
 @RequestMapping("/api/catalog")
@@ -23,8 +28,8 @@ public class CatalogController {
     private final ListProductTemplatesQuery listProductTemplatesQuery;
 
     public CatalogController(
-        GetProductTemplateQuery getProductTemplateQuery,
-        ListProductTemplatesQuery listProductTemplatesQuery
+            GetProductTemplateQuery getProductTemplateQuery,
+            ListProductTemplatesQuery listProductTemplatesQuery
     ) {
         this.getProductTemplateQuery = getProductTemplateQuery;
         this.listProductTemplatesQuery = listProductTemplatesQuery;
@@ -38,8 +43,8 @@ public class CatalogController {
 
     @GetMapping("/products")
     public ResponseEntity<List<ProductTemplateDto>> listProducts(
-        @RequestParam(required = false) ProductFamily productFamily,
-        @RequestParam(defaultValue = "true") boolean activeOnly
+            @RequestParam(required = false) ProductFamily productFamily,
+            @RequestParam(defaultValue = "true") boolean activeOnly
     ) {
         List<ProductTemplateDto> products = listProductTemplatesQuery.list(productFamily, activeOnly);
         return ResponseEntity.ok(products);

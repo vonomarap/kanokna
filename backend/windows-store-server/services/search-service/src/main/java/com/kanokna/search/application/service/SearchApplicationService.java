@@ -50,18 +50,33 @@ import com.kanokna.shared.i18n.LocalizedString;
 import com.kanokna.shared.money.Money;
 
 /**
- * Application service implementing search use cases.
+ * MODULE_CONTRACT id="MC-search-application-service"
+ * LAYER="application.service" INTENT="Full-text search and indexing
+ * orchestration for product catalog"
+ * LINKS="RequirementsAnalysis.xml#UC-CATALOG-BROWSE;Technology.xml#TECH-elasticsearch"
+ *
+ * Application service implementing search use cases: - Full-text product search
+ * with faceted filtering - Autocomplete suggestions - Product indexing from
+ * catalog events - Zero-downtime catalog reindexing
+ *
+ * @see SearchProductsUseCase
+ * @see AutocompleteUseCase
+ * @see IndexProductUseCase
+ * @see DeleteProductUseCase
+ * @see GetFacetValuesUseCase
+ * @see GetProductByIdUseCase
+ * @see ReindexCatalogUseCase
  */
 @Service
 @Transactional
 public class SearchApplicationService implements
-    SearchProductsUseCase,
-    AutocompleteUseCase,
-    IndexProductUseCase,
-    DeleteProductUseCase,
-    GetFacetValuesUseCase,
-    GetProductByIdUseCase,
-    ReindexCatalogUseCase {
+        SearchProductsUseCase,
+        AutocompleteUseCase,
+        IndexProductUseCase,
+        DeleteProductUseCase,
+        GetFacetValuesUseCase,
+        GetProductByIdUseCase,
+        ReindexCatalogUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(SearchApplicationService.class);
     private static final String SERVICE = "search-service";
@@ -78,11 +93,11 @@ public class SearchApplicationService implements
     private final Set<String> validFacetFields;
 
     public SearchApplicationService(
-        SearchRepository searchRepository,
-        SearchIndexAdminPort searchIndexAdminPort,
-        CatalogConfigurationPort catalogConfigurationPort,
-        DistributedLockPort distributedLockPort,
-        SearchProperties searchProperties
+            SearchRepository searchRepository,
+            SearchIndexAdminPort searchIndexAdminPort,
+            CatalogConfigurationPort catalogConfigurationPort,
+            DistributedLockPort distributedLockPort,
+            SearchProperties searchProperties
     ) {
         this.searchRepository = searchRepository;
         this.searchIndexAdminPort = searchIndexAdminPort;
@@ -91,7 +106,8 @@ public class SearchApplicationService implements
         this.searchProperties = searchProperties;
         this.validFacetFields = Set.copyOf(searchProperties.facets().validFields());
     }
-/*     <FUNCTION_CONTRACT
+
+    /*     <FUNCTION_CONTRACT
         id="FC-search-searchProducts"
         LAYER="application.service"
         INTENT="Execute full-text search with faceted filtering and return paginated results"
@@ -174,36 +190,37 @@ public class SearchApplicationService implements
 
         // BA-SEARCH-QUERY-01: Build Elasticsearch query from SearchQuery
         log.info(logLine(USE_CASE_BROWSE, "BA-SEARCH-QUERY-01", "BUILD_QUERY",
-            "QUERY_BUILDING", "NORMALIZE",
-            "queryText=" + safeValue(normalized.queryText())
+                "QUERY_BUILDING", "NORMALIZE",
+                "queryText=" + safeValue(normalized.queryText())
                 + ",filterCount=" + normalized.filters().size()
                 + ",sortField=" + normalized.sortField()));
 
         // BA-SEARCH-QUERY-02: Execute query and collect results
         log.info(logLine(USE_CASE_BROWSE, "BA-SEARCH-QUERY-02", "EXECUTE_QUERY",
-            "ELASTICSEARCH_QUERY_START", "START",
-            "indexName=" + searchProperties.index().alias()));
+                "ELASTICSEARCH_QUERY_START", "START",
+                "indexName=" + searchProperties.index().alias()));
 
         SearchResult result = searchRepository.search(normalized);
 
         log.info(logLine(USE_CASE_BROWSE, "BA-SEARCH-QUERY-02", "QUERY_COMPLETE",
-            "ELASTICSEARCH_QUERY_END", "SUCCESS",
-            "took_ms=" + result.queryTimeMs() + ",total_hits=" + result.totalCount()));
+                "ELASTICSEARCH_QUERY_END", "SUCCESS",
+                "took_ms=" + result.queryTimeMs() + ",total_hits=" + result.totalCount()));
 
         // BA-SEARCH-QUERY-03: Process facet aggregations
         log.info(logLine(USE_CASE_BROWSE, "BA-SEARCH-QUERY-03", "PROCESS_FACETS",
-            "FACET_AGGREGATION", "COLLECT",
-            "facetCount=" + result.facets().size()));
+                "FACET_AGGREGATION", "COLLECT",
+                "facetCount=" + result.facets().size()));
 
         // BA-SEARCH-QUERY-04: Map Elasticsearch response to SearchResult
         log.info(logLine(USE_CASE_BROWSE, "BA-SEARCH-QUERY-04", "MAPPING_COMPLETE",
-            "SEARCH_RESULT_READY", "READY",
-            "resultCount=" + result.products().size()
+                "SEARCH_RESULT_READY", "READY",
+                "resultCount=" + result.products().size()
                 + ",facetCount=" + result.facets().size()));
 
         return result;
     }
-/*     <FUNCTION_CONTRACT
+
+    /*     <FUNCTION_CONTRACT
         id="FC-search-autocomplete"
         LAYER="application.service"
         INTENT="Provide autocomplete suggestions as user types product search query"
@@ -271,8 +288,8 @@ public class SearchApplicationService implements
 
         // BA-AUTO-01: Validate prefix length constraint
         log.info(logLine(USE_CASE_BROWSE, "BA-AUTO-01", "VALIDATE_PREFIX",
-            "AUTOCOMPLETE_REQUEST", "CHECK",
-            "prefix=" + safeValue(prefix) + ",prefixLength=" + prefixLength));
+                "AUTOCOMPLETE_REQUEST", "CHECK",
+                "prefix=" + safeValue(prefix) + ",prefixLength=" + prefixLength));
 
         int minPrefixLength = searchProperties.autocomplete().minPrefixLength();
         if (prefixLength < minPrefixLength) {
@@ -280,23 +297,23 @@ public class SearchApplicationService implements
         }
 
         // BA-AUTO-02: Build completion suggester query
-
         // BA-AUTO-03: Execute suggestion query
         log.info(logLine(USE_CASE_BROWSE, "BA-AUTO-03", "EXECUTE_SUGGEST",
-            "SUGGEST_QUERY_START", "START",
-            "limit=" + normalized.limit()));
+                "SUGGEST_QUERY_START", "START",
+                "limit=" + normalized.limit()));
 
         AutocompleteResult result = searchRepository.autocomplete(normalized);
 
         // BA-AUTO-04: Map suggestions to result
         log.info(logLine(USE_CASE_BROWSE, "BA-AUTO-04", "RESULT_READY",
-            "AUTOCOMPLETE_COMPLETE", "SUCCESS",
-            "suggestionCount=" + result.suggestions().size()
+                "AUTOCOMPLETE_COMPLETE", "SUCCESS",
+                "suggestionCount=" + result.suggestions().size()
                 + ",queryTimeMs=" + result.queryTimeMs()));
 
         return result;
     }
-/*     <FUNCTION_CONTRACT
+
+    /*     <FUNCTION_CONTRACT
         id="FC-search-indexProduct"
         LAYER="application.service"
         INTENT="Index or update a product document in Elasticsearch when catalog event is received"
@@ -368,32 +385,33 @@ public class SearchApplicationService implements
 
         // BA-INDEX-01: Validate and extract event payload
         log.info(logLine(USE_CASE_INDEX, "BA-INDEX-01", "EVENT_RECEIVED",
-            "CATALOG_EVENT_RECEIVED", "RECEIVED",
-            "eventId=" + eventId + ",productId=" + productId + ",eventType=" + eventType));
+                "CATALOG_EVENT_RECEIVED", "RECEIVED",
+                "eventId=" + eventId + ",productId=" + productId + ",eventType=" + eventType));
 
         validateCatalogEvent(event);
 
         // BA-INDEX-02: Transform event to ProductSearchDocument
         ProductSearchDocument document = toDocument(event);
         log.info(logLine(USE_CASE_INDEX, "BA-INDEX-02", "TRANSFORM",
-            "DOCUMENT_CREATED", "READY",
-            "productId=" + productId));
+                "DOCUMENT_CREATED", "READY",
+                "productId=" + productId));
 
         // BA-INDEX-03: Execute index/update operation
         log.info(logLine(USE_CASE_INDEX, "BA-INDEX-03", "INDEX_EXECUTE",
-            "ES_INDEX_REQUEST", "UPSERT",
-            "productId=" + productId + ",action=UPSERT"));
+                "ES_INDEX_REQUEST", "UPSERT",
+                "productId=" + productId + ",action=UPSERT"));
 
         IndexResult result = searchRepository.index(document);
 
         // BA-INDEX-04: Confirm indexing success
         log.info(logLine(USE_CASE_INDEX, "BA-INDEX-04", "INDEX_COMPLETE",
-            "PRODUCT_INDEXED", result.success() ? "SUCCESS" : "FAILURE",
-            "productId=" + productId + ",took_ms=" + result.tookMs()));
+                "PRODUCT_INDEXED", result.success() ? "SUCCESS" : "FAILURE",
+                "productId=" + productId + ",took_ms=" + result.tookMs()));
 
         return result;
     }
-/*     <FUNCTION_CONTRACT
+
+    /*     <FUNCTION_CONTRACT
         id="FC-search-deleteProduct"
         LAYER="application.service"
         INTENT="Remove a product document from Elasticsearch when product is unpublished/archived"
@@ -450,8 +468,8 @@ public class SearchApplicationService implements
 
         // BA-DELETE-01: Extract productId from event
         log.info(logLine(USE_CASE_DELETE, "BA-DELETE-01", "EVENT_RECEIVED",
-            "UNPUBLISH_EVENT_RECEIVED", "RECEIVED",
-            "productId=" + safeProductId));
+                "UNPUBLISH_EVENT_RECEIVED", "RECEIVED",
+                "productId=" + safeProductId));
 
         if (productId == null || productId.isBlank()) {
             throw SearchDomainErrors.invalidProductId("productId is required");
@@ -459,19 +477,20 @@ public class SearchApplicationService implements
 
         // BA-DELETE-02: Execute delete operation
         log.info(logLine(USE_CASE_DELETE, "BA-DELETE-02", "DELETE_EXECUTE",
-            "ES_DELETE_REQUEST", "DELETE",
-            "productId=" + productId));
+                "ES_DELETE_REQUEST", "DELETE",
+                "productId=" + productId));
 
         DeleteResult result = searchRepository.delete(productId);
 
         // BA-DELETE-03: Log outcome
         log.info(logLine(USE_CASE_DELETE, "BA-DELETE-03", "DELETE_COMPLETE",
-            "PRODUCT_DELETED", result.deleted() ? "DELETED" : "NOT_FOUND",
-            "productId=" + productId));
+                "PRODUCT_DELETED", result.deleted() ? "DELETED" : "NOT_FOUND",
+                "productId=" + productId));
 
         return result;
     }
-/*     <FUNCTION_CONTRACT
+
+    /*     <FUNCTION_CONTRACT
         id="FC-search-getFacetValues"
         LAYER="application.service"
         INTENT="Retrieve available facet values for filtering UI dropdowns"
@@ -538,27 +557,27 @@ public class SearchApplicationService implements
 
         // BA-FACET-01: Validate requested facet fields
         log.info(logLine(USE_CASE_BROWSE, "BA-FACET-01", "VALIDATE_FIELDS",
-            "FACET_REQUEST", "VALIDATE",
-            "fieldCount=" + normalized.fields().size() + ",fields=" + normalized.fields()));
+                "FACET_REQUEST", "VALIDATE",
+                "fieldCount=" + normalized.fields().size() + ",fields=" + normalized.fields()));
 
         // BA-FACET-02: Build aggregation query
-
         // BA-FACET-03: Execute aggregation query
         log.info(logLine(USE_CASE_BROWSE, "BA-FACET-03", "EXECUTE_AGGREGATION",
-            "ES_AGGREGATION_START", "START",
-            "fieldCount=" + normalized.fields().size()));
+                "ES_AGGREGATION_START", "START",
+                "fieldCount=" + normalized.fields().size()));
 
         FacetValuesResult result = searchRepository.facetValues(normalized);
 
         // BA-FACET-04: Map aggregations to FacetValuesResult
         log.info(logLine(USE_CASE_BROWSE, "BA-FACET-04", "RESULT_READY",
-            "FACET_VALUES_READY", "SUCCESS",
-            "facetCount=" + result.facets().size()
+                "FACET_VALUES_READY", "SUCCESS",
+                "facetCount=" + result.facets().size()
                 + ",queryTimeMs=" + result.queryTimeMs()));
 
         return result;
     }
-/*     <FUNCTION_CONTRACT
+
+    /*     <FUNCTION_CONTRACT
         id="FC-search-getProductById"
         LAYER="application.service"
         INTENT="Retrieve a single product document from the search index by ID"
@@ -618,8 +637,8 @@ public class SearchApplicationService implements
 
         // BA-GET-01: Validate productId
         log.info(logLine(USE_CASE_BROWSE, "BA-GET-01", "VALIDATE_ID",
-            "GET_PRODUCT_REQUEST", "VALIDATE",
-            "productId=" + safeValue(productId)));
+                "GET_PRODUCT_REQUEST", "VALIDATE",
+                "productId=" + safeValue(productId)));
 
         if (productId == null || productId.isBlank()) {
             throw SearchDomainErrors.invalidProductId("productId is required");
@@ -627,26 +646,27 @@ public class SearchApplicationService implements
 
         // BA-GET-02: Execute get-by-id query
         log.info(logLine(USE_CASE_BROWSE, "BA-GET-02", "EXECUTE_GET",
-            "ES_GET_REQUEST", "START",
-            "productId=" + productId));
+                "ES_GET_REQUEST", "START",
+                "productId=" + productId));
 
         ProductSearchDocument document = searchRepository.getById(productId);
 
         // BA-GET-03: Map document to ProductSearchDocument
         if (document == null) {
             log.info(logLine(USE_CASE_BROWSE, "BA-GET-03", "RESULT_READY",
-                "GET_PRODUCT_COMPLETE", "NOT_FOUND",
-                "productId=" + productId));
+                    "GET_PRODUCT_COMPLETE", "NOT_FOUND",
+                    "productId=" + productId));
             throw SearchDomainErrors.productNotFound(productId);
         }
 
         log.info(logLine(USE_CASE_BROWSE, "BA-GET-03", "RESULT_READY",
-            "GET_PRODUCT_COMPLETE", "FOUND",
-            "productId=" + productId));
+                "GET_PRODUCT_COMPLETE", "FOUND",
+                "productId=" + productId));
 
         return document;
     }
-/*     <FUNCTION_CONTRACT
+
+    /*     <FUNCTION_CONTRACT
         id="FC-search-reindexCatalog"
         LAYER="application.service"
         INTENT="Perform full reindex of product catalog with zero-downtime alias swap"
@@ -745,8 +765,8 @@ public class SearchApplicationService implements
 
         // BA-REINDEX-01: Acquire distributed lock for reindex (Redis via Redisson)
         log.info(logLine(USE_CASE_REINDEX, "BA-REINDEX-01", "ACQUIRE_LOCK",
-            "REINDEX_STARTED", "REQUEST",
-            "requestedBy=" + requestedBy));
+                "REINDEX_STARTED", "REQUEST",
+                "requestedBy=" + requestedBy));
 
         DistributedLockPort.LockHandle lock;
         try {
@@ -780,8 +800,8 @@ public class SearchApplicationService implements
             }
 
             log.info(logLine(USE_CASE_REINDEX, "BA-REINDEX-02", "CREATE_INDEX",
-                "NEW_INDEX_CREATED", "SUCCESS",
-                "indexName=" + newIndexName));
+                    "NEW_INDEX_CREATED", "SUCCESS",
+                    "indexName=" + newIndexName));
 
             int batchSize = searchProperties.reindex().batchSize();
             String pageToken = null;
@@ -790,8 +810,8 @@ public class SearchApplicationService implements
 
             // BA-REINDEX-03: Fetch all products from catalog-configuration-service (ListProductTemplates gRPC)
             log.info(logLine(USE_CASE_REINDEX, "BA-REINDEX-03", "FETCH_PRODUCTS",
-                "CATALOG_FETCH_START", "START",
-                "batchSize=" + batchSize));
+                    "CATALOG_FETCH_START", "START",
+                    "batchSize=" + batchSize));
 
             do {
                 CatalogProductPage page;
@@ -829,12 +849,12 @@ public class SearchApplicationService implements
 
                     // BA-REINDEX-04: Bulk index products into new index
                     log.info(logLine(USE_CASE_REINDEX, "BA-REINDEX-04", "BULK_INDEX",
-                        "BULK_INDEX_PROGRESS", "PROGRESS",
-                        "indexedCount=" + indexedCount + ",failedCount=" + failedCount));
+                            "BULK_INDEX_PROGRESS", "PROGRESS",
+                            "indexedCount=" + indexedCount + ",failedCount=" + failedCount));
 
                     if (bulk.failedCount() > 0) {
                         throw SearchDomainErrors.reindexElasticsearchUnavailable(
-                            "Bulk index failures: " + bulk.failedCount());
+                                "Bulk index failures: " + bulk.failedCount());
                     }
                 }
 
@@ -849,22 +869,22 @@ public class SearchApplicationService implements
             }
 
             log.info(logLine(USE_CASE_REINDEX, "BA-REINDEX-05", "SWAP_ALIAS",
-                "ALIAS_SWAP", "SUCCESS",
-                "oldIndex=" + String.join("|", existing) + ",newIndex=" + newIndexName));
+                    "ALIAS_SWAP", "SUCCESS",
+                    "oldIndex=" + String.join("|", existing) + ",newIndex=" + newIndexName));
 
             long duration = System.currentTimeMillis() - start;
 
             // BA-REINDEX-06: Release lock and log completion
             log.info(logLine(USE_CASE_REINDEX, "BA-REINDEX-06", "COMPLETE",
-                "REINDEX_COMPLETE", "SUCCESS",
-                "documentCount=" + indexedCount + ",durationMs=" + duration));
+                    "REINDEX_COMPLETE", "SUCCESS",
+                    "documentCount=" + indexedCount + ",durationMs=" + duration));
 
             return new ReindexResult(newIndexName, indexedCount, duration);
         } catch (RuntimeException ex) {
             long duration = System.currentTimeMillis() - start;
             log.info(logLine(USE_CASE_REINDEX, "BA-REINDEX-06", "COMPLETE",
-                "REINDEX_COMPLETE", "FAILURE",
-                "documentCount=0,durationMs=" + duration));
+                    "REINDEX_COMPLETE", "FAILURE",
+                    "documentCount=0,durationMs=" + duration));
             throw ex;
         }
     }
@@ -890,14 +910,14 @@ public class SearchApplicationService implements
         PriceRange priceRange = query.priceRange();
 
         return new SearchQuery(
-            query.queryText(),
-            query.page(),
-            query.pageSize(),
-            query.sortField(),
-            query.sortOrder(),
-            normalizedFilters,
-            priceRange,
-            language
+                query.queryText(),
+                query.page(),
+                query.pageSize(),
+                query.sortField(),
+                query.sortOrder(),
+                normalizedFilters,
+                priceRange,
+                language
         );
     }
 
@@ -951,12 +971,18 @@ public class SearchApplicationService implements
         String normalized = field.trim();
         String lower = normalized.toLowerCase(Locale.ROOT);
         return switch (lower) {
-            case "family" -> "family";
-            case "profile_system", "profile-system", "profilesystem" -> "profileSystem";
-            case "material", "materials" -> "materials";
-            case "color", "colors" -> "colors";
-            case "openingtype", "opening_type", "opening-types", "openingtypes" -> "openingTypes";
-            default -> normalized;
+            case "family" ->
+                "family";
+            case "profile_system", "profile-system", "profilesystem" ->
+                "profileSystem";
+            case "material", "materials" ->
+                "materials";
+            case "color", "colors" ->
+                "colors";
+            case "openingtype", "opening_type", "opening-types", "openingtypes" ->
+                "openingTypes";
+            default ->
+                normalized;
         };
     }
 
@@ -1003,23 +1029,23 @@ public class SearchApplicationService implements
         LocalizedString description = localizedOrNull(event.description());
 
         return ProductSearchDocument.builder(event.productId())
-            .name(name)
-            .description(description)
-            .family(event.family())
-            .profileSystem(event.profileSystem())
-            .openingTypes(event.openingTypes())
-            .materials(event.materials())
-            .colors(event.colors())
-            .minPrice(event.basePrice())
-            .maxPrice(event.maxPrice())
-            .currency(currency)
-            .popularity(event.popularity())
-            .status(event.status())
-            .publishedAt(publishedAt)
-            .thumbnailUrl(event.thumbnailUrl())
-            .optionCount(event.optionGroupCount())
-            .suggestInputs(buildSuggestInputs(event))
-            .build();
+                .name(name)
+                .description(description)
+                .family(event.family())
+                .profileSystem(event.profileSystem())
+                .openingTypes(event.openingTypes())
+                .materials(event.materials())
+                .colors(event.colors())
+                .minPrice(event.basePrice())
+                .maxPrice(event.maxPrice())
+                .currency(currency)
+                .popularity(event.popularity())
+                .status(event.status())
+                .publishedAt(publishedAt)
+                .thumbnailUrl(event.thumbnailUrl())
+                .optionCount(event.optionGroupCount())
+                .suggestInputs(buildSuggestInputs(event))
+                .build();
     }
 
     private LocalizedString localizedOrNull(String value) {
@@ -1055,14 +1081,14 @@ public class SearchApplicationService implements
     }
 
     private String logLine(String useCase, String block, String state,
-                           String eventType, String decision, String keyValues) {
+            String eventType, String decision, String keyValues) {
         StringBuilder builder = new StringBuilder();
         builder.append("[SVC=").append(SERVICE).append("]")
-            .append("[UC=").append(useCase).append("]")
-            .append("[BLOCK=").append(block).append("]")
-            .append("[STATE=").append(state).append("]")
-            .append(" eventType=").append(eventType)
-            .append(" decision=").append(decision);
+                .append("[UC=").append(useCase).append("]")
+                .append("[BLOCK=").append(block).append("]")
+                .append("[STATE=").append(state).append("]")
+                .append(" eventType=").append(eventType)
+                .append(" decision=").append(decision);
         if (keyValues != null && !keyValues.isBlank()) {
             builder.append(" keyValues=").append(keyValues);
         }
