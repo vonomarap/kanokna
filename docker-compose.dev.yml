@@ -1,0 +1,32 @@
+# ============================================================================
+# Docker Compose - Developer Quick Start
+# ============================================================================
+# Quick-start wrapper for local development. Located at project root for easy
+# access. This file extends the full infrastructure stack in deployment/.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d           # Core services
+#   docker compose -f docker-compose.dev.yml --profile tools up -d  # + UI tools
+#   docker compose -f docker-compose.dev.yml --profile monitoring up -d  # + observability
+#   docker compose -f docker-compose.dev.yml down            # Stop all
+#
+# Accessing Services:
+#   PostgreSQL:     localhost:5432  (kanokna/kanokna_secret)
+#   Redis:          localhost:6379
+#   Elasticsearch:  localhost:9200
+#   Kafka:          localhost:9092
+#   Keycloak:       localhost:8180  (admin/admin)
+#   MinIO API:      localhost:9000  (minioadmin/minioadmin123)
+#   MinIO Console:  localhost:9001
+#   Kafka UI:       localhost:8090  (--profile tools)
+#   Kibana:         localhost:5601  (--profile tools)
+#   Grafana:        localhost:3000  (--profile monitoring)
+#   Prometheus:     localhost:9090  (--profile monitoring)
+#
+# Links:
+#   - backend/windows-store-server/deployment/docker-compose.yml (full stack)
+#   - backend/windows-store-server/deployment/README.md
+# ============================================================================
+
+include:
+  - path: backend/windows-store-server/deployment/docker-compose.yml
