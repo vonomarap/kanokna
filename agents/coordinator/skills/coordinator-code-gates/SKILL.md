@@ -44,7 +44,7 @@ Use when Coder returns:
 - no force-push
 - if release/hotfix to main: back-merge PR to develop exists (or explicit block)
 
-### GRACE Scaffolding Gate (Coordinator-Enforced) — BLOCKING
+### GRACE Scaffolding Gate (Coordinator-Enforced) -- BLOCKING
 
 For every PR that touches a service/module, verify:
 
@@ -69,7 +69,7 @@ For every PR that touches a service/module, verify:
    - Critical methods include BLOCK_ANCHOR inline comments above meaningful blocks.
    - FUNCTION_CONTRACT lists the BA ids under <BLOCK_ANCHORS>.
    - Logs (or contract log examples) include [SVC][UC][BLOCK][STATE] and reference BA ids.
-   - Navigation must work: Log → BA → FC → MC → UC.
+   - Navigation must work: Log -> BA -> FC -> MC -> UC.
 
 5) Integrity:
    - IDs follow MM/MC/FC/BA conventions and are stable (no renames without blueprint).
@@ -85,7 +85,7 @@ Reject or request changes if:
 
 If any fail produce a CodeIssueReport-YYYYMMDD-##.xml file in the docs/grace/reports/code-issue:
 
-## FAIL Output → CodeIssueReport
+## FAIL Output -> CodeIssueReport
 ```xml
 <CodeIssueReport id="CODE-RPT-YYYYMMDD-##">
   <Issue id="ISS-...">
