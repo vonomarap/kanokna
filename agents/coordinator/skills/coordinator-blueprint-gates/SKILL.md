@@ -17,12 +17,12 @@ and you must decide whether blueprint is ready for approval/implementation.
 
 ## Coordinator Validation Gates (PASS/FAIL)
 
-### Blueprint Validation (Architect Output) — REQUIRED
+### Blueprint Validation (Architect Output) -- REQUIRED
 Run these gates and output PASS/FAIL.
 
 1) Consistency Gate (BLOCKING)
 - IDs follow conventions: ACT/UC/NFR/DP-SVC/Flow/DEC/MC/FC/BA/TC
-- No “OR” ambiguity in canonical artifacts
+- No "OR" ambiguity in canonical artifacts
 - DEC-* identical across Technology.xml and handoff DecisionsSnapshot
 - DB-per-service and no cross-service joins implied
 - New services (if any) must have:
@@ -33,7 +33,7 @@ Run these gates and output PASS/FAIL.
 
 2) Traceability Gate (BLOCKING)
 - All <Link ref="..."> targets exist (or explicitly marked TBD with PENDING_HUMAN)
-- UC → Flow → Contract → BA → TC is linked for in-scope critical paths
+- UC -> Flow -> Contract -> BA -> TC is linked for in-scope critical paths
 
 3) Completeness Gate (BLOCKING for critical paths)
 - For each in-scope critical use case: FC exists + BA anchors defined + TC-* cases present
@@ -53,15 +53,15 @@ Run these gates and output PASS/FAIL.
 - Blueprint/contracts must lead to human-readable code: small responsibilities, explicit boundaries, predictable flow.
 - Watchlist enforcement (must be addressed in blueprint/contracts):
   A) Huge classes/methods must be prevented by design (SRP split, clear module responsibilities).
-     Example: ❌ validate+price+save+notify in one service → ✅ split components/services
+     Example: NO validate+price+save+notify in one service -> OK split components/services
   B) Magic numbers must be avoided via domain constants/config/enums.
-     Example: ❌ if(attempts>5) → ✅ if(attempts>MAX_LOGIN_ATTEMPTS)
+     Example: NO if(attempts>5) -> OK if(attempts>MAX_LOGIN_ATTEMPTS)
   C) Error handling must be consistent and domain-focused (no generic exceptions for domain failures).
-     Example: ❌ IllegalArgumentException("Configuration not found")
-              ✅ AccountDomainErrors.configurationNotFound(userId, configId)
+     Example: NO IllegalArgumentException("Configuration not found")
+              OK AccountDomainErrors.configurationNotFound(userId, configId)
   D) Mapper duplication must be addressed via shared mapping utilities/abstractions.
   E) Complex conditional logic must be minimized via guard clauses, named predicates, or Strategy/State.
-     Example: ❌ if(a){if(b){if(c){...}}} → ✅ guard clauses / Strategy
+     Example: NO if(a){if(b){if(c){...}}} -> OK guard clauses / Strategy
 
 If any gate fails, produce BlueprintIssueReport-YYYYMMDD-##.xml file in docs/grace/reports/blueprint-issue with the following format:
 
@@ -85,9 +85,9 @@ If any gate fails, produce BlueprintIssueReport-YYYYMMDD-##.xml file in docs/gra
 ```xml
 <BlueprintIssueReport
   id="ISSUE-RPT-YYYYMMDD-##"
-  handoffRef="Handoff-YYYYMMDD-##"
+  handoffRef="Handoff-YYYYMMDD-##[-suffix]"
   gateStatus="FAIL|PASS_WITH_WARNINGS"
-  created="YYYY-MM-DDTHH:mm:ss±HH:MM"
+  created="YYYY-MM-DDTHH:mm:ss(+|-)HH:MM"
   validatedBy="GRACE-COORDINATOR"
 >
   <Summary>

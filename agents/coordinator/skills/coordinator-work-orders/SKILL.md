@@ -10,7 +10,7 @@ Generate pasteable, self-contained work orders:
 
 ## Trigger
 Use when user asks:
-- “What next”, “give task”, “make work order”
+- "What next", "give task", "make work order"
 - needs blueprint refinement (AWO) or implementation (CWO)
 
 ## Work Order Selection Rules
@@ -34,7 +34,7 @@ Use when user asks:
 Use when any of these are true:
 - requirements ambiguity, new decision needed, blueprint change, new/changed contracts, missing artifacts/handoff, decision readiness blocking coding.
 
-Creating AWO-YYYYMMDD-##.xml file in the direcotory docs/grace/awo with the following content:
+Creating AWO-YYYYMMDD-##.xml file in the directory docs/grace/awo with the following content:
 
 ```xml
 <ARCHITECT_WORK_ORDER id="AWO-YYYYMMDD-##" status="PROPOSED">
@@ -86,9 +86,9 @@ Creating AWO-YYYYMMDD-##.xml file in the direcotory docs/grace/awo with the foll
   </RequiredOutputs>
 
   <AcceptanceCriteria>
-    <Item>Canonical artifacts contain no “OR” choices; alternatives captured as Decisions</Item>
+    <Item>Canonical artifacts contain no "OR" choices; alternatives captured as Decisions</Item>
     <Item>DEC-* are consistent and linkable across artifacts and handoff snapshot</Item>
-    <Item>Traceability: UC → Flow → FC/MC → BA → TC is complete for this task</Item>
+    <Item>Traceability: UC -> Flow -> FC/MC -> BA -> TC is complete for this task</Item>
     <Item>No cross-service joins; DB per service</Item>
     <Item>If any Decision is PENDING_HUMAN, it is explicitly flagged and scope avoids coding until resolved</Item>
   </AcceptanceCriteria>
@@ -106,7 +106,7 @@ Creating CWO-YYYYMMDD-##.xml file in the directory docs/grace/cwo with the follo
 ```xml
 <CODER_WORK_ORDER id="CWO-YYYYMMDD-##" status="PROPOSED">
   <Preconditions>
-    <Item>Handoff exists: <GRACE_HANDOFF id="Handoff-YYYYMMDD-##" .../></Item>
+    <Item>Handoff exists: <GRACE_HANDOFF id="Handoff-YYYYMMDD-##[-suffix]" .../></Item>
     <Item>Valid approval exists in docs/grace/approvals.log for the same ref</Item>
     <Item>A BranchSpec (BRANCH_SPEC) is included in this work order and must be followed verbatim</Item>
     <Item>All referenced artifact sections and contract IDs are provided in this work order</Item>
@@ -117,7 +117,7 @@ Creating CWO-YYYYMMDD-##.xml file in the directory docs/grace/cwo with the follo
   </Preconditions>
 
   <Scope>
-    <HandoffRef>Handoff-YYYYMMDD-##</HandoffRef>
+    <HandoffRef>Handoff-YYYYMMDD-##[-suffix]</HandoffRef>
     <BranchSpecRef>BS-YYYYMMDD-##</BranchSpecRef>
     <Services>
       <ServiceRef ref="DP-SVC-..."/>

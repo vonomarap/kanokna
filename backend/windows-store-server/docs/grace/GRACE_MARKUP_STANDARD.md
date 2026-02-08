@@ -28,7 +28,7 @@ All v2 markup MUST include `schemaVersion="grace-markup-v2"` attribute.
 All datetime values MUST use **ISO-8601 with timezone offset**:
 
 ```
-YYYY-MM-DDTHH:mm:ss±HH:MM
+YYYY-MM-DDTHH:mm:ss(+|-)HH:MM
 ```
 
 ### Examples
@@ -53,17 +53,17 @@ YYYY-MM-DDTHH:mm:ss±HH:MM
 
 ```xml
 <GRACE_HANDOFF
-  id="Handoff-YYYYMMDD-##"
-  status="PROPOSED|APPROVED|SUPERSEDED|REJECTED"
+  id="Handoff-YYYYMMDD-##[-suffix]"
+  status="PROPOSED|SUPERSEDED|REJECTED"
   schemaVersion="grace-markup-v2"
-  created="YYYY-MM-DDTHH:mm:ss±HH:MM"
+  created="YYYY-MM-DDTHH:mm:ss(+|-)HH:MM"
   author="Human|AgentName"
   taskRef="W0-T#|W1-T#|..."
   planRef="DevelopmentExecutionPlan.xml#W0-T#"
   blueprintRef="DevelopmentPlan.xml#DP-SVC-..."
   techRef="Technology.xml#DEC-...,Technology.xml#DEC-..."
   requirementsRef="RequirementsAnalysis.xml#UC-..."
-  supersedes="Handoff-YYYYMMDD-##"
+  supersedes="Handoff-YYYYMMDD-##[-suffix]"
 >
   <Scope>
     <Services>
@@ -85,11 +85,8 @@ YYYY-MM-DDTHH:mm:ss±HH:MM
     <ModuleContractRef id="MC-..."/>
     <FunctionContractRef id="FC-..."/>
     <BlockAnchorRef id="BA-..."/>
+    <TestCaseRef id="TC-..."/>
   </Contracts>
-
-  <ApprovalInstructions>
-    <!-- Instructions for human/coordinator approval -->
-  </ApprovalInstructions>
 </GRACE_HANDOFF>
 ```
 
@@ -97,8 +94,8 @@ YYYY-MM-DDTHH:mm:ss±HH:MM
 
 | Attribute | Required | Description |
 |-----------|----------|-------------|
-| `id` | YES | Unique identifier: `Handoff-YYYYMMDD-##` |
-| `status` | YES | One of: `PROPOSED`, `APPROVED`, `SUPERSEDED`, `REJECTED` |
+| `id` | YES | Unique identifier: `Handoff-YYYYMMDD-##[-suffix]` |
+| `status` | YES | One of: `PROPOSED`, `SUPERSEDED`, `REJECTED` |
 | `schemaVersion` | YES | Must be `grace-markup-v2` |
 | `created` | YES | ISO-8601 datetime when handoff was created |
 | `author` | YES | Creator: `Human` or agent name (e.g., `GRACE-ARCHITECT`) |
@@ -111,12 +108,8 @@ YYYY-MM-DDTHH:mm:ss±HH:MM
 
 ### 3.3 Status Rules
 
-| Status | `approved` attr | `approver` attr | Description |
-|--------|-----------------|-----------------|-------------|
-| `PROPOSED` | OMIT | OMIT | Awaiting approval |
-| `APPROVED` | REQUIRED | REQUIRED | Approved for implementation |
-| `SUPERSEDED` | from original | from original | Replaced by newer handoff |
-| `REJECTED` | OMIT | OMIT | Rejected with feedback |
+- `status` on `GRACE_HANDOFF` describes the lifecycle of the handoff document (proposed vs superseded/rejected).
+- **Approval is not encoded in the handoff file.** Per approvals.log-only policy, the handoff file `status` remains `PROPOSED` and approval is determined by a matching entry in `docs/grace/approvals.log`.
 
 ### 3.4 Supersedes Rule
 
@@ -141,9 +134,9 @@ YYYY-MM-DDTHH:mm:ss±HH:MM
 
 ```xml
 <GRACE_APPROVAL
-  ref="Handoff-YYYYMMDD-##"
+  ref="Handoff-YYYYMMDD-##[-suffix]"
   status="APPROVED"
-  approved="YYYY-MM-DDTHH:mm:ss±HH:MM"
+  approved="YYYY-MM-DDTHH:mm:ss(+|-)HH:MM"
   approver="Human|AgentName"
 />
 ```
@@ -163,9 +156,9 @@ For enhanced determinism, these optional fields may be included:
 
 ```xml
 <GRACE_APPROVAL
-  ref="Handoff-YYYYMMDD-##"
+  ref="Handoff-YYYYMMDD-##[-suffix]"
   status="APPROVED"
-  approved="YYYY-MM-DDTHH:mm:ss±HH:MM"
+  approved="YYYY-MM-DDTHH:mm:ss(+|-)HH:MM"
   approver="Human"
   checksum="sha256:abc123..."
   basis="Human-Decision|Coordinator-PASS"
@@ -199,14 +192,19 @@ If a handoff file contains embedded `<GRACE_APPROVAL>` tags, agents MUST:
 
 ### 5.1 Handoff IDs
 
-Pattern: `Handoff-YYYYMMDD-##`
+Pattern: `Handoff-YYYYMMDD-##[-suffix]`
 
 - `YYYYMMDD`: Date in ISO format
 - `##`: Two-digit sequential number for that date
+- `suffix` (optional): additional identifier for readability/versioning (e.g., `-v2`, `-W1-T2-AccountService`, `-UnifiedPlatform`)
+
+**Matching rule (MANDATORY)**: `GRACE_APPROVAL ref="..."` MUST match the `GRACE_HANDOFF id="..."` string exactly (including any suffix).
 
 Examples:
 - `Handoff-20251230-01` (first handoff on 2025-12-30)
 - `Handoff-20251230-02` (second handoff on same date)
+- `Handoff-20260108-01-UnifiedPlatform` (handoff with suffix)
+- `Handoff-20251231-02-v2` (handoff version suffix)
 
 ### 5.2 Reference ID Patterns
 
@@ -431,8 +429,8 @@ The Coordinator agent MUST enforce the following gate before allowing implementa
     <Check id="CHK-REQUIRED-ATTRS">
       Verify all required attributes are present
     </Check>
-    <Check id="CHK-APPROVAL-FORMAT">
-      If APPROVED, verify GRACE_APPROVAL v2 exists with matching ref
+    <Check id="CHK-APPROVAL-PRESENT">
+      If implementation is requested, verify a matching GRACE_APPROVAL v2 exists in docs/grace/approvals.log
     </Check>
   </Checks>
 
@@ -447,7 +445,7 @@ The Coordinator agent MUST enforce the following gate before allowing implementa
 ### 7.2 Validation Pseudocode
 
 ```
-function validateHandoffV2(handoff):
+function validateHandoffV2(handoff, requireApproval):
   errors = []
 
   # Check schema version
@@ -463,11 +461,11 @@ function validateHandoffV2(handoff):
     if not hasAttribute(handoff, attr):
       errors.append(f"Missing required attribute: {attr}")
 
-  # Check approval if APPROVED
-  if handoff.status == "APPROVED":
-    approval = findApproval(handoff.id)
+  # Check approval for implementation readiness
+  if requireApproval:
+    approval = findApproval(handoff.id)  # lookup in docs/grace/approvals.log
     if not approval:
-      errors.append("APPROVED status but no GRACE_APPROVAL found")
+      errors.append("Missing GRACE_APPROVAL in docs/grace/approvals.log")
     elif not isISO8601WithOffset(approval.approved):
       errors.append("Invalid approval datetime format")
     elif not approval.approver:

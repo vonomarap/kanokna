@@ -1,0 +1,16 @@
+# GRACE Approvals Log
+# Format: GRACE_APPROVAL v2 (approvals.log-only policy)
+#
+# Rules:
+# - Append-only: add new approvals at the end.
+# - Each <GRACE_APPROVAL ref="..."/> MUST match the target <GRACE_HANDOFF id="..."> string exactly (including any -suffix).
+# - approved MUST be ISO-8601 with timezone offset.
+#
+# Example (commented):
+# <GRACE_APPROVAL
+#   ref="Handoff-20251230-01[-suffix]"
+#   status="APPROVED"
+#   approved="2025-12-30T10:00:00+00:00"
+#   approver="Human"
+# />
+
