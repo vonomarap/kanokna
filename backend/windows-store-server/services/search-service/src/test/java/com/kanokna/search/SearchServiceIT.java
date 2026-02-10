@@ -1,6 +1,7 @@
 package com.kanokna.search;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -290,7 +291,7 @@ class SearchServiceIT extends TestContainersConfig {
             // the concrete indices behind the alias.
             String reason = ex.error() != null ? ex.error().reason() : null;
             if ((reason != null && reason.contains("matches an alias"))
-                || (ex.getMessage() != null && ex.getMessage().contains("matches an alias"))) {
+                    || (ex.getMessage() != null && ex.getMessage().contains("matches an alias"))) {
                 for (String index : searchIndexAdminPort.resolveAlias(pattern)) {
                     deleteIndex(index);
                 }
@@ -336,7 +337,7 @@ class SearchServiceIT extends TestContainersConfig {
             } catch (RuntimeException ex) {
                 lastError = ex;
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new UncheckedIOException("Failed to refresh alias during search", e);
             }
             sleep(200);
         }
@@ -359,7 +360,7 @@ class SearchServiceIT extends TestContainersConfig {
             } catch (RuntimeException ex) {
                 lastError = ex;
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new UncheckedIOException("Failed to refresh alias during getProductById", e);
             }
             sleep(200);
         }
@@ -385,7 +386,7 @@ class SearchServiceIT extends TestContainersConfig {
             } catch (RuntimeException ex) {
                 lastError = ex;
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new UncheckedIOException("Failed to refresh alias during awaitProductWithName", e);
             }
             sleep(300);
         }
@@ -407,7 +408,7 @@ class SearchServiceIT extends TestContainersConfig {
                     return;
                 }
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new UncheckedIOException("Failed to refresh alias during awaitProductMissing", e);
             }
             sleep(200);
         }
@@ -441,7 +442,7 @@ class SearchServiceIT extends TestContainersConfig {
             } catch (RuntimeException ex) {
                 lastError = ex;
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new UncheckedIOException("Failed to refresh alias during autocomplete", e);
             }
             sleep(300);
         }

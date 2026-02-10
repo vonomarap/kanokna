@@ -3,14 +3,12 @@ package com.kanokna.catalog.domain.exception;
 import com.kanokna.shared.core.DomainException;
 
 /**
- * MODULE_CONTRACT id="MC-catalog-domain-errors"
- * LAYER="domain.exception"
+ * MODULE_CONTRACT id="MC-catalog-domain-errors" LAYER="domain.exception"
  * INTENT="Static factory for catalog-configuration-service domain exceptions"
  * LINKS="Technology.xml#DEC-DOMAIN-ERROR-PATTERN;RequirementsAnalysis.xml#NFR-CODE-DOMAIN-ERROR-HANDLING"
  *
- * Factory methods for catalog domain error codes.
- * All catalog exceptions should be created through this class to ensure
- * consistent error codes and messages.
+ * Factory methods for catalog domain error codes. All catalog exceptions should
+ * be created through this class to ensure consistent error codes and messages.
  *
  * @see DomainException
  */
@@ -32,56 +30,64 @@ public final class CatalogDomainErrors {
     </FUNCTION_CONTRACT> */
     public static DomainException dimensionOutOfRange(String dimension, int value, int min, int max) {
         return new DomainException("ERR-CAT-DIMENSION-OUT-OF-RANGE",
-            String.format("%s=%d is outside valid range [%d, %d]", dimension, value, min, max));
+                String.format("%s=%d is outside valid range [%d, %d]", dimension, value, min, max));
     }
 
     public static DomainException minExceedsMax(String dimension, int min, int max) {
         return new DomainException("ERR-CAT-DIMENSION-MIN-EXCEEDS-MAX",
-            String.format("min%sCm=%d cannot exceed max%sCm=%d",
-                capitalize(dimension), min, capitalize(dimension), max));
+                String.format("min%sCm=%d cannot exceed max%sCm=%d",
+                        capitalize(dimension), min, capitalize(dimension), max));
     }
 
     public static DomainException invalidWidth(int width) {
         return new DomainException("ERR-CAT-INVALID-WIDTH",
-            "widthCm must be positive, got: " + width);
+                "widthCm must be positive, got: " + width);
     }
 
     public static DomainException invalidHeight(int height) {
         return new DomainException("ERR-CAT-INVALID-HEIGHT",
-            "heightCm must be positive, got: " + height);
+                "heightCm must be positive, got: " + height);
     }
 
     // ========== Version/Count Validation Errors ==========
-
     public static DomainException invalidVersionNumber(int version) {
         return new DomainException("ERR-CAT-INVALID-VERSION",
-            "versionNumber must be positive, got: " + version);
+                "versionNumber must be positive, got: " + version);
     }
 
     public static DomainException invalidTemplateCount(int count) {
         return new DomainException("ERR-CAT-INVALID-TEMPLATE-COUNT",
-            "templateCount cannot be negative, got: " + count);
+                "templateCount cannot be negative, got: " + count);
     }
 
     public static DomainException invalidErrorCount(int count) {
         return new DomainException("ERR-CAT-INVALID-ERROR-COUNT",
-            "errorCount cannot be negative, got: " + count);
+                "errorCount cannot be negative, got: " + count);
     }
 
     public static DomainException invalidQuantity(int quantity) {
         return new DomainException("ERR-CAT-INVALID-QUANTITY",
-            "quantity must be positive, got: " + quantity);
+                "quantity must be positive, got: " + quantity);
     }
 
     // ========== Validation Result Errors ==========
-
     public static DomainException emptyValidationErrors() {
         return new DomainException("ERR-CAT-EMPTY-VALIDATION-ERRORS",
-            "Cannot create failure ValidationResult with empty errors list");
+                "Cannot create failure ValidationResult with empty errors list");
+    }
+
+    // ========== Infrastructure Errors ==========
+    public static DomainException eventPublishFailed(String topic, Throwable cause) {
+        return new DomainException("ERR-CAT-EVENT-PUBLISH-FAILED",
+                String.format("Failed to publish event to topic '%s': %s", topic, cause.getMessage()), cause);
+    }
+
+    public static DomainException catalogSnapshotFailed(Throwable cause) {
+        return new DomainException("ERR-CAT-SNAPSHOT-FAILED",
+                "Failed to create catalog snapshot: " + cause.getMessage(), cause);
     }
 
     // ========== Helper ==========
-
     private static String capitalize(String s) {
         return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
