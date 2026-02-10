@@ -7,7 +7,7 @@
 #
 # Services:
 #   - PostgreSQL: Primary database for all microservices
-#   - Kafka: Event streaming (Zookeeper + Broker)
+#   - Kafka: Event streaming (KRaft)
 #   - Redis: Caching and session storage
 #   - Elasticsearch: Search indexing
 #   - Keycloak: Identity and access management
@@ -53,49 +53,24 @@ services:
       - kanokna-network
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Zookeeper - Kafka Coordination
+  # Kafka Coordination (KRaft)
   # ═══════════════════════════════════════════════════════════════════════════
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.0
-    container_name: kanokna-zookeeper
-    hostname: zookeeper
-    restart: unless-stopped
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_INIT_LIMIT: 5
-      ZOOKEEPER_SYNC_LIMIT: 2
-      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=*"
-    ports:
-      - "${ZOOKEEPER_PORT:-2181}:2181"
-    volumes:
-      - zookeeper_data:/var/lib/zookeeper/data
-      - zookeeper_log:/var/lib/zookeeper/log
-    healthcheck:
-      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    networks:
-      - kanokna-network
-
   # ═══════════════════════════════════════════════════════════════════════════
-  # Kafka - Event Streaming
+  # Kafka - Event Streaming (KRaft mode)
   # ═══════════════════════════════════════════════════════════════════════════
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: kanokna-kafka
     hostname: kafka
     restart: unless-stopped
-    depends_on:
-      zookeeper:
-        condition: service_healthy
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -104,6 +79,7 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     ports:
       - "${KAFKA_PORT:-9092}:9092"
       - "${KAFKA_INTERNAL_PORT:-29092}:29092"
@@ -136,7 +112,6 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: kanokna-local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
       DYNAMIC_CONFIG_ENABLED: "true"
     ports:
       - "${KAFKA_UI_PORT:-8090}:8080"
@@ -232,7 +207,7 @@ services:
   # Kibana - Elasticsearch UI (Optional)
   # ═══════════════════════════════════════════════════════════════════════════
   kibana:
-    image: docker.elastic.co/kibana/kibana:8.12.2
+    image: docker.elastic.co/kibana/kibana:8.17.1
     container_name: kanokna-kibana
     hostname: kibana
     restart: unless-stopped
@@ -416,10 +391,6 @@ networks:
 volumes:
   postgres_data:
     name: kanokna-postgres-data
-  zookeeper_data:
-    name: kanokna-zookeeper-data
-  zookeeper_log:
-    name: kanokna-zookeeper-log
   kafka_data:
     name: kanokna-kafka-data
   redis_data:
