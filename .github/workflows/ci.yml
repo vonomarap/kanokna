@@ -47,7 +47,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   build:
     name: Build
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -85,7 +85,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   test:
     name: Test
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: ubuntu-latest
     needs: build
     defaults:
       run:
@@ -133,7 +133,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   lint:
     name: Lint
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -151,25 +151,44 @@ jobs:
 
       - name: Check code formatting (Checkstyle)
         run: mvn -B checkstyle:check
-        continue-on-error: true
 
       - name: Check for common bugs (SpotBugs)
         run: mvn -B spotbugs:check
-        continue-on-error: true
 
       - name: Validate POM files
         run: mvn -B validate
 
+      - name: Validate Flyway migrations per DB service
+        run: |
+          set -euo pipefail
+          services=(
+            "account-service"
+            "cart-service"
+            "catalog-configuration-service"
+            "pricing-service"
+          )
+          for service in "${services[@]}"; do
+            migration_dir="services/${service}/src/main/resources/db/migration"
+            if [[ ! -d "${migration_dir}" ]]; then
+              echo "::error::Missing Flyway migration directory: ${migration_dir}"
+              exit 1
+            fi
+            migration_count=$(find "${migration_dir}" -maxdepth 1 -type f -name 'V*.sql' | wc -l)
+            if [[ "${migration_count}" -lt 1 ]]; then
+              echo "::error::No Flyway migrations found in: ${migration_dir}"
+              exit 1
+            fi
+          done
+
       - name: Check dependency convergence
         run: mvn -B dependency:analyze-only
-        continue-on-error: true
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Coverage Job
   # ─────────────────────────────────────────────────────────────────────────────
   coverage:
     name: Coverage Report
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: ubuntu-latest
     needs: test
     defaults:
       run:

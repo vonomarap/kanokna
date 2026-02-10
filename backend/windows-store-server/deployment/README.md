@@ -20,9 +20,9 @@ DESCRIPTION:
 
 SERVICES PROVIDED:
   1. PostgreSQL 16.4  - Primary relational database
-  2. Kafka 7.6.0      - Event streaming platform (with Zookeeper)
+  2. Kafka 7.6.0      - Event streaming platform (KRaft mode)
   3. Redis 7.2.4      - Caching and session storage
-  4. Elasticsearch 8.12.2 - Full-text search engine
+  4. Elasticsearch 8.17.1 - Full-text search engine
   5. Keycloak 24.0.1  - Identity and access management
   6. MinIO (latest)   - S3-compatible object storage
 
@@ -116,7 +116,6 @@ docker compose logs -f kafka
 | PostgreSQL | 5432 | `jdbc:postgresql://localhost:5432/kanokna` | kanokna / kanokna_secret |
 | Kafka Broker | 9092 | `localhost:9092` | - |
 | Kafka Internal | 29092 | `kafka:29092` (container) | - |
-| Zookeeper | 2181 | `localhost:2181` | - |
 | Redis | 6379 | `localhost:6379` | - |
 | Elasticsearch | 9200 | `http://localhost:9200` | - |
 | Keycloak | 8180 | `http://localhost:8180` | admin / admin |
@@ -171,11 +170,44 @@ spring:
 
 ### Running Migrations
 
-Flyway migrations run automatically when each service starts. To run manually:
+Flyway migrations run automatically when each service starts.
+
+Current migration directories:
+
+- `backend/windows-store-server/services/account-service/src/main/resources/db/migration`
+- `backend/windows-store-server/services/cart-service/src/main/resources/db/migration`
+- `backend/windows-store-server/services/catalog-configuration-service/src/main/resources/db/migration`
+- `backend/windows-store-server/services/pricing-service/src/main/resources/db/migration`
+
+`deployment/init-db/init-databases.sql` only provisions databases/users/extensions. Schema evolution is owned by Flyway scripts in each service.
+
+To run manually:
 
 ```bash
 # From service directory
 mvn flyway:migrate -Dflyway.url=jdbc:postgresql://localhost:5432/catalog
+```
+
+---
+
+## Kubernetes Manifests
+
+Gateway Kubernetes manifests are now available under:
+
+- `backend/windows-store-server/deployment/k8s/gateway/`
+
+They include:
+
+- Deployment with startup/readiness/liveness probes (`/actuator/health*`)
+- ClusterIP Service
+- ServiceAccount
+- NetworkPolicy
+- Kustomization entrypoint
+
+Apply with:
+
+```bash
+kubectl apply -k backend/windows-store-server/deployment/k8s/gateway
 ```
 
 ---
@@ -361,13 +393,10 @@ docker compose logs postgres | grep -i "init"
 ### Kafka Not Ready
 
 ```bash
-# Check Zookeeper first
-docker compose logs zookeeper
-
-# Then check Kafka
+# Check Kafka logs (KRaft mode)
 docker compose logs kafka
 
-# Verify broker is registered
+# Verify broker API is reachable
 docker exec -it kanokna-kafka kafka-broker-api-versions --bootstrap-server localhost:9092
 ```
 

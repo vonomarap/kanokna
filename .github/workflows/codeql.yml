@@ -116,9 +116,8 @@ jobs:
         run: |
           mvn -B org.owasp:dependency-check-maven:check \
             -DfailBuildOnCVSS=8 \
-            -DsuppressionFile=.github/dependency-check-suppressions.xml || true
+            -DsuppressionFile=.github/dependency-check-suppressions.xml
         working-directory: backend/windows-store-server
-        continue-on-error: true
 
       - name: Upload Dependency Check report
         uses: actions/upload-artifact@v4

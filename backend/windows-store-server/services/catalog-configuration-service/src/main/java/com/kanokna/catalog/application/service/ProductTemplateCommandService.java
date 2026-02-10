@@ -173,6 +173,7 @@ import com.kanokna.catalog.application.port.out.EventPublisher;
 import com.kanokna.catalog.application.port.out.ProductTemplateRepository;
 import com.kanokna.catalog.domain.event.CatalogVersionPublishedEvent;
 import com.kanokna.catalog.domain.event.ProductTemplatePublishedEvent;
+import com.kanokna.catalog.domain.exception.CatalogDomainErrors;
 import com.kanokna.catalog.domain.exception.ProductTemplateNotFoundException;
 import com.kanokna.catalog.domain.model.*;
 import org.slf4j.Logger;
@@ -398,7 +399,7 @@ public class ProductTemplateCommandService implements
         try {
             return objectMapper.writeValueAsString(templates);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to create catalog snapshot", e);
+            throw CatalogDomainErrors.catalogSnapshotFailed(e);
         }
     }
 }

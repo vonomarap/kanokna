@@ -76,7 +76,9 @@
         <spring-grpc.version>1.0.1</spring-grpc.version>
         <lombok.version>1.18.40</lombok.version>
         <spring-cloud.version>2025.1.0</spring-cloud.version>
-        <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <protobuf.version>4.28.3</protobuf.version>
+        <springdoc.version>2.8.5</springdoc.version>
         <testcontainers.version>1.20.4</testcontainers.version>
         <!-- Docker Engine 29+ requires API >= 1.44; docker-java default (1.32) fails with HTTP 400 -->
         <docker.api.version>1.44</docker.api.version>
@@ -141,7 +143,7 @@
             <dependency>
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java</artifactId>
-                <version>3.25.5</version>
+                <version>${protobuf.version}</version>
             </dependency>
 
             <!-- gRPC -->
