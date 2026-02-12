@@ -5,6 +5,7 @@ import com.kanokna.catalog.application.dto.ValidateConfigurationCommand;
 import com.kanokna.catalog.application.port.out.ConfigurationRuleSetRepository;
 import com.kanokna.catalog.application.port.out.PricingClient;
 import com.kanokna.catalog.application.port.out.ProductTemplateRepository;
+import com.kanokna.catalog.domain.exception.ProductTemplateNotFoundException;
 import com.kanokna.catalog.domain.model.*;
 import com.kanokna.catalog.domain.service.ConfigurationValidationService;
 import com.kanokna.catalog.domain.service.RuleEvaluator;
@@ -18,9 +19,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -113,5 +117,58 @@ class ConfigurationValidationUseCaseServiceTest {
         assertFalse(response.valid());
         assertNull(response.priceQuote());
         assertFalse(response.errors().isEmpty());
+        verify(pricingClient, never()).getQuote(any(), any());
+    }
+
+    @Test
+    @DisplayName("Missing product template throws ProductTemplateNotFoundException")
+    void missingProductTemplate_ThrowsProductTemplateNotFoundException() {
+        UUID templateId = UUID.randomUUID();
+        ValidateConfigurationCommand command = new ValidateConfigurationCommand(
+            templateId,
+            120,
+            150,
+            Map.of()
+        );
+
+        when(productTemplateRepository.findById(ProductTemplateId.of(templateId)))
+            .thenReturn(Optional.empty());
+
+        assertThrows(
+            ProductTemplateNotFoundException.class,
+            () -> validationUseCaseService.validate(command)
+        );
+
+        verify(ruleSetRepository, never()).findActiveByProductTemplateId(any());
+        verify(pricingClient, never()).getQuote(any(), any());
+    }
+
+    @Test
+    @DisplayName("Pricing client failure does not fail valid configuration")
+    void pricingClientFailure_ReturnsValidWithoutPrice() {
+        ProductTemplateId id = ProductTemplateId.generate();
+        ProductTemplate template = ProductTemplate.create(
+            "Test Window",
+            "Description",
+            ProductFamily.WINDOW,
+            DimensionConstraints.standard()
+        );
+
+        ValidateConfigurationCommand command = new ValidateConfigurationCommand(
+            id.value(),
+            120,
+            150,
+            Map.of()
+        );
+
+        when(productTemplateRepository.findById(id)).thenReturn(Optional.of(template));
+        when(ruleSetRepository.findActiveByProductTemplateId(id)).thenReturn(Optional.empty());
+        when(pricingClient.getQuote(any(), any())).thenThrow(new RuntimeException("Pricing unavailable"));
+
+        ConfigurationResponse response = validationUseCaseService.validate(command);
+
+        assertTrue(response.valid());
+        assertNull(response.priceQuote());
+        verify(pricingClient).getQuote(any(), any());
     }
 }

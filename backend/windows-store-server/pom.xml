@@ -5,10 +5,10 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <parent>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-parent</artifactId>
-    <version>4.0.1</version>
-    <relativePath />
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.1</version>
+        <relativePath />
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
@@ -365,7 +365,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
+                <version>0.8.14</version>
                 <configuration>
                     <skip>${jacoco.skip}</skip>
                 </configuration>
@@ -440,15 +440,6 @@
     </build>
 
     <profiles>
-        <profile>
-            <id>jacoco-skip-java25</id>
-            <activation>
-                <jdk>[25,)</jdk>
-            </activation>
-            <properties>
-                <jacoco.skip>true</jacoco.skip>
-            </properties>
-        </profile>
         <profile>
             <id>e2e</id>
             <build>
