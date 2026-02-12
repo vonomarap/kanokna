@@ -99,6 +99,26 @@ services:
       - kanokna-network
 
   # ═══════════════════════════════════════════════════════════════════════════
+  # Schema Registry - Protobuf/Avro Schema Management
+  # ═══════════════════════════════════════════════════════════════════════════
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.0
+    container_name: kanokna-schema-registry
+    hostname: schema-registry
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
+    ports:
+      - "${SCHEMA_REGISTRY_PORT:-8081}:8081"
+    networks:
+      - kanokna-network
+
+  # ═══════════════════════════════════════════════════════════════════════════
   # Kafka UI - Management Interface (Optional)
   # ═══════════════════════════════════════════════════════════════════════════
   kafka-ui:
