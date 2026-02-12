@@ -25,7 +25,7 @@ RESPONSIBILITIES:
   4. Build and push Docker images using Jib
   5. Deploy to staging environment
   6. Security scanning with CodeQL
-  7. Automated dependency updates with Dependabot
+  7. Automated dependency updates with Dependabot and patch-level auto-merge
 
 QUALITY GATES:
   - All unit tests must pass
@@ -130,6 +130,22 @@ LINKS:
 
 ---
 
+### 5. Dependabot Patch Auto-Merge (`workflows/dependabot-auto-merge.yml`)
+
+**Purpose:** Automatically approve and enable auto-merge for Dependabot patch updates.
+
+| Condition | Behavior |
+|-----------|----------|
+| PR author is `dependabot[bot]` and update type is patch | Approve PR and enable squash auto-merge |
+| Dependabot minor/major update | No auto-merge action |
+| Non-Dependabot PR | No action |
+
+**Guardrails:**
+- Auto-merge is enabled only for `version-update:semver-patch`
+- Branch protection and required checks remain authoritative
+
+---
+
 ## Dependabot Configuration (`dependabot.yml`)
 
 **Purpose:** Automated dependency updates.
@@ -139,7 +155,9 @@ LINKS:
 | Maven | `/backend/windows-store-server` | Weekly (Monday 06:00 UTC) | Spring Boot, Spring Cloud, Testing, Observability |
 | GitHub Actions | `/` | Weekly | All actions |
 | Docker | `/backend` | Weekly | Base images |
-| npm | `/frontend` | Weekly | React, Testing, Build tools |
+| npm | `/frontend/windows-store-client` | Weekly | React, Testing, Build tools |
+
+Patch updates raised by Dependabot are auto-approved and auto-merge enabled by `workflows/dependabot-auto-merge.yml`. Merge completion still depends on branch protection and required status checks.
 
 **PR Limits:**
 - Maven: 10 open PRs

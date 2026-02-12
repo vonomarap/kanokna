@@ -126,7 +126,7 @@ updates:
   # npm Dependencies (if frontend exists)
   # ─────────────────────────────────────────────────────────────────────────────
   - package-ecosystem: "npm"
-    directory: "/frontend"
+    directory: "/frontend/windows-store-client"
     schedule:
       interval: "weekly"
       day: "monday"
