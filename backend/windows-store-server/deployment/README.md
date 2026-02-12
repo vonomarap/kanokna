@@ -113,12 +113,12 @@ docker compose logs -f kafka
 
 | Service | Port | URL | Credentials |
 |---------|------|-----|-------------|
-| PostgreSQL | 5432 | `jdbc:postgresql://localhost:5432/kanokna` | kanokna / kanokna_secret |
+| PostgreSQL | 5432 | `jdbc:postgresql://localhost:5432/kanokna` | `POSTGRES_USER` / `POSTGRES_PASSWORD` |
 | Kafka Broker | 9092 | `localhost:9092` | - |
 | Kafka Internal | 29092 | `kafka:29092` (container) | - |
 | Redis | 6379 | `localhost:6379` | - |
 | Elasticsearch | 9200 | `http://localhost:9200` | - |
-| Keycloak | 8180 | `http://localhost:8180` | admin / admin |
+| Keycloak | 8180 | `http://localhost:8180` | `KEYCLOAK_ADMIN` / `KEYCLOAK_ADMIN_PASSWORD` |
 | MinIO API | 9000 | `http://localhost:9000` | minioadmin / minioadmin123 |
 | MinIO Console | 9001 | `http://localhost:9001` | minioadmin / minioadmin123 |
 
@@ -151,7 +151,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME}
     username: ${DB_USERNAME:kanokna}
-    password: ${DB_PASSWORD:kanokna_secret}
+    password: ${DB_PASSWORD}
 ```
 
 ### Database per Service
@@ -452,7 +452,9 @@ All configurable values are defined in `env/.env`. Key variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `POSTGRES_USER` | kanokna | Database username |
-| `POSTGRES_PASSWORD` | kanokna_secret | Database password |
+| `POSTGRES_PASSWORD` | required | Database password |
+| `KEYCLOAK_ADMIN` | required | Keycloak admin username |
+| `KEYCLOAK_ADMIN_PASSWORD` | required | Keycloak admin password |
 | `KAFKA_PORT` | 9092 | External Kafka port |
 | `REDIS_PORT` | 6379 | Redis port |
 | `ELASTICSEARCH_PORT` | 9200 | Elasticsearch port |

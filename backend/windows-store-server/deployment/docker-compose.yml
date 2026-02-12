@@ -31,7 +31,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-kanokna}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kanokna_secret}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in env/.env}
       POSTGRES_DB: ${POSTGRES_DB:-kanokna}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
@@ -128,13 +128,13 @@ services:
     container_name: kanokna-redis
     hostname: redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-kanokna_redis_secret}
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"${REDIS_PASSWORD:-kanokna_redis_secret}\" ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -154,7 +154,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      REDIS_HOSTS: local:redis:6379
+      REDIS_HOSTS: local:redis:6379:0:${REDIS_PASSWORD:-kanokna_redis_secret}
     ports:
       - "${REDIS_COMMANDER_PORT:-8091}:8081"
     profiles:
@@ -240,15 +240,15 @@ services:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: ${POSTGRES_USER:-kanokna}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-kanokna_secret}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in env/.env}
       KC_HOSTNAME: localhost
       KC_HOSTNAME_PORT: ${KEYCLOAK_PORT:-8180}
       KC_HOSTNAME_STRICT: "false"
       KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_HTTP_ENABLED: "true"
       KC_HEALTH_ENABLED: "true"
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:?Set KEYCLOAK_ADMIN in env/.env}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in env/.env}
     ports:
       - "${KEYCLOAK_PORT:-8180}:8080"
     volumes:
