@@ -74,7 +74,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>4.0.1</spring-boot.version>
         <spring-grpc.version>1.0.1</spring-grpc.version>
-        <lombok.version>1.18.40</lombok.version>
         <spring-cloud.version>2025.1.0</spring-cloud.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <protobuf.version>4.28.3</protobuf.version>
@@ -238,13 +237,6 @@
                 <groupId>net.logstash.logback</groupId>
                 <artifactId>logstash-logback-encoder</artifactId>
                 <version>7.4</version>
-            </dependency>
-
-            <!-- Lombok -->
-            <dependency>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok</artifactId>
-                <version>${lombok.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
