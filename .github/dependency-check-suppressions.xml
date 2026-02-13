@@ -46,4 +46,33 @@
     </suppress>
     -->
 
+    <suppress>
+        <notes><![CDATA[
+            Justification: False positive CPE match to legacy VMware Spring Boot product.
+            Package org.springframework.grpc:spring-grpc-server-spring-boot-starter:1.0.1
+            is not the vulnerable Spring Boot distribution.
+            Reviewed By: CI
+            Review Date: 2026-02-13
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.grpc/spring-grpc-server-spring-boot-starter@1\.0\.1$</packageUrl>
+        <cve>CVE-2017-8046</cve>
+        <cve>CVE-2021-26987</cve>
+        <cve>CVE-2023-20873</cve>
+        <cve>CVE-2023-20883</cve>
+        <cve>CVE-2022-27772</cve>
+        <cve>CVE-2018-1196</cve>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[
+            Justification: False positive CPE match for Square Wire schema library.
+            CVEs listed are unrelated to com.squareup.wire:wire-schema-jvm:4.9.0.
+            Reviewed By: CI
+            Review Date: 2026-02-13
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.squareup\.wire/wire-schema-jvm@4\.9\.0$</packageUrl>
+        <cve>CVE-2018-8909</cve>
+        <cve>CVE-2023-22737</cve>
+    </suppress>
+
 </suppressions>
