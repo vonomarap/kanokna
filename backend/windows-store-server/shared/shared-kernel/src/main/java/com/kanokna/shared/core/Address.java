@@ -133,22 +133,19 @@ public record Address(
     }
 
     static String validateRequired(String fieldName, String value) {
-      String normalized = normalize(value);
-      if (normalized == null || normalized.isBlank()) {
-        throw new IllegalArgumentException(String.format("%s must not be null or blank.", fieldName));
-      }
-      if (normalized.length() > MAX_LENGTH_GENERAL) {
-        throw new IllegalArgumentException(String.format("%s is too long (max %d characters).", fieldName, MAX_LENGTH_GENERAL));
-      }
-      if (!GENERAL_FIELD_PATTERN.matcher(normalized).matches()) {
-        throw new IllegalArgumentException(String.format("%s contains invalid characters.", fieldName));
-      }
-      return normalized;
+      return validateGeneralField(fieldName, value, true);
     }
 
     static String validateOptional(String fieldName, String value) {
+      return validateGeneralField(fieldName, value, false);
+    }
+
+    private static String validateGeneralField(String fieldName, String value, boolean required) {
       String normalized = normalize(value);
       if (normalized == null || normalized.isBlank()) {
+        if (required) {
+          throw new IllegalArgumentException(String.format("%s must not be null or blank.", fieldName));
+        }
         return null; // Canonical representation for an empty optional field is null.
       }
       if (normalized.length() > MAX_LENGTH_GENERAL) {

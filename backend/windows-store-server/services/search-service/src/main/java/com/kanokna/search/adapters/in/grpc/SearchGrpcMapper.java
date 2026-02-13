@@ -294,6 +294,7 @@ public class SearchGrpcMapper {
             case EUR -> com.kanokna.common.v1.Currency.CURRENCY_EUR;
             case USD -> com.kanokna.common.v1.Currency.CURRENCY_USD;
             case RUB -> com.kanokna.common.v1.Currency.CURRENCY_RUB;
+            case GBP -> com.kanokna.common.v1.Currency.CURRENCY_GBP;
         };
     }
 
@@ -306,6 +307,7 @@ public class SearchGrpcMapper {
             case "EUR" -> Currency.EUR;
             case "USD" -> Currency.USD;
             case "RUB" -> Currency.RUB;
+            case "GBP" -> Currency.GBP;
             default -> throw new IllegalArgumentException("Unsupported currency: " + currency);
         };
     }

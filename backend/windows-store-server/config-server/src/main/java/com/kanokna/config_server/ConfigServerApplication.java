@@ -10,89 +10,85 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 
 /**
- * Spring Cloud Config Server for centralized configuration management.
- *
- * <pre>
- * MODULE_CONTRACT: MC-config-server-infrastructure
- * ────────────────────────────────────────────────────────────────────────────
- * ID:          MC-config-server-infrastructure
- * Service:     config-server
- * Type:        Infrastructure
- * Layer:       N/A (Infrastructure Service)
- *
- * Description:
- *   Centralized configuration server providing externalized configuration
- *   to all microservices in the Kanokna Windows & Doors platform.
- *
- * Responsibilities:
- *   - Serve configuration from native filesystem (dev) or Git (stage/prod)
- *   - Support encryption/decryption of sensitive property values
- *   - Enable runtime configuration refresh for clients
- *   - Provide health endpoints for K8s readiness/liveness probes
- *   - Apply profile-based configuration (dev, stage, prod)
- *
- * Configuration Sources:
- *   - Native Profile: file:${CONFIG_REPO_PATH}/application.yml (and {application}.yml)
- *   - Git Profile: ${CONFIG_GIT_URI} (branch ${CONFIG_GIT_BRANCH})
- *
- * Security:
- *   - Basic authentication for config endpoints
- *   - Symmetric encryption for sensitive values (ENCRYPT_KEY)
- *   - Actuator endpoints secured by role
- *
- * Links:
- *   - DevelopmentPlan.xml#DP-SVC-config-server
- *   - Technology.xml#TECH-spring-cloud
- *   - RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION
- *
- * Port: 8888 (HTTP), 8889 (Actuator)
- * ────────────────────────────────────────────────────────────────────────────
- * </pre>
- *
- * @author GRACE-CODER
- * @since 1.0.0
+ * Spring Cloud Config Server entry point.
  */
 @SpringBootApplication
 @EnableConfigServer
 public class ConfigServerApplication {
 
-    private static final Logger log = LoggerFactory.getLogger(ConfigServerApplication.class);
+    /**
+     * Startup block marker for canonical logs.
+     */
+    private static final String STARTUP_BLOCK = "BA-CFG-SRV-STARTUP";
 
+    /**
+     * Startup log template in canonical format.
+     */
+    private static final String STARTUP_LOG_TEMPLATE =
+            "[SVC=config-server][BLOCK={}][STATE=READY] "
+                    + "eventType=CONFIG_SERVER_STARTED "
+                    + "activeProfiles={} configSource={} "
+                    + "port={} actuatorPort={}";
+
+    /**
+     * Class logger.
+     */
+    private static final Logger LOG =
+            LoggerFactory.getLogger(ConfigServerApplication.class);
+
+    /**
+     * Spring environment used for profile and port lookup.
+     */
     private final Environment environment;
 
-    public ConfigServerApplication(Environment environment) {
-        this.environment = environment;
+    /**
+     * Creates the application component.
+     *
+     * @param appEnvironment Spring runtime environment
+     */
+    public ConfigServerApplication(final Environment appEnvironment) {
+        this.environment = appEnvironment;
     }
 
-    static void main(String[] args) {
+    /**
+     * Starts the Config Server application.
+     *
+     * @param args startup arguments
+     */
+    public static void main(final String[] args) {
         SpringApplication.run(ConfigServerApplication.class, args);
     }
 
     /**
-     * Logs startup information including active profiles and configuration source.
-     * Provides belief-state logging for operational visibility.
+     * Logs startup information for operational visibility.
      */
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
-        String[] activeProfiles = environment.getActiveProfiles();
-        String profilesDisplay = activeProfiles.length > 0
+        final String[] activeProfiles = environment.getActiveProfiles();
+        final String profilesDisplay = activeProfiles.length > 0
                 ? String.join(", ", activeProfiles)
                 : "default";
 
-        String configSource = determineConfigSource(activeProfiles);
+        final String configSource = determineConfigSource(activeProfiles);
 
-        // BA-CFG-SRV-STARTUP: Belief-state log for config server startup
-        log.info("[SVC=config-server][BLOCK=BA-CFG-SRV-STARTUP][STATE=READY] " +
-                        "eventType=CONFIG_SERVER_STARTED " +
-                        "activeProfiles={} configSource={} port={} actuatorPort={}",
+        LOG.info(
+                STARTUP_LOG_TEMPLATE,
+                STARTUP_BLOCK,
                 profilesDisplay,
                 configSource,
                 environment.getProperty("server.port", "8888"),
-                environment.getProperty("management.server.port", "8889"));
+                environment.getProperty("management.server.port", "8889")
+        );
     }
 
-    private String determineConfigSource(String[] activeProfiles) {
-        for (String profile : activeProfiles) {
+    /**
+     * Determines the active configuration source.
+     *
+     * @param activeProfiles active Spring profiles
+     * @return {@code git} for stage/prod/git profiles, otherwise {@code native}
+     */
+    private String determineConfigSource(final String[] activeProfiles) {
+        for (final String profile : activeProfiles) {
             if ("prod".equalsIgnoreCase(profile)
                     || "stage".equalsIgnoreCase(profile)
                     || "git".equalsIgnoreCase(profile)) {

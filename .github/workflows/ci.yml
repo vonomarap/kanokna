@@ -47,7 +47,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, wsl]
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -85,7 +85,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, wsl]
     needs: build
     defaults:
       run:
@@ -106,7 +106,7 @@ jobs:
         run: mvn -B -DfailIfNoTests=false test
 
       - name: Run integration tests
-        run: mvn -B -DskipTests -DfailIfNoTests=false failsafe:integration-test failsafe:verify
+        run: mvn -B -DfailIfNoTests=false test-compile failsafe:integration-test failsafe:verify
 
       - name: Run ArchUnit tests
         run: mvn -B "-Dtest=ArchitectureTest" "-Dsurefire.failIfNoSpecifiedTests=false" "-DfailIfNoTests=false" test
@@ -133,7 +133,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, wsl]
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -188,7 +188,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   coverage:
     name: Coverage Report
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, wsl]
     needs: test
     defaults:
       run:

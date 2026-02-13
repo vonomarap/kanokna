@@ -16,17 +16,17 @@ public enum ThicknessTypeMM {
 
   private final int valueMm;
 
-  ThicknessTypeMM(Integer valueMm) {
+  ThicknessTypeMM(int valueMm) {
     this.valueMm = valueMm;
   }
 
-  public Integer getValue() {
+  public int value() {
     return valueMm;
   }
 
   // A static map for highly efficient lookups.
   private static final Map<Integer, ThicknessTypeMM> LOOKUP = Stream.of(values())
-    .collect(Collectors.toMap(ThicknessTypeMM::getValue, Function.identity()));
+    .collect(Collectors.toMap(ThicknessTypeMM::value, Function.identity()));
 
 
   /**

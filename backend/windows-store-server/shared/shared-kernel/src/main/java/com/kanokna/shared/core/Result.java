@@ -275,17 +275,15 @@ public sealed interface Result<T> permits Result.Success, Result.Failure {
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public <U> Result<U> map(Function<T, U> mapper) {
             // Propagate failure without applying mapper
-            return (Result<U>) this;
+            return new Failure<>(error);
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public <U> Result<U> flatMap(Function<T, Result<U>> mapper) {
             // Propagate failure without applying mapper
-            return (Result<U>) this;
+            return new Failure<>(error);
         }
     }
 }

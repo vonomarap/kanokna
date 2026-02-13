@@ -1,5 +1,6 @@
 package com.kanokna.test.containers.postgres;
 
+import com.kanokna.test.containers.AbstractTestContainer;
 import java.util.Objects;
 import org.flywaydb.core.Flyway;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -10,7 +11,7 @@ import org.testcontainers.utility.DockerImageName;
  * Shared Postgres Testcontainers configuration for integration tests.
  * Provides a singleton container and Spring property registration helpers.
  */
-public final class PostgresTestContainer {
+public final class PostgresTestContainer extends AbstractTestContainer<PostgreSQLContainer<?>> {
     private static final DockerImageName POSTGRES_IMAGE =
         DockerImageName.parse("postgres:16-alpine");
     private static final String DEFAULT_DATABASE = "test";
@@ -32,28 +33,16 @@ public final class PostgresTestContainer {
 
     private static final PostgresTestContainer INSTANCE = new PostgresTestContainer();
 
-    private final PostgreSQLContainer<?> container;
-
     private PostgresTestContainer() {
-        container = new PostgreSQLContainer<>(POSTGRES_IMAGE)
+        super(new PostgreSQLContainer<>(POSTGRES_IMAGE)
             .withDatabaseName(DEFAULT_DATABASE)
             .withUsername(DEFAULT_USERNAME)
             .withPassword(DEFAULT_PASSWORD)
-            .withReuse(true);
+            .withReuse(true));
     }
 
     public static PostgresTestContainer instance() {
         return INSTANCE;
-    }
-
-    public PostgreSQLContainer<?> container() {
-        return container;
-    }
-
-    public void startIfNeeded() {
-        if (!container.isRunning()) {
-            container.start();
-        }
     }
 
     public void registerProperties(DynamicPropertyRegistry registry, PostgresSettings settings) {
@@ -61,9 +50,9 @@ public final class PostgresTestContainer {
         Objects.requireNonNull(settings, "settings");
         startIfNeeded();
 
-        registry.add(SPRING_DATASOURCE_URL, container::getJdbcUrl);
-        registry.add(SPRING_DATASOURCE_USERNAME, container::getUsername);
-        registry.add(SPRING_DATASOURCE_PASSWORD, container::getPassword);
+        registry.add(SPRING_DATASOURCE_URL, () -> container().getJdbcUrl());
+        registry.add(SPRING_DATASOURCE_USERNAME, () -> container().getUsername());
+        registry.add(SPRING_DATASOURCE_PASSWORD, () -> container().getPassword());
         registry.add(SPRING_JPA_DDL_AUTO, () -> HIBERNATE_DDL_AUTO);
         registry.add(SPRING_JPA_DEFAULT_SCHEMA, settings::schema);
         registry.add(SPRING_FLYWAY_ENABLED,
@@ -77,7 +66,7 @@ public final class PostgresTestContainer {
 
     private void migrateSchema(PostgresSettings settings) {
         Flyway.configure()
-            .dataSource(container.getJdbcUrl(), container.getUsername(), container.getPassword())
+            .dataSource(container().getJdbcUrl(), container().getUsername(), container().getPassword())
             .createSchemas(true)
             .defaultSchema(settings.schema())
             .schemas(settings.schema())

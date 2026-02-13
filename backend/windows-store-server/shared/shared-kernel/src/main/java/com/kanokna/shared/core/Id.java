@@ -1,16 +1,12 @@
 package com.kanokna.shared.core;
 
-import java.util.Objects;
 import java.util.UUID;
 
-public final class Id {
-    private final String value;
-
-    private Id(String value) {
+public record Id<T>(String value) {
+    public Id {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("ID must be non-empty");
         }
-        this.value = value;
     }
 
     /*<FUNCTION_CONTRACT
@@ -61,8 +57,8 @@ public final class Id {
       </TEST_CASES>
     </FUNCTION_CONTRACT>
     */
-    public static Id of(String value) {
-        return new Id(value);
+    public static <T> Id<T> of(String value) {
+        return new Id<>(value);
     }
 
     /*<FUNCTION_CONTRACT
@@ -112,29 +108,11 @@ public final class Id {
       </TEST_CASES>
     </FUNCTION_CONTRACT>
     */
-    public static Id random() {
-        return new Id(UUID.randomUUID().toString());
-    }
-
-    public String value() {
-        return value;
+    public static <T> Id<T> random() {
+        return new Id<>(UUID.randomUUID().toString());
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) 
-            return true;
-        if(!(o instanceof Id that)) 
-            return false;
-        return value.equals(that.value);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(value);
-    }
-
-    @Override 
     public String toString() {
         return value;
     }

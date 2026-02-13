@@ -36,7 +36,7 @@ public enum Country {
     /**
      * United Kingdom - International market.
      */
-    GB("United Kingdom", "GBR", Currency.USD, Language.EN);
+    GB("United Kingdom", "GBR", Currency.GBP, Language.EN);
 
     private final String displayName;
     private final String iso3Code;

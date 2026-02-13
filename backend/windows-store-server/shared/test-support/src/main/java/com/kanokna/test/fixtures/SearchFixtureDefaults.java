@@ -1,7 +1,5 @@
 package com.kanokna.test.fixtures;
 
-import java.time.Instant;
-
 /**
  * Shared default values for search test fixtures.
  */
@@ -30,9 +28,5 @@ public final class SearchFixtureDefaults {
     public static final int SUGGESTION_WEIGHT = 1;
 
     private SearchFixtureDefaults() {
-    }
-
-    public static Instant now() {
-        return Instant.now();
     }
 }

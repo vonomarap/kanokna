@@ -251,6 +251,7 @@ public class PricingGrpcClient implements PricingPort, PricingClient {
             case RUB -> Currency.CURRENCY_RUB;
             case EUR -> Currency.CURRENCY_EUR;
             case USD -> Currency.CURRENCY_USD;
+            case GBP -> Currency.CURRENCY_GBP;
         };
     }
 
@@ -262,6 +263,7 @@ public class PricingGrpcClient implements PricingPort, PricingClient {
             case "RUB" -> Currency.CURRENCY_RUB;
             case "EUR" -> Currency.CURRENCY_EUR;
             case "USD" -> Currency.CURRENCY_USD;
+            case "GBP" -> Currency.CURRENCY_GBP;
             default -> Currency.CURRENCY_UNSPECIFIED;
         };
     }
@@ -271,6 +273,7 @@ public class PricingGrpcClient implements PricingPort, PricingClient {
             case CURRENCY_EUR -> com.kanokna.shared.money.Currency.EUR;
             case CURRENCY_USD -> com.kanokna.shared.money.Currency.USD;
             case CURRENCY_RUB -> com.kanokna.shared.money.Currency.RUB;
+            case CURRENCY_GBP -> com.kanokna.shared.money.Currency.GBP;
             default -> com.kanokna.shared.money.Currency.RUB;
         };
     }

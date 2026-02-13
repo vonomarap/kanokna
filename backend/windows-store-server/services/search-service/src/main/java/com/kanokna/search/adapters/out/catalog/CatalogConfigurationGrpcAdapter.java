@@ -84,6 +84,7 @@ public class CatalogConfigurationGrpcAdapter implements CatalogConfigurationPort
             case CURRENCY_EUR -> Currency.EUR;
             case CURRENCY_USD -> Currency.USD;
             case CURRENCY_RUB -> Currency.RUB;
+            case CURRENCY_GBP -> Currency.GBP;
             case CURRENCY_UNSPECIFIED, UNRECOGNIZED -> Currency.RUB;
         };
     }

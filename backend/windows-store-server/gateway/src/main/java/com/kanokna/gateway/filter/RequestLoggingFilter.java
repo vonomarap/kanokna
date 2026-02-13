@@ -19,6 +19,7 @@ import org.springframework.web.server.ServerWebExchange;
 
 @Component
 public class RequestLoggingFilter implements GlobalFilter, Ordered {
+
     private static final Logger logger = LoggerFactory.getLogger(RequestLoggingFilter.class);
 
     @Override
@@ -27,42 +28,47 @@ public class RequestLoggingFilter implements GlobalFilter, Ordered {
         String path = exchange.getRequest().getURI().getPath();
         String method = exchange.getRequest().getMethod().name();
 
-        Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
-        String routeId = route != null ? route.getId() : "unknown";
-        URI target = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
-
-        MDC.put("path", path);
-        MDC.put("method", method);
-
-        logger.info(
-            "[SVC=gateway][UC=ROUTING][BLOCK=BA-GW-ROUTE-01][STATE=ROUTE_MATCHED] " +
-            "eventType=REQUEST_ROUTED decision=FORWARD keyValues=path={},routeId={},target={}",
-            path,
-            routeId,
-            Objects.toString(target, "unknown")
-        );
-
         return chain.filter(exchange)
-            .doFinally(signal -> {
-                long latencyMs = (System.nanoTime() - start) / 1_000_000L;
-                HttpStatusCode status = exchange.getResponse().getStatusCode();
-                String statusValue = status != null ? String.valueOf(status.value()) : "unknown";
+                .doFinally(signal -> {
+                    long latencyMs = (System.nanoTime() - start) / 1_000_000L;
 
-                MDC.put("status", statusValue);
-                MDC.put("latencyMs", String.valueOf(latencyMs));
+                    // Route attributes are populated by RoutePredicateHandlerMapping
+                    // AFTER global filters are invoked, so we read them here in doFinally
+                    // where they are guaranteed to be set.
+                    Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
+                    String routeId = route != null ? route.getId() : "unknown";
+                    URI target = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
 
-                logger.info(
-                    "[SVC=gateway][UC=ROUTING][BLOCK=BA-GW-ROUTE-03][STATE=RESPONSE_RECEIVED] " +
-                    "eventType=BACKEND_RESPONSE decision=COMPLETE keyValues=status={},latencyMs={}",
-                    statusValue,
-                    latencyMs
-                );
+                    HttpStatusCode status = exchange.getResponse().getStatusCode();
+                    String statusValue = status != null ? String.valueOf(status.value()) : "unknown";
 
-                MDC.remove("path");
-                MDC.remove("method");
-                MDC.remove("status");
-                MDC.remove("latencyMs");
-            });
+                    try {
+                        MDC.put("path", path);
+                        MDC.put("method", method);
+                        MDC.put("status", statusValue);
+                        MDC.put("latencyMs", String.valueOf(latencyMs));
+
+                        logger.info(
+                                "[SVC=gateway][UC=ROUTING][BLOCK=BA-GW-ROUTE-01][STATE=ROUTE_MATCHED] "
+                                + "eventType=REQUEST_ROUTED decision=FORWARD keyValues=path={},routeId={},target={}",
+                                path,
+                                routeId,
+                                Objects.toString(target, "unknown")
+                        );
+
+                        logger.info(
+                                "[SVC=gateway][UC=ROUTING][BLOCK=BA-GW-ROUTE-03][STATE=RESPONSE_RECEIVED] "
+                                + "eventType=BACKEND_RESPONSE decision=COMPLETE keyValues=status={},latencyMs={}",
+                                statusValue,
+                                latencyMs
+                        );
+                    } finally {
+                        MDC.remove("path");
+                        MDC.remove("method");
+                        MDC.remove("status");
+                        MDC.remove("latencyMs");
+                    }
+                });
     }
 
     @Override

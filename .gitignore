@@ -72,3 +72,6 @@ dependency_check.txt
 
 *_log_*.txt
 compile_output.txt
+
+# Local env files (never commit secrets)
+.env

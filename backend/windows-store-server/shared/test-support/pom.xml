@@ -17,6 +17,11 @@
     <packaging>jar</packaging>
 
     <dependencies>
+        <!--
+          This module is intended to be consumed with <scope>test</scope> only.
+          Keeping dependencies at compile scope here allows transitive availability
+          on downstream test classpaths.
+        -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
