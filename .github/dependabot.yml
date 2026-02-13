@@ -44,34 +44,34 @@ updates:
     groups:
       spring-boot:
         patterns:
-          - "org.springframework.boot*"
+          - "org.springframework.boot:*"
           - "org.springframework:*"
         update-types:
           - "minor"
           - "patch"
       spring-cloud:
         patterns:
-          - "org.springframework.cloud*"
+          - "org.springframework.cloud:*"
         update-types:
           - "minor"
           - "patch"
       testing:
         patterns:
-          - "org.junit*"
-          - "org.assertj*"
-          - "org.mockito*"
-          - "org.testcontainers*"
+          - "org.junit*:*"
+          - "org.assertj:*"
+          - "org.mockito:*"
+          - "org.testcontainers:*"
       observability:
         patterns:
-          - "io.micrometer*"
-          - "io.opentelemetry*"
-          - "net.logstash*"
+          - "io.micrometer:*"
+          - "io.opentelemetry:*"
+          - "net.logstash*:*"
     ignore:
       # Ignore major Spring Boot updates (need manual review)
-      - dependency-name: "org.springframework.boot*"
+      - dependency-name: "org.springframework.boot:*"
         update-types: ["version-update:semver-major"]
       # Ignore major Spring Cloud updates
-      - dependency-name: "org.springframework.cloud*"
+      - dependency-name: "org.springframework.cloud:*"
         update-types: ["version-update:semver-major"]
 
   # ─────────────────────────────────────────────────────────────────────────────
@@ -103,10 +103,112 @@ updates:
           - "patch"
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Docker Base Images
+  # Docker Base Images (each directory contains a Dockerfile)
   # ─────────────────────────────────────────────────────────────────────────────
   - package-ecosystem: "docker"
-    directory: "/backend"
+    directory: "/backend/windows-store-server/config-server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "vonomarap"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+    commit-message:
+      prefix: "deps(docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/windows-store-server/gateway"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "vonomarap"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+    commit-message:
+      prefix: "deps(docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/windows-store-server/services/account-service"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "vonomarap"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+    commit-message:
+      prefix: "deps(docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/windows-store-server/services/cart-service"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "vonomarap"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+    commit-message:
+      prefix: "deps(docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/windows-store-server/services/catalog-configuration-service"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "vonomarap"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+    commit-message:
+      prefix: "deps(docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/windows-store-server/services/pricing-service"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "vonomarap"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+    commit-message:
+      prefix: "deps(docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/backend/windows-store-server/services/search-service"
     schedule:
       interval: "weekly"
       day: "monday"
