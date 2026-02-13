@@ -54,7 +54,7 @@
             Reviewed By: CI
             Review Date: 2026-02-13
         ]]></notes>
-        <packageUrl regex="true">^pkg:maven/org\.springframework\.grpc/spring-grpc(-server)?-spring-boot-(starter|autoconfigure)@1\.0\.1$</packageUrl>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.grpc/spring-grpc(-[a-z]+)?-spring-boot-(starter|autoconfigure)@1\.0\.1$</packageUrl>
         <cve>CVE-2017-8046</cve>
         <cve>CVE-2021-26987</cve>
         <cve>CVE-2023-20873</cve>
