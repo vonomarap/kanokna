@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+    "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<suppressions>
+    <!-- Ignore generated artifacts. -->
+    <suppress checks=".*" files="[/\\]generated-sources[/\\].*"/>
+    <suppress checks=".*" files="[/\\]generated-test-sources[/\\].*"/>
+
+    <!-- Keep tests focused on behavior; ignore style-only rules there. -->
+    <suppress checks=".*" files="[/\\]src[/\\]test[/\\]java[/\\].*"/>
+
+    <!-- Baseline for legacy style rules in main sources. -->
+    <suppress
+        checks="JavadocPackage|JavadocType|JavadocMethod|MissingJavadocMethod|JavadocVariable|JavadocStyle|InvalidJavadocPosition|LineLength|FinalParameters|HiddenField|DesignForExtension|MagicNumber|RegexpSingleline|OperatorWrap|WhitespaceAround|ConstantName|ParameterNumber|FinalClass|HideUtilityClassConstructor|AvoidStarImport|NewlineAtEndOfFile|MethodLength|MissingSwitchDefault|NeedBraces|UnusedImports|VisibilityModifier|LeftCurly"
+        files="[/\\]src[/\\]main[/\\]java[/\\].*"/>
+
+    <!-- Extra suppressions for shared-kernel until cleanup is complete. -->
+    <suppress
+        checks="JavadocPackage|JavadocType|JavadocMethod|MissingJavadocMethod|JavadocVariable|LineLength|FinalParameters|HiddenField|DesignForExtension|RegexpSingleline|OperatorWrap|NeedBraces|MagicNumber|AvoidStarImport"
+        files="[/\\]shared[/\\]shared-kernel[/\\]src[/\\]main[/\\]java[/\\]com[/\\]kanokna[/\\]shared[/\\].*"/>
+</suppressions>

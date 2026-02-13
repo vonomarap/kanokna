@@ -95,6 +95,7 @@ LINKS:
 ### 3. Deploy to Staging (`workflows/deploy-stage.yml`)
 
 **Purpose:** Deploy services to the staging Kubernetes cluster.
+**Runner:** `self-hosted, Linux, X64, wsl`
 
 | Input | Description | Default |
 |-------|-------------|---------|
@@ -103,7 +104,8 @@ LINKS:
 | `dry_run` | Preview changes without applying | `false` |
 
 **Prerequisites:**
-- `KUBECONFIG_STAGE` secret (base64-encoded kubeconfig)
+- Self-hosted GitHub Actions runner with labels `self-hosted, Linux, X64, wsl`
+- `KUBECONFIG_STAGE` secret (base64-encoded kubeconfig with a cluster endpoint reachable from the self-hosted runner)
 - Kubernetes cluster with namespace `kanokna-stage`
 
 **Deployment Strategy:**
@@ -172,7 +174,7 @@ Patch updates raised by Dependabot are auto-approved and auto-merge enabled by `
 | Secret | Description | Used By |
 |--------|-------------|---------|
 | `GITHUB_TOKEN` | Automatic (GitHub-provided) | All workflows |
-| `KUBECONFIG_STAGE` | Base64-encoded kubeconfig for staging | deploy-stage.yml |
+| `KUBECONFIG_STAGE` | Base64-encoded kubeconfig for staging; endpoint must be reachable from self-hosted runner | deploy-stage.yml |
 
 ---
 
@@ -223,7 +225,12 @@ For `main` and `develop` branches:
    - Verify `KUBECONFIG_STAGE` secret is valid
    - Check cluster accessibility
 
-2. **Helm failures:**
+2. **`kubernetes.docker.internal` DNS errors in CI:**
+   - Symptom: `lookup kubernetes.docker.internal ... no such host`
+   - Cause: kubeconfig was exported from local Docker Desktop context and points to a local-only endpoint
+   - Fix: regenerate kubeconfig for the staging cluster endpoint reachable from the self-hosted runner, then update `KUBECONFIG_STAGE`
+
+3. **Helm failures:**
    - Verify chart exists at `deploy/helm/{service}`
    - Check values.yaml compatibility
 
