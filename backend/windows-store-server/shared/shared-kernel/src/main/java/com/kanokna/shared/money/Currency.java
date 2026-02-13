@@ -24,7 +24,12 @@ public enum Currency {
     /**
      * US Dollar - For international transactions.
      */
-    USD("US Dollar", "$", 2);
+    USD("US Dollar", "$", 2),
+
+    /**
+     * British Pound - For United Kingdom market.
+     */
+    GBP("British Pound", "\u00A3", 2);
 
     private final String displayName;
     private final String symbol;

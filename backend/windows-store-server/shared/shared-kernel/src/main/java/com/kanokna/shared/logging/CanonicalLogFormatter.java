@@ -1,4 +1,4 @@
-package com.kanokna.shared.core;
+package com.kanokna.shared.logging;
 
 import java.util.Map;
 import java.util.StringJoiner;

@@ -26,4 +26,6 @@ enum Currency {
   CURRENCY_EUR = 2;
   // US Dollar
   CURRENCY_USD = 3;
+  // British Pound
+  CURRENCY_GBP = 4;
 }

@@ -206,6 +206,8 @@ public class SearchCatalogEventListener {
                 com.kanokna.shared.money.Currency.USD;
             case CURRENCY_RUB ->
                 com.kanokna.shared.money.Currency.RUB;
+            case CURRENCY_GBP ->
+                com.kanokna.shared.money.Currency.GBP;
             case CURRENCY_UNSPECIFIED, UNRECOGNIZED ->
                 com.kanokna.shared.money.Currency.RUB;
         };

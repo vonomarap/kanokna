@@ -114,8 +114,7 @@ package com.kanokna.gateway;
     <Link ref="RequirementsAnalysis.xml#NFR-OBS-TRACING"/>
   </LINKS>
 </MODULE_CONTRACT>
-*/
-
+ */
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
@@ -123,7 +122,8 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
 @SpringBootApplication
 @EnableWebFluxSecurity
 public class GatewayApplication {
-    static void main(String[] args) {
+
+    public static void main(String[] args) {
         SpringApplication.run(GatewayApplication.class, args);
     }
 }

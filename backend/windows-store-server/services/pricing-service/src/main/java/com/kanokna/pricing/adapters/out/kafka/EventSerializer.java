@@ -63,6 +63,9 @@ public class EventSerializer {
         if ("USD".equalsIgnoreCase(currency)) {
             return Currency.CURRENCY_USD;
         }
+        if ("GBP".equalsIgnoreCase(currency)) {
+            return Currency.CURRENCY_GBP;
+        }
         return Currency.CURRENCY_UNSPECIFIED;
     }
 

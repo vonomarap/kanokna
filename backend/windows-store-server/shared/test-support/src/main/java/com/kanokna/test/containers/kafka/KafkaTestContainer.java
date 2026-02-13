@@ -1,5 +1,6 @@
 package com.kanokna.test.containers.kafka;
 
+import com.kanokna.test.containers.AbstractTestContainer;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Objects;
@@ -16,7 +17,7 @@ import org.testcontainers.utility.DockerImageName;
  * Shared Kafka Testcontainers configuration using Confluent Platform.
  * Provides a singleton container and helper methods for topics and client props.
  */
-public final class KafkaTestContainer {
+public final class KafkaTestContainer extends AbstractTestContainer<KafkaContainer> {
     private static final DockerImageName KAFKA_IMAGE = DockerImageName
         .parse("confluentinc/cp-kafka:7.6.0");
     private static final String SPRING_KAFKA_BOOTSTRAP_SERVERS = "spring.kafka.bootstrap-servers";
@@ -43,31 +44,19 @@ public final class KafkaTestContainer {
 
     private static final KafkaTestContainer INSTANCE = new KafkaTestContainer();
 
-    private final KafkaContainer container;
-
     private KafkaTestContainer() {
-        container = new KafkaContainer(KAFKA_IMAGE)
+        super(new KafkaContainer(KAFKA_IMAGE)
             .withStartupTimeout(STARTUP_TIMEOUT)
-            .withReuse(true);
+            .withReuse(true));
     }
 
     public static KafkaTestContainer instance() {
         return INSTANCE;
     }
 
-    public KafkaContainer container() {
-        return container;
-    }
-
-    public void startIfNeeded() {
-        if (!container.isRunning()) {
-            container.start();
-        }
-    }
-
     public String bootstrapServers() {
         startIfNeeded();
-        return container.getBootstrapServers();
+        return container().getBootstrapServers();
     }
 
     public void registerProperties(DynamicPropertyRegistry registry) {

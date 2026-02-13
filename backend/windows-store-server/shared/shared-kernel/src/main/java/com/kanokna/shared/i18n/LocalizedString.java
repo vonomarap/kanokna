@@ -138,9 +138,10 @@ public final class LocalizedString {
         }
         
         var result = new EnumMap<Language, String>(Language.class);
-        values.entrySet().stream()
-                .peek(entry -> validateEntry(entry.getKey(), entry.getValue()))
-                .forEach(entry -> result.put(entry.getKey(), entry.getValue()));
+        for (Map.Entry<Language, String> entry : values.entrySet()) {
+            validateEntry(entry.getKey(), entry.getValue());
+            result.put(entry.getKey(), entry.getValue());
+        }
         
         return result;
     }

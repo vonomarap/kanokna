@@ -17,7 +17,7 @@
   </POSTCONDITIONS>
 
   <INVARIANTS>
-    <Item>Correlation ID is a valid UUID v4 string</Item>
+    <Item>Correlation ID is a non-blank string (max 128 chars)</Item>
     <Item>If incoming request has X-Correlation-ID, it is preserved (not replaced)</Item>
     <Item>Filter executes on every request (ordered before routing)</Item>
   </INVARIANTS>
@@ -52,6 +52,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -62,25 +63,24 @@ import org.springframework.web.server.ServerWebExchange;
 
 @Component
 public class CorrelationIdFilter implements GlobalFilter, Ordered {
+
     private static final Logger logger = LoggerFactory.getLogger(CorrelationIdFilter.class);
-    private static final String HEADER_NAME = "X-Correlation-ID";
+    static final String HEADER_NAME = "X-Correlation-ID";
+    private static final int MAX_CORRELATION_ID_LENGTH = 128;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         // <BLOCK_ANCHOR id="BA-GW-CORR-01">Extract or generate correlation ID</BLOCK_ANCHOR>
         String incoming = exchange.getRequest().getHeaders().getFirst(HEADER_NAME);
-        boolean extracted = isValidUuidV4(incoming);
+        boolean extracted = isValidCorrelationId(incoming);
         String correlationId = extracted ? incoming : UUID.randomUUID().toString();
 
         logger.info(
-            "[SVC=gateway][UC=TRACING][BLOCK=BA-GW-CORR-01][STATE=EXTRACT_OR_GENERATE] " +
-            "eventType=CORRELATION_ID decision={} keyValues=correlationId={}",
-            extracted ? "EXTRACTED" : "GENERATED",
-            correlationId
+                "[SVC=gateway][UC=TRACING][BLOCK=BA-GW-CORR-01][STATE=EXTRACT_OR_GENERATE] "
+                + "eventType=CORRELATION_ID decision={} keyValues=correlationId={}",
+                extracted ? "EXTRACTED" : "GENERATED",
+                correlationId
         );
-
-        // <BLOCK_ANCHOR id="BA-GW-CORR-02">Set MDC context</BLOCK_ANCHOR>
-        MDC.put("correlationId", correlationId);
 
         // <BLOCK_ANCHOR id="BA-GW-CORR-03">Mutate request with correlation ID header</BLOCK_ANCHOR>
         ServerHttpRequest request = exchange.getRequest().mutate().header(HEADER_NAME, correlationId).build();
@@ -88,8 +88,15 @@ public class CorrelationIdFilter implements GlobalFilter, Ordered {
         // <BLOCK_ANCHOR id="BA-GW-CORR-04">Add correlation ID to response headers</BLOCK_ANCHOR>
         exchange.getResponse().getHeaders().set(HEADER_NAME, correlationId);
 
+        // <BLOCK_ANCHOR id="BA-GW-CORR-02">Set MDC context</BLOCK_ANCHOR>
+        // Set MDC before chain invocation so downstream filters/handlers see it.
+        // MDC is ThreadLocal-based and doesn't propagate across Netty event loop threads,
+        // so we also propagate via Reactor Context for reactive subscribers.
+        // doFinally ensures cleanup regardless of success/error/cancel.
+        MDC.put("correlationId", correlationId);
         return chain.filter(exchange.mutate().request(request).build())
-            .doFinally(signal -> MDC.remove("correlationId"));
+                .doFinally(signal -> MDC.remove("correlationId"))
+                .contextWrite(Context.of("correlationId", correlationId));
     }
 
     @Override
@@ -97,15 +104,12 @@ public class CorrelationIdFilter implements GlobalFilter, Ordered {
         return Ordered.HIGHEST_PRECEDENCE;
     }
 
-    private boolean isValidUuidV4(String value) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        try {
-            UUID uuid = UUID.fromString(value);
-            return uuid.version() == 4;
-        } catch (IllegalArgumentException ex) {
-            return false;
-        }
+    /**
+     * Accept any non-blank string up to 128 characters as a valid correlation
+     * ID. This allows UUID v1/v4/v7, OpenTelemetry trace IDs, and any custom
+     * format from external systems (load balancers, clients).
+     */
+    private boolean isValidCorrelationId(String value) {
+        return value != null && !value.isBlank() && value.length() <= MAX_CORRELATION_ID_LENGTH;
     }
 }

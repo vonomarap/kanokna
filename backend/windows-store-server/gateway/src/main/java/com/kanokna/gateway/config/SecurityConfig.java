@@ -76,38 +76,28 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 
 @Configuration
 public class SecurityConfig {
+
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
-            // <BLOCK_ANCHOR id="BA-GW-AUTH-01">Validate JWT token</BLOCK_ANCHOR>
-            // CSRF protection is intentionally disabled per DEC-SEC-CSRF-STATELESS:
-            // - All APIs use stateless JWT bearer token authentication (no cookies)
-            // - No browser-based form submissions or cookie-based sessions
-            // - CSRF attacks require cookie-based auth which is not present
-            // See: Technology.xml#DEC-SEC-CSRF-STATELESS
-            .csrf(ServerHttpSecurity.CsrfSpec::disable)
-            .cors(Customizer.withDefaults())
-            .authorizeExchange(exchanges -> exchanges
+                // <BLOCK_ANCHOR id="BA-GW-AUTH-01">Validate JWT token</BLOCK_ANCHOR>
+                // CSRF protection is intentionally disabled per DEC-SEC-CSRF-STATELESS:
+                // - All APIs use stateless JWT bearer token authentication (no cookies)
+                // - No browser-based form submissions or cookie-based sessions
+                // - CSRF attacks require cookie-based auth which is not present
+                // See: Technology.xml#DEC-SEC-CSRF-STATELESS
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .cors(Customizer.withDefaults())
+                .authorizeExchange(exchanges -> exchanges
                 // <BLOCK_ANCHOR id="BA-GW-AUTH-03">Authorize request based on path and roles</BLOCK_ANCHOR>
-                .pathMatchers(
-                    "/actuator/health/**",
-                    "/actuator/info",
-                    "/api/catalog/products",
-                    "/api/catalog/products/**",
-                    "/api/search/**",
-                    "/api/media/public/**"
-                ).permitAll()
+                .pathMatchers(GatewayPaths.PUBLIC_PATHS).permitAll()
                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
-                .pathMatchers(
-                    "/api/reports/**",
-                    "/api/catalog/admin/**",
-                    "/api/pricing/admin/**",
-                    "/api/accounts/admin/**"
-                ).hasRole("ADMIN")
+                .pathMatchers(GatewayPaths.ADMIN_PATHS).hasRole("ADMIN")
                 .pathMatchers("/api/**").authenticated()
                 .anyExchange().permitAll()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}))
-            .build();
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {
+        }))
+                .build();
     }
 }

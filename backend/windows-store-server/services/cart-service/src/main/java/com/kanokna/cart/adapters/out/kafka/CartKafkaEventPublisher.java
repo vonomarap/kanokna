@@ -285,6 +285,7 @@ public class CartKafkaEventPublisher implements EventPublisher, CartEventPublish
             case RUB -> Currency.CURRENCY_RUB;
             case EUR -> Currency.CURRENCY_EUR;
             case USD -> Currency.CURRENCY_USD;
+            case GBP -> Currency.CURRENCY_GBP;
         };
     }
 

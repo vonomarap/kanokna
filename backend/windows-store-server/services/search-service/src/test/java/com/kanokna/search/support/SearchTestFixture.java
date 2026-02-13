@@ -18,6 +18,7 @@ import com.kanokna.shared.money.Currency;
 import com.kanokna.shared.money.Money;
 import com.kanokna.test.fixtures.SearchFixtureDefaults;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -43,8 +44,8 @@ public final class SearchTestFixture {
             SearchFixtureDefaults.THUMBNAIL_BASE_URL + productId + ".png",
             SearchFixtureDefaults.POPULARITY,
             SearchFixtureDefaults.OPTION_GROUP_COUNT,
-            SearchFixtureDefaults.now(),
-            SearchFixtureDefaults.now()
+            Instant.now(),
+            Instant.now()
         );
     }
 
@@ -70,7 +71,7 @@ public final class SearchTestFixture {
             .currency(SearchFixtureDefaults.CURRENCY_CODE)
             .popularity(SearchFixtureDefaults.DOCUMENT_POPULARITY)
             .status(status)
-            .publishedAt(SearchFixtureDefaults.now())
+            .publishedAt(Instant.now())
             .thumbnailUrl(SearchFixtureDefaults.THUMBNAIL_BASE_URL + productId + ".png")
             .optionCount(SearchFixtureDefaults.OPTION_COUNT)
             .suggestInputs(List.of(SearchFixtureDefaults.PRODUCT_NAME_PREFIX + productId))

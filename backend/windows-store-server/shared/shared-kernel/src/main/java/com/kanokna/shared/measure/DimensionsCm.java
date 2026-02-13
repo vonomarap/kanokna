@@ -86,11 +86,6 @@ public record DimensionsCm(
      */
     public DimensionsCm {
         // BA-SK-DIM-01: Validate dimension range
-        if (width <= 0 || height <= 0) {
-            throw new IllegalArgumentException(
-                "Dimensions must be positive. Got: width=%d, height=%d".formatted(width, height));
-        }
-
         StringJoiner errorMessages = new StringJoiner(", ");
 
         if (width < MIN_DIMENSION_CM) {

@@ -144,6 +144,10 @@ public final class Email implements Serializable {
   public String domain() {
     return domain;
   }
+
+  public String value() {
+    return localPart + "@" + domain;
+  }
 /*
   <FN_CONTRACT id="fn.email.asString" name="asString">
   <INTENT>Returns the full, canonical string representation of the email address.</INTENT>
@@ -151,7 +155,7 @@ public final class Email implements Serializable {
   </FN_CONTRACT>
  */
   public String asString() {
-    return localPart + "@" + domain;
+    return value();
   }
 /*
   <FN_CONTRACT id="fn.email.masked" name="masked">
@@ -181,7 +185,6 @@ public final class Email implements Serializable {
 
   @Override
   public String toString() {
-    return asString();
+    return value();
   }
 }
-

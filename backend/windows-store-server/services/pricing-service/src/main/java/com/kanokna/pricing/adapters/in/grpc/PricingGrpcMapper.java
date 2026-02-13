@@ -147,6 +147,9 @@ public class PricingGrpcMapper {
         if ("USD".equalsIgnoreCase(currency)) {
             return Currency.CURRENCY_USD;
         }
+        if ("GBP".equalsIgnoreCase(currency)) {
+            return Currency.CURRENCY_GBP;
+        }
         return Currency.CURRENCY_UNSPECIFIED;
     }
 
@@ -159,6 +162,9 @@ public class PricingGrpcMapper {
         }
         if (currency == Currency.CURRENCY_USD) {
             return "USD";
+        }
+        if (currency == Currency.CURRENCY_GBP) {
+            return "GBP";
         }
         return "RUB";
     }

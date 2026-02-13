@@ -109,7 +109,8 @@ class DimensionsCmTest {
         void zeroDimensionsRejected() {
             assertThatIllegalArgumentException()
                 .isThrownBy(() -> new DimensionsCm(0, 100))
-                .withMessageContaining("positive");
+                .withMessageContaining("ERR-DIM-TOO-SMALL")
+                .withMessageContaining("width");
         }
 
         @Test
@@ -117,7 +118,8 @@ class DimensionsCmTest {
         void negativeDimensionsRejected() {
             assertThatIllegalArgumentException()
                 .isThrownBy(() -> new DimensionsCm(-50, 100))
-                .withMessageContaining("positive");
+                .withMessageContaining("ERR-DIM-TOO-SMALL")
+                .withMessageContaining("width");
         }
 
         @Test
