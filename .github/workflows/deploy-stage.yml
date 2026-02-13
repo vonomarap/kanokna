@@ -84,7 +84,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy ${{ matrix.service }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, wsl]
     needs: prepare
     strategy:
       fail-fast: false
@@ -120,6 +120,41 @@ jobs:
           printf '%s' "${{ secrets.KUBECONFIG_STAGE }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
           echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
+
+      - name: Validate kubeconfig endpoint
+        run: |
+          SERVER_URL=$(kubectl config view --raw -o jsonpath='{.clusters[0].cluster.server}')
+          if [ -z "$SERVER_URL" ]; then
+            echo "Kubeconfig does not define clusters[0].cluster.server."
+            echo "Regenerate staging kubeconfig and update KUBECONFIG_STAGE secret."
+            exit 1
+          fi
+
+          HOST=$(printf '%s' "$SERVER_URL" | sed -E 's#^[a-zA-Z]+://##; s#/.*$##; s#:.*$##')
+          if [ -z "$HOST" ]; then
+            echo "Could not parse cluster host from server URL: $SERVER_URL"
+            echo "Regenerate staging kubeconfig and update KUBECONFIG_STAGE secret."
+            exit 1
+          fi
+
+          case "$HOST" in
+            kubernetes.docker.internal|localhost|127.0.0.1)
+              echo "Kubeconfig points to a local endpoint ($HOST) which is not valid for CI."
+              echo "Create kubeconfig for the staging endpoint reachable from self-hosted runners."
+              echo "Then update KUBECONFIG_STAGE secret."
+              exit 1
+              ;;
+          esac
+
+          if ! getent ahosts "$HOST" >/dev/null 2>&1; then
+            echo "DNS lookup failed for cluster host: $HOST"
+            echo "Server URL from kubeconfig: $SERVER_URL"
+            echo "Regenerate kubeconfig for a reachable staging endpoint and update KUBECONFIG_STAGE."
+            exit 1
+          fi
+
+          echo "Kubeconfig server URL: $SERVER_URL"
+          echo "Current context: $(kubectl config current-context)"
 
       - name: Verify cluster connection
         run: |
@@ -217,13 +252,18 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   verify:
     name: Verify Deployment
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, wsl]
     needs: [prepare, deploy]
     if: ${{ github.event.inputs.dry_run != 'true' }}
     environment:
       name: staging
       url: https://stage.kanokna.com
     steps:
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.0'
+
       - name: Configure kubectl
         run: |
           mkdir -p ~/.kube
@@ -235,6 +275,41 @@ jobs:
           printf '%s' "${{ secrets.KUBECONFIG_STAGE }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
           echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
+
+      - name: Validate kubeconfig endpoint
+        run: |
+          SERVER_URL=$(kubectl config view --raw -o jsonpath='{.clusters[0].cluster.server}')
+          if [ -z "$SERVER_URL" ]; then
+            echo "Kubeconfig does not define clusters[0].cluster.server."
+            echo "Regenerate staging kubeconfig and update KUBECONFIG_STAGE secret."
+            exit 1
+          fi
+
+          HOST=$(printf '%s' "$SERVER_URL" | sed -E 's#^[a-zA-Z]+://##; s#/.*$##; s#:.*$##')
+          if [ -z "$HOST" ]; then
+            echo "Could not parse cluster host from server URL: $SERVER_URL"
+            echo "Regenerate staging kubeconfig and update KUBECONFIG_STAGE secret."
+            exit 1
+          fi
+
+          case "$HOST" in
+            kubernetes.docker.internal|localhost|127.0.0.1)
+              echo "Kubeconfig points to a local endpoint ($HOST) which is not valid for CI."
+              echo "Create kubeconfig for the staging endpoint reachable from self-hosted runners."
+              echo "Then update KUBECONFIG_STAGE secret."
+              exit 1
+              ;;
+          esac
+
+          if ! getent ahosts "$HOST" >/dev/null 2>&1; then
+            echo "DNS lookup failed for cluster host: $HOST"
+            echo "Server URL from kubeconfig: $SERVER_URL"
+            echo "Regenerate kubeconfig for a reachable staging endpoint and update KUBECONFIG_STAGE."
+            exit 1
+          fi
+
+          echo "Kubeconfig server URL: $SERVER_URL"
+          echo "Current context: $(kubectl config current-context)"
 
       - name: Check pod status
         run: |
