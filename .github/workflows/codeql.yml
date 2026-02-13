@@ -114,7 +114,7 @@ jobs:
 
       - name: Run OWASP Dependency Check
         run: |
-          mvn -B org.owasp:dependency-check-maven:check \
+          mvn -B -DskipTests -DfailIfNoTests=false install org.owasp:dependency-check-maven:check \
             -DfailBuildOnCVSS=8 \
             -DsuppressionFile="${{ github.workspace }}/.github/dependency-check-suppressions.xml"
         working-directory: backend/windows-store-server
