@@ -9,64 +9,38 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Security configuration for Config Server.
- *
- * <p>Configures authentication for config endpoints and actuator endpoints
- * with different security requirements.</p>
- *
- * <pre>
- * Security Zones:
- * ─────────────────────────────────────────────────────────────────────────────
- * 1. Health probes (permitAll):
- *    - /actuator/health
- *    - /actuator/health/liveness
- *    - /actuator/health/readiness
- *
- * 2. All other endpoints (authenticated):
- *    - /actuator/** (requires authentication)
- *    - /{application}/{profile}
- *    - /{application}/{profile}/{label}
- *    - /encrypt, /decrypt
- *
- * Links:
- *   - DevelopmentPlan.xml#DP-SVC-config-server
- *   - RequirementsAnalysis.xml#NFR-SEC-AUTHENTICATION
- * ─────────────────────────────────────────────────────────────────────────────
- * </pre>
- *
- * @author GRACE-CODER
- * @since 1.0.0
+ * Security configuration for the Config Server.
  */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     /**
-     * Single security filter chain for all endpoints.
-     * Health probes are accessible without authentication for Kubernetes.
-     * All other endpoints require basic authentication.
+     * Builds the security chain for all Config Server endpoints.
+     *
+     * @param http Spring Security HTTP builder
+     * @return configured security filter chain
+     * @throws Exception if Spring Security cannot build the chain
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(final HttpSecurity http)
+            throws Exception {
         http
                 .authorizeHttpRequests(authorize -> authorize
-                        // Health probes must be accessible without authentication for K8s
                         .requestMatchers(
                                 "/actuator/health",
                                 "/actuator/health/**"
-                        ).permitAll()
-                        // All other endpoints require authentication
-                        .anyRequest().authenticated()
+                        )
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated()
                 )
                 .httpBasic(Customizer.withDefaults())
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        .sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
                 )
-                // CSRF protection is intentionally disabled per DEC-SEC-CSRF-STATELESS:
-                // - All APIs use stateless JWT bearer token authentication (no cookies)
-                // - No browser-based form submissions or cookie-based sessions
-                // - CSRF attacks require cookie-based auth which is not present
-                // See: Technology.xml#DEC-SEC-CSRF-STATELESS
                 .csrf(csrf -> csrf.disable());
 
         return http.build();
