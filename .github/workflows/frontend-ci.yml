@@ -1,23 +1,6 @@
 name: Frontend CI
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-      - "feature/**"
-      - "release/**"
-      - "hotfix/**"
-    paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-ci.yml"
-  pull_request:
-    branches:
-      - main
-      - develop
-    paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-ci.yml"
   workflow_dispatch:
 
 env:
