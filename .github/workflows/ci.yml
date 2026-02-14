@@ -76,6 +76,7 @@ jobs:
           find . -type f -path "*/target/*.jar" ! -name "*-sources.jar" | sort
 
       - name: Upload config-server build artifact
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: build-artifact-config-server
@@ -87,6 +88,7 @@ jobs:
           retention-days: 1
 
       - name: Upload gateway build artifact
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: build-artifact-gateway
@@ -98,6 +100,7 @@ jobs:
           retention-days: 1
 
       - name: Upload shared build artifacts
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts-shared
@@ -110,6 +113,7 @@ jobs:
 
       - name: Upload account-service build artifact
         id: upload_account_service
+        if: github.ref == 'refs/heads/main'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -123,6 +127,7 @@ jobs:
 
       - name: Upload cart-service build artifact
         id: upload_cart_service
+        if: github.ref == 'refs/heads/main'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -136,6 +141,7 @@ jobs:
 
       - name: Upload catalog-configuration-service build artifact
         id: upload_catalog_configuration_service
+        if: github.ref == 'refs/heads/main'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -149,6 +155,7 @@ jobs:
 
       - name: Upload pricing-service build artifact
         id: upload_pricing_service
+        if: github.ref == 'refs/heads/main'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -162,6 +169,7 @@ jobs:
 
       - name: Upload search-service build artifact
         id: upload_search_service
+        if: github.ref == 'refs/heads/main'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -175,6 +183,7 @@ jobs:
 
       - name: Upload e2e build artifact
         id: upload_e2e
+        if: github.ref == 'refs/heads/main'
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -187,7 +196,7 @@ jobs:
           retention-days: 1
 
       - name: Warn about optional artifact upload failures
-        if: always()
+        if: always() && github.ref == 'refs/heads/main'
         run: |
           if [[ "${{ steps.upload_account_service.outcome }}" == "failure" || "${{ steps.upload_cart_service.outcome }}" == "failure" || "${{ steps.upload_catalog_configuration_service.outcome }}" == "failure" || "${{ steps.upload_pricing_service.outcome }}" == "failure" || "${{ steps.upload_search_service.outcome }}" == "failure" || "${{ steps.upload_e2e.outcome }}" == "failure" ]]; then
             echo "::warning::One or more optional service/e2e artifact uploads failed. Build/test/lint quality checks still completed."
@@ -233,7 +242,7 @@ jobs:
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && github.ref == 'refs/heads/main'
         with:
           name: test-results
           path: |
@@ -324,7 +333,7 @@ jobs:
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
-        if: success()
+        if: success() && github.ref == 'refs/heads/main'
         with:
           name: coverage-report
           path: backend/windows-store-server/**/target/site/jacoco/
