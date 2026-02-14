@@ -63,7 +63,6 @@ jobs:
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
 
       - name: Compile project
         run: mvn -B -DskipTests compile
@@ -222,7 +221,6 @@ jobs:
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
 
       - name: Run unit tests
         run: mvn -B -DfailIfNoTests=false test
@@ -269,7 +267,6 @@ jobs:
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
 
       - name: Check code formatting (Checkstyle)
         run: mvn -B checkstyle:check
@@ -325,7 +322,6 @@ jobs:
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
 
       - name: Generate coverage report (JaCoCo)
         run: mvn -B jacoco:report
