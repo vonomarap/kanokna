@@ -48,6 +48,8 @@ jobs:
   build:
     name: Build
     runs-on: [self-hosted, Linux, X64, wsl]
+    env:
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=$RUNNER_TEMP/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -63,22 +65,143 @@ jobs:
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
 
       - name: Compile project
-        run: mvn -B -DskipTests compile
+        run: mvn $MAVEN_CI_OPTS -DskipTests compile
 
       - name: Verify project (skip tests)
-        run: mvn -B -DskipTests verify
+        run: mvn $MAVEN_CI_OPTS -DskipTests verify
 
-      - name: Upload build artifacts
+      - name: List built JAR artifacts
+        run: |
+          find . -type f -path "*/target/*.jar" ! -name "*-sources.jar" | sort
+
+      - name: Upload config-server build artifact
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
+          name: build-artifact-config-server
           path: |
-            backend/windows-store-server/**/target/*.jar
-            !backend/windows-store-server/**/target/*-sources.jar
+            backend/windows-store-server/config-server/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
           retention-days: 1
+
+      - name: Upload gateway build artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-gateway
+          path: |
+            backend/windows-store-server/gateway/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload shared build artifacts
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-shared
+          path: |
+            backend/windows-store-server/shared/*/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload account-service build artifact
+        id: upload_account_service
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-account-service
+          path: |
+            backend/windows-store-server/services/account-service/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload cart-service build artifact
+        id: upload_cart_service
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-cart-service
+          path: |
+            backend/windows-store-server/services/cart-service/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload catalog-configuration-service build artifact
+        id: upload_catalog_configuration_service
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-catalog-configuration-service
+          path: |
+            backend/windows-store-server/services/catalog-configuration-service/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload pricing-service build artifact
+        id: upload_pricing_service
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-pricing-service
+          path: |
+            backend/windows-store-server/services/pricing-service/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload search-service build artifact
+        id: upload_search_service
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-search-service
+          path: |
+            backend/windows-store-server/services/search-service/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload e2e build artifact
+        id: upload_e2e
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-e2e-tests
+          path: |
+            backend/windows-store-server/e2e-tests/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Warn about optional artifact upload failures
+        if: always() && github.ref == 'refs/heads/main'
+        run: |
+          if [[ "${{ steps.upload_account_service.outcome }}" == "failure" || "${{ steps.upload_cart_service.outcome }}" == "failure" || "${{ steps.upload_catalog_configuration_service.outcome }}" == "failure" || "${{ steps.upload_pricing_service.outcome }}" == "failure" || "${{ steps.upload_search_service.outcome }}" == "failure" || "${{ steps.upload_e2e.outcome }}" == "failure" ]]; then
+            echo "::warning::One or more optional service/e2e artifact uploads failed. Build/test/lint quality checks still completed."
+          fi
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Test Job
@@ -87,6 +210,8 @@ jobs:
     name: Test
     runs-on: [self-hosted, Linux, X64, wsl]
     needs: build
+    env:
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=$RUNNER_TEMP/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -100,27 +225,26 @@ jobs:
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
 
       - name: Run unit tests
-        run: mvn -B -DfailIfNoTests=false test
+        run: mvn $MAVEN_CI_OPTS -DfailIfNoTests=false test
 
       - name: Run integration tests
-        run: mvn -B -DfailIfNoTests=false test-compile failsafe:integration-test failsafe:verify
+        run: mvn $MAVEN_CI_OPTS -DfailIfNoTests=false test-compile failsafe:integration-test failsafe:verify
 
       - name: Run ArchUnit tests
-        run: mvn -B "-Dtest=ArchitectureTest" "-Dsurefire.failIfNoSpecifiedTests=false" "-DfailIfNoTests=false" test
+        run: mvn $MAVEN_CI_OPTS "-Dtest=ArchitectureTest" "-Dsurefire.failIfNoSpecifiedTests=false" "-DfailIfNoTests=false" test
 
       - name: Run contract tests
-        run: mvn -B "-Dtest=*Contract*" "-Dsurefire.failIfNoSpecifiedTests=false" "-DfailIfNoTests=false" test
+        run: mvn $MAVEN_CI_OPTS "-Dtest=*Contract*" "-Dsurefire.failIfNoSpecifiedTests=false" "-DfailIfNoTests=false" test
 
       - name: Generate test report
         if: always()
-        run: mvn -B surefire-report:report-only
+        run: mvn $MAVEN_CI_OPTS surefire-report:report-only
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && github.ref == 'refs/heads/main'
         with:
           name: test-results
           path: |
@@ -134,6 +258,8 @@ jobs:
   lint:
     name: Lint
     runs-on: [self-hosted, Linux, X64, wsl]
+    env:
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=$RUNNER_TEMP/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -147,16 +273,18 @@ jobs:
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
+
+      - name: Bootstrap internal snapshot modules
+        run: mvn $MAVEN_CI_OPTS -pl shared/shared-kernel,api-contracts,shared/test-support -am -DskipTests install
 
       - name: Check code formatting (Checkstyle)
-        run: mvn -B checkstyle:check
+        run: mvn $MAVEN_CI_OPTS checkstyle:check
 
       - name: Check for common bugs (SpotBugs)
-        run: mvn -B spotbugs:check
+        run: mvn $MAVEN_CI_OPTS -pl shared/shared-kernel,shared/test-support -am -DskipTests compile com.github.spotbugs:spotbugs-maven-plugin:4.9.8.1:check
 
       - name: Validate POM files
-        run: mvn -B validate
+        run: mvn $MAVEN_CI_OPTS validate
 
       - name: Validate Flyway migrations per DB service
         run: |
@@ -181,7 +309,7 @@ jobs:
           done
 
       - name: Check dependency convergence
-        run: mvn -B dependency:analyze-only
+        run: mvn $MAVEN_CI_OPTS dependency:analyze-only
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Coverage Job
@@ -190,6 +318,8 @@ jobs:
     name: Coverage Report
     runs-on: [self-hosted, Linux, X64, wsl]
     needs: test
+    env:
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=$RUNNER_TEMP/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -203,15 +333,14 @@ jobs:
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'maven'
 
       - name: Generate coverage report (JaCoCo)
-        run: mvn -B jacoco:report
+        run: mvn $MAVEN_CI_OPTS jacoco:report
         continue-on-error: true
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
-        if: success()
+        if: success() && github.ref == 'refs/heads/main'
         with:
           name: coverage-report
           path: backend/windows-store-server/**/target/site/jacoco/

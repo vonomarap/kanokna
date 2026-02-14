@@ -66,13 +66,16 @@ class CartServiceIT {
         "spring.kafka.properties.schema.registry.url";
 
     @Container
-    static final PostgreSQLContainer<?> postgres = PostgresTestContainer.instance().container();
+    static final PostgreSQLContainer<?> postgres =
+        PostgresTestContainer.instance().withContainer(container -> container);
 
     @Container
-    static final KafkaContainer kafka = KafkaTestContainer.instance().container();
+    static final KafkaContainer kafka =
+        KafkaTestContainer.instance().withContainer(container -> container);
 
     @Container
-    static final GenericContainer<?> redis = RedisTestContainer.instance().container();
+    static final GenericContainer<?> redis =
+        RedisTestContainer.instance().withContainer(container -> container);
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {

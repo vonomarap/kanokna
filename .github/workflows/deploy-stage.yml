@@ -66,7 +66,7 @@ jobs:
           if [ "${{ github.event.inputs.services }}" == "all" ] || [ -z "${{ github.event.inputs.services }}" ]; then
             echo 'services=["config-server","gateway","catalog-configuration-service","pricing-service","cart-service","order-service","media-service","account-service","notification-service","reporting-service","search-service","installation-service","product-service"]' >> $GITHUB_OUTPUT
           else
-            SERVICES=$(echo "${{ github.event.inputs.services }}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+            SERVICES=$(echo "${{ github.event.inputs.services }}" | jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$";""))')
             echo "services=$SERVICES" >> $GITHUB_OUTPUT
           fi
 

@@ -30,12 +30,12 @@ public final class RedisTestContainer extends AbstractTestContainer<GenericConta
 
     public String host() {
         startIfNeeded();
-        return container().getHost();
+        return withContainer(GenericContainer::getHost);
     }
 
     public int port() {
         startIfNeeded();
-        return container().getMappedPort(REDIS_PORT);
+        return withContainer(container -> container.getMappedPort(REDIS_PORT));
     }
 
     public void registerProperties(DynamicPropertyRegistry registry) {

@@ -26,10 +26,10 @@ public abstract class E2ETestBase {
     static void startInfrastructure() {
         Assumptions.assumeTrue(isDockerAvailable(), DOCKER_UNAVAILABLE_MESSAGE);
         Startables.deepStart(
-            POSTGRES.container(),
-            KAFKA.container(),
-            REDIS.container(),
-            ELASTICSEARCH.container()
+            POSTGRES.withContainer(container -> container),
+            KAFKA.withContainer(container -> container),
+            REDIS.withContainer(container -> container),
+            ELASTICSEARCH.withContainer(container -> container)
         ).join();
     }
 

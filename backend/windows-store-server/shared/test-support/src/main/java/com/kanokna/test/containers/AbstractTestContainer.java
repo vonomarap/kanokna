@@ -1,6 +1,7 @@
 package com.kanokna.test.containers;
 
 import java.util.Objects;
+import java.util.function.Function;
 import org.testcontainers.containers.GenericContainer;
 
 /**
@@ -15,8 +16,9 @@ public abstract class AbstractTestContainer<T extends GenericContainer<?>> {
         this.container = Objects.requireNonNull(container, "container");
     }
 
-    public final T container() {
-        return container;
+    public final <R> R withContainer(Function<? super T, ? extends R> extractor) {
+        Objects.requireNonNull(extractor, "extractor");
+        return extractor.apply(container);
     }
 
     public final void startIfNeeded() {

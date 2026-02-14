@@ -48,7 +48,7 @@ public final class ElasticsearchTestContainer extends AbstractTestContainer<Elas
 
     public String httpUrl() {
         startIfNeeded();
-        return container().getHttpHostAddress();
+        return withContainer(ElasticsearchContainer::getHttpHostAddress);
     }
 
     public void registerProperties(DynamicPropertyRegistry registry) {

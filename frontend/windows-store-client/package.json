@@ -61,7 +61,7 @@
     "@angular/compiler-cli": "^21.0.0",
     "@schematics/angular": "^21.0.0",
     "@storybook/addon-docs": "^10.0.8",
-    "@storybook/addon-toolbars": "^10.0.8",
+    "@storybook/addon-toolbars": "^9.0.8",
     "@types/express": "^5.0.5",
     "@types/jasmine": "~5.1.13",
     "@types/node": "^24.10.1",

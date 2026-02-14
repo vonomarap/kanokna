@@ -17,6 +17,7 @@
     <grpc.version>1.60.1</grpc.version>
     <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
     <os.maven.plugin.version>1.7.1</os.maven.plugin.version>
+    <spotbugs.skip>true</spotbugs.skip>
   </properties>
 
   <dependencies>

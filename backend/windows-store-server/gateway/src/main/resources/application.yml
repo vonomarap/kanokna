@@ -8,91 +8,93 @@ spring:
     import: optional:configserver:http://localhost:8888
   cloud:
     gateway:
-      default-filters:
-        - name: RequestRateLimiter
-          args:
-            redis-rate-limiter:
-              replenishRate: 50
-              burstCapacity: 100
-              requestedTokens: 1
-            key-resolver: "#{@keyResolver}"
-        - name: CircuitBreaker
-          args:
-            name: defaultCircuitBreaker
-            fallbackUri: forward:/fallback
-        - name: Retry
-          args:
-            retries: 3
-            statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
-            methods: GET
-            backoff:
-              firstBackoff: 100ms
-              maxBackoff: 500ms
-              factor: 2
-              basedOnPreviousValue: false
-      globalcors:
-        cors-configurations:
-          "[/**]":
-            allowedOrigins: "${ALLOWED_ORIGINS:http://localhost:3000}"
-            allowedMethods: "*"
-            allowedHeaders: "*"
-            allowCredentials: true
-            maxAge: 3600
-      routes:
-        - id: catalog-route
-          uri: lb://catalog-configuration-service
-          predicates:
-            - Path=/api/catalog/**
-          filters:
-            - StripPrefix=1
-        - id: pricing-route
-          uri: lb://pricing-service
-          predicates:
-            - Path=/api/pricing/**
-          filters:
-            - StripPrefix=1
-        - id: cart-route
-          uri: lb://cart-service
-          predicates:
-            - Path=/api/cart/**
-          filters:
-            - StripPrefix=1
-        - id: orders-route
-          uri: lb://order-service
-          predicates:
-            - Path=/api/orders/**
-          filters:
-            - StripPrefix=1
-        - id: accounts-route
-          uri: lb://account-service
-          predicates:
-            - Path=/api/accounts/**
-          filters:
-            - StripPrefix=1
-        - id: media-route
-          uri: lb://media-service
-          predicates:
-            - Path=/api/media/**
-          filters:
-            - StripPrefix=1
-        - id: search-route
-          uri: lb://search-service
-          predicates:
-            - Path=/api/search/**
-          filters:
-            - StripPrefix=1
-        - id: installations-route
-          uri: lb://installation-service
-          predicates:
-            - Path=/api/installations/**
-          filters:
-            - StripPrefix=1
-        - id: reports-route
-          uri: lb://reporting-service
-          predicates:
-            - Path=/api/reports/**
-          filters:
-            - StripPrefix=1
+      server:
+        webflux:
+          default-filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter:
+                  replenishRate: 50
+                  burstCapacity: 100
+                  requestedTokens: 1
+                key-resolver: "#{@keyResolver}"
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+                  basedOnPreviousValue: false
+          globalcors:
+            cors-configurations:
+              "[/**]":
+                allowedOrigins: "${ALLOWED_ORIGINS:http://localhost:3000}"
+                allowedMethods: "*"
+                allowedHeaders: "*"
+                allowCredentials: true
+                maxAge: 3600
+          routes:
+            - id: catalog-route
+              uri: lb://catalog-configuration-service
+              predicates:
+                - Path=/api/catalog/**
+              filters:
+                - StripPrefix=1
+            - id: pricing-route
+              uri: lb://pricing-service
+              predicates:
+                - Path=/api/pricing/**
+              filters:
+                - StripPrefix=1
+            - id: cart-route
+              uri: lb://cart-service
+              predicates:
+                - Path=/api/cart/**
+              filters:
+                - StripPrefix=1
+            - id: orders-route
+              uri: lb://order-service
+              predicates:
+                - Path=/api/orders/**
+              filters:
+                - StripPrefix=1
+            - id: accounts-route
+              uri: lb://account-service
+              predicates:
+                - Path=/api/accounts/**
+              filters:
+                - StripPrefix=1
+            - id: media-route
+              uri: lb://media-service
+              predicates:
+                - Path=/api/media/**
+              filters:
+                - StripPrefix=1
+            - id: search-route
+              uri: lb://search-service
+              predicates:
+                - Path=/api/search/**
+              filters:
+                - StripPrefix=1
+            - id: installations-route
+              uri: lb://installation-service
+              predicates:
+                - Path=/api/installations/**
+              filters:
+                - StripPrefix=1
+            - id: reports-route
+              uri: lb://reporting-service
+              predicates:
+                - Path=/api/reports/**
+              filters:
+                - StripPrefix=1
 
   security:
     oauth2:
