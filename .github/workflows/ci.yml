@@ -75,40 +75,123 @@ jobs:
         run: |
           find . -type f -path "*/target/*.jar" ! -name "*-sources.jar" | sort
 
-      - name: Upload core build artifacts
+      - name: Upload config-server build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-core
+          name: build-artifact-config-server
           path: |
             backend/windows-store-server/config-server/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload gateway build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-gateway
+          path: |
             backend/windows-store-server/gateway/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload shared build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-shared
+          path: |
             backend/windows-store-server/shared/*/target/*.jar
             !**/*-sources.jar
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
 
-      - name: Upload service build artifacts
+      - name: Upload account-service build artifact
+        id: upload_account_service
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-services
+          name: build-artifact-account-service
           path: |
-            backend/windows-store-server/services/*/target/*.jar
+            backend/windows-store-server/services/account-service/target/*.jar
             !**/*-sources.jar
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
 
-      - name: Upload e2e build artifacts
+      - name: Upload cart-service build artifact
+        id: upload_cart_service
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-e2e
+          name: build-artifact-cart-service
+          path: |
+            backend/windows-store-server/services/cart-service/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload catalog-configuration-service build artifact
+        id: upload_catalog_configuration_service
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-catalog-configuration-service
+          path: |
+            backend/windows-store-server/services/catalog-configuration-service/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload pricing-service build artifact
+        id: upload_pricing_service
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-pricing-service
+          path: |
+            backend/windows-store-server/services/pricing-service/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload search-service build artifact
+        id: upload_search_service
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-search-service
+          path: |
+            backend/windows-store-server/services/search-service/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload e2e build artifact
+        id: upload_e2e
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-e2e-tests
           path: |
             backend/windows-store-server/e2e-tests/target/*.jar
             !**/*-sources.jar
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
+
+      - name: Warn about optional artifact upload failures
+        if: always()
+        run: |
+          if [[ "${{ steps.upload_account_service.outcome }}" == "failure" || "${{ steps.upload_cart_service.outcome }}" == "failure" || "${{ steps.upload_catalog_configuration_service.outcome }}" == "failure" || "${{ steps.upload_pricing_service.outcome }}" == "failure" || "${{ steps.upload_search_service.outcome }}" == "failure" || "${{ steps.upload_e2e.outcome }}" == "failure" ]]; then
+            echo "::warning::One or more optional service/e2e artifact uploads failed. Build/test/lint quality checks still completed."
+          fi
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Test Job
