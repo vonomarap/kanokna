@@ -48,6 +48,8 @@ jobs:
   build:
     name: Build
     runs-on: [self-hosted, Linux, X64, wsl]
+    env:
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=${{ runner.temp }}/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -65,10 +67,10 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Compile project
-        run: mvn -B -DskipTests compile
+        run: mvn $MAVEN_CI_OPTS -DskipTests compile
 
       - name: Verify project (skip tests)
-        run: mvn -B -DskipTests verify
+        run: mvn $MAVEN_CI_OPTS -DskipTests verify
 
       - name: List built JAR artifacts
         run: |
@@ -208,6 +210,8 @@ jobs:
     name: Test
     runs-on: [self-hosted, Linux, X64, wsl]
     needs: build
+    env:
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=${{ runner.temp }}/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -223,20 +227,20 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Run unit tests
-        run: mvn -B -DfailIfNoTests=false test
+        run: mvn $MAVEN_CI_OPTS -DfailIfNoTests=false test
 
       - name: Run integration tests
-        run: mvn -B -DfailIfNoTests=false test-compile failsafe:integration-test failsafe:verify
+        run: mvn $MAVEN_CI_OPTS -DfailIfNoTests=false test-compile failsafe:integration-test failsafe:verify
 
       - name: Run ArchUnit tests
-        run: mvn -B "-Dtest=ArchitectureTest" "-Dsurefire.failIfNoSpecifiedTests=false" "-DfailIfNoTests=false" test
+        run: mvn $MAVEN_CI_OPTS "-Dtest=ArchitectureTest" "-Dsurefire.failIfNoSpecifiedTests=false" "-DfailIfNoTests=false" test
 
       - name: Run contract tests
-        run: mvn -B "-Dtest=*Contract*" "-Dsurefire.failIfNoSpecifiedTests=false" "-DfailIfNoTests=false" test
+        run: mvn $MAVEN_CI_OPTS "-Dtest=*Contract*" "-Dsurefire.failIfNoSpecifiedTests=false" "-DfailIfNoTests=false" test
 
       - name: Generate test report
         if: always()
-        run: mvn -B surefire-report:report-only
+        run: mvn $MAVEN_CI_OPTS surefire-report:report-only
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -254,6 +258,8 @@ jobs:
   lint:
     name: Lint
     runs-on: [self-hosted, Linux, X64, wsl]
+    env:
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=${{ runner.temp }}/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -268,14 +274,17 @@ jobs:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
 
+      - name: Bootstrap internal snapshot modules
+        run: mvn $MAVEN_CI_OPTS -pl shared/shared-kernel,api-contracts,shared/test-support -am -DskipTests install
+
       - name: Check code formatting (Checkstyle)
-        run: mvn -B checkstyle:check
+        run: mvn $MAVEN_CI_OPTS checkstyle:check
 
       - name: Check for common bugs (SpotBugs)
-        run: mvn -B -pl shared/shared-kernel,shared/test-support -am -DskipTests compile com.github.spotbugs:spotbugs-maven-plugin:4.9.8.1:check
+        run: mvn $MAVEN_CI_OPTS -pl shared/shared-kernel,shared/test-support -am -DskipTests compile com.github.spotbugs:spotbugs-maven-plugin:4.9.8.1:check
 
       - name: Validate POM files
-        run: mvn -B validate
+        run: mvn $MAVEN_CI_OPTS validate
 
       - name: Validate Flyway migrations per DB service
         run: |
@@ -300,7 +309,7 @@ jobs:
           done
 
       - name: Check dependency convergence
-        run: mvn -B dependency:analyze-only
+        run: mvn $MAVEN_CI_OPTS dependency:analyze-only
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Coverage Job
@@ -309,6 +318,8 @@ jobs:
     name: Coverage Report
     runs-on: [self-hosted, Linux, X64, wsl]
     needs: test
+    env:
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=${{ runner.temp }}/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -324,7 +335,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Generate coverage report (JaCoCo)
-        run: mvn -B jacoco:report
+        run: mvn $MAVEN_CI_OPTS jacoco:report
         continue-on-error: true
 
       - name: Upload coverage report
