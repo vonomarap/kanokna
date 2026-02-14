@@ -49,7 +49,7 @@ jobs:
     name: Build
     runs-on: [self-hosted, Linux, X64, wsl]
     env:
-      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=${{ runner.temp }}/.m2/repository
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=$RUNNER_TEMP/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -211,7 +211,7 @@ jobs:
     runs-on: [self-hosted, Linux, X64, wsl]
     needs: build
     env:
-      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=${{ runner.temp }}/.m2/repository
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=$RUNNER_TEMP/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -259,7 +259,7 @@ jobs:
     name: Lint
     runs-on: [self-hosted, Linux, X64, wsl]
     env:
-      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=${{ runner.temp }}/.m2/repository
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=$RUNNER_TEMP/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
@@ -319,7 +319,7 @@ jobs:
     runs-on: [self-hosted, Linux, X64, wsl]
     needs: test
     env:
-      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=${{ runner.temp }}/.m2/repository
+      MAVEN_CI_OPTS: -B -U -Dmaven.repo.local=$RUNNER_TEMP/.m2/repository
     defaults:
       run:
         working-directory: backend/windows-store-server
