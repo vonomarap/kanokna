@@ -50,9 +50,11 @@ public final class PostgresTestContainer extends AbstractTestContainer<PostgreSQ
         Objects.requireNonNull(settings, "settings");
         startIfNeeded();
 
-        registry.add(SPRING_DATASOURCE_URL, () -> container().getJdbcUrl());
-        registry.add(SPRING_DATASOURCE_USERNAME, () -> container().getUsername());
-        registry.add(SPRING_DATASOURCE_PASSWORD, () -> container().getPassword());
+        registry.add(SPRING_DATASOURCE_URL, () -> withContainer(PostgreSQLContainer::getJdbcUrl));
+        registry.add(SPRING_DATASOURCE_USERNAME,
+            () -> withContainer(PostgreSQLContainer::getUsername));
+        registry.add(SPRING_DATASOURCE_PASSWORD,
+            () -> withContainer(PostgreSQLContainer::getPassword));
         registry.add(SPRING_JPA_DDL_AUTO, () -> HIBERNATE_DDL_AUTO);
         registry.add(SPRING_JPA_DEFAULT_SCHEMA, settings::schema);
         registry.add(SPRING_FLYWAY_ENABLED,
@@ -66,7 +68,10 @@ public final class PostgresTestContainer extends AbstractTestContainer<PostgreSQ
 
     private void migrateSchema(PostgresSettings settings) {
         Flyway.configure()
-            .dataSource(container().getJdbcUrl(), container().getUsername(), container().getPassword())
+            .dataSource(
+                withContainer(PostgreSQLContainer::getJdbcUrl),
+                withContainer(PostgreSQLContainer::getUsername),
+                withContainer(PostgreSQLContainer::getPassword))
             .createSchemas(true)
             .defaultSchema(settings.schema())
             .schemas(settings.schema())

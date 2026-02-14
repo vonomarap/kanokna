@@ -56,7 +56,7 @@ public final class KafkaTestContainer extends AbstractTestContainer<KafkaContain
 
     public String bootstrapServers() {
         startIfNeeded();
-        return container().getBootstrapServers();
+        return withContainer(KafkaContainer::getBootstrapServers);
     }
 
     public void registerProperties(DynamicPropertyRegistry registry) {

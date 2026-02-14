@@ -71,13 +71,22 @@ jobs:
       - name: Verify project (skip tests)
         run: mvn -B -DskipTests verify
 
+      - name: List built JAR artifacts
+        run: |
+          find . -type f -path "*/target/*.jar" ! -name "*-sources.jar" | sort
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
           path: |
-            backend/windows-store-server/**/target/*.jar
-            !backend/windows-store-server/**/target/*-sources.jar
+            backend/windows-store-server/config-server/target/*.jar
+            backend/windows-store-server/gateway/target/*.jar
+            backend/windows-store-server/shared/*/target/*.jar
+            backend/windows-store-server/services/*/target/*.jar
+            backend/windows-store-server/e2e-tests/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
           retention-days: 1
 
   # ─────────────────────────────────────────────────────────────────────────────
