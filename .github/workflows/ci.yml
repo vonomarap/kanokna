@@ -75,18 +75,39 @@ jobs:
         run: |
           find . -type f -path "*/target/*.jar" ! -name "*-sources.jar" | sort
 
-      - name: Upload build artifacts
+      - name: Upload core build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
+          name: build-artifacts-core
           path: |
             backend/windows-store-server/config-server/target/*.jar
             backend/windows-store-server/gateway/target/*.jar
             backend/windows-store-server/shared/*/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload service build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-services
+          path: |
             backend/windows-store-server/services/*/target/*.jar
+            !**/*-sources.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload e2e build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-e2e
+          path: |
             backend/windows-store-server/e2e-tests/target/*.jar
             !**/*-sources.jar
           if-no-files-found: error
+          compression-level: 0
           retention-days: 1
 
   # ─────────────────────────────────────────────────────────────────────────────
@@ -162,7 +183,7 @@ jobs:
         run: mvn -B checkstyle:check
 
       - name: Check for common bugs (SpotBugs)
-        run: mvn -B com.github.spotbugs:spotbugs-maven-plugin:4.9.8.1:check
+        run: mvn -B -DskipTests compile com.github.spotbugs:spotbugs-maven-plugin:4.9.8.1:check
 
       - name: Validate POM files
         run: mvn -B validate
