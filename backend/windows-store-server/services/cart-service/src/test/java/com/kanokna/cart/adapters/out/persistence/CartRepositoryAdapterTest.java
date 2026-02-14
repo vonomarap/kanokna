@@ -38,7 +38,8 @@ class CartRepositoryAdapterTest {
     private static final String CART_SCHEMA = "cart";
 
     @Container
-    static final PostgreSQLContainer<?> postgres = PostgresTestContainer.instance().container();
+    static final PostgreSQLContainer<?> postgres =
+        PostgresTestContainer.instance().withContainer(container -> container);
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {

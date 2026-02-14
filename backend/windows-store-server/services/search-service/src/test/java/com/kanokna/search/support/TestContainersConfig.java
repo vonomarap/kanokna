@@ -34,9 +34,9 @@ public abstract class TestContainersConfig {
         Assumptions.assumeTrue(isDockerAvailable(),
             "Docker is not available, skipping integration tests");
         Startables.deepStart(
-            ELASTICSEARCH.container(),
-            KAFKA.container(),
-            REDIS.container()
+            ELASTICSEARCH.withContainer(container -> container),
+            KAFKA.withContainer(container -> container),
+            REDIS.withContainer(container -> container)
         ).join();
     }
 

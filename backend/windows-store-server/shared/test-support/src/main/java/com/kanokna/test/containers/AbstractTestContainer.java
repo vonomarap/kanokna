@@ -16,7 +16,7 @@ public abstract class AbstractTestContainer<T extends GenericContainer<?>> {
         this.container = Objects.requireNonNull(container, "container");
     }
 
-    protected final <R> R withContainer(Function<? super T, ? extends R> extractor) {
+    public final <R> R withContainer(Function<? super T, ? extends R> extractor) {
         Objects.requireNonNull(extractor, "extractor");
         return extractor.apply(container);
     }
