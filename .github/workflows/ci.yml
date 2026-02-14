@@ -183,7 +183,7 @@ jobs:
         run: mvn -B checkstyle:check
 
       - name: Check for common bugs (SpotBugs)
-        run: mvn -B -DskipTests compile com.github.spotbugs:spotbugs-maven-plugin:4.9.8.1:check
+        run: mvn -B -pl shared/shared-kernel,shared/test-support -am -DskipTests compile com.github.spotbugs:spotbugs-maven-plugin:4.9.8.1:check
 
       - name: Validate POM files
         run: mvn -B validate
